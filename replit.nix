@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.xsimd
     pkgs.tk
     pkgs.tcl
     pkgs.qhull

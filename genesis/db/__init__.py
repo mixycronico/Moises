@@ -1,7 +1,6 @@
 """
-Database module for the Genesis trading system.
+Módulos de base de datos para el sistema Genesis.
 
-This module provides database models, connections, and repositories
-for persisting trading data.
+Este paquete contiene los módulos relacionados con la persistencia de datos,
+incluyendo modelos, repositorios y utilitarios de base de datos.
 """
-

@@ -1,1003 +1,466 @@
 """
 API REST para el sistema Genesis.
 
-Este módulo proporciona una API REST para integración con sistemas externos,
-permitiendo el acceso programático a los datos y funcionalidades del sistema.
+Este módulo proporciona una API REST para interacción con el sistema
+desde aplicaciones externas, permitiendo consultar datos, ejecutar
+operaciones y administrar el sistema.
 """
+
+# Función de inicialización para integrarse con Flask
+def init_api(flask_app):
+    """
+    Inicializa la API REST con una aplicación Flask existente.
+    
+    Args:
+        flask_app: Aplicación Flask a la que se montará la API
+    """
+    from fastapi import FastAPI
+    from fastapi.middleware.wsgi import WSGIMiddleware
+    
+    # Obtener la instancia de la aplicación FastAPI
+    app = get_app()
+    
+    # Montar FastAPI en Flask bajo /api/v1
+    flask_app.wsgi_app = WSGIMiddleware(app)
+    
+    return app
+
+
+def get_app():
+    """
+    Obtener instancia de la aplicación FastAPI.
+    Útil para testing o montaje en otro servidor.
+    
+    Returns:
+        Aplicación FastAPI configurada
+    """
+    # La aplicación FastAPI ya está configurada en este módulo
+    return app
 
 import os
 import json
-import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Union
 import logging
-import uuid
 import asyncio
-from functools import wraps
-from flask import request, jsonify, Blueprint, current_app, abort
-from werkzeug.security import check_password_hash
+import datetime
+from typing import List, Dict, Any, Optional
+from jose import JWTError, jwt
+from fastapi import FastAPI, Depends, HTTPException, status, Request
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from uuid import uuid4
 
-from genesis.core.base import Component
 from genesis.utils.logger import setup_logging
-from genesis.utils.log_manager import query_logs, get_log_stats
-from genesis.security.manager import SecurityUtils
+from genesis.utils.log_manager import get_logger, query_logs, get_log_stats
 
 
-# Crear el Blueprint para la API REST
-api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
-logger = setup_logging('api_rest')
+# Modelos Pydantic para la API
+class Token(BaseModel):
+    """Modelo para token de autenticación."""
+    access_token: str
+    token_type: str
 
 
-# Decorador para autenticación con API key
-def require_api_key(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Obtener API key y firma del request
-        api_key = request.headers.get('X-API-Key')
-        if not api_key:
-            return jsonify({
-                'success': False,
-                'error': 'API key requerida'
-            }), 401
-        
-        # Aquí se verificaría la API key y firma con el SecurityManager
-        # Esta implementación es simplificada, en producción deberíamos usar el EventBus
-        # para comunicarnos con el SecurityManager
-        
-        # Verificar si la API key es válida (implementación de ejemplo)
-        # En un sistema real, esto debería verificarse contra el SecurityManager
-        valid_api_key = True  # Placeholder
-        
-        if not valid_api_key:
-            return jsonify({
-                'success': False,
-                'error': 'API key inválida'
-            }), 403
-        
-        return f(*args, **kwargs)
-    return decorated_function
+class TokenData(BaseModel):
+    """Modelo para datos de token."""
+    username: Optional[str] = None
 
 
-# Decorador para autenticación con token JWT
-def require_auth_token(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Obtener token de autorización
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
-            return jsonify({
-                'success': False,
-                'error': 'Token de autorización requerido'
-            }), 401
-        
-        # Extraer token
-        token = auth_header.split(' ')[1]
-        
-        # Aquí se verificaría el token con el SecurityManager
-        # Esta implementación es simplificada
-        
-        # Verificar si el token es válido (implementación de ejemplo)
-        valid_token = True  # Placeholder
-        
-        if not valid_token:
-            return jsonify({
-                'success': False,
-                'error': 'Token inválido o expirado'
-            }), 403
-        
-        return f(*args, **kwargs)
-    return decorated_function
+class User(BaseModel):
+    """Modelo para usuario."""
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    disabled: Optional[bool] = None
 
 
-# Rutas de autenticación
-@api_bp.route('/auth/login', methods=['POST'])
-def login():
-    """Iniciar sesión y obtener token de autorización."""
-    data = request.get_json()
-    
-    # Verificar datos requeridos
-    if not data or 'username' not in data or 'password' not in data:
-        return jsonify({
-            'success': False,
-            'error': 'Nombre de usuario y contraseña requeridos'
-        }), 400
-    
-    username = data['username']
-    password = data['password']
-    
-    # Aquí se autenticaría al usuario con el SecurityManager
-    # Esta implementación es simplificada
-    
-    # Autenticación de ejemplo (en un sistema real, esto se haría a través del EventBus)
-    if username == 'admin' and password == 'admin':  # SOLO PARA DESARROLLO
-        # Generar token
-        token = str(uuid.uuid4())
-        expiry = datetime.now() + timedelta(days=1)
-        
-        return jsonify({
-            'success': True,
-            'token': token,
-            'expiry': expiry.isoformat(),
-            'user': {
-                'username': username,
-                'role': 'admin'
-            }
-        })
-    
-    return jsonify({
-        'success': False,
-        'error': 'Credenciales inválidas'
-    }), 401
+class UserInDB(User):
+    """Modelo para usuario en base de datos."""
+    hashed_password: str
 
 
-@api_bp.route('/auth/logout', methods=['POST'])
-@require_auth_token
-def logout():
-    """Cerrar sesión e invalidar token."""
-    # Aquí se invalidaría el token en el SecurityManager
-    
-    return jsonify({
-        'success': True,
-        'message': 'Sesión cerrada correctamente'
+class StrategyRequest(BaseModel):
+    """Modelo para solicitud de ejecución de estrategia."""
+    strategy_name: str
+    symbol: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PerformanceRequest(BaseModel):
+    """Modelo para solicitud de rendimiento."""
+    strategy_name: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
+class LogQueryRequest(BaseModel):
+    """Modelo para consulta de logs."""
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    level: Optional[str] = None
+    component: Optional[str] = None
+    limit: int = 100
+    offset: int = 0
+
+
+# Configuración de la API
+app = FastAPI(
+    title="Genesis Trading API",
+    description="API REST para el sistema de trading Genesis",
+    version="1.0.0"
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configurar según necesidades de seguridad
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configuración de autenticación
+SECRET_KEY = os.getenv("API_SECRET_KEY", "development_secret_key")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Logger
+logger = get_logger("api")
+
+# Sistema de autenticación simple para ejemplo
+# En un sistema real, esto se conectaría a una base de datos
+fake_users_db = {
+    "admin": {
+        "username": "admin",
+        "full_name": "Administrator",
+        "email": "admin@example.com",
+        "hashed_password": "fakehashedsecret",
+        "disabled": False,
+    },
+    "user": {
+        "username": "user",
+        "full_name": "Regular User",
+        "email": "user@example.com",
+        "hashed_password": "fakehashedsecret",
+        "disabled": False,
+    },
+}
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+def verify_password(plain_password, hashed_password):
+    """Verificar contraseña."""
+    # Simulación simple, en producción usar algoritmos de hash
+    return plain_password == "secret"
+
+
+def get_user(db, username: str):
+    """Obtener usuario de la base de datos."""
+    if username in db:
+        user_dict = db[username]
+        return UserInDB(**user_dict)
+
+
+def authenticate_user(fake_db, username: str, password: str):
+    """Autenticar usuario."""
+    user = get_user(fake_db, username)
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+
+def create_access_token(data: dict, expires_delta: Optional[datetime.timedelta] = None):
+    """Crear token de acceso JWT."""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    """Obtener usuario actual a partir del token."""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Credenciales inválidas",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
+    user = get_user(fake_users_db, username=token_data.username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+
+async def get_current_active_user(current_user: UserInDB = Depends(get_current_user)):
+    """Verificar que el usuario esté activo."""
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Usuario inactivo")
+    return current_user
+
+
+# Endpoints de autenticación
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Endpoint para obtener token de acceso."""
+    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Usuario o contraseña incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    logger.info(f"Usuario {user.username} ha iniciado sesión", extra={
+        "correlation_id": str(uuid4()),
+        "user": user.username,
+        "action": "login"
     })
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
-@api_bp.route('/auth/refresh', methods=['POST'])
-@require_auth_token
-def refresh_token():
-    """Renovar token de autorización."""
-    # Aquí se renovaría el token en el SecurityManager
-    
-    # Generar nuevo token
-    token = str(uuid.uuid4())
-    expiry = datetime.now() + timedelta(days=1)
-    
-    return jsonify({
-        'success': True,
-        'token': token,
-        'expiry': expiry.isoformat()
-    })
-
-
-# Rutas de market data
-@api_bp.route('/market/symbols', methods=['GET'])
-@require_api_key
-def get_symbols():
-    """Obtener lista de símbolos disponibles."""
-    # Aquí se obtendría la lista de símbolos disponibles
-    # Esta implementación es simplificada
-    
-    symbols = [
-        'BTC/USDT',
-        'ETH/USDT',
-        'XRP/USDT',
-        'SOL/USDT'
-    ]
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'symbols': symbols
-        }
-    })
-
-
-@api_bp.route('/market/ticker/<symbol>', methods=['GET'])
-@require_api_key
-def get_ticker(symbol):
-    """Obtener datos de ticker para un símbolo."""
-    # Aquí se obtendrían los datos de ticker desde MarketDataManager
-    # Esta implementación es simplificada
-    
-    # Verificar símbolo
-    if '/' not in symbol:
-        return jsonify({
-            'success': False,
-            'error': 'Formato de símbolo inválido'
-        }), 400
-    
-    # Datos de ticker de ejemplo
-    ticker = {
-        'symbol': symbol,
-        'last': 50000.0,
-        'bid': 49995.0,
-        'ask': 50005.0,
-        'volume': 1000.0,
-        'timestamp': datetime.now().isoformat(),
-        'change_24h': 2.5,
-        'high_24h': 51000.0,
-        'low_24h': 49000.0
+# Endpoints de sistema
+@app.get("/health")
+async def health_check():
+    """Verificar estado del sistema."""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "api_version": "1.0.0"
     }
-    
-    return jsonify({
-        'success': True,
-        'data': ticker
-    })
 
 
-@api_bp.route('/market/candles/<symbol>', methods=['GET'])
-@require_api_key
-def get_candles(symbol):
-    """Obtener datos OHLCV para un símbolo."""
-    # Parámetros opcionales
-    timeframe = request.args.get('timeframe', '1h')
-    limit = min(int(request.args.get('limit', 100)), 1000)  # Limitar a máximo 1000
-    
-    # Aquí se obtendrían los datos OHLCV desde MarketDataManager
-    # Esta implementación es simplificada
-    
-    # Verificar símbolo
-    if '/' not in symbol:
-        return jsonify({
-            'success': False,
-            'error': 'Formato de símbolo inválido'
-        }), 400
-    
-    # Datos OHLCV de ejemplo
-    now = datetime.now()
-    candles = []
-    
-    for i in range(limit):
-        timestamp = now - timedelta(hours=i)
-        candles.append({
-            'timestamp': timestamp.isoformat(),
-            'open': 50000.0 + (i % 10) * 100,
-            'high': 50100.0 + (i % 10) * 100,
-            'low': 49900.0 + (i % 10) * 100,
-            'close': 50050.0 + (i % 10) * 100,
-            'volume': 100.0 + i * 10
-        })
-    
-    # Ordenar cronológicamente (más antiguo primero)
-    candles.reverse()
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'symbol': symbol,
-            'timeframe': timeframe,
-            'candles': candles
-        }
-    })
-
-
-@api_bp.route('/market/orderbook/<symbol>', methods=['GET'])
-@require_api_key
-def get_orderbook(symbol):
-    """Obtener libro de órdenes para un símbolo."""
-    # Parámetro opcional
-    depth = min(int(request.args.get('depth', 20)), 100)  # Limitar a máximo 100
-    
-    # Aquí se obtendría el libro de órdenes desde MarketDataManager
-    # Esta implementación es simplificada
-    
-    # Verificar símbolo
-    if '/' not in symbol:
-        return jsonify({
-            'success': False,
-            'error': 'Formato de símbolo inválido'
-        }), 400
-    
-    # Datos de orderbook de ejemplo
-    bids = []
-    asks = []
-    
-    base_price = 50000.0
-    
-    for i in range(depth):
-        bid_price = base_price - (i * 10)
-        ask_price = base_price + (i * 10)
-        
-        bids.append([bid_price, 1.0 - (i * 0.01)])
-        asks.append([ask_price, 1.0 - (i * 0.01)])
-    
-    orderbook = {
-        'symbol': symbol,
-        'bids': bids,
-        'asks': asks,
-        'timestamp': datetime.now().isoformat()
+@app.get("/system/status")
+async def system_status(current_user: User = Depends(get_current_active_user)):
+    """Obtener estado del sistema."""
+    # Aquí se conectaría con componentes reales del sistema
+    return {
+        "status": "running",
+        "components": {
+            "market_data": "active",
+            "strategy_orchestrator": "active",
+            "risk_manager": "active"
+        },
+        "memory_usage_mb": 128.5,  # Simulado
+        "uptime_seconds": 3600,     # Simulado
+        "timestamp": datetime.datetime.utcnow().isoformat()
     }
-    
-    return jsonify({
-        'success': True,
-        'data': orderbook
+
+
+# Endpoints de estrategias
+@app.post("/strategies/execute")
+async def execute_strategy(
+    request: StrategyRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Ejecutar una estrategia de trading."""
+    logger.info(f"Ejecutando estrategia {request.strategy_name} para {request.symbol}", extra={
+        "correlation_id": str(uuid4()),
+        "user": current_user.username,
+        "action": "execute_strategy",
+        "strategy": request.strategy_name,
+        "symbol": request.symbol
     })
+    
+    # Aquí se conectaría con el componente de estrategias
+    # Simulación de resultado
+    return {
+        "strategy": request.strategy_name,
+        "symbol": request.symbol,
+        "signal": "buy",  # Simulado
+        "confidence": 0.85,
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "execution_id": str(uuid4())
+    }
 
 
-# Rutas de backtesting
-@api_bp.route('/backtest', methods=['POST'])
-@require_auth_token
-def run_backtest():
-    """Ejecutar un backtest con parámetros específicos."""
-    data = request.get_json()
-    
-    # Verificar datos requeridos
-    if not data or 'symbol' not in data or 'strategy' not in data:
-        return jsonify({
-            'success': False,
-            'error': 'Símbolo y estrategia requeridos'
-        }), 400
-    
-    # Extraer parámetros
-    symbol = data['symbol']
-    strategy = data['strategy']
-    start_date = data.get('start_date')
-    end_date = data.get('end_date')
-    params = data.get('params', {})
-    
-    # Aquí se ejecutaría el backtest a través del BacktestEngine
-    # Esta implementación es simplificada
-    
-    # ID de backtest único
-    backtest_id = str(uuid.uuid4())
-    
-    # Respuesta con ID del backtest
-    return jsonify({
-        'success': True,
-        'data': {
-            'backtest_id': backtest_id,
-            'status': 'submitted',
-            'params': {
-                'symbol': symbol,
-                'strategy': strategy,
-                'start_date': start_date,
-                'end_date': end_date,
-                'params': params
-            },
-            'eta_seconds': 30
-        }
-    })
-
-
-@api_bp.route('/backtest/<backtest_id>', methods=['GET'])
-@require_auth_token
-def get_backtest_result(backtest_id):
-    """Obtener resultado de un backtest por ID."""
-    # Aquí se obtendría el resultado del backtest desde el BacktestEngine
-    # Esta implementación es simplificada
-    
-    # Datos de ejemplo
-    result = {
-        'backtest_id': backtest_id,
-        'status': 'completed',
-        'symbol': 'BTC/USDT',
-        'strategy': 'ma_crossover',
-        'start_date': '2023-01-01T00:00:00',
-        'end_date': '2023-12-31T23:59:59',
-        'params': {
-            'fast_period': 20,
-            'slow_period': 50
-        },
-        'metrics': {
-            'total_trades': 120,
-            'win_rate': 0.65,
-            'profit_factor': 2.1,
-            'max_drawdown': 0.12,
-            'net_profit': 0.32,
-            'sharpe_ratio': 1.8
-        },
-        'trades': [
-            {
-                'timestamp': '2023-01-15T10:30:00',
-                'type': 'buy',
-                'price': 42000.0,
-                'amount': 0.1,
-                'pnl': 0.0
-            },
-            {
-                'timestamp': '2023-01-20T14:45:00',
-                'type': 'sell',
-                'price': 44000.0,
-                'amount': 0.1,
-                'pnl': 0.048  # (44000 - 42000) / 42000
-            }
-            # etc.
+@app.get("/strategies/list")
+async def list_strategies(current_user: User = Depends(get_current_active_user)):
+    """Listar estrategias disponibles."""
+    # Simulación de lista de estrategias
+    return {
+        "strategies": [
+            {"name": "ma_crossover", "description": "Moving Average Crossover"},
+            {"name": "rsi", "description": "Relative Strength Index"},
+            {"name": "macd", "description": "MACD"},
+            {"name": "bollinger", "description": "Bollinger Bands"}
         ]
     }
-    
-    return jsonify({
-        'success': True,
-        'data': result
+
+
+@app.post("/performance/query")
+async def query_performance(
+    request: PerformanceRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Consultar rendimiento de estrategias."""
+    logger.info(f"Consultando rendimiento", extra={
+        "correlation_id": str(uuid4()),
+        "user": current_user.username,
+        "action": "query_performance",
+        "strategy": request.strategy_name,
+        "start_date": request.start_date,
+        "end_date": request.end_date
     })
-
-
-# Rutas de análisis
-@api_bp.route('/analysis/indicators/<symbol>', methods=['GET'])
-@require_api_key
-def get_indicators(symbol):
-    """Obtener indicadores técnicos para un símbolo."""
-    # Parámetros
-    timeframe = request.args.get('timeframe', '1h')
-    indicators = request.args.get('indicators', 'rsi,macd,bb').split(',')
-    limit = min(int(request.args.get('limit', 50)), 200)  # Limitar a máximo 200
     
-    # Aquí se calcularían los indicadores a través del MarketAnalyzer
-    # Esta implementación es simplificada
-    
-    # Verificar símbolo
-    if '/' not in symbol:
-        return jsonify({
-            'success': False,
-            'error': 'Formato de símbolo inválido'
-        }), 400
-    
-    # Datos de ejemplo
-    now = datetime.now()
-    result = {
-        'symbol': symbol,
-        'timeframe': timeframe,
-        'data': []
-    }
-    
-    for i in range(limit):
-        timestamp = now - timedelta(hours=i)
-        
-        data_point = {
-            'timestamp': timestamp.isoformat(),
-            'price': 50000.0 + (i % 30) * 100
-        }
-        
-        # Añadir indicadores solicitados
-        if 'rsi' in indicators:
-            data_point['rsi'] = 50 + (i % 40) - 20
-        
-        if 'macd' in indicators:
-            data_point['macd'] = {
-                'line': (i % 20) - 10,
-                'signal': (i % 15) - 7.5,
-                'histogram': ((i % 20) - 10) - ((i % 15) - 7.5)
-            }
-        
-        if 'bb' in indicators:
-            middle = 50000.0 + (i % 30) * 100
-            data_point['bollinger_bands'] = {
-                'upper': middle + 500,
-                'middle': middle,
-                'lower': middle - 500
-            }
-        
-        result['data'].append(data_point)
-    
-    # Ordenar cronológicamente (más antiguo primero)
-    result['data'].reverse()
-    
-    return jsonify({
-        'success': True,
-        'data': result
-    })
-
-
-@api_bp.route('/analysis/anomalies/<symbol>', methods=['GET'])
-@require_api_key
-def get_anomalies(symbol):
-    """Obtener anomalías detectadas para un símbolo."""
-    # Parámetros
-    days = min(int(request.args.get('days', 7)), 30)  # Limitar a máximo 30 días
-    
-    # Aquí se obtendrían las anomalías desde el AnomalyDetector
-    # Esta implementación es simplificada
-    
-    # Verificar símbolo
-    if '/' not in symbol:
-        return jsonify({
-            'success': False,
-            'error': 'Formato de símbolo inválido'
-        }), 400
-    
-    # Datos de ejemplo
-    now = datetime.now()
-    anomalies = []
-    
-    # Generar algunas anomalías de ejemplo
-    anomaly_types = [
-        'price_spike', 'volume_spike', 'price_gap',
-        'volatility_surge', 'liquidity_change', 'price_volume_divergence'
-    ]
-    
-    for i in range(5):  # 5 anomalías aleatorias
-        timestamp = now - timedelta(days=i*2)
-        anomaly_type = anomaly_types[i % len(anomaly_types)]
-        
-        anomalies.append({
-            'timestamp': timestamp.isoformat(),
-            'type': anomaly_type,
-            'score': 0.7 + (i * 0.05),
-            'details': {
-                'description': f'Detected {anomaly_type} anomaly',
-                'threshold': 0.65,
-                'value': 0.7 + (i * 0.05),
-                'z_score': 2.8 + (i * 0.2)
-            }
-        })
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'symbol': symbol,
-            'period_days': days,
-            'anomalies': anomalies
-        }
-    })
-
-
-# Rutas de gestión de balances
-@api_bp.route('/accounting/balance', methods=['GET'])
-@require_auth_token
-def get_balance():
-    """Obtener balance total de la cuenta."""
-    # Aquí se obtendría el balance desde el BalanceManager
-    # Esta implementación es simplificada
-    
-    # Datos de ejemplo
-    balances = {
-        'total_usd': 125000.0,
-        'assets': [
+    # Aquí se conectaría con el sistema de rendimiento
+    # Simulación de respuesta
+    return {
+        "strategy": request.strategy_name,
+        "performance": {
+            "profit_pct": 8.5,
+            "max_drawdown": 2.1,
+            "sharpe_ratio": 1.2,
+            "win_rate": 0.65
+        },
+        "trades": [
             {
-                'asset': 'BTC',
-                'free': 1.5,
-                'locked': 0.1,
-                'total': 1.6,
-                'price_usd': 50000.0,
-                'value_usd': 80000.0
+                "timestamp": "2023-01-01T10:00:00",
+                "symbol": "BTC/USDT",
+                "action": "buy",
+                "price": 50000.0,
+                "volume": 0.1
             },
             {
-                'asset': 'ETH',
-                'free': 15.0,
-                'locked': 0.0,
-                'total': 15.0,
-                'price_usd': 3000.0,
-                'value_usd': 45000.0
-            },
-            {
-                'asset': 'USDT',
-                'free': 0.0,
-                'locked': 0.0,
-                'total': 0.0,
-                'price_usd': 1.0,
-                'value_usd': 0.0
+                "timestamp": "2023-01-02T14:30:00",
+                "symbol": "BTC/USDT",
+                "action": "sell",
+                "price": 52000.0,
+                "volume": 0.1
             }
-        ],
-        'timestamp': datetime.now().isoformat()
+        ]
     }
-    
-    return jsonify({
-        'success': True,
-        'data': balances
-    })
 
 
-@api_bp.route('/accounting/transactions', methods=['GET'])
-@require_auth_token
-def get_transactions():
-    """Obtener historial de transacciones."""
-    # Parámetros
-    asset = request.args.get('asset')
-    transaction_type = request.args.get('type')
-    limit = min(int(request.args.get('limit', 20)), 100)  # Limitar a máximo 100
-    
-    # Aquí se obtendrían las transacciones desde el BalanceManager
-    # Esta implementación es simplificada
-    
-    # Datos de ejemplo
-    now = datetime.now()
-    transactions = []
-    
-    types = ['deposit', 'withdrawal', 'trade', 'fee', 'transfer']
-    assets = ['BTC', 'ETH', 'USDT']
-    
-    for i in range(limit):
-        timestamp = now - timedelta(hours=i*5)
-        tx_type = types[i % len(types)]
-        tx_asset = assets[i % len(assets)]
-        
-        # Filtrar si se solicitó un asset específico
-        if asset and tx_asset != asset:
-            continue
-        
-        # Filtrar si se solicitó un tipo específico
-        if transaction_type and tx_type != transaction_type:
-            continue
-        
-        transactions.append({
-            'transaction_id': f'tx_{uuid.uuid4()}',
-            'timestamp': timestamp.isoformat(),
-            'type': tx_type,
-            'asset': tx_asset,
-            'amount': 0.1 + (i * 0.02),
-            'price': 50000.0 if tx_asset == 'BTC' else (3000.0 if tx_asset == 'ETH' else 1.0),
-            'value_usd': (0.1 + (i * 0.02)) * (50000.0 if tx_asset == 'BTC' else (3000.0 if tx_asset == 'ETH' else 1.0)),
-            'status': 'completed'
-        })
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'transactions': transactions,
-            'count': len(transactions)
-        }
-    })
-
-
-# Rutas para reportes
-@api_bp.route('/reports/performance', methods=['GET'])
-@require_auth_token
-def get_performance_report():
-    """Obtener reporte de rendimiento."""
-    # Parámetros
-    period = request.args.get('period', 'daily')  # daily, weekly, monthly
-    
-    # Aquí se generaría el reporte desde el ReportGenerator
-    # Esta implementación es simplificada
-    
-    # Datos de ejemplo
-    now = datetime.now()
-    
-    # Determinar puntos de datos según periodo
-    if period == 'daily':
-        days = 30
-        interval = 'day'
-    elif period == 'weekly':
-        days = 90
-        interval = 'week'
-    else:  # monthly
-        days = 365
-        interval = 'month'
-    
-    # Generar datos
-    data_points = []
-    
-    start_val = 100000.0
-    current_val = start_val
-    
-    for i in range(days):
-        if period == 'daily' or (period == 'weekly' and i % 7 == 0) or (period == 'monthly' and i % 30 == 0):
-            timestamp = now - timedelta(days=i)
-            
-            # Fluctuación aleatoria pero con tendencia al alza
-            change_pct = 0.005 + (0.01 * (i % 5)) - 0.02
-            current_val = current_val * (1 + change_pct)
-            
-            data_points.append({
-                'timestamp': timestamp.isoformat(),
-                'portfolio_value': current_val,
-                'change_pct': change_pct,
-                'benchmark_value': start_val * (1 + (0.0003 * i))
-            })
-    
-    # Ordenar cronológicamente (más antiguo primero)
-    data_points.reverse()
-    
-    # Calcular métricas
-    total_return = (current_val - start_val) / start_val
-    
-    report = {
-        'period': period,
-        'start_date': data_points[0]['timestamp'],
-        'end_date': data_points[-1]['timestamp'],
-        'start_value': start_val,
-        'end_value': current_val,
-        'total_return': total_return,
-        'annualized_return': total_return * (365 / days),
-        'volatility': 0.12,
-        'sharpe_ratio': 1.8,
-        'max_drawdown': 0.09,
-        'data': data_points
-    }
-    
-    return jsonify({
-        'success': True,
-        'data': report
-    })
-
-
-@api_bp.route('/reports/strategies', methods=['GET'])
-@require_auth_token
-def get_strategies_report():
-    """Obtener reporte de rendimiento por estrategia."""
-    # Aquí se generaría el reporte desde el ReportGenerator
-    # Esta implementación es simplificada
-    
-    # Datos de ejemplo
-    strategies = [
-        {
-            'name': 'MA Crossover',
-            'id': 'ma_crossover',
-            'metrics': {
-                'trades': 85,
-                'win_rate': 0.68,
-                'profit_factor': 2.3,
-                'total_return': 0.18,
-                'max_drawdown': 0.08
-            }
-        },
-        {
-            'name': 'RSI Strategy',
-            'id': 'rsi',
-            'metrics': {
-                'trades': 120,
-                'win_rate': 0.62,
-                'profit_factor': 1.9,
-                'total_return': 0.15,
-                'max_drawdown': 0.11
-            }
-        },
-        {
-            'name': 'MACD Strategy',
-            'id': 'macd',
-            'metrics': {
-                'trades': 95,
-                'win_rate': 0.59,
-                'profit_factor': 1.7,
-                'total_return': 0.12,
-                'max_drawdown': 0.09
-            }
-        },
-        {
-            'name': 'Bollinger Bands',
-            'id': 'bollinger_bands',
-            'metrics': {
-                'trades': 68,
-                'win_rate': 0.72,
-                'profit_factor': 2.5,
-                'total_return': 0.22,
-                'max_drawdown': 0.12
-            }
-        }
-    ]
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'strategies': strategies,
-            'period': 'last_90_days',
-            'timestamp': datetime.now().isoformat()
-        }
-    })
-
-
-# Rutas para logs y alertas
-@api_bp.route('/logs', methods=['GET'])
-@require_auth_token
-def get_logs():
-    """Obtener logs del sistema."""
-    try:
-        # Parámetros
-        level = request.args.get('level')  # debug, info, warning, error, critical
-        component = request.args.get('component')
-        search_text = request.args.get('search')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        limit = min(int(request.args.get('limit', 100)), 500)  # Limitar a máximo 500
-        offset = int(request.args.get('offset', 0))
-        
-        # Consultar logs usando el log_manager
-        logs = query_logs(
-            start_date=start_date,
-            end_date=end_date,
-            level=level,
-            component=component,
-            search_text=search_text,
-            limit=limit,
-            offset=offset
+# Endpoints de logs
+@app.post("/logs/query")
+async def api_query_logs(
+    request: LogQueryRequest,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Consultar logs del sistema."""
+    # Verificar privilegios (sólo admin)
+    if current_user.username != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para acceder a los logs"
         )
-        
-        # Obtener estadísticas básicas si se solicitan
-        include_stats = request.args.get('stats', 'false').lower() == 'true'
-        stats = None
-        if include_stats:
-            stats = get_log_stats(start_date, end_date)
-        
-        return jsonify({
-            'success': True,
-            'data': {
-                'logs': logs,
-                'count': len(logs),
-                'filter': {
-                    'level': level,
-                    'component': component,
-                    'search': search_text,
-                    'start_date': start_date,
-                    'end_date': end_date
-                },
-                'stats': stats
-            }
-        })
-    except Exception as e:
-        logger.error(f"Error al obtener logs: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Error al obtener logs',
-            'message': str(e)
-        }), 500
-
-
-@api_bp.route('/alerts', methods=['GET'])
-@require_auth_token
-def get_alerts():
-    """Obtener alertas activas del sistema."""
-    # Aquí se obtendrían las alertas desde el AlertManager
-    # Esta implementación es simplificada
     
-    # Datos de ejemplo
-    now = datetime.now()
-    alerts = [
-        {
-            'id': str(uuid.uuid4()),
-            'timestamp': (now - timedelta(minutes=15)).isoformat(),
-            'type': 'price_alert',
-            'level': 'info',
-            'symbol': 'BTC/USDT',
-            'message': 'BTC price exceeded 50000 USD',
-            'status': 'active'
-        },
-        {
-            'id': str(uuid.uuid4()),
-            'timestamp': (now - timedelta(hours=2)).isoformat(),
-            'type': 'system_alert',
-            'level': 'warning',
-            'component': 'exchange_connector',
-            'message': 'Connection rate limited by exchange',
-            'status': 'active'
-        },
-        {
-            'id': str(uuid.uuid4()),
-            'timestamp': (now - timedelta(hours=6)).isoformat(),
-            'type': 'security_alert',
-            'level': 'error',
-            'component': 'api_server',
-            'message': 'Multiple failed login attempts',
-            'details': {
-                'ip': '192.168.1.100',
-                'attempts': 5
-            },
-            'status': 'active'
-        }
-    ]
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'alerts': alerts,
-            'count': len(alerts)
-        }
+    logger.info(f"Consultando logs", extra={
+        "correlation_id": str(uuid4()),
+        "user": current_user.username,
+        "action": "query_logs",
+        "params": request.dict()
     })
-
-
-@api_bp.route('/alerts/<alert_id>/acknowledge', methods=['POST'])
-@require_auth_token
-def acknowledge_alert(alert_id):
-    """Marcar una alerta como reconocida."""
-    # Aquí se marcaría la alerta como reconocida en el AlertManager
-    # Esta implementación es simplificada
     
-    return jsonify({
-        'success': True,
-        'data': {
-            'alert_id': alert_id,
-            'status': 'acknowledged'
-        }
+    # Usar la función de consulta del sistema de logs
+    logs = query_logs(
+        start_date=request.start_date,
+        end_date=request.end_date,
+        level=request.level,
+        component=request.component,
+        limit=request.limit,
+        offset=request.offset
+    )
+    
+    return {"logs": logs, "total": len(logs)}
+
+
+@app.get("/logs/stats")
+async def get_log_statistics(current_user: User = Depends(get_current_active_user)):
+    """Obtener estadísticas de logs."""
+    # Verificar privilegios (sólo admin)
+    if current_user.username != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permiso para acceder a las estadísticas de logs"
+        )
+    
+    # Obtener estadísticas
+    stats = get_log_stats()
+    
+    return stats
+
+
+# Middleware para logging de solicitudes
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Middleware para logging de solicitudes HTTP."""
+    start_time = datetime.datetime.utcnow()
+    correlation_id = str(uuid4())
+    
+    # Extraer información de la solicitud
+    path = request.url.path
+    method = request.method
+    client = request.client.host if request.client else "unknown"
+    
+    logger.info(f"{method} {path}", extra={
+        "correlation_id": correlation_id,
+        "method": method,
+        "path": path,
+        "client_ip": client,
+        "action": "http_request"
     })
-
-
-@api_bp.route('/logs/stats', methods=['GET'])
-@require_auth_token
-def get_log_statistics():
-    """Obtener estadísticas de logs del sistema."""
-    try:
-        # Parámetros opcionales
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        
-        # Obtener estadísticas
-        stats = get_log_stats(start_date, end_date)
-        
-        return jsonify({
-            'success': True,
-            'data': stats
-        })
-    except Exception as e:
-        logger.error(f"Error al obtener estadísticas de logs: {e}")
-        return jsonify({
-            'success': False,
-            'error': 'Error al obtener estadísticas de logs',
-            'message': str(e)
-        }), 500
-
-
-# Manejadores de errores
-@api_bp.errorhandler(400)
-def bad_request(error):
-    return jsonify({
-        'success': False,
-        'error': 'Bad Request',
-        'message': str(error)
-    }), 400
-
-@api_bp.errorhandler(401)
-def unauthorized(error):
-    return jsonify({
-        'success': False,
-        'error': 'Unauthorized',
-        'message': 'Authentication required'
-    }), 401
-
-@api_bp.errorhandler(403)
-def forbidden(error):
-    return jsonify({
-        'success': False,
-        'error': 'Forbidden',
-        'message': 'You don\'t have permission to access this resource'
-    }), 403
-
-@api_bp.errorhandler(404)
-def not_found(error):
-    return jsonify({
-        'success': False,
-        'error': 'Not Found',
-        'message': 'The requested URL was not found on the server'
-    }), 404
-
-@api_bp.errorhandler(500)
-def server_error(error):
-    return jsonify({
-        'success': False,
-        'error': 'Internal Server Error',
-        'message': 'An unexpected error occurred'
-    }), 500
-
-
-class RESTAPIManager(Component):
-    """
-    Gestor de API REST para el sistema Genesis.
     
-    Este componente gestiona la API REST para integración con sistemas externos.
-    """
+    # Procesar solicitud
+    response = await call_next(request)
     
-    def __init__(self, name: str = "rest_api_manager"):
-        """
-        Inicializar el gestor de API REST.
-        
-        Args:
-            name: Nombre del componente
-        """
-        super().__init__(name)
-        self.logger = setup_logging(name)
+    # Calcular tiempo de procesamiento
+    process_time = (datetime.datetime.utcnow() - start_time).total_seconds()
     
-    async def start(self) -> None:
-        """Iniciar el gestor de API REST."""
-        await super().start()
-        self.logger.info("Gestor de API REST iniciado")
+    logger.info(f"Completed {method} {path} in {process_time:.6f}s", extra={
+        "correlation_id": correlation_id,
+        "method": method,
+        "path": path,
+        "status_code": response.status_code,
+        "processing_time": process_time,
+        "action": "http_response"
+    })
     
-    async def stop(self) -> None:
-        """Detener el gestor de API REST."""
-        await super().stop()
-        self.logger.info("Gestor de API REST detenido")
-    
-    async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
-        Manejar eventos del bus de eventos.
-        
-        Args:
-            event_type: Tipo de evento
-            data: Datos del evento
-            source: Componente de origen
-        """
-        # La comunicación con la API REST se gestiona a través de Flask
-        # Este método recibe eventos de otros componentes que podrían ser relevantes
-        # para la API REST, como actualizaciones de estado, alertas, etc.
-        pass
+    return response
 
 
-# Exportación para uso fácil
-rest_api_manager = RESTAPIManager()
-
-# Función de inicialización para registrar el blueprint en la aplicación Flask
-def init_api(app):
-    """
-    Inicializar la API REST en la aplicación Flask.
+# Manejador de excepciones global
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Manejador global de excepciones."""
+    correlation_id = str(uuid4())
     
-    Args:
-        app: Aplicación Flask
-    """
-    app.register_blueprint(api_bp)
-    logger.info("API REST inicializada en la aplicación Flask")
+    logger.error(f"Error no controlado: {str(exc)}", extra={
+        "correlation_id": correlation_id,
+        "method": request.method,
+        "path": request.url.path,
+        "error": str(exc),
+        "error_type": type(exc).__name__,
+        "action": "error"
+    })
+    
+    return {
+        "error": "Error interno del servidor",
+        "detail": str(exc) if app.debug else "Contacte al administrador",
+        "correlation_id": correlation_id
+    }
+
+
+# Si se ejecuta como script
+if __name__ == "__main__":
+    import uvicorn
+    
+    # Configuración para desarrollo
+    uvicorn.run("genesis.api.rest:app", host="0.0.0.0", port=8000, reload=True)

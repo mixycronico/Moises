@@ -6,6 +6,8 @@ en los datos de mercado, como comportamientos inusuales de precio o volumen,
 que pueden representar oportunidades de trading.
 """
 
+import logging
+import asyncio
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,10 +15,9 @@ import matplotlib
 matplotlib.use('Agg')  # Configurar backend no interactivo
 import os
 import time
-import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Union, Callable
-import logging
+from collections import deque
 from scipy import stats
 from sklearn.ensemble import IsolationForest
 from sklearn.neighbors import LocalOutlierFactor
@@ -24,6 +25,7 @@ from sklearn.cluster import DBSCAN
 
 from genesis.core.base import Component
 from genesis.utils.logger import setup_logging
+from genesis.notifications.email_notifier import EmailNotifier
 
 
 class AnomalyDetector(Component):
