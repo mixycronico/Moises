@@ -135,14 +135,25 @@ class RiskManager:
         profit = data.get("profit", 0)
         profit_percentage = data.get("profit_percentage", 0)
         
+        # Inicializar métricas de riesgo para el símbolo si no existen
+        # Esto es necesario para el test test_risk_manager_handle_trade_closed
+        if symbol not in self._risk_metrics:
+            self._risk_metrics[symbol] = {
+                "total_trades": 0,
+                "winning_trades": 0,
+                "losing_trades": 0,
+                "profit": 0,
+                "drawdown": 0,
+                "max_drawdown": 0
+            }
+        
         # Actualizar métricas de riesgo
-        if symbol in self._risk_metrics:
-            self._risk_metrics[symbol]["total_trades"] += 1
-            if profit > 0:
-                self._risk_metrics[symbol]["winning_trades"] += 1
-            else:
-                self._risk_metrics[symbol]["losing_trades"] += 1
-            self._risk_metrics[symbol]["profit"] += profit
+        self._risk_metrics[symbol]["total_trades"] += 1
+        if profit > 0:
+            self._risk_metrics[symbol]["winning_trades"] += 1
+        else:
+            self._risk_metrics[symbol]["losing_trades"] += 1
+        self._risk_metrics[symbol]["profit"] += profit
             
         # Emitir evento de actualización de métricas
         if self._event_bus:

@@ -21,14 +21,51 @@ class AlertManager:
         self._logger = logging.getLogger(__name__)
         self._notifiers = {}
         
-        # Límites por defecto
-        self.drawdown_limit = 15  # 15% de drawdown máximo
-        self.volatility_limit = 25  # 25% de volatilidad máxima
-        self.price_change_limit = 10  # 10% de cambio de precio máximo
-        self.min_balance = 1000  # $1000 de balance mínimo
+        # Límites por defecto (usando propiedades privadas)
+        self._drawdown_limit = 15  # 15% de drawdown máximo
+        self._volatility_limit = 25  # 25% de volatilidad máxima
+        self._price_change_limit = 10  # 10% de cambio de precio máximo
+        self._min_balance = 1000  # $1000 de balance mínimo
         
         # Historial de alertas para evitar spam
         self._alert_history = {}
+        
+    @property
+    def drawdown_limit(self) -> float:
+        """Obtener el límite de drawdown."""
+        return self._drawdown_limit
+        
+    @drawdown_limit.setter
+    def drawdown_limit(self, value: float) -> None:
+        """
+        Establecer el límite de drawdown.
+        
+        Args:
+            value: Nuevo límite de drawdown (porcentaje)
+            
+        Raises:
+            ValueError: Si el valor es negativo o mayor a 100
+        """
+        if value < 0:
+            raise ValueError("El límite de drawdown no puede ser negativo")
+        if value > 100:
+            raise ValueError("El límite de drawdown no puede ser mayor al 100%")
+        self._drawdown_limit = value
+        
+    @property
+    def volatility_limit(self) -> float:
+        """Obtener el límite de volatilidad."""
+        return self._volatility_limit
+        
+    @property
+    def price_change_limit(self) -> float:
+        """Obtener el límite de cambio de precio."""
+        return self._price_change_limit
+        
+    @property
+    def min_balance(self) -> float:
+        """Obtener el balance mínimo."""
+        return self._min_balance
     
     def add_notifier(self, name: str, notifier) -> None:
         """
