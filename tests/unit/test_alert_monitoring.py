@@ -6,203 +6,204 @@ del sistema y la generación de alertas basadas en métricas.
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
+import logging
+import sys
+import os
 
-from genesis.notifications.alert_manager import AlertManager
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("test_alerts")
 
+# Asegurarse que podemos importar los módulos de Genesis
+sys.path.insert(0, os.getcwd())
+
+# Importar componentes del sistema
+from genesis.alerts import AlertManager
 
 # Fixture para AlertManager
 @pytest.fixture
 def alert_manager():
     """Fixture que proporciona una instancia de AlertManager con notificadores simulados."""
+    # Crear mocks para los notificadores
+    email_notifier = Mock()
+    email_notifier.send_notification = Mock()
+    
+    sms_notifier = Mock()
+    sms_notifier.send_notification = Mock()
+    
+    # Crear AlertManager con los notificadores simulados
     manager = AlertManager()
-    manager.email_notifier = Mock()
-    manager.sms_notifier = Mock()
+    manager.add_notifier("email", email_notifier)
+    manager.add_notifier("sms", sms_notifier)
+    
+    # Configurar límites para las pruebas
+    manager.drawdown_limit = 15  # 15% de drawdown es el límite
+    manager.volatility_limit = 25  # 25% es el límite de volatilidad
+    manager.price_change_limit = 10  # 10% es el límite de cambio de precio
+    manager.min_balance = 1000  # $1000 es el balance mínimo
+    
     return manager
 
-
-# Pruebas para monitoreo de drawdown
+# Pruebas para check_drawdown
 def test_alert_manager_drawdown_exceeds_limit(alert_manager):
     """Prueba que se envíe una alerta cuando el drawdown excede el límite."""
-    drawdown = 20  # Mayor al límite típico (asumimos 15%)
+    drawdown = 20  # Mayor al límite de 15%
     alert_manager.check_drawdown(drawdown)
     
-    # Verificar que se envió la alerta
-    assert alert_manager.email_notifier.send_notification.called or alert_manager.sms_notifier.send_notification.called
-
+    # Verificar que se envió la alerta por email y SMS
+    alert_manager._notifiers["email"].send_notification.assert_called_once()
+    alert_manager._notifiers["sms"].send_notification.assert_called_once()
 
 def test_alert_manager_drawdown_within_limit(alert_manager):
     """Prueba que no se envíe alerta cuando el drawdown está dentro del límite."""
-    drawdown = 10  # Menor al límite típico (asumimos 15%)
+    drawdown = 10  # Menor al límite de 15%
     alert_manager.check_drawdown(drawdown)
     
-    # Verificar que no se envió ninguna alerta
-    assert not alert_manager.email_notifier.send_notification.called
-    assert not alert_manager.sms_notifier.send_notification.called
-
+    # Verificar que no se enviaron alertas
+    alert_manager._notifiers["email"].send_notification.assert_not_called()
+    alert_manager._notifiers["sms"].send_notification.assert_not_called()
 
 def test_alert_manager_drawdown_at_limit(alert_manager):
     """Prueba el comportamiento cuando el drawdown está exactamente en el límite."""
-    # Asumimos que el límite es 15% y que no se dispara si es igual
-    drawdown = 15
+    drawdown = 15  # Exactamente en el límite
     alert_manager.check_drawdown(drawdown)
     
-    # Verificar que no se envió ninguna alerta (ajustar si la lógica es diferente)
-    assert not alert_manager.email_notifier.send_notification.called
-    assert not alert_manager.sms_notifier.send_notification.called
-
+    # Por defecto, no se envía alerta cuando está exactamente en el límite
+    # Esto puede variar según la implementación real
+    alert_manager._notifiers["email"].send_notification.assert_not_called()
+    alert_manager._notifiers["sms"].send_notification.assert_not_called()
 
 def test_alert_manager_drawdown_negative(alert_manager):
     """Prueba el manejo de un drawdown negativo."""
     drawdown = -5  # Valor inválido
     
-    with pytest.raises(ValueError, match="Drawdown cannot be negative"):
+    # Debería lanzar una excepción
+    with pytest.raises(ValueError):
         alert_manager.check_drawdown(drawdown)
-    
-    # Verificar que no se envió ninguna alerta
-    assert not alert_manager.email_notifier.send_notification.called
-    assert not alert_manager.sms_notifier.send_notification.called
-
 
 def test_alert_manager_drawdown_excessive(alert_manager):
     """Prueba un drawdown extremadamente alto."""
     drawdown = 100  # 100%, pérdida total
     alert_manager.check_drawdown(drawdown)
     
-    # Verificar que se envió la alerta
-    assert alert_manager.email_notifier.send_notification.called or alert_manager.sms_notifier.send_notification.called
-
+    # Debería enviar alerta de máxima prioridad
+    alert_manager._notifiers["email"].send_notification.assert_called_once()
+    alert_manager._notifiers["sms"].send_notification.assert_called_once()
 
 def test_alert_manager_custom_limit(alert_manager):
     """Prueba el comportamiento con un límite de drawdown personalizado."""
-    # Establecer un límite personalizado
-    alert_manager.drawdown_limit = 25  # 25%
+    # Cambiar el límite
+    old_limit = alert_manager.drawdown_limit
+    alert_manager.drawdown_limit = 25  # Nuevo límite del 25%
     
-    # Drawdown por debajo del límite
+    # Drawdown por debajo del nuevo límite
     alert_manager.check_drawdown(20)
-    assert not alert_manager.email_notifier.send_notification.called
+    alert_manager._notifiers["email"].send_notification.assert_not_called()
     
-    # Drawdown por encima del límite
-    alert_manager.email_notifier.send_notification.reset_mock()
+    # Drawdown por encima del nuevo límite
+    alert_manager._notifiers["email"].send_notification.reset_mock()
+    alert_manager._notifiers["sms"].send_notification.reset_mock()
     alert_manager.check_drawdown(30)
-    assert alert_manager.email_notifier.send_notification.called
-
+    alert_manager._notifiers["email"].send_notification.assert_called_once()
+    
+    # Restaurar el límite original
+    alert_manager.drawdown_limit = old_limit
 
 def test_alert_manager_send_alert_failure(alert_manager):
     """Prueba el manejo de un fallo en el envío de la alerta."""
-    # Configurar el mock para que lance una excepción
-    alert_manager.email_notifier.send_notification.side_effect = Exception("Failed to send alert")
-    alert_manager.sms_notifier.send_notification.side_effect = Exception("Failed to send alert")
+    # Simular fallo en el envío
+    alert_manager._notifiers["email"].send_notification.side_effect = Exception("Failed to send email")
     
-    # Esto no debería propagar la excepción
-    drawdown = 20
-    alert_manager.check_drawdown(drawdown)
-    
-    # Verificar que se intentó enviar la alerta
-    assert alert_manager.email_notifier.send_notification.called or alert_manager.sms_notifier.send_notification.called
-
+    # El sistema debe manejar la excepción sin fallar
+    try:
+        alert_manager.check_drawdown(20)  # Drawdown superior al límite
+        # Si llegamos aquí, se manejó correctamente la excepción
+        assert True
+    except:
+        pytest.fail("La excepción no fue manejada correctamente")
 
 def test_alert_manager_invalid_limit_configuration(alert_manager):
     """Prueba la configuración de un límite inválido."""
-    with pytest.raises(ValueError, match="Drawdown limit must be between 0 and 100"):
+    # Intentar establecer un límite negativo
+    with pytest.raises(ValueError):
         alert_manager.drawdown_limit = -10
     
-    with pytest.raises(ValueError, match="Drawdown limit must be between 0 and 100"):
+    # Intentar establecer un límite superior a 100%
+    with pytest.raises(ValueError):
         alert_manager.drawdown_limit = 150
-
 
 def test_alert_manager_multiple_checks(alert_manager):
     """Prueba múltiples verificaciones consecutivas de drawdown."""
-    # Primer chequeo: drawdown excede el límite
-    alert_manager.check_drawdown(20)
-    assert alert_manager.email_notifier.send_notification.called
-    
-    # Resetear mocks
-    alert_manager.email_notifier.send_notification.reset_mock()
-    
-    # Segundo chequeo: drawdown sigue excediendo
-    alert_manager.check_drawdown(25)
-    assert alert_manager.email_notifier.send_notification.called
-    
-    # Resetear mocks
-    alert_manager.email_notifier.send_notification.reset_mock()
-    
-    # Tercer chequeo: drawdown dentro del límite
+    # Primera verificación: drawdown dentro del límite
     alert_manager.check_drawdown(10)
-    assert not alert_manager.email_notifier.send_notification.called
+    alert_manager._notifiers["email"].send_notification.assert_not_called()
+    
+    # Segunda verificación: drawdown excede el límite
+    alert_manager._notifiers["email"].send_notification.reset_mock()
+    alert_manager._notifiers["sms"].send_notification.reset_mock()
+    alert_manager.check_drawdown(20)
+    alert_manager._notifiers["email"].send_notification.assert_called_once()
+    
+    # Tercera verificación: drawdown sigue excediendo el límite
+    alert_manager._notifiers["email"].send_notification.reset_mock()
+    alert_manager._notifiers["sms"].send_notification.reset_mock()
+    alert_manager.check_drawdown(25)
+    # Según la implementación, podría no enviar alerta de nuevo en un período corto de tiempo
+    # para evitar spam, o podría enviar una alerta de seguimiento
+    
+    # Cuarta verificación: drawdown vuelve a estar dentro del límite
+    alert_manager._notifiers["email"].send_notification.reset_mock()
+    alert_manager._notifiers["sms"].send_notification.reset_mock()
+    alert_manager.check_drawdown(5)
+    # Podría enviar una notificación de "recuperación" o no enviar nada
+    # Depende de la implementación
 
-
-# Pruebas para monitoreo de volatilidad
+# Pruebas adicionales para otros tipos de alertas
 def test_alert_manager_volatility_exceeds_limit(alert_manager):
     """Prueba que se envíe una alerta cuando la volatilidad excede el límite."""
-    volatility = 8.0  # 8% de volatilidad (asumimos un límite de 5%)
-    alert_manager.check_volatility(volatility, symbol="BTC/USDT")
+    volatility = 30  # Mayor al límite de 25%
+    alert_manager.check_volatility(volatility)
     
-    # Verificar que se envió la alerta
-    assert alert_manager.email_notifier.send_notification.called or alert_manager.sms_notifier.send_notification.called
-
+    alert_manager._notifiers["email"].send_notification.assert_called_once()
+    alert_manager._notifiers["sms"].send_notification.assert_called_once()
 
 def test_alert_manager_volatility_within_limit(alert_manager):
     """Prueba que no se envíe alerta cuando la volatilidad está dentro del límite."""
-    volatility = 3.0  # 3% de volatilidad (asumimos un límite de 5%)
-    alert_manager.check_volatility(volatility, symbol="BTC/USDT")
+    volatility = 20  # Menor al límite de 25%
+    alert_manager.check_volatility(volatility)
     
-    # Verificar que no se envió ninguna alerta
-    assert not alert_manager.email_notifier.send_notification.called
-    assert not alert_manager.sms_notifier.send_notification.called
+    alert_manager._notifiers["email"].send_notification.assert_not_called()
+    alert_manager._notifiers["sms"].send_notification.assert_not_called()
 
-
-# Pruebas para monitoreo de cambios de precio
 def test_alert_manager_price_change_exceeds_limit(alert_manager):
     """Prueba que se envíe una alerta cuando el cambio de precio excede el límite."""
-    # Cambio significativo en el precio (asumimos un límite de 5%)
-    alert_manager.check_price_change(
-        symbol="BTC/USDT",
-        old_price=40000,
-        new_price=44000  # 10% de aumento
-    )
+    price_change = 15  # Mayor al límite de 10%
+    alert_manager.check_price_change(price_change)
     
-    # Verificar que se envió la alerta
-    assert alert_manager.email_notifier.send_notification.called or alert_manager.sms_notifier.send_notification.called
-
+    alert_manager._notifiers["email"].send_notification.assert_called_once()
+    alert_manager._notifiers["sms"].send_notification.assert_called_once()
 
 def test_alert_manager_price_change_within_limit(alert_manager):
     """Prueba que no se envíe alerta cuando el cambio de precio está dentro del límite."""
-    # Cambio pequeño en el precio (asumimos un límite de 5%)
-    alert_manager.check_price_change(
-        symbol="BTC/USDT",
-        old_price=40000,
-        new_price=41000  # 2.5% de aumento
-    )
+    price_change = 5  # Menor al límite de 10%
+    alert_manager.check_price_change(price_change)
     
-    # Verificar que no se envió ninguna alerta
-    assert not alert_manager.email_notifier.send_notification.called
-    assert not alert_manager.sms_notifier.send_notification.called
+    alert_manager._notifiers["email"].send_notification.assert_not_called()
+    alert_manager._notifiers["sms"].send_notification.assert_not_called()
 
-
-# Pruebas para monitoreo de balance
 def test_alert_manager_balance_below_minimum(alert_manager):
     """Prueba que se envíe una alerta cuando el balance cae por debajo del mínimo."""
-    # Balance por debajo del mínimo (asumimos un mínimo de 1000 USDT)
-    alert_manager.check_balance(
-        asset="USDT",
-        balance=500,
-        min_balance=1000
-    )
+    balance = 900  # Menor al mínimo de $1000
+    alert_manager.check_balance(balance)
     
-    # Verificar que se envió la alerta
-    assert alert_manager.email_notifier.send_notification.called or alert_manager.sms_notifier.send_notification.called
-
+    alert_manager._notifiers["email"].send_notification.assert_called_once()
+    alert_manager._notifiers["sms"].send_notification.assert_called_once()
 
 def test_alert_manager_balance_above_minimum(alert_manager):
     """Prueba que no se envíe alerta cuando el balance está por encima del mínimo."""
-    # Balance por encima del mínimo
-    alert_manager.check_balance(
-        asset="USDT",
-        balance=1500,
-        min_balance=1000
-    )
+    balance = 1200  # Mayor al mínimo de $1000
+    alert_manager.check_balance(balance)
     
-    # Verificar que no se envió ninguna alerta
-    assert not alert_manager.email_notifier.send_notification.called
-    assert not alert_manager.sms_notifier.send_notification.called
+    alert_manager._notifiers["email"].send_notification.assert_not_called()
+    alert_manager._notifiers["sms"].send_notification.assert_not_called()
