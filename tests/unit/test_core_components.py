@@ -10,7 +10,7 @@ import logging
 from unittest.mock import Mock, patch
 
 # Importar componentes del sistema
-from genesis.config import Config
+from genesis.config import Settings
 from genesis.utils.logger import setup_logging
 from genesis.security.manager import SecurityUtils
 from genesis.exchanges.manager import ExchangeManager
@@ -19,8 +19,9 @@ from genesis.exchanges.manager import ExchangeManager
 # Fixtures para reutilizar instancias en las pruebas
 @pytest.fixture
 def config():
-    """Fixture que proporciona una instancia de Config."""
-    return Config()
+    """Fixture que proporciona una instancia de Settings."""
+    from genesis.config.settings import Settings
+    return Settings()
 
 
 @pytest.fixture
