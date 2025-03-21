@@ -1,0 +1,101 @@
+# genesis/analysis/signal_generator.py
+from typing import List, Dict, Optional
+import logging
+from genesis.analysis.indicators import Indicators
+
+logger = logging.getLogger(__name__)
+
+class SignalGenerator:
+    """Clase para generar señales de trading basadas en indicadores técnicos."""
+
+    def __init__(self, indicators: Indicators):
+        """Inicializa el generador con una instancia de Indicators."""
+        self.indicators = indicators
+        self.success_rate = 0.0  # Tasa de éxito de señales (para seguimiento)
+        self.trade_count = 0
+        self.successful_trades = 0
+
+    def update_success_rate(self, trade_successful: bool):
+        """Actualiza la tasa de éxito basada en resultados de trades."""
+        self.trade_count += 1
+        if trade_successful:
+            self.successful_trades += 1
+        self.success_rate = self.successful_trades / self.trade_count if self.trade_count > 0 else 0.0
+        logger.debug(f"Success rate updated: {self.success_rate:.2%}")
+
+    def generate_ema_signal(self, prices: List[float], short_period: int = 9, long_period: int = 21) -> str:
+        """Genera señales basadas en cruces de EMA."""
+        ema_short = self.indicators.calculate_ema(prices, short_period)
+        ema_long = self.indicators.calculate_ema(prices, long_period)
+        
+        if len(ema_short) < 2 or len(ema_long) < 2:
+            raise ValueError("Not enough EMA data for signal generation")
+        
+        # Cruce ascendente (BUY) o descendente (SELL)
+        if ema_short[-1] > ema_long[-1] and ema_short[-2] <= ema_long[-2]:
+            signal = "BUY"
+        elif ema_short[-1] < ema_long[-1] and ema_short[-2] >= ema_long[-2]:
+            signal = "SELL"
+        else:
+            signal = "NEUTRAL"
+        
+        logger.info(f"EMA signal generated: {signal}")
+        return signal
+
+    def generate_rsi_signal(self, prices: List[float], period: int = 14, buy_threshold: float = 30, sell_threshold: float = 70) -> str:
+        """Genera señales basadas en niveles de RSI."""
+        rsi = self.indicators.calculate_rsi(prices, period)
+        
+        if rsi < buy_threshold:
+            signal = "BUY"
+        elif rsi > sell_threshold:
+            signal = "SELL"
+        else:
+            signal = "NEUTRAL"
+        
+        logger.info(f"RSI signal generated: {signal} (RSI={rsi:.2f})")
+        return signal
+
+    def generate_macd_signal(self, prices: List[float], fast: int = 12, slow: int = 26, signal_period: int = 9) -> str:
+        """Genera señales basadas en cruces de MACD."""
+        macd_line, signal_line = self.indicators.calculate_macd(prices, fast, slow, signal_period)
+        
+        if len(macd_line) < 2 or len(signal_line) < 2:
+            raise ValueError("Not enough MACD data for signal generation")
+        
+        # Cruce ascendente (BUY) o descendente (SELL)
+        if macd_line[-1] > signal_line[-1] and macd_line[-2] <= signal_line[-2]:
+            signal = "BUY"
+        elif macd_line[-1] < signal_line[-1] and macd_line[-2] >= signal_line[-2]:
+            signal = "SELL"
+        else:
+            signal = "NEUTRAL"
+        
+        logger.info(f"MACD signal generated: {signal}")
+        return signal
+
+    def generate_combined_signal(self, prices: List[float], highs: List[float], lows: List[float], 
+                                ema_short: int = 9, ema_long: int = 21, rsi_period: int = 14, 
+                                macd_fast: int = 12, macd_slow: int = 26, macd_signal: int = 9, 
+                                adx_period: int = 14, adx_threshold: float = 25) -> Dict[str, str]:
+        """Genera una señal combinada basada en múltiples indicadores."""
+        ema_signal = self.generate_ema_signal(prices, ema_short, ema_long)
+        rsi_signal = self.generate_rsi_signal(prices, rsi_period)
+        macd_signal = self.generate_macd_signal(prices, macd_fast, macd_slow, macd_signal)
+        adx = self.indicators.calculate_adx(highs, lows, prices, adx_period)
+        
+        signals = {"EMA": ema_signal, "RSI": rsi_signal, "MACD": macd_signal}
+        combined_signal = "NEUTRAL"
+        
+        # Lógica de combinación: Requiere al menos 2 señales alineadas y ADX > threshold
+        buy_count = sum(1 for s in signals.values() if s == "BUY")
+        sell_count = sum(1 for s in signals.values() if s == "SELL")
+        
+        if adx > adx_threshold:
+            if buy_count >= 2:
+                combined_signal = "BUY"
+            elif sell_count >= 2:
+                combined_signal = "SELL"
+        
+        logger.info(f"Combined signal: {combined_signal} (ADX={adx:.2f}, Signals={signals})")
+        return {"signal": combined_signal, "details": signals, "adx": adx}

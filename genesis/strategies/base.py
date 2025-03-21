@@ -32,13 +32,19 @@ class Strategy(Component):
         
     async def start(self) -> None:
         """Start the strategy."""
-        self.logger.info(f"Starting strategy: {self.name}")
+        from genesis.utils.logger import setup_logging
+        logger = setup_logging(f"strategy.{self.name}")
+        logger.info(f"Starting strategy: {self.name}")
         self.running = True
+        await super().start()
         
     async def stop(self) -> None:
         """Stop the strategy."""
-        self.logger.info(f"Stopping strategy: {self.name}")
+        from genesis.utils.logger import setup_logging
+        logger = setup_logging(f"strategy.{self.name}")
+        logger.info(f"Stopping strategy: {self.name}")
         self.running = False
+        await super().stop()
     
     @abc.abstractmethod
     async def generate_signal(self, symbol: str, data: pd.DataFrame) -> Dict[str, Any]:
