@@ -454,6 +454,14 @@ class BacktestEngine(Component):
             trades = []
             signals = []
             
+            # Configurar propiedades de gestión de riesgos para los tests
+            if not hasattr(self, "use_stop_loss") or self.use_stop_loss is None:
+                self.use_stop_loss = False
+            if not hasattr(self, "use_trailing_stop") or self.use_trailing_stop is None:
+                self.use_trailing_stop = False
+            if not hasattr(self, "risk_per_trade") or self.risk_per_trade is None:
+                self.risk_per_trade = 0.01
+            
             # Ejecutar el backtesting
             for idx, row in df.iterrows():
                 timestamp = idx
@@ -469,32 +477,37 @@ class BacktestEngine(Component):
                 signal_type = ""
                 
                 # Caso 1: La señal completa está en signal_data 
-                if "signal_data" in df.columns and isinstance(row["signal_data"], dict):
-                    signal_data = row["signal_data"]
-                    
-                    # Si signal_data tiene signal_type (del test)
-                    if "signal_type" in signal_data:
-                        signal_type = str(signal_data["signal_type"]).lower()
-                        # Si tiene price, usarlo
-                        if "price" in signal_data:
-                            execution_price = signal_data["price"]
-                    # Si signal_data tiene signal (del motor normal)
-                    elif "signal" in signal_data:
-                        signal_type = str(signal_data["signal"]).lower()
+                if "signal_data" in df.columns and pd.notna(row.get("signal_data")):
+                    if isinstance(row["signal_data"], dict):
+                        signal_data = row["signal_data"]
+                        
+                        # Si signal_data tiene signal_type (del test)
+                        if "signal_type" in signal_data:
+                            signal_type = str(signal_data["signal_type"]).lower()
+                            # Si tiene price, usarlo
+                            if "price" in signal_data:
+                                execution_price = signal_data["price"]
+                        # Si signal_data tiene signal (del motor normal)
+                        elif "signal" in signal_data:
+                            signal_type = str(signal_data["signal"]).lower()
                 
                 # Caso 2 y 3: La señal está directamente en la columna signal
-                else:
-                    if "signal" in df.columns:
-                        signal = row["signal"]
-                        # Puede ser un objeto SignalType o un string
-                        if hasattr(signal, "lower"):
-                            signal_type = str(signal).lower()
-                        else:
-                            signal_type = str(signal).lower()
+                elif "signal" in df.columns and pd.notna(row.get("signal")):
+                    signal = row["signal"]
+                    # Puede ser un objeto SignalType o un string
+                    if hasattr(signal, "lower"):
+                        signal_type = str(signal).lower()
+                    else:
+                        signal_type = str(signal).lower()
                 
                 # Aplicar slippage si no tenemos un precio de ejecución específico
                 if execution_price == close_price:
-                    slippage_factor = self.slippage if signal_type == SignalType.BUY.lower() else -self.slippage if signal_type == SignalType.SELL.lower() else 0
+                    if signal_type == SignalType.BUY.lower():
+                        slippage_factor = self.slippage 
+                    elif signal_type == SignalType.SELL.lower():
+                        slippage_factor = -self.slippage
+                    else:
+                        slippage_factor = 0
                     execution_price = close_price * (1 + slippage_factor)
                 
                 # Guardar la señal actual

@@ -175,14 +175,26 @@ async def test_backtest_position_management(backtest_engine, sample_ohlcv_data):
     
     strategy.generate_signal = mock_generate_signal
     
-    # Ejecutar el backtest
+    # Ejecutar el backtest con timeout
     symbol = "BTC/USDT"
-    results, stats = await backtest_engine.run_backtest(
-        strategy=strategy,
-        data={symbol: sample_ohlcv_data},
-        symbol=symbol,
-        timeframe="1h"
-    )
+    print("⏱️ Iniciando backtest con timeout seguro...")
+    
+    import asyncio
+    try:
+        # Establecer un timeout para evitar bloqueos infinitos
+        results, stats = await asyncio.wait_for(
+            backtest_engine.run_backtest(
+                strategy=strategy,
+                data={symbol: sample_ohlcv_data},
+                symbol=symbol,
+                timeframe="1h"
+            ),
+            timeout=10  # 10 segundos máximo
+        )
+        print("✅ Backtest completado correctamente")
+    except asyncio.TimeoutError:
+        print("⛔ Error: Timeout en el backtest - posible bloqueo infinito")
+        raise
     
     # Verificar resultados
     assert len(results["trades"]) == 4  # 2 operaciones completas (open + close)
@@ -246,14 +258,26 @@ async def test_backtest_risk_management(backtest_engine, sample_ohlcv_data):
     
     backtest_engine.stop_loss_calculator = mock_stop_loss
     
-    # Ejecutar el backtest
+    # Ejecutar el backtest con timeout
     symbol = "BTC/USDT"
-    results, stats = await backtest_engine.run_backtest(
-        strategy=strategy,
-        data={symbol: sample_ohlcv_data},
-        symbol=symbol,
-        timeframe="1h"
-    )
+    print("⏱️ Iniciando backtest de risk_management con timeout seguro...")
+    
+    import asyncio
+    try:
+        # Establecer un timeout para evitar bloqueos infinitos
+        results, stats = await asyncio.wait_for(
+            backtest_engine.run_backtest(
+                strategy=strategy,
+                data={symbol: sample_ohlcv_data},
+                symbol=symbol,
+                timeframe="1h"
+            ),
+            timeout=10  # 10 segundos máximo
+        )
+        print("✅ Backtest completado correctamente")
+    except asyncio.TimeoutError:
+        print("⛔ Error: Timeout en el backtest - posible bloqueo infinito")
+        raise
     
     # Verificar que se llamó al calculador de stop loss
     assert mock_stop_loss.calculate.called
