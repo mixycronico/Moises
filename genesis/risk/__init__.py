@@ -1,16 +1,13 @@
 """
-Risk management module.
+Módulo de gestión de riesgos para el sistema Genesis.
 
-This module handles position sizing, stop-loss calculation, and overall
-risk management for the trading system.
+Este módulo proporciona componentes para evaluar y gestionar el riesgo
+en las operaciones de trading, incluyendo cálculo de tamaño de posición,
+stop-loss, y parámetros de gestión de riesgo.
 """
 
-from genesis.risk.manager import RiskManager
-from genesis.risk.position_sizer import PositionSizer
-from genesis.risk.stop_loss import StopLossCalculator
+from .risk_manager import RiskManager
+from .position_sizer import PositionSizer
+from .stop_loss import StopLossCalculator
 
-__all__ = [
-    "RiskManager",
-    "PositionSizer",
-    "StopLossCalculator"
-]
+__all__ = ["RiskManager", "PositionSizer", "StopLossCalculator"]
