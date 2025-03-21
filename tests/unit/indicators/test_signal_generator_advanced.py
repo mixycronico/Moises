@@ -200,11 +200,12 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
              patch.object(self.signal_generator, 'generate_macd_signal', return_value=self.signal_generator.BUY), \
              patch.object(self.signal_generator, 'generate_bollinger_bands_signal', return_value=self.signal_generator.BUY):
             
+            # Crear diccionarios para las señales con fuerza de señal
             signals = [
-                self.signal_generator.generate_ema_signal(self.bullish_with_corrections),
-                self.signal_generator.generate_rsi_signal(self.bullish_with_corrections),
-                self.signal_generator.generate_macd_signal(self.bullish_with_corrections),
-                self.signal_generator.generate_bollinger_bands_signal(self.bullish_with_corrections)
+                {"signal": self.signal_generator.SIGNAL_BUY, "strength": 3.0},  # EMA
+                {"signal": self.signal_generator.SIGNAL_BUY, "strength": 3.0},  # RSI
+                {"signal": self.signal_generator.SIGNAL_BUY, "strength": 3.0},  # MACD
+                {"signal": self.signal_generator.SIGNAL_BUY, "strength": 3.0}   # Bollinger
             ]
             
             # Todas las estrategias de combinación deberían dar compra
@@ -212,9 +213,9 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
             result_conservative = self.signal_generator.combine_signals(signals, "conservative")
             result_weighted = self.signal_generator.combine_signals(signals, "weighted")
             
-            self.assertEqual(result_majority, self.signal_generator.BUY)
-            self.assertEqual(result_conservative, self.signal_generator.BUY)
-            self.assertEqual(result_weighted, self.signal_generator.BUY)
+            self.assertEqual(result_majority["signal"], self.signal_generator.SIGNAL_BUY)
+            self.assertEqual(result_conservative["signal"], self.signal_generator.SIGNAL_BUY)
+            self.assertEqual(result_weighted["signal"], self.signal_generator.SIGNAL_BUY)
         
         # Escenario 2: Señales mixtas
         with patch.object(self.signal_generator, 'generate_ema_signal', return_value=self.signal_generator.BUY), \
@@ -222,11 +223,12 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
              patch.object(self.signal_generator, 'generate_macd_signal', return_value=self.signal_generator.HOLD), \
              patch.object(self.signal_generator, 'generate_bollinger_bands_signal', return_value=self.signal_generator.BUY):
             
+            # Crear diccionarios para las señales con fuerza de señal
             signals = [
-                self.signal_generator.generate_ema_signal(self.bullish_with_corrections),
-                self.signal_generator.generate_rsi_signal(self.bullish_with_corrections),
-                self.signal_generator.generate_macd_signal(self.bullish_with_corrections),
-                self.signal_generator.generate_bollinger_bands_signal(self.bullish_with_corrections)
+                {"signal": self.signal_generator.SIGNAL_BUY, "strength": 3.0},     # EMA con señal fuerte
+                {"signal": self.signal_generator.SIGNAL_SELL, "strength": 2.0},    # RSI
+                {"signal": self.signal_generator.SIGNAL_HOLD, "strength": 1.0},    # MACD
+                {"signal": self.signal_generator.SIGNAL_BUY, "strength": 2.0}      # Bollinger
             ]
             
             # Las estrategias deberían dar resultados diferentes
@@ -235,13 +237,13 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
             result_weighted = self.signal_generator.combine_signals(signals, "weighted")
             
             # Mayoría: 2 BUY, 1 SELL, 1 HOLD -> BUY
-            self.assertEqual(result_majority, self.signal_generator.BUY)
+            self.assertEqual(result_majority["signal"], self.signal_generator.SIGNAL_BUY)
             
             # Conservador: Señales mixtas -> HOLD
-            self.assertEqual(result_conservative, self.signal_generator.HOLD)
+            self.assertEqual(result_conservative["signal"], self.signal_generator.SIGNAL_HOLD)
             
-            # Weighted: Favorece BUY sobre HOLD -> BUY
-            self.assertEqual(result_weighted, self.signal_generator.BUY)
+            # Weighted: Favorece BUY sobre HOLD por la fuerza de señal -> BUY
+            self.assertEqual(result_weighted["signal"], self.signal_generator.SIGNAL_BUY)
     
     def test_response_to_market_regime_changes(self):
         """Verificar respuesta a cambios en el régimen de mercado."""
@@ -314,30 +316,31 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
         def weighted_combine_signals(signals, weights):
             """Combinar señales con pesos específicos para cada indicador."""
             if len(signals) != len(weights):
-                return self.signal_generator.HOLD
+                return {"signal": self.signal_generator.SIGNAL_HOLD, "strength": 0.0, "error": "Mismatch in signals and weights length"}
                 
             buy_score = 0
             sell_score = 0
             
-            for i, signal in enumerate(signals):
-                if signal == self.signal_generator.BUY:
+            for i, signal_data in enumerate(signals):
+                signal = signal_data["signal"]
+                if signal == self.signal_generator.SIGNAL_BUY:
                     buy_score += weights[i]
-                elif signal == self.signal_generator.SELL:
+                elif signal == self.signal_generator.SIGNAL_SELL:
                     sell_score += weights[i]
             
             if buy_score > sell_score and buy_score > 0.5:
-                return self.signal_generator.BUY
+                return {"signal": self.signal_generator.SIGNAL_BUY, "strength": buy_score}
             elif sell_score > buy_score and sell_score > 0.5:
-                return self.signal_generator.SELL
+                return {"signal": self.signal_generator.SIGNAL_SELL, "strength": sell_score}
             else:
-                return self.signal_generator.HOLD
+                return {"signal": self.signal_generator.SIGNAL_HOLD, "strength": max(buy_score, sell_score)}
         
         # Caso 1: Señales mixtas con pesos iguales
         signals = [
-            self.signal_generator.BUY,    # EMA
-            self.signal_generator.SELL,   # RSI
-            self.signal_generator.BUY,    # MACD
-            self.signal_generator.HOLD    # Bollinger
+            {"signal": self.signal_generator.SIGNAL_BUY, "strength": 1.0},    # EMA
+            {"signal": self.signal_generator.SIGNAL_SELL, "strength": 1.0},   # RSI
+            {"signal": self.signal_generator.SIGNAL_BUY, "strength": 1.0},    # MACD
+            {"signal": self.signal_generator.SIGNAL_HOLD, "strength": 1.0}    # Bollinger
         ]
         
         equal_weights = [0.25, 0.25, 0.25, 0.25]
@@ -346,7 +349,7 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
         # Con pesos iguales, tenemos 0.5 BUY, 0.25 SELL, 0.25 HOLD
         # Buy_score = 0.5, Sell_score = 0.25, Buy_score > Sell_score pero no > 0.5
         # Por lo tanto, el resultado es HOLD
-        self.assertEqual(result, self.signal_generator.HOLD)
+        self.assertEqual(result["signal"], self.signal_generator.SIGNAL_HOLD)
         
         # Caso 2: Señales mixtas con pesos personalizados
         # Damos más peso a MACD y menos a Bollinger
@@ -356,7 +359,7 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
         # Con pesos personalizados, tenemos 0.6 BUY, 0.3 SELL, 0.1 HOLD
         # Buy_score = 0.6, Sell_score = 0.3, Buy_score > Sell_score y > 0.5
         # Por lo tanto, el resultado es BUY
-        self.assertEqual(result, self.signal_generator.BUY)
+        self.assertEqual(result["signal"], self.signal_generator.SIGNAL_BUY)
 
 
 # Configurar tests para pytest
@@ -468,14 +471,19 @@ def test_detect_breakout_signals(signal_generator, indicators, complex_market_da
 def test_combine_signals_with_empty_list(signal_generator):
     """Verificar behavior de combine_signals con lista vacía."""
     result = signal_generator.combine_signals([])
-    assert result == signal_generator.HOLD
+    assert result["signal"] == signal_generator.SIGNAL_HOLD
+    assert "error" in result
 
 
 def test_combine_signals_with_custom_method(signal_generator):
     """Verificar que un método de combinación desconocido devuelve HOLD."""
-    signals = [signal_generator.BUY, signal_generator.SELL]
+    signals = [
+        {"signal": signal_generator.SIGNAL_BUY, "strength": 1.0},
+        {"signal": signal_generator.SIGNAL_SELL, "strength": 1.0}
+    ]
     result = signal_generator.combine_signals(signals, method="non_existent_method")
-    assert result == signal_generator.HOLD
+    assert result["signal"] == signal_generator.SIGNAL_HOLD
+    assert "error" in result
 
 
 def test_api_methods_implementation(signal_generator, indicators):

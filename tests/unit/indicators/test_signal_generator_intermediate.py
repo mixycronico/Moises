@@ -208,33 +208,33 @@ class TestSignalGeneratorIntermediate(unittest.TestCase):
         """Verificar la combinación de señales complejas."""
         # Señales contradictorias
         signals = [
-            self.signal_generator.BUY,    # RSI dice comprar
-            self.signal_generator.SELL,   # MACD dice vender
-            self.signal_generator.BUY,    # Bollinger dice comprar
-            self.signal_generator.HOLD,   # EMA dice mantener
-            self.signal_generator.BUY     # Otro indicador dice comprar
+            {"signal": self.signal_generator.SIGNAL_BUY, "strength": 5.0},    # RSI dice comprar con fuerza alta
+            {"signal": self.signal_generator.SIGNAL_SELL, "strength": 2.0},   # MACD dice vender con fuerza baja
+            {"signal": self.signal_generator.SIGNAL_BUY, "strength": 4.0},    # Bollinger dice comprar con fuerza media
+            {"signal": self.signal_generator.SIGNAL_HOLD, "strength": 1.0},   # EMA dice mantener con fuerza mínima
+            {"signal": self.signal_generator.SIGNAL_BUY, "strength": 3.0}     # Otro indicador dice comprar con fuerza media
         ]
         
         # Método por mayoría
         result = self.signal_generator.combine_signals(signals, "majority")
-        self.assertEqual(result, self.signal_generator.BUY)
+        self.assertEqual(result["signal"], self.signal_generator.SIGNAL_BUY)
         
         # Método conservador (dado que hay contradicción, debería ser HOLD)
         result = self.signal_generator.combine_signals(signals, "conservative")
-        self.assertEqual(result, self.signal_generator.HOLD)
+        self.assertEqual(result["signal"], self.signal_generator.SIGNAL_HOLD)
         
         # Método weighted (privilegia señales activas sobre HOLD)
         result = self.signal_generator.combine_signals(signals, "weighted")
-        self.assertEqual(result, self.signal_generator.BUY)
+        self.assertEqual(result["signal"], self.signal_generator.SIGNAL_BUY)
     
     def test_signal_override(self):
         """Verificar combinación con señal de override (salida forzada)."""
         # Señales con salida forzada
         signals = [
-            self.signal_generator.BUY,    # RSI dice comprar
-            self.signal_generator.SELL,   # MACD dice vender
-            self.signal_generator.EXIT,   # Stop-loss activado (salida forzada)
-            self.signal_generator.BUY     # Bollinger dice comprar
+            {"signal": self.signal_generator.SIGNAL_BUY, "strength": 3.0},     # RSI dice comprar
+            {"signal": self.signal_generator.SIGNAL_SELL, "strength": 2.0},    # MACD dice vender
+            {"signal": self.signal_generator.SIGNAL_EXIT, "strength": 2.0},    # Stop-loss activado (salida forzada)
+            {"signal": self.signal_generator.SIGNAL_BUY, "strength": 3.0}      # Bollinger dice comprar
         ]
         
         # La señal EXIT debería tener prioridad (aunque no está implementado en el método actual)
@@ -243,7 +243,7 @@ class TestSignalGeneratorIntermediate(unittest.TestCase):
         result = self.signal_generator.combine_signals(signals, "majority")
         
         # Con la implementación actual, la mayoría es BUY
-        self.assertEqual(result, self.signal_generator.BUY)
+        self.assertEqual(result["signal"], self.signal_generator.SIGNAL_BUY)
 
 
 # Configurar tests para pytest
@@ -347,11 +347,16 @@ def test_bollinger_bands_signal_with_custom_std(signal_generator, market_data):
 
 def test_invalid_signal_combination_method(signal_generator):
     """Verificar comportamiento con método de combinación inválido."""
-    signals = [signal_generator.BUY, signal_generator.SELL, signal_generator.HOLD]
+    signals = [
+        {"signal": signal_generator.SIGNAL_BUY, "strength": 1.0},
+        {"signal": signal_generator.SIGNAL_SELL, "strength": 1.0},
+        {"signal": signal_generator.SIGNAL_HOLD, "strength": 1.0}
+    ]
     
-    # Método inválido debería devolver HOLD
+    # Método inválido debería devolver HOLD con error
     result = signal_generator.combine_signals(signals, "invalid_method")
-    assert result == signal_generator.HOLD
+    assert result["signal"] == signal_generator.SIGNAL_HOLD
+    assert "error" in result
 
 
 if __name__ == "__main__":
