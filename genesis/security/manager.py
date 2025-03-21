@@ -35,7 +35,14 @@ class SecurityUtils:
             
         Returns:
             Hash de la contraseña
+            
+        Raises:
+            ValueError: Si la contraseña está vacía
         """
+        # Verificar que la contraseña no esté vacía
+        if not password:
+            raise ValueError("Password cannot be empty")
+            
         # Utilizar algoritmo de hasheo seguro (SHA-256)
         return hashlib.sha256(password.encode()).hexdigest()
     
