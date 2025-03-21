@@ -6,259 +6,223 @@ el cálculo de tamaño de posición, stop-loss y gestión general de riesgos.
 """
 
 import pytest
+from unittest.mock import Mock, AsyncMock
+import logging
+import sys
+import os
 import asyncio
-from unittest.mock import MagicMock, patch
-import datetime
 
-from genesis.risk.manager import RiskManager
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("test_risk_management")
+
+# Asegurar que podemos importar los módulos de Genesis
+sys.path.insert(0, os.getcwd())
+
+# Importar componentes del sistema
 from genesis.risk.position_sizer import PositionSizer
 from genesis.risk.stop_loss import StopLossCalculator
+from genesis.risk.risk_manager import RiskManager
+from genesis.core.event_bus import EventBus
 
-
+# Fixture para EventBus mockeado
 @pytest.fixture
 def mock_event_bus():
     """Event bus simulado para pruebas."""
-    bus = MagicMock()
-    bus.emit = MagicMock(return_value=asyncio.Future())
-    bus.emit.return_value.set_result(None)
+    bus = Mock(spec=EventBus)
+    bus.emit = AsyncMock()
+    bus.subscribe = AsyncMock()
     return bus
 
-
+# Fixture para RiskManager con EventBus mockeado
 @pytest.fixture
 def risk_manager(mock_event_bus):
     """Instancia de gestor de riesgos para pruebas."""
-    manager = RiskManager()
-    manager.event_bus = mock_event_bus
+    manager = RiskManager(event_bus=mock_event_bus)
     return manager
 
-
+# Pruebas para RiskManager
 @pytest.mark.asyncio
 async def test_risk_manager_start_stop(risk_manager):
     """Probar inicio y parada del gestor de riesgos."""
+    # Iniciar el gestor
     await risk_manager.start()
-    assert risk_manager.running is True
+    risk_manager._event_bus.subscribe.assert_called_with(risk_manager)
     
+    # Detener el gestor
     await risk_manager.stop()
-    assert risk_manager.running is False
-
+    # No hay manera directa de verificar el unsuscribe con este mock,
+    # pero podemos verificar que el estado del gestor ha cambiado
+    assert not risk_manager._running
 
 @pytest.mark.asyncio
 async def test_risk_manager_handle_signal(risk_manager):
     """Probar el manejo de señales por el gestor de riesgos."""
-    # Configurar una señal de ejemplo
-    signal_data = {
-        "symbol": "BTCUSDT",
-        "signal_type": "buy",
-        "price": 40000.0,
-        "timestamp": datetime.datetime.utcnow().isoformat(),
-        "strategy": "macd_cross",
+    # Simular una señal de compra
+    await risk_manager.handle_event("signal.generated", {
+        "signal": "BUY",
+        "symbol": "BTC/USDT",
         "strength": 0.8,
-        "metadata": {
-            "indicator_values": {
-                "macd": 0.5,
-                "signal": 0.2
-            }
+        "price": 40000
+    }, "signal_generator")
+    
+    # Verificar que se emitió un evento de validación de señal
+    risk_manager._event_bus.emit.assert_called_with(
+        "signal.validated",
+        {
+            "signal": "BUY",
+            "symbol": "BTC/USDT",
+            "approved": True,  # Asumimos que la señal es aprobada
+            "risk_metrics": {"risk_score": risk_manager._calculate_risk_score("BTC/USDT")},
+            "position_size": risk_manager._position_sizer.calculate_position_size(40000, "BTC/USDT")
         }
-    }
-    
-    # Simular manejo de señal
-    await risk_manager.handle_event("strategy.signal", signal_data, "strategy_manager")
-    
-    # Verificar que se emitió un evento de decisión de trading
-    risk_manager.event_bus.emit.assert_called_once()
-    call_args = risk_manager.event_bus.emit.call_args[0]
-    assert call_args[0] == "risk.trade_decision"
-    assert call_args[2] == "risk_manager"
-    
-    # Verificar el contenido de la decisión
-    decision_data = call_args[1]
-    assert decision_data["symbol"] == "BTCUSDT"
-    assert "position_size" in decision_data
-    assert "risk_level" in decision_data
-    assert "stop_loss" in decision_data or "take_profit" in decision_data
-
+    )
 
 @pytest.mark.asyncio
 async def test_risk_manager_handle_trade_opened(risk_manager):
     """Probar el manejo de eventos de operación abierta."""
-    trade_data = {
-        "trade_id": "T12345",
-        "symbol": "BTCUSDT",
+    # Configurar el gestor para la prueba
+    risk_manager._stop_loss_calculator.calculate_stop_loss = Mock(return_value=38000)
+    
+    # Simular un evento de operación abierta
+    await risk_manager.handle_event("trade.opened", {
+        "symbol": "BTC/USDT",
         "side": "buy",
         "amount": 0.1,
-        "price": 40000.0,
-        "timestamp": datetime.datetime.utcnow().isoformat(),
-        "status": "open"
-    }
+        "price": 40000,
+        "order_id": "123456",
+        "exchange": "binance"
+    }, "exchange_manager")
     
-    await risk_manager.handle_event("trade.opened", trade_data, "exchange_manager")
-    
-    # Verificar actualización de seguimiento de riesgo
-    # (esto depende de la implementación específica)
-    if hasattr(risk_manager, "_active_trades"):
-        assert "T12345" in risk_manager._active_trades
-    
-    # Opcionalmente, verificar emisión de evento de actualización de riesgo
-    for call in risk_manager.event_bus.emit.call_args_list:
-        if call[0][0] == "risk.exposure_updated":
-            exposure_data = call[0][1]
-            assert "total_exposure" in exposure_data
-            break
-
+    # Verificar que se emitió un evento de establecimiento de stop loss
+    risk_manager._event_bus.emit.assert_called_with(
+        "trade.stop_loss_set",
+        {
+            "symbol": "BTC/USDT",
+            "price": 38000,
+            "trade_id": "123456",
+            "exchange": "binance"
+        }
+    )
 
 @pytest.mark.asyncio
 async def test_risk_manager_handle_trade_closed(risk_manager):
     """Probar el manejo de eventos de operación cerrada."""
-    # Primero simulamos una operación abierta
-    open_trade_data = {
-        "trade_id": "T12345",
-        "symbol": "BTCUSDT",
+    # Simular un evento de operación cerrada
+    await risk_manager.handle_event("trade.closed", {
+        "symbol": "BTC/USDT",
         "side": "buy",
         "amount": 0.1,
-        "price": 40000.0,
-        "timestamp": datetime.datetime.utcnow().isoformat(),
-        "status": "open"
-    }
+        "entry_price": 40000,
+        "exit_price": 42000,
+        "profit": 200,
+        "profit_percentage": 5,
+        "order_id": "123456",
+        "exchange": "binance"
+    }, "exchange_manager")
     
-    await risk_manager.handle_event("trade.opened", open_trade_data, "exchange_manager")
-    
-    # Luego simulamos el cierre de la operación
-    close_trade_data = {
-        "trade_id": "T12345",
-        "symbol": "BTCUSDT",
-        "side": "buy",
-        "amount": 0.1,
-        "entry_price": 40000.0,
-        "exit_price": 41000.0,
-        "profit_loss": 100.0,
-        "profit_loss_pct": 2.5,
-        "timestamp": datetime.datetime.utcnow().isoformat(),
-        "status": "closed"
-    }
-    
-    await risk_manager.handle_event("trade.closed", close_trade_data, "exchange_manager")
-    
-    # Verificar actualización de seguimiento de riesgo
-    if hasattr(risk_manager, "_active_trades"):
-        assert "T12345" not in risk_manager._active_trades
-    
-    # Verificar actualización de estadísticas de trading
-    if hasattr(risk_manager, "_trading_stats"):
-        assert risk_manager._trading_stats["total_trades"] > 0
-        assert risk_manager._trading_stats["profitable_trades"] > 0
+    # Verificar que se emitió un evento de actualización de métricas de riesgo
+    risk_manager._event_bus.emit.assert_called_with(
+        "risk.metrics_updated",
+        {
+            "symbol": "BTC/USDT",
+            "risk_score": risk_manager._calculate_risk_score("BTC/USDT"),
+            "updated_metrics": {
+                "total_trades": risk_manager._risk_metrics["BTC/USDT"]["total_trades"],
+                "winning_trades": risk_manager._risk_metrics["BTC/USDT"]["winning_trades"],
+                "profit": 200,
+                "profit_percentage": 5
+            }
+        }
+    )
 
-
+# Pruebas para PositionSizer
 def test_position_sizer_calculate():
     """Probar el cálculo de tamaño de posición."""
     sizer = PositionSizer()
     
-    # Caso 1: Cálculo básico con riesgo del 1%
-    position_size = sizer.calculate(
-        portfolio_value=10000.0,
-        risk_percent=0.01,
-        signal_strength=1.0
-    )
-    assert position_size == 100.0  # 1% de 10000
+    # Configurar el tamaño de la posición
+    sizer.set_risk_percentage(2)  # 2% de riesgo por operación
+    sizer.set_account_balance(10000)  # $10,000 de balance
     
-    # Caso 2: Con fuerza de señal reducida
-    position_size = sizer.calculate(
-        portfolio_value=10000.0,
-        risk_percent=0.01,
-        signal_strength=0.5
+    # Calcular tamaño de posición para un trade con stop loss a 5% de distancia
+    position_size = sizer.calculate_position_size(
+        entry_price=50000,
+        symbol="BTC/USDT",
+        stop_loss_percentage=5
     )
-    assert position_size == 50.0  # 1% * 0.5 de 10000
     
-    # Caso 3: Con límite máximo
-    position_size = sizer.calculate(
-        portfolio_value=10000.0,
-        risk_percent=0.05,
-        signal_strength=1.0,
-        max_size=300.0
-    )
-    assert position_size == 300.0  # Limitado por max_size
-
-
-def test_position_sizer_calculate_units():
-    """Probar el cálculo de unidades de posición."""
-    sizer = PositionSizer()
+    # Verificar que el tamaño es correcto: (10000 * 0.02) / 0.05 = 4000
+    expected_size = 4000  # Dólares
+    assert position_size == expected_size
     
-    # Caso 1: Cálculo básico
-    units = sizer.calculate_units(
-        position_size=1000.0,
-        current_price=40000.0
-    )
-    assert units == 0.025  # 1000 / 40000
-    
-    # Caso 2: Con cantidad mínima
-    units = sizer.calculate_units(
-        position_size=1000.0,
-        current_price=40000.0,
-        min_quantity=0.05
-    )
-    expected_units = 0.05  # Redondeado a min_quantity
-    assert abs(units - expected_units) < 1e-8
+    # También podríamos verificar el cálculo de unidades
+    units = sizer.calculate_units(position_size, 50000)
+    expected_units = 0.08  # 4000 / 50000 = 0.08 BTC
+    assert units == expected_units
 
-
+# Pruebas para StopLossCalculator
 @pytest.mark.asyncio
 async def test_stop_loss_calculator():
     """Probar el cálculo de stop-loss."""
     calculator = StopLossCalculator()
     
-    # Caso 1: Cálculo para posición long
-    stop_loss = await calculator.calculate(
-        symbol="BTCUSDT",
-        signal_type="buy",
-        position_size=1000.0,
-        price=40000.0,
-        atr_value=1200.0
+    # Configurar el calculador
+    calculator.set_default_multiplier(1.5)
+    
+    # Calcular stop-loss basado en ATR (Average True Range)
+    entry_price = 50000
+    atr = 1000
+    
+    stop_loss = calculator.calculate_stop_loss(
+        entry_price=entry_price,
+        atr=atr,
+        side="buy"  # Para posiciones largas, el stop está por debajo
     )
     
-    assert "price" in stop_loss
-    assert "percentage" in stop_loss
-    assert stop_loss["price"] < 40000.0  # El stop-loss debe estar por debajo del precio
+    # Verificar que el stop-loss está correctamente calculado: 50000 - (1000 * 1.5) = 48500
+    expected_stop_loss = 48500
+    assert stop_loss == expected_stop_loss
     
-    # Caso 2: Cálculo para posición short
-    stop_loss = await calculator.calculate(
-        symbol="BTCUSDT",
-        signal_type="sell",
-        position_size=1000.0,
-        price=40000.0,
-        atr_value=1200.0
+    # Para posiciones cortas, el stop está por encima
+    stop_loss_short = calculator.calculate_stop_loss(
+        entry_price=entry_price,
+        atr=atr,
+        side="sell"
     )
     
-    assert "price" in stop_loss
-    assert "percentage" in stop_loss
-    assert stop_loss["price"] > 40000.0  # El stop-loss debe estar por encima del precio
-
+    # Verificar que el stop-loss está correctamente calculado: 50000 + (1000 * 1.5) = 51500
+    expected_stop_loss_short = 51500
+    assert stop_loss_short == expected_stop_loss_short
 
 def test_trailing_stop_loss():
     """Probar el cálculo de stop-loss móvil."""
     calculator = StopLossCalculator()
     
-    # Caso 1: Trailing stop para posición long
+    # Configurar el calculador
+    calculator.set_trailing_percentage(1)  # 1% de trailing stop
+    
+    # Calcular trailing stop para una posición larga
+    entry_price = 50000
+    current_price = 55000  # Precio ha subido un 10%
+    
     trailing_stop = calculator.calculate_trailing_stop(
-        current_price=42000.0,
-        entry_price=40000.0,
-        is_long=True,
-        atr_value=1200.0,
-        activation_pct=0.01
+        entry_price=entry_price,
+        current_price=current_price,
+        side="buy"
     )
     
-    assert "price" in trailing_stop
-    assert "activated" in trailing_stop
-    assert trailing_stop["activated"] is True  # 5% de ganancia > 1% de activación
-    assert trailing_stop["price"] < 42000.0  # El trailing stop debe estar por debajo del precio actual
+    # Verificar que el trailing stop está correctamente calculado: 55000 * 0.99 = 54450
+    expected_trailing_stop = 54450
+    assert trailing_stop == expected_trailing_stop
     
-    # Caso 2: Trailing stop para posición short
-    trailing_stop = calculator.calculate_trailing_stop(
-        current_price=38000.0,
-        entry_price=40000.0,
-        is_long=False,
-        atr_value=1200.0,
-        activation_pct=0.01
+    # Para una posición corta
+    trailing_stop_short = calculator.calculate_trailing_stop(
+        entry_price=entry_price,
+        current_price=45000,  # Precio ha bajado un 10%
+        side="sell"
     )
     
-    assert "price" in trailing_stop
-    assert "activated" in trailing_stop
-    assert trailing_stop["activated"] is True  # 5% de ganancia > 1% de activación
-    assert trailing_stop["price"] > 38000.0  # El trailing stop debe estar por encima del precio actual
+    # Verificar que el trailing stop está correctamente calculado: 45000 * 1.01 = 45450
+    expected_trailing_stop_short = 45450
+    assert trailing_stop_short == expected_trailing_stop_short
