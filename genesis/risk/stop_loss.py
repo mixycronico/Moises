@@ -1,27 +1,126 @@
 """
-Stop-loss calculator module.
+Calculador de stop-loss para gestión de riesgos.
 
-This module handles the calculation of appropriate stop-loss levels
-for risk management.
+Este módulo proporciona cálculos para determinar niveles adecuados de stop-loss
+basados en la volatilidad del mercado, características de la posición, y parámetros de riesgo.
 """
 
-from typing import Dict, Any, Optional
-import numpy as np
-
-from genesis.config.settings import settings
-
+import logging
+from typing import Dict, Any, Optional, Union
 
 class StopLossCalculator:
     """
-    Stop-loss calculator for risk management.
+    Calculador de stop-loss para gestión de riesgos.
     
-    Calculates appropriate stop-loss levels based on market volatility,
-    position, and risk parameters.
+    Calcula niveles adecuados de stop-loss basados en volatilidad del mercado,
+    posición, y parámetros de riesgo.
     """
     
     def __init__(self):
-        """Initialize the stop-loss calculator."""
-        self.default_stop_loss_pct = settings.get('risk.stop_loss_pct', 0.05)  # 5%
+        """Inicializar el calculador de stop-loss."""
+        self._logger = logging.getLogger(__name__)
+        self._default_multiplier = 2.0  # Multiplicador por defecto para ATR
+        self._trailing_percentage = 1.0  # 1% de trailing stop por defecto
+    
+    def set_default_multiplier(self, multiplier: float) -> None:
+        """
+        Establecer el multiplicador por defecto para el cálculo basado en ATR.
+        
+        Args:
+            multiplier: Multiplicador de ATR
+        """
+        if multiplier <= 0:
+            raise ValueError("Multiplier must be positive")
+            
+        self._default_multiplier = multiplier
+        self._logger.info(f"Default ATR multiplier set to {multiplier}")
+    
+    def set_trailing_percentage(self, percentage: float) -> None:
+        """
+        Establecer el porcentaje para trailing stop.
+        
+        Args:
+            percentage: Porcentaje para trailing stop
+        """
+        if percentage <= 0 or percentage > 100:
+            raise ValueError("Trailing percentage must be between 0 and 100")
+            
+        self._trailing_percentage = percentage
+        self._logger.info(f"Trailing stop percentage set to {percentage}%")
+    
+    def calculate_stop_loss(
+        self, 
+        entry_price: float, 
+        atr: Optional[float] = None, 
+        side: str = "buy",
+        multiplier: Optional[float] = None
+    ) -> float:
+        """
+        Calcular el precio de stop-loss basado en ATR o un porcentaje fijo.
+        
+        Args:
+            entry_price: Precio de entrada
+            atr: Average True Range (opcional)
+            side: Lado de la operación ('buy' o 'sell')
+            multiplier: Multiplicador de ATR (opcional, usa el por defecto si no se proporciona)
+            
+        Returns:
+            Precio de stop-loss
+        """
+        is_long = side.lower() == "buy"
+        
+        if multiplier is None:
+            multiplier = self._default_multiplier
+            
+        if atr is not None:
+            # Calcular stop-loss basado en ATR
+            stop_distance = atr * multiplier
+        else:
+            # Usar un porcentaje fijo del precio
+            stop_distance = entry_price * 0.05  # 5% por defecto
+            
+        # Calcular precio de stop-loss según el lado de la operación
+        if is_long:
+            stop_loss = entry_price - stop_distance
+        else:
+            stop_loss = entry_price + stop_distance
+            
+        return stop_loss
+    
+    def calculate_trailing_stop(
+        self,
+        entry_price: float,
+        current_price: float,
+        side: str = "buy",
+        percentage: Optional[float] = None
+    ) -> float:
+        """
+        Calcular el precio de trailing stop.
+        
+        Args:
+            entry_price: Precio de entrada
+            current_price: Precio actual
+            side: Lado de la operación ('buy' o 'sell')
+            percentage: Porcentaje para trailing stop (opcional, usa el por defecto si no se proporciona)
+            
+        Returns:
+            Precio de trailing stop
+        """
+        is_long = side.lower() == "buy"
+        
+        if percentage is None:
+            percentage = self._trailing_percentage
+            
+        # Convertir porcentaje a decimal
+        trail_factor = percentage / 100
+        
+        # Calcular precio de trailing stop según el lado de la operación
+        if is_long:
+            trailing_stop = current_price * (1 - trail_factor)
+        else:
+            trailing_stop = current_price * (1 + trail_factor)
+            
+        return trailing_stop
     
     async def calculate(
         self,
@@ -32,84 +131,41 @@ class StopLossCalculator:
         atr_value: Optional[float] = None
     ) -> Dict[str, Any]:
         """
-        Calculate stop-loss level for a trade.
+        Calcular nivel de stop-loss para un trade.
         
         Args:
-            symbol: Trading pair symbol
-            signal_type: Signal type ('buy' or 'sell')
-            position_size: Position size in quote currency
-            price: Current price (optional)
-            atr_value: Average True Range value (optional)
+            symbol: Símbolo del par de trading
+            signal_type: Tipo de señal ('buy' o 'sell')
+            position_size: Tamaño de posición en moneda cotizada
+            price: Precio actual (opcional)
+            atr_value: Valor de Average True Range (opcional)
             
         Returns:
-            Stop-loss details including price and percentage
+            Detalles de stop-loss incluyendo precio y porcentaje
         """
-        # In a real implementation, we would fetch market data here
-        # For now, use a simple percentage-based stop loss
         is_long = signal_type.lower() == 'buy'
         
-        # Use ATR-based stop loss if provided, otherwise use default percentage
-        if atr_value is not None and price is not None:
-            # Typical ATR-based stop: 2x ATR from entry price
-            multiplier = 2.0
-            stop_pct = (atr_value * multiplier) / price
-            stop_price = price * (1 - stop_pct) if is_long else price * (1 + stop_pct)
-        else:
-            stop_pct = self.default_stop_loss_pct
-            stop_price = price * (1 - stop_pct) if is_long and price else None
+        if price is None:
+            return {
+                "type": "fixed",
+                "percentage": 0.05,  # 5% por defecto
+                "price": None,
+                "is_long": is_long
+            }
+        
+        # Calcular stop-loss
+        stop_loss = self.calculate_stop_loss(
+            entry_price=price,
+            atr=atr_value,
+            side=signal_type
+        )
+        
+        # Calcular el porcentaje
+        stop_percentage = abs(stop_loss - price) / price
         
         return {
             "type": "fixed",
-            "percentage": stop_pct,
-            "price": stop_price,
+            "percentage": stop_percentage,
+            "price": stop_loss,
             "is_long": is_long
-        }
-    
-    def calculate_trailing_stop(
-        self,
-        current_price: float,
-        entry_price: float,
-        is_long: bool,
-        atr_value: Optional[float] = None,
-        activation_pct: float = 0.01  # 1% profit to activate
-    ) -> Dict[str, Any]:
-        """
-        Calculate a trailing stop-loss level.
-        
-        Args:
-            current_price: Current market price
-            entry_price: Entry price of the position
-            is_long: Whether the position is long (True) or short (False)
-            atr_value: Average True Range value (optional)
-            activation_pct: Percentage profit before trailing stop activates
-            
-        Returns:
-            Trailing stop details
-        """
-        # Calculate profit/loss percentage
-        pnl_pct = (current_price / entry_price - 1) if is_long else (entry_price / current_price - 1)
-        
-        # Determine if trailing stop should be active
-        is_active = pnl_pct >= activation_pct
-        
-        # Calculate trailing distance
-        if atr_value is not None:
-            # Use ATR-based trailing distance
-            trail_distance = atr_value * 2
-        else:
-            # Use percentage-based trailing distance
-            trail_distance = current_price * self.default_stop_loss_pct
-        
-        # Calculate stop price
-        if is_long:
-            stop_price = current_price - trail_distance if is_active else entry_price * (1 - self.default_stop_loss_pct)
-        else:
-            stop_price = current_price + trail_distance if is_active else entry_price * (1 + self.default_stop_loss_pct)
-        
-        return {
-            "type": "trailing",
-            "stop_price": stop_price,
-            "trail_distance": trail_distance,
-            "is_active": is_active,
-            "activation_threshold": entry_price * (1 + activation_pct) if is_long else entry_price * (1 - activation_pct)
         }
