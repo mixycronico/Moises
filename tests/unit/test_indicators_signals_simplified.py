@@ -83,8 +83,20 @@ def test_signal_generator_ema_crossover_buy_simplified(signal_generator):
     ema_short = np.array([np.nan, np.nan, 115, 125, 138])  # EMA corta
     ema_long = np.array([np.nan, np.nan, 110, 120, 130])   # EMA larga
     
-    # Mockear el cálculo de EMA para devolver valores controlados
-    signal_generator.indicators.calculate_ema.side_effect = [ema_short, ema_long]
+    # Reiniciar los mocks antes de la prueba
+    signal_generator.indicators.calculate_ema.reset_mock()
+    
+    # Configurar para devolver valores específicos según los argumentos
+    def mock_calculate_ema(prices, period):
+        if period == 9:
+            return ema_short
+        elif period == 21:
+            return ema_long
+        else:
+            return None
+    
+    # Aplicar la función mock
+    signal_generator.indicators.calculate_ema.side_effect = mock_calculate_ema
     
     # Ejecutar la función bajo prueba
     signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
@@ -106,8 +118,20 @@ def test_signal_generator_ema_crossover_sell_simplified(signal_generator):
     ema_short = np.array([np.nan, np.nan, 125, 115, 95])   # EMA corta
     ema_long = np.array([np.nan, np.nan, 130, 120, 110])   # EMA larga
     
-    # Mockear el cálculo de EMA para devolver valores controlados
-    signal_generator.indicators.calculate_ema.side_effect = [ema_short, ema_long]
+    # Reiniciar los mocks antes de la prueba
+    signal_generator.indicators.calculate_ema.reset_mock()
+    
+    # Configurar para devolver valores específicos según los argumentos
+    def mock_calculate_ema(prices, period):
+        if period == 9:
+            return ema_short
+        elif period == 21:
+            return ema_long
+        else:
+            return None
+    
+    # Aplicar la función mock
+    signal_generator.indicators.calculate_ema.side_effect = mock_calculate_ema
     
     # Ejecutar la función bajo prueba
     signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
@@ -129,8 +153,20 @@ def test_signal_generator_ema_no_crossover_simplified(signal_generator):
     ema_short = np.array([np.nan, np.nan, 115, 125, 135])  # EMA corta siempre por encima
     ema_long = np.array([np.nan, np.nan, 110, 120, 130])   # EMA larga siempre por debajo
     
-    # Mockear el cálculo de EMA para devolver valores controlados
-    signal_generator.indicators.calculate_ema.side_effect = [ema_short, ema_long]
+    # Reiniciar los mocks antes de la prueba
+    signal_generator.indicators.calculate_ema.reset_mock()
+    
+    # Configurar para devolver valores específicos según los argumentos
+    def mock_calculate_ema(prices, period):
+        if period == 9:
+            return ema_short
+        elif period == 21:
+            return ema_long
+        else:
+            return None
+    
+    # Aplicar la función mock
+    signal_generator.indicators.calculate_ema.side_effect = mock_calculate_ema
     
     # Ejecutar la función bajo prueba
     signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
@@ -318,16 +354,25 @@ def test_signal_generator_bollinger_bands_sell_simplified(signal_generator):
     """Prueba simplificada de precio cerca de la banda superior (señal de venta)."""
     prices = np.array([100, 110, 120, 130, 145])  # Último precio sube mucho
     
-    # Mockear la función calculate_bollinger_bands
-    with patch.object(signal_generator.indicators, 'calculate_bollinger_bands') as mock_bb:
-        mock_bb.return_value = (
-            np.array([np.nan, np.nan, 135, 145, 145]),  # Banda superior (precio = 145 está en el límite)
-            np.array([np.nan, np.nan, 120, 130, 130]),  # Banda media
-            np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior
-        )
-        
-        signal = signal_generator.generate_bollinger_bands_signal(prices)
+    # Configurar el mock para Bollinger Bands con precio cerca de la banda superior
+    upper_band = np.array([np.nan, np.nan, 135, 145, 145])  # Banda superior (precio = 145 está en el límite)
+    middle_band = np.array([np.nan, np.nan, 120, 130, 130])  # Banda media
+    lower_band = np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior
     
+    # Mockear el cálculo de Bollinger Bands para devolver valores controlados
+    signal_generator.indicators.calculate_bollinger_bands.return_value = (upper_band, middle_band, lower_band)
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_bollinger_bands_signal(prices)
+    
+    # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
+    signal_generator.indicators.calculate_bollinger_bands.assert_called_once_with(
+        prices, 
+        window=20, 
+        num_std_dev=2
+    )
+    
+    # Verificar el resultado esperado
     assert signal == "SELL"
 
 
@@ -335,16 +380,25 @@ def test_signal_generator_bollinger_bands_neutral_simplified(signal_generator):
     """Prueba simplificada de precio dentro de las bandas (señal neutral)."""
     prices = np.array([100, 110, 120, 130, 130])  # Precio en la media
     
-    # Mockear la función calculate_bollinger_bands
-    with patch.object(signal_generator.indicators, 'calculate_bollinger_bands') as mock_bb:
-        mock_bb.return_value = (
-            np.array([np.nan, np.nan, 135, 145, 145]),  # Banda superior
-            np.array([np.nan, np.nan, 120, 130, 130]),  # Banda media (precio = 130 está en la media)
-            np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior
-        )
-        
-        signal = signal_generator.generate_bollinger_bands_signal(prices)
+    # Configurar el mock para Bollinger Bands con precio en la banda media
+    upper_band = np.array([np.nan, np.nan, 135, 145, 145])  # Banda superior
+    middle_band = np.array([np.nan, np.nan, 120, 130, 130])  # Banda media (precio = 130 está en la media)
+    lower_band = np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior
     
+    # Mockear el cálculo de Bollinger Bands para devolver valores controlados
+    signal_generator.indicators.calculate_bollinger_bands.return_value = (upper_band, middle_band, lower_band)
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_bollinger_bands_signal(prices)
+    
+    # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
+    signal_generator.indicators.calculate_bollinger_bands.assert_called_once_with(
+        prices, 
+        window=20, 
+        num_std_dev=2
+    )
+    
+    # Verificar el resultado esperado
     assert signal == signal_generator.NEUTRAL
 
 
