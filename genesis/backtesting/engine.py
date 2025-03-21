@@ -49,6 +49,7 @@ class BacktestEngine(Component):
         """
         super().__init__(name)
         self.initial_capital = max(1000.0, initial_capital)
+        self.current_capital = self.initial_capital  # Representa el balance actual durante el backtest
         self.commission = max(0.0, min(0.01, commission))  # Entre 0% y 1%
         self.slippage = max(0.0, min(0.01, slippage))  # Entre 0% y 1%
         self.market_data = None
@@ -57,6 +58,20 @@ class BacktestEngine(Component):
         self.logger = logging.getLogger(__name__)
         self.plots_dir = os.path.join("data", "plots", "backtests")
         os.makedirs(self.plots_dir, exist_ok=True)
+        
+        # Propiedades necesarias para las pruebas
+        self.initial_balance = self.initial_capital  # Alias para compatibilidad con pruebas
+        self.current_balance = self.current_capital  # Alias para compatibilidad con pruebas
+        self.fee_rate = self.commission  # Alias para compatibilidad con pruebas
+        self.positions = {}  # Posiciones abiertas actualmente
+        self.trade_history = []  # Historial de operaciones
+        self.equity_curve = []  # Curva de capital a lo largo del tiempo
+        
+        # Configuración para gestión de riesgos
+        self.risk_per_trade = 0.01  # 1% de riesgo por operación por defecto
+        self.use_stop_loss = False  # Usar stop loss en backtesting
+        self.use_trailing_stop = False  # Usar trailing stop en backtesting
+        self.stop_loss_calculator = None
         
     async def start(self) -> None:
         """Iniciar el motor de backtesting."""
