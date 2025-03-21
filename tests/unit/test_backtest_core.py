@@ -32,14 +32,14 @@ class TestStrategy(Strategy):
         En lugar de depender de equity_curve u otras variables internas,
         usa un contador simple para devolver señales en secuencia.
         """
-        # Lista de señales predefinidas para posición
+        # Lista de señales predefinidas para posición con valores en minúsculas
         signals = [
-            {"symbol": symbol, "signal_type": SignalType.BUY, "price": 40000},    # Abrir long
-            {"symbol": symbol, "signal_type": SignalType.HOLD, "price": 40100},   # Mantener
-            {"symbol": symbol, "signal_type": SignalType.SELL, "price": 41000},   # Cerrar long
-            {"symbol": symbol, "signal_type": SignalType.SELL, "price": 41000},   # Abrir short
-            {"symbol": symbol, "signal_type": SignalType.HOLD, "price": 40900},   # Mantener
-            {"symbol": symbol, "signal_type": SignalType.BUY, "price": 40500}     # Cerrar short
+            {"symbol": symbol, "signal_type": "buy", "price": 40000},    # Abrir long
+            {"symbol": symbol, "signal_type": "hold", "price": 40100},   # Mantener
+            {"symbol": symbol, "signal_type": "sell", "price": 41000},   # Cerrar long
+            {"symbol": symbol, "signal_type": "sell", "price": 41000},   # Abrir short
+            {"symbol": symbol, "signal_type": "hold", "price": 40900},   # Mantener
+            {"symbol": symbol, "signal_type": "buy", "price": 40500}     # Cerrar short
         ]
         
         # Obtener la siguiente señal y avanzar el contador
@@ -63,12 +63,12 @@ class RiskStrategy(Strategy):
         
     async def generate_signal(self, symbol, data):
         """Generar señales para probar stop loss."""
-        # Lista de señales predefinidas para probar stop loss
+        # Lista de señales predefinidas para probar stop loss con valores en minúsculas
         signals = [
-            {"symbol": symbol, "signal_type": SignalType.BUY, "price": 40000},     # Abrir long
-            {"symbol": symbol, "signal_type": SignalType.HOLD, "price": 40100},    # Subir precio
-            {"symbol": symbol, "signal_type": SignalType.HOLD, "price": 39800},    # Bajar hacia stop loss
-            {"symbol": symbol, "signal_type": SignalType.EXIT, "price": 39600}     # Activar stop loss
+            {"symbol": symbol, "signal_type": "buy", "price": 40000},     # Abrir long
+            {"symbol": symbol, "signal_type": "hold", "price": 40100},    # Subir precio
+            {"symbol": symbol, "signal_type": "hold", "price": 39800},    # Bajar hacia stop loss
+            {"symbol": symbol, "signal_type": "exit", "price": 39600}     # Activar stop loss
         ]
         
         # Obtener la siguiente señal y avanzar el contador
@@ -164,10 +164,26 @@ async def test_backtest_position_management(backtest_engine, sample_ohlcv_data):
     # Estrategia con señales predefinidas
     strategy = TestStrategy()
     
+    # Configurar logging para depuración
+    logging.basicConfig(level=logging.DEBUG)
+    backtest_engine.logger.setLevel(logging.DEBUG)
+    
     # Ejecutar el backtest con timeout
     symbol = "BTC/USDT"
     
     try:
+        # Imprimimos el estado inicial de la estrategia
+        print(f"Estado inicial de la estrategia: {strategy.name}, índice: {strategy.signal_index}")
+        
+        # Verificamos que la estrategia genere señales correctamente
+        test_data = sample_ohlcv_data.copy()
+        initial_signal = await strategy.generate_signal(symbol, test_data)
+        print(f"Señal inicial generada: {initial_signal}")
+        
+        # Reiniciamos el índice para que la prueba real comience desde la primera señal
+        strategy.signal_index = 0
+        
+        # Ejecutar el backtest
         results, stats = await asyncio.wait_for(
             backtest_engine.run_backtest(
                 strategy=strategy,
@@ -178,16 +194,36 @@ async def test_backtest_position_management(backtest_engine, sample_ohlcv_data):
             timeout=5  # 5 segundos máximo
         )
         
+        # Imprimimos los resultados obtenidos
+        print(f"Resultados: {list(results.keys())}")
+        print(f"Estadísticas: {stats}")
+        
         # Verificar resultados básicos
         trades = results["trades"]
-        assert len(trades) > 0  # Debe haber operaciones
+        print(f"Trades generados: {len(trades)}")
+        if len(trades) > 0:
+            print(f"Ejemplo de trade: {trades[0]}")
+        else:
+            print("No se generaron trades")
+            
+        signals = results.get("signals", [])
+        print(f"Señales generadas: {len(signals)}")
+        if len(signals) > 0:
+            print(f"Ejemplo de señal: {signals[0]}")
+        else:
+            print("No se generaron señales")
+        
+        assert len(trades) > 0, "No se generaron trades durante el backtest"
         
         # Verificar que hay operaciones de compra y venta
         buy_trades = [t for t in trades if t["side"] == "buy"]
         sell_trades = [t for t in trades if t["side"] == "sell"]
         
-        assert len(buy_trades) > 0
-        assert len(sell_trades) > 0
+        print(f"Trades de compra: {len(buy_trades)}")
+        print(f"Trades de venta: {len(sell_trades)}")
+        
+        assert len(buy_trades) > 0, "No se generaron operaciones de compra"
+        assert len(sell_trades) > 0, "No se generaron operaciones de venta"
         
     except asyncio.TimeoutError:
         pytest.fail("Timeout en la ejecución del backtest de posiciones")
@@ -198,6 +234,10 @@ async def test_backtest_risk_management(backtest_engine, sample_ohlcv_data):
     """Probar la gestión de riesgos durante el backtesting."""
     # Estrategia con señales predefinidas para activar stop loss
     strategy = RiskStrategy()
+    
+    # Configurar logging para depuración
+    logging.basicConfig(level=logging.DEBUG)
+    backtest_engine.logger.setLevel(logging.DEBUG)
     
     # Configurar parámetros de gestión de riesgos
     backtest_engine.risk_per_trade = 0.02  # 2% de riesgo por operación
@@ -215,6 +255,18 @@ async def test_backtest_risk_management(backtest_engine, sample_ohlcv_data):
     symbol = "BTC/USDT"
     
     try:
+        # Imprimimos el estado inicial de la estrategia
+        print(f"Estado inicial de la estrategia de riesgo: {strategy.name}, índice: {strategy.signal_index}")
+        
+        # Verificamos que la estrategia genere señales correctamente
+        test_data = sample_ohlcv_data.copy()
+        initial_signal = await strategy.generate_signal(symbol, test_data)
+        print(f"Señal inicial de riesgo generada: {initial_signal}")
+        
+        # Reiniciamos el índice para que la prueba real comience desde la primera señal
+        strategy.signal_index = 0
+        
+        # Ejecutar el backtest
         results, stats = await asyncio.wait_for(
             backtest_engine.run_backtest(
                 strategy=strategy,
@@ -225,12 +277,38 @@ async def test_backtest_risk_management(backtest_engine, sample_ohlcv_data):
             timeout=5  # 5 segundos máximo
         )
         
+        # Imprimimos los resultados obtenidos
+        print(f"Resultados del test de riesgo: {list(results.keys())}")
+        print(f"Estadísticas del test de riesgo: {stats}")
+        
         # Verificar que se llamó al calculador de stop loss
-        assert mock_stop_loss.calculate.called
+        if mock_stop_loss.calculate.called:
+            print("Se llamó al calculador de stop loss")
+            print(f"Número de llamadas: {mock_stop_loss.calculate.call_count}")
+        else:
+            print("No se llamó al calculador de stop loss")
+            
+        # Verificar resultados básicos
+        trades = results.get("trades", [])
+        print(f"Trades generados en test de riesgo: {len(trades)}")
+        if len(trades) > 0:
+            print(f"Ejemplo de trade: {trades[0]}")
+        else:
+            print("No se generaron trades en el test de riesgo")
+            
+        signals = results.get("signals", [])
+        print(f"Señales generadas en test de riesgo: {len(signals)}")
+        if len(signals) > 0:
+            print(f"Ejemplo de señal: {signals[0]}")
+        else:
+            print("No se generaron señales en el test de riesgo")
+        
+        # Verificar que se llamó al calculador de stop loss
+        assert mock_stop_loss.calculate.called, "No se llamó al calculador de stop loss"
         
         # Comprobar resultados básicos
-        assert "trades" in results
-        assert "total_trades" in stats
+        assert "trades" in results, "No hay trades en los resultados"
+        assert "total_trades" in stats, "No hay total_trades en las estadísticas"
         
     except asyncio.TimeoutError:
         pytest.fail("Timeout en la ejecución del backtest de riesgos")
