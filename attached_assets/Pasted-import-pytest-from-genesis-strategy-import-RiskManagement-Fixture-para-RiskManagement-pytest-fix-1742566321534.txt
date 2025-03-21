@@ -1,0 +1,145 @@
+import pytest
+from genesis.strategy import RiskManagement
+
+# Fixture para RiskManagement
+@pytest.fixture
+def risk_manager():
+    """Fixture que proporciona una instancia de RiskManagement."""
+    return RiskManagement()
+
+# Pruebas para calculate_stop_loss
+def test_stop_loss_calculation_basic(risk_manager):
+    """Prueba el cálculo básico de stop-loss basado en ATR."""
+    atr = 50  # ATR de 50 puntos
+    entry_price = 1000  # Precio de entrada
+    stop_loss_multiplier = 1.5
+
+    # Resultado esperado: entry_price - (atr * multiplier)
+    expected_stop_loss = entry_price - (atr * stop_loss_multiplier)  # 1000 - (50 * 1.5) = 925
+    calculated_stop_loss = risk_manager.calculate_stop_loss(entry_price, atr, stop_loss_multiplier)
+    
+    assert calculated_stop_loss == expected_stop_loss
+
+def test_stop_loss_calculation_zero_multiplier(risk_manager):
+    """Prueba el cálculo de stop-loss con un multiplicador de 0."""
+    atr = 50
+    entry_price = 1000
+    stop_loss_multiplier = 0
+
+    # Resultado esperado: entry_price sin cambios
+    expected_stop_loss = entry_price  # 1000 - (50 * 0) = 1000
+    calculated_stop_loss = risk_manager.calculate_stop_loss(entry_price, atr, stop_loss_multiplier)
+    
+    assert calculated_stop_loss == expected_stop_loss
+
+def test_stop_loss_calculation_negative_values(risk_manager):
+    """Prueba el manejo de valores negativos en ATR o multiplicador."""
+    entry_price = 1000
+    
+    with pytest.raises(ValueError, match="ATR and multiplier must be non-negative"):
+        risk_manager.calculate_stop_loss(entry_price, atr=-50, stop_loss_multiplier=1.5)
+    
+    with pytest.raises(ValueError, match="ATR and multiplier must be non-negative"):
+        risk_manager.calculate_stop_loss(entry_price, atr=50, stop_loss_multiplier=-1.5)
+
+def test_stop_loss_calculation_zero_atr(risk_manager):
+    """Prueba el cálculo de stop-loss con ATR igual a 0."""
+    atr = 0
+    entry_price = 1000
+    stop_loss_multiplier = 1.5
+
+    # Resultado esperado: entry_price sin cambios
+    expected_stop_loss = entry_price  # 1000 - (0 * 1.5) = 1000
+    calculated_stop_loss = risk_manager.calculate_stop_loss(entry_price, atr, stop_loss_multiplier)
+    
+    assert calculated_stop_loss == expected_stop_loss
+
+# Pruebas para calculate_trailing_stop y update_trailing_stop
+def test_trailing_stop_calculation_basic(risk_manager):
+    """Prueba el cálculo inicial del trailing stop."""
+    initial_price = 1000
+    trailing_stop_percentage = 0.01  # 1%
+
+    # Resultado esperado: initial_price * (1 - percentage)
+    expected_trailing_stop = initial_price * (1 - trailing_stop_percentage)  # 1000 * 0.99 = 990
+    trailing_stop = risk_manager.calculate_trailing_stop(initial_price, trailing_stop_percentage)
+    
+    assert trailing_stop == expected_trailing_stop
+
+def test_trailing_stop_update_price_increase(risk_manager):
+    """Prueba que el trailing stop se ajuste al alza cuando el precio sube."""
+    initial_price = 1000
+    trailing_stop_percentage = 0.01  # 1%
+    
+    # Trailing stop inicial
+    trailing_stop = risk_manager.calculate_trailing_stop(initial_price, trailing_stop_percentage)  # 990
+    
+    # Precio sube
+    new_price = 1050
+    updated_trailing_stop = risk_manager.update_trailing_stop(trailing_stop, new_price, trailing_stop_percentage)
+    
+    # Resultado esperado: new_price * (1 - percentage)
+    expected_updated_stop = new_price * (1 - trailing_stop_percentage)  # 1050 * 0.99 = 1039.5
+    assert updated_trailing_stop == expected_updated_stop
+    assert updated_trailing_stop > trailing_stop
+
+def test_trailing_stop_no_update_price_decrease(risk_manager):
+    """Prueba que el trailing stop no cambie cuando el precio baja."""
+    initial_price = 1000
+    trailing_stop_percentage = 0.01  # 1%
+    
+    # Trailing stop inicial
+    trailing_stop = risk_manager.calculate_trailing_stop(initial_price, trailing_stop_percentage)  # 990
+    
+    # Precio sube primero
+    new_price = 1050
+    updated_trailing_stop = risk_manager.update_trailing_stop(trailing_stop, new_price, trailing_stop_percentage)  # 1039.5
+    
+    # Precio baja
+    lower_price = 1020
+    trailing_stop_after_drop = risk_manager.update_trailing_stop(updated_trailing_stop, lower_price, trailing_stop_percentage)
+    
+    # El trailing stop no debe bajar
+    assert trailing_stop_after_drop == updated_trailing_stop  # Sigue siendo 1039.5
+
+def test_trailing_stop_calculation_zero_percentage(risk_manager):
+    """Prueba el cálculo del trailing stop con porcentaje 0."""
+    initial_price = 1000
+    trailing_stop_percentage = 0
+    
+    # Resultado esperado: initial_price sin cambios
+    expected_trailing_stop = initial_price  # 1000 * (1 - 0) = 1000
+    trailing_stop = risk_manager.calculate_trailing_stop(initial_price, trailing_stop_percentage)
+    
+    assert trailing_stop == expected_trailing_stop
+
+def test_trailing_stop_invalid_percentage(risk_manager):
+    """Prueba el manejo de porcentajes inválidos."""
+    initial_price = 1000
+    
+    with pytest.raises(ValueError, match="Trailing stop percentage must be non-negative"):
+        risk_manager.calculate_trailing_stop(initial_price, trailing_stop_percentage=-0.01)
+
+def test_trailing_stop_update_negative_price(risk_manager):
+    """Prueba el manejo de precios negativos en update_trailing_stop."""
+    initial_price = 1000
+    trailing_stop_percentage = 0.01
+    trailing_stop = risk_manager.calculate_trailing_stop(initial_price, trailing_stop_percentage)  # 990
+    
+    with pytest.raises(ValueError, match="Price must be positive"):
+        risk_manager.update_trailing_stop(trailing_stop, new_price=-50, trailing_stop_percentage=0.01)
+
+def test_trailing_stop_precision(risk_manager):
+    """Prueba la precisión del trailing stop con valores decimales pequeños."""
+    initial_price = 1000.55
+    trailing_stop_percentage = 0.015  # 1.5%
+    
+    # Resultado esperado con precisión
+    expected_trailing_stop = initial_price * (1 - trailing_stop_percentage)  # 1000.55 * 0.985 = ~985.54175
+    trailing_stop = risk_manager.calculate_trailing_stop(initial_price, trailing_stop_percentage)
+    
+    assert pytest.approx(trailing_stop, rel=1e-5) == expected_trailing_stop  # Tolerancia para flotantes
+
+# Ejecutar las pruebas
+if __name__ == "__main__":
+    pytest.main(["-v"])
