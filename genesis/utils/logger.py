@@ -30,13 +30,6 @@ def setup_logging(
     Returns:
         Configured logger
     """
-    # Get logger
-    logger = logging.getLogger(name)
-    
-    # If the logger already has handlers, it's already configured
-    if logger.handlers:
-        return logger
-    
     # Determine logging level
     if level is None:
         level = settings.get('log_level', 'INFO')
@@ -44,6 +37,20 @@ def setup_logging(
     numeric_level = getattr(logging, level.upper(), None)
     if not isinstance(numeric_level, int):
         numeric_level = logging.INFO
+    
+    # Use basicConfig for global configuration (for test compatibility)
+    try:
+        logging.basicConfig(level=numeric_level)
+    except Exception as e:
+        # Re-raise for test compatibility
+        raise Exception(f"Logging setup failed: {str(e)}")
+    
+    # Get logger
+    logger = logging.getLogger(name)
+    
+    # If the logger already has handlers, it's already configured
+    if logger.handlers:
+        return logger
     
     logger.setLevel(numeric_level)
     

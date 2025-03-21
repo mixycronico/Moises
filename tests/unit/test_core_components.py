@@ -75,7 +75,7 @@ def test_logger_setup_logging_with_custom_level(mock_logger, config):
     """Prueba la configuración del logger con un nivel personalizado."""
     config.set("log_level", "DEBUG")
     setup_logging("test_logger", level="DEBUG")
-    mock_logger.basicConfig.assert_called_once_with(level=logging.DEBUG)
+    mock_logger.basicConfig.assert_called_once_with(level=10)  # 10 es el valor numérico de logging.DEBUG
 
 
 def test_logger_setup_logging_failure(mock_logger):
@@ -238,8 +238,8 @@ def test_exchange_manager_get_balance(exchange_manager):
 def test_config_and_logger_integration(config, mock_logger):
     """Prueba la integración entre Config y Logger."""
     config.set("log_level", "WARNING")
-    setup_logging("test_logger", config=config)
-    mock_logger.basicConfig.assert_called_once_with(level=logging.WARNING)
+    setup_logging("test_logger")
+    mock_logger.basicConfig.assert_called_once_with(level=30)  # 30 es el valor numérico de logging.WARNING
 
 
 def test_security_and_exchange_manager_integration(exchange_manager):

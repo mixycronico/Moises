@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 
 # Mockear el setup_logging para evitar problemas de inicialización del logger
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_logger():
     """
     Mockear la función setup_logging y los loggers utilizados en las pruebas.
@@ -20,15 +20,47 @@ def mock_logger():
     Esto evita problemas de inicialización en las pruebas que utilizan componentes
     que intentan configurar el logger internamente.
     """
+    # Importamos explícitamente desde genesis.utils.logger para hacer el patching
+    from genesis.utils.logger import setup_logging
+    
+    # Mock de logging módulo completo
     mock_logger = MagicMock()
     
-    # Añadir métodos comunes de logger para que las pruebas funcionen
+    # Constantes necesarias para las pruebas
+    mock_logger.DEBUG = logging.DEBUG       # Valor numérico: 10
+    mock_logger.INFO = logging.INFO         # Valor numérico: 20
+    mock_logger.WARNING = logging.WARNING   # Valor numérico: 30
+    mock_logger.ERROR = logging.ERROR       # Valor numérico: 40
+    mock_logger.CRITICAL = logging.CRITICAL # Valor numérico: 50
+    
+    # Métodos comunes
     mock_logger.info = MagicMock()
     mock_logger.error = MagicMock()
     mock_logger.warning = MagicMock()
     mock_logger.debug = MagicMock()
+    mock_logger.getLogger = MagicMock(return_value=mock_logger)
     
-    with patch('genesis.utils.logger.setup_logging', return_value=mock_logger):
+    # Usar valores numéricos directamente para facilitar las comparaciones en tests
+    def mock_basicConfig(**kwargs):
+        if 'level' in kwargs:
+            # Convertir niveles de string a números
+            if kwargs['level'] == 'DEBUG':
+                kwargs['level'] = 10  # logging.DEBUG
+            elif kwargs['level'] == 'INFO':
+                kwargs['level'] = 20  # logging.INFO
+            elif kwargs['level'] == 'WARNING':
+                kwargs['level'] = 30  # logging.WARNING
+            elif kwargs['level'] == 'ERROR':
+                kwargs['level'] = 40  # logging.ERROR
+            elif kwargs['level'] == 'CRITICAL':
+                kwargs['level'] = 50  # logging.CRITICAL
+        return None
+        
+    mock_logger.basicConfig = MagicMock(side_effect=mock_basicConfig)
+    
+    # Patch de logging y setup_logging
+    with patch('genesis.utils.logger.logging', mock_logger), \
+         patch('genesis.utils.logger.setup_logging', return_value=mock_logger):
         yield mock_logger
 
 
