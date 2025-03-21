@@ -83,31 +83,28 @@ def test_signal_generator_ema_crossover_buy_simplified(signal_generator):
     ema_short = np.array([np.nan, np.nan, 115, 125, 138])  # EMA corta
     ema_long = np.array([np.nan, np.nan, 110, 120, 130])   # EMA larga
     
-    # Reiniciar los mocks antes de la prueba
-    signal_generator.indicators.calculate_ema.reset_mock()
-    
-    # Configurar para devolver valores específicos según los argumentos
-    def mock_calculate_ema(prices, period):
-        if period == 9:
-            return ema_short
-        elif period == 21:
-            return ema_long
-        else:
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_ema') as mock_ema:
+        # Configurar el mock para devolver valores específicos según los argumentos
+        def side_effect(data, period):
+            if period == 9:
+                return ema_short
+            elif period == 21:
+                return ema_long
             return None
-    
-    # Aplicar la función mock
-    signal_generator.indicators.calculate_ema.side_effect = mock_calculate_ema
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
-    
-    # Verificar que se llamó a calculate_ema con los parámetros correctos
-    assert signal_generator.indicators.calculate_ema.call_count == 2
-    signal_generator.indicators.calculate_ema.assert_any_call(prices, 9)
-    signal_generator.indicators.calculate_ema.assert_any_call(prices, 21)
-    
-    # Verificar el resultado esperado
-    assert signal == "BUY"
+        
+        mock_ema.side_effect = side_effect
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
+        
+        # Verificar que se llamó a calculate_ema con los parámetros correctos
+        assert mock_ema.call_count == 2
+        mock_ema.assert_any_call(prices, 9)
+        mock_ema.assert_any_call(prices, 21)
+        
+        # Verificar el resultado esperado
+        assert signal == "BUY"
 
 
 def test_signal_generator_ema_crossover_sell_simplified(signal_generator):
@@ -118,31 +115,28 @@ def test_signal_generator_ema_crossover_sell_simplified(signal_generator):
     ema_short = np.array([np.nan, np.nan, 125, 115, 95])   # EMA corta
     ema_long = np.array([np.nan, np.nan, 130, 120, 110])   # EMA larga
     
-    # Reiniciar los mocks antes de la prueba
-    signal_generator.indicators.calculate_ema.reset_mock()
-    
-    # Configurar para devolver valores específicos según los argumentos
-    def mock_calculate_ema(prices, period):
-        if period == 9:
-            return ema_short
-        elif period == 21:
-            return ema_long
-        else:
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_ema') as mock_ema:
+        # Configurar para devolver valores específicos según los argumentos
+        def side_effect(data, period):
+            if period == 9:
+                return ema_short
+            elif period == 21:
+                return ema_long
             return None
-    
-    # Aplicar la función mock
-    signal_generator.indicators.calculate_ema.side_effect = mock_calculate_ema
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
-    
-    # Verificar que se llamó a calculate_ema con los parámetros correctos
-    assert signal_generator.indicators.calculate_ema.call_count == 2
-    signal_generator.indicators.calculate_ema.assert_any_call(prices, 9)
-    signal_generator.indicators.calculate_ema.assert_any_call(prices, 21)
-    
-    # Verificar el resultado esperado
-    assert signal == "SELL"
+        
+        mock_ema.side_effect = side_effect
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
+        
+        # Verificar que se llamó a calculate_ema con los parámetros correctos
+        assert mock_ema.call_count == 2
+        mock_ema.assert_any_call(prices, 9)
+        mock_ema.assert_any_call(prices, 21)
+        
+        # Verificar el resultado esperado
+        assert signal == "SELL"
 
 
 def test_signal_generator_ema_no_crossover_simplified(signal_generator):
@@ -153,31 +147,28 @@ def test_signal_generator_ema_no_crossover_simplified(signal_generator):
     ema_short = np.array([np.nan, np.nan, 115, 125, 135])  # EMA corta siempre por encima
     ema_long = np.array([np.nan, np.nan, 110, 120, 130])   # EMA larga siempre por debajo
     
-    # Reiniciar los mocks antes de la prueba
-    signal_generator.indicators.calculate_ema.reset_mock()
-    
-    # Configurar para devolver valores específicos según los argumentos
-    def mock_calculate_ema(prices, period):
-        if period == 9:
-            return ema_short
-        elif period == 21:
-            return ema_long
-        else:
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_ema') as mock_ema:
+        # Configurar para devolver valores específicos según los argumentos
+        def side_effect(data, period):
+            if period == 9:
+                return ema_short
+            elif period == 21:
+                return ema_long
             return None
-    
-    # Aplicar la función mock
-    signal_generator.indicators.calculate_ema.side_effect = mock_calculate_ema
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
-    
-    # Verificar que se llamó a calculate_ema con los parámetros correctos
-    assert signal_generator.indicators.calculate_ema.call_count == 2
-    signal_generator.indicators.calculate_ema.assert_any_call(prices, 9)
-    signal_generator.indicators.calculate_ema.assert_any_call(prices, 21)
-    
-    # Verificar el resultado esperado - no hay cruce, por lo que debe ser NEUTRAL/HOLD
-    assert signal == signal_generator.NEUTRAL
+        
+        mock_ema.side_effect = side_effect
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
+        
+        # Verificar que se llamó a calculate_ema con los parámetros correctos
+        assert mock_ema.call_count == 2
+        mock_ema.assert_any_call(prices, 9)
+        mock_ema.assert_any_call(prices, 21)
+        
+        # Verificar el resultado esperado - no hay cruce, por lo que debe ser NEUTRAL/HOLD
+        assert signal == signal_generator.NEUTRAL
 
 
 # Tests para RSI simplificados
@@ -188,17 +179,19 @@ def test_signal_generator_rsi_overbought_simplified(signal_generator):
     # Configurar el mock para RSI en zona de sobrecompra
     rsi_values = np.array([np.nan, np.nan, np.nan, 65, 75])  # Último valor > 70 (sobrecompra)
     
-    # Mockear el cálculo de RSI para devolver valores controlados
-    signal_generator.indicators.calculate_rsi.return_value = rsi_values
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_rsi_signal(prices)
-    
-    # Verificar que se llamó a calculate_rsi con los parámetros correctos
-    signal_generator.indicators.calculate_rsi.assert_called_once_with(prices, 14)
-    
-    # Verificar el resultado esperado
-    assert signal == "SELL"
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_rsi') as mock_rsi:
+        # Configurar el valor de retorno del mock
+        mock_rsi.return_value = rsi_values
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_rsi_signal(prices)
+        
+        # Verificar que se llamó a calculate_rsi con los parámetros correctos
+        mock_rsi.assert_called_once_with(prices, 14)
+        
+        # Verificar el resultado esperado
+        assert signal == "SELL"
 
 
 def test_signal_generator_rsi_oversold_simplified(signal_generator):
@@ -208,17 +201,19 @@ def test_signal_generator_rsi_oversold_simplified(signal_generator):
     # Configurar el mock para RSI en zona de sobreventa
     rsi_values = np.array([np.nan, np.nan, np.nan, 35, 25])  # Último valor < 30 (sobreventa)
     
-    # Mockear el cálculo de RSI para devolver valores controlados
-    signal_generator.indicators.calculate_rsi.return_value = rsi_values
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_rsi_signal(prices)
-    
-    # Verificar que se llamó a calculate_rsi con los parámetros correctos
-    signal_generator.indicators.calculate_rsi.assert_called_once_with(prices, 14)
-    
-    # Verificar el resultado esperado
-    assert signal == "BUY"
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_rsi') as mock_rsi:
+        # Configurar el valor de retorno del mock
+        mock_rsi.return_value = rsi_values
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_rsi_signal(prices)
+        
+        # Verificar que se llamó a calculate_rsi con los parámetros correctos
+        mock_rsi.assert_called_once_with(prices, 14)
+        
+        # Verificar el resultado esperado
+        assert signal == "BUY"
 
 
 def test_signal_generator_rsi_neutral_simplified(signal_generator):
