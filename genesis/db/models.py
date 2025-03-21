@@ -1,230 +1,170 @@
 """
-Database models for the Genesis trading system.
+Modelos de base de datos para el sistema Genesis.
 
-This module defines SQLAlchemy models for database tables.
+Este módulo define los modelos ORM para la persistencia
+de datos en el sistema de trading.
 """
 
-from sqlalchemy import (
-    Column, Integer, Float, String, Boolean, DateTime, ForeignKey, Text, 
-    UniqueConstraint, Index, JSON, Enum
-)
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, JSON, Boolean, Text
 from sqlalchemy.orm import relationship
-from datetime import datetime
-import enum
+from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
-
-class TradeStatus(enum.Enum):
-    """Enum for trade status."""
-    OPEN = 'open'
-    CLOSED = 'closed'
-    CANCELLED = 'cancelled'
-
-
-class Exchange(Base):
-    """Exchange model."""
-    __tablename__ = 'exchanges'
+class User(Base):
+    """Modelo para usuarios del sistema."""
+    __tablename__ = 'users'
     
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False, unique=True)
-    description = Column(Text)
+    username = Column(String(50), unique=True, nullable=False)
+    email = Column(String(120), unique=True, nullable=False)
+    password_hash = Column(String(256), nullable=False)
+    first_name = Column(String(50))
+    last_name = Column(String(50))
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, nullable=False)
+    last_login = Column(DateTime)
     
-    # Relationships
-    symbols = relationship("Symbol", back_populates="exchange")
-    candles = relationship("Candle", back_populates="exchange")
-    trades = relationship("Trade", back_populates="exchange")
-
-
-class Symbol(Base):
-    """Trading symbol model."""
-    __tablename__ = 'symbols'
+    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
+    trades = relationship("Trade", back_populates="user", cascade="all, delete-orphan")
+    alerts = relationship("Alert", back_populates="user", cascade="all, delete-orphan")
+    
+class ApiKey(Base):
+    """Modelo para almacenar las claves API de intercambios."""
+    __tablename__ = 'api_keys'
     
     id = Column(Integer, primary_key=True)
-    exchange_id = Column(Integer, ForeignKey('exchanges.id'), nullable=False)
-    name = Column(String(20), nullable=False)
-    base_asset = Column(String(10), nullable=False)
-    quote_asset = Column(String(10), nullable=False)
-    price_precision = Column(Integer, default=8)
-    quantity_precision = Column(Integer, default=8)
-    min_quantity = Column(Float, nullable=True)
-    max_quantity = Column(Float, nullable=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    exchange = Column(String(50), nullable=False)
+    description = Column(String(200))
+    api_key = Column(String(256), nullable=False)
+    api_secret = Column(String(512), nullable=False)  # Encriptado
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False)
     
-    # Relationships
-    exchange = relationship("Exchange", back_populates="symbols")
-    candles = relationship("Candle", back_populates="symbol")
-    trades = relationship("Trade", back_populates="symbol")
+    user = relationship("User", back_populates="api_keys")
     
-    # Constraints
-    __table_args__ = (
-        UniqueConstraint('exchange_id', 'name', name='uq_exchange_symbol'),
-    )
-
-
+class Trade(Base):
+    """Modelo para registrar operaciones de trading."""
+    __tablename__ = 'trades'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    trade_id = Column(String(100), unique=True)
+    exchange = Column(String(50), nullable=False)
+    symbol = Column(String(20), nullable=False)
+    side = Column(String(10), nullable=False)  # 'buy' o 'sell'
+    type = Column(String(20), nullable=False)  # 'market', 'limit', etc.
+    amount = Column(Float, nullable=False)
+    price = Column(Float, nullable=False)
+    fee = Column(Float)
+    fee_currency = Column(String(10))
+    total = Column(Float)
+    status = Column(String(20), nullable=False)  # 'open', 'closed', 'canceled'
+    strategy = Column(String(50))
+    execution_time = Column(Float)  # milisegundos
+    entry_time = Column(DateTime, nullable=False)
+    exit_time = Column(DateTime)
+    profit_loss = Column(Float)
+    profit_loss_pct = Column(Float)
+    trade_metadata = Column(JSON)
+    
+    user = relationship("User", back_populates="trades")
+    
 class Candle(Base):
-    """OHLCV candle model."""
+    """Modelo para almacenar datos de velas OHLCV."""
     __tablename__ = 'candles'
     
     id = Column(Integer, primary_key=True)
-    exchange_id = Column(Integer, ForeignKey('exchanges.id'), nullable=False)
-    symbol_id = Column(Integer, ForeignKey('symbols.id'), nullable=False)
+    exchange = Column(String(50), nullable=False)
+    symbol = Column(String(20), nullable=False)
+    timeframe = Column(String(10), nullable=False)  # '1m', '5m', '1h', etc.
     timestamp = Column(DateTime, nullable=False)
-    timeframe = Column(String(10), nullable=False)  # e.g., '1m', '1h', '1d'
     open = Column(Float, nullable=False)
     high = Column(Float, nullable=False)
     low = Column(Float, nullable=False)
     close = Column(Float, nullable=False)
     volume = Column(Float, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    num_trades = Column(Integer)
     
-    # Relationships
-    exchange = relationship("Exchange", back_populates="candles")
-    symbol = relationship("Symbol", back_populates="candles")
-    
-    # Constraints and indexes
     __table_args__ = (
-        UniqueConstraint('exchange_id', 'symbol_id', 'timestamp', 'timeframe', name='uq_candle'),
-        Index('ix_candles_timestamp', 'timestamp'),
-        Index('ix_candles_symbol_timestamp', 'symbol_id', 'timestamp'),
+        # Índice compuesto para búsquedas rápidas
+        {'sqlite_autoincrement': True},
     )
-
-
-class Strategy(Base):
-    """Trading strategy model."""
-    __tablename__ = 'strategies'
+    
+class Alert(Base):
+    """Modelo para alertas de precio o condiciones de mercado."""
+    __tablename__ = 'alerts'
     
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False, unique=True)
-    description = Column(Text)
-    parameters = Column(JSON, nullable=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    name = Column(String(100), nullable=False)
+    symbol = Column(String(20), nullable=False)
+    condition_type = Column(String(50), nullable=False)  # 'price', 'indicator', etc.
+    parameters = Column(JSON, nullable=False)
+    message_template = Column(String(500))
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, nullable=False)
+    last_triggered = Column(DateTime)
+    trigger_count = Column(Integer, default=0)
     
-    # Relationships
-    signals = relationship("Signal", back_populates="strategy")
-    trades = relationship("Trade", back_populates="strategy")
-
-
-class Signal(Base):
-    """Trading signal model."""
-    __tablename__ = 'signals'
+    user = relationship("User", back_populates="alerts")
+    
+class BacktestResult(Base):
+    """Modelo para almacenar resultados de backtesting."""
+    __tablename__ = 'backtest_results'
     
     id = Column(Integer, primary_key=True)
-    strategy_id = Column(Integer, ForeignKey('strategies.id'), nullable=False)
-    symbol_id = Column(Integer, ForeignKey('symbols.id'), nullable=False)
-    timestamp = Column(DateTime, nullable=False)
-    signal_type = Column(String(20), nullable=False)  # e.g., 'buy', 'sell', 'exit'
-    price = Column(Float, nullable=True)
-    strength = Column(Float, nullable=True)
-    signal_data = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    strategy_name = Column(String(50), nullable=False)
+    symbol = Column(String(20), nullable=False)
+    timeframe = Column(String(10), nullable=False)
+    start_date = Column(DateTime, nullable=False)
+    end_date = Column(DateTime, nullable=False)
+    initial_capital = Column(Float, nullable=False)
+    final_capital = Column(Float, nullable=False)
+    profit_loss = Column(Float, nullable=False)
+    profit_loss_pct = Column(Float, nullable=False)
+    max_drawdown = Column(Float)
+    max_drawdown_pct = Column(Float)
+    total_trades = Column(Integer, nullable=False)
+    winning_trades = Column(Integer)
+    losing_trades = Column(Integer)
+    win_rate = Column(Float)
+    sharpe_ratio = Column(Float)
+    sortino_ratio = Column(Float)
+    parameters = Column(JSON)
+    summary = Column(Text)
+    created_at = Column(DateTime, nullable=False)
     
-    # Relationships
-    strategy = relationship("Strategy", back_populates="signals")
-    symbol = relationship("Symbol")
-    
-    # Indexes
-    __table_args__ = (
-        Index('ix_signals_strategy_symbol', 'strategy_id', 'symbol_id'),
-        Index('ix_signals_timestamp', 'timestamp'),
-    )
-
-
-class Trade(Base):
-    """Trade model."""
-    __tablename__ = 'trades'
-    
-    id = Column(Integer, primary_key=True)
-    trade_id = Column(String(50), nullable=False, unique=True)
-    exchange_id = Column(Integer, ForeignKey('exchanges.id'), nullable=False)
-    symbol_id = Column(Integer, ForeignKey('symbols.id'), nullable=False)
-    strategy_id = Column(Integer, ForeignKey('strategies.id'), nullable=False)
-    
-    side = Column(String(10), nullable=False)  # 'long' or 'short'
-    status = Column(Enum(TradeStatus), nullable=False, default=TradeStatus.OPEN)
-    
-    entry_price = Column(Float, nullable=False)
-    entry_time = Column(DateTime, nullable=False)
-    exit_price = Column(Float, nullable=True)
-    exit_time = Column(DateTime, nullable=True)
-    
-    quantity = Column(Float, nullable=False)
-    position_size = Column(Float, nullable=False)
-    leverage = Column(Float, default=1.0)
-    
-    stop_loss = Column(Float, nullable=True)
-    take_profit = Column(Float, nullable=True)
-    
-    realized_pnl = Column(Float, nullable=True)
-    fees = Column(Float, default=0.0)
-    
-    trade_data = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    exchange = relationship("Exchange", back_populates="trades")
-    symbol = relationship("Symbol", back_populates="trades")
-    strategy = relationship("Strategy", back_populates="trades")
-    
-    # Indexes
-    __table_args__ = (
-        Index('ix_trades_trade_id', 'trade_id'),
-        Index('ix_trades_symbol_status', 'symbol_id', 'status'),
-        Index('ix_trades_entry_time', 'entry_time'),
-    )
-
-
-class Balance(Base):
-    """Account balance model."""
-    __tablename__ = 'balances'
-    
-    id = Column(Integer, primary_key=True)
-    exchange_id = Column(Integer, ForeignKey('exchanges.id'), nullable=False)
-    timestamp = Column(DateTime, nullable=False)
-    asset = Column(String(10), nullable=False)
-    free = Column(Float, nullable=False)
-    used = Column(Float, nullable=False)
-    total = Column(Float, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    exchange = relationship("Exchange")
-    
-    # Constraints and indexes
-    __table_args__ = (
-        UniqueConstraint('exchange_id', 'timestamp', 'asset', name='uq_balance'),
-        Index('ix_balances_timestamp', 'timestamp'),
-    )
-
-
 class PerformanceMetric(Base):
-    """Performance metrics model."""
+    """Modelo para métricas de rendimiento del sistema."""
     __tablename__ = 'performance_metrics'
     
     id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime, nullable=False)
-    equity = Column(Float, nullable=False)
-    balance = Column(Float, nullable=False)
-    open_trades = Column(Integer, nullable=False)
-    daily_profit = Column(Float, nullable=True)
-    daily_return = Column(Float, nullable=True)
-    total_profit = Column(Float, nullable=True)
-    total_return = Column(Float, nullable=True)
-    drawdown = Column(Float, nullable=True)
-    performance_data = Column(JSON, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    metric_type = Column(String(50), nullable=False)  # 'daily', 'weekly', 'monthly', etc.
+    metric_date = Column(DateTime, nullable=False)
+    total_trades = Column(Integer)
+    winning_trades = Column(Integer)
+    losing_trades = Column(Integer)
+    profit_loss = Column(Float)
+    profit_loss_pct = Column(Float)
+    cumulative_return = Column(Float)
+    drawdown = Column(Float)
+    sharpe_ratio = Column(Float)
+    volatility = Column(Float)
+    data = Column(JSON)
     
-    # Indexes
-    __table_args__ = (
-        Index('ix_performance_metrics_timestamp', 'timestamp'),
-    )
-
+class SystemLog(Base):
+    """Modelo para logs del sistema."""
+    __tablename__ = 'system_logs'
+    
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime, nullable=False)
+    level = Column(String(20), nullable=False)  # 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+    component = Column(String(50), nullable=False)
+    source = Column(String(50))
+    correlation_id = Column(String(100))
+    user_id = Column(Integer)
+    message = Column(Text, nullable=False)
+    log_metadata = Column(JSON)

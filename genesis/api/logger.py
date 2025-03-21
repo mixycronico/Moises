@@ -1,251 +1,336 @@
 """
-Logger para la API REST.
+Componente de logging para la API REST del sistema Genesis.
 
-Este módulo proporciona un sistema de logging específico para la API REST,
-permitiendo registrar solicitudes, respuestas y errores.
+Este módulo proporciona funcionalidad para registrar y analizar
+las solicitudes y respuestas de la API REST.
 """
 
 import os
 import json
-import logging
 import time
-from datetime import datetime
-from flask import request, g
+import uuid
+import logging
 from typing import Dict, List, Any, Optional
-from collections import deque
-
+from datetime import datetime
+from flask import Flask, request, g
 
 class APILogger:
-    """Logger para la API REST."""
+    """Registrador de eventos para la API REST."""
     
-    def __init__(self, max_logs: int = 1000):
+    def __init__(self, app: Optional[Flask] = None, log_dir: str = "data/logs/api"):
         """
-        Inicializar el logger.
+        Inicializar el logger de API.
         
         Args:
-            max_logs: Número máximo de logs a mantener en memoria
+            app: Aplicación Flask (opcional)
+            log_dir: Directorio para los archivos de log
         """
-        self.logger = logging.getLogger('api_logger')
+        self.logger = logging.getLogger('api')
+        self.log_dir = log_dir
+        self.log_path = os.path.join(log_dir, "api.log")
+        
+        # Asegurar que el directorio de logs exista
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # Configurar el logger
+        handler = logging.FileHandler(self.log_path)
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
         self.logger.setLevel(logging.INFO)
         
-        # Configurar handler para consola
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
+        if app:
+            self.init_app(app)
+            
+    def init_app(self, app: Flask) -> None:
+        """
+        Inicializar con una aplicación Flask.
         
-        # Formatter para logs
-        formatter = logging.Formatter(
-            '%(asctime)s [%(levelname)s] %(message)s'
+        Args:
+            app: Aplicación Flask
+        """
+        # Registrar hooks para solicitudes y respuestas
+        app.before_request(self._before_request)
+        app.after_request(self._after_request)
+        app.teardown_request(self._teardown_request)
+        
+    def _before_request(self) -> None:
+        """Capturar información antes de procesar la solicitud."""
+        # Generar ID para la solicitud
+        g.request_id = str(uuid.uuid4())
+        g.start_time = time.time()
+        
+        # Registrar la solicitud
+        self.log_request(request.method, request.path, request.headers, request.get_data())
+        
+    def _after_request(self, response):
+        """
+        Capturar información después de procesar la solicitud.
+        
+        Args:
+            response: Respuesta HTTP
+            
+        Returns:
+            Respuesta HTTP
+        """
+        # Cálcular duración
+        duration = time.time() - g.get('start_time', time.time())
+        
+        # Registrar la respuesta
+        self.log_response(
+            request.method, 
+            request.path, 
+            response.status_code,
+            response.headers,
+            response.get_data(),
+            duration
         )
-        console_handler.setFormatter(formatter)
         
-        # Agregar handler
-        self.logger.addHandler(console_handler)
+        return response
         
-        # Registro en memoria
-        self.request_logs = deque(maxlen=max_logs)
-        self.response_logs = deque(maxlen=max_logs)
-        self.exception_logs = deque(maxlen=max_logs)
+    def _teardown_request(self, exception) -> None:
+        """
+        Capturar errores durante el procesamiento.
         
-        # Directorio de logs
-        self.log_dir = os.path.join('data', 'logs', 'api')
-        os.makedirs(self.log_dir, exist_ok=True)
-        
-        # Archivo de log
-        log_file = os.path.join(self.log_dir, 'api.log')
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(formatter)
-        
-        # Agregar file handler
-        self.logger.addHandler(file_handler)
-    
-    def log_request(self, req=None):
+        Args:
+            exception: Excepción capturada (si la hay)
+        """
+        if exception:
+            self.log_exception(request.method, request.path, exception)
+            
+    def log_request(
+        self, 
+        method: str, 
+        path: str, 
+        headers: Dict, 
+        body: Any
+    ) -> None:
         """
         Registrar una solicitud HTTP.
         
         Args:
-            req: Objeto request de Flask (opcional)
+            method: Método HTTP
+            path: Ruta de la solicitud
+            headers: Cabeceras HTTP
+            body: Cuerpo de la solicitud
         """
-        if req is None:
-            req = request
+        # Copiar headers sin información sensible
+        safe_headers = dict(headers)
+        if 'Authorization' in safe_headers:
+            safe_headers['Authorization'] = '***REDACTED***'
             
-        # Obtener datos de la solicitud
-        timestamp = datetime.utcnow().isoformat()
-        path = req.path
-        method = req.method
-        args = dict(req.args)
-        headers = dict(req.headers)
-        
-        # Filtrar headers sensibles
-        sensitive_headers = ['Authorization', 'Cookie', 'X-Api-Key']
-        for header in sensitive_headers:
-            if header in headers:
-                headers[header] = '[FILTERED]'
-        
-        # Datos de la solicitud
-        request_data = {
-            'timestamp': timestamp,
-            'method': method,
-            'path': path,
-            'args': args,
-            'headers': headers,
-            'remote_addr': req.remote_addr,
-            'endpoint': req.endpoint
+        # Intentar decodificar el cuerpo si es JSON
+        try:
+            if isinstance(body, bytes):
+                body_str = body.decode('utf-8')
+                if body_str and body_str.strip():
+                    body_data = json.loads(body_str)
+                else:
+                    body_data = None
+            else:
+                body_data = body
+        except:
+            body_data = "<binary data>"
+            
+        log_data = {
+            'type': 'request',
+            'data': {
+                'request_id': g.get('request_id', str(uuid.uuid4())),
+                'timestamp': datetime.now().isoformat(),
+                'method': method,
+                'path': path,
+                'headers': safe_headers,
+                'body': body_data
+            }
         }
         
-        # Intentar obtener el cuerpo de la solicitud
-        try:
-            if req.is_json:
-                request_data['json'] = req.get_json()
-        except Exception:
-            request_data['json'] = None
+        self._write_log(log_data)
         
-        # Agregar a logs
-        self.request_logs.append({
-            'type': 'request',
-            'data': request_data
-        })
-        
-        # Guardar ID de solicitud para asociar con respuesta
-        g.request_id = len(self.request_logs) - 1
-        g.request_start_time = time.time()
-        
-        # Log en el logger
-        self.logger.info(f"Request: {method} {path}")
-        
-        return request_data
-    
-    def log_response(self, response):
+    def log_response(
+        self, 
+        method: str, 
+        path: str, 
+        status_code: int,
+        headers: Dict, 
+        body: Any,
+        duration: float
+    ) -> None:
         """
         Registrar una respuesta HTTP.
         
         Args:
-            response: Objeto response de Flask
-            
-        Returns:
-            Objeto response sin modificar
+            method: Método HTTP
+            path: Ruta de la solicitud
+            status_code: Código de estado HTTP
+            headers: Cabeceras HTTP
+            body: Cuerpo de la respuesta
+            duration: Duración en segundos
         """
-        # Obtener datos de la respuesta
-        timestamp = datetime.utcnow().isoformat()
-        status_code = response.status_code
-        
-        # Calcular tiempo de respuesta
-        elapsed_time = time.time() - getattr(g, 'request_start_time', time.time())
-        
-        # Datos de la respuesta
-        response_data = {
-            'timestamp': timestamp,
-            'status_code': status_code,
-            'elapsed_time': elapsed_time,
-            'content_type': response.content_type,
-            'content_length': response.content_length,
-            'request_id': getattr(g, 'request_id', None)
+        # Intentar decodificar el cuerpo si es JSON
+        try:
+            if isinstance(body, bytes):
+                body_str = body.decode('utf-8')
+                if body_str and body_str.strip():
+                    body_data = json.loads(body_str)
+                else:
+                    body_data = None
+            else:
+                body_data = body
+        except:
+            body_data = "<binary data>"
+            
+        log_data = {
+            'type': 'response',
+            'data': {
+                'request_id': g.get('request_id', str(uuid.uuid4())),
+                'timestamp': datetime.now().isoformat(),
+                'method': method,
+                'path': path,
+                'status_code': status_code,
+                'duration': duration,
+                'headers': dict(headers),
+                'body': body_data
+            }
         }
         
-        # Agregar a logs
-        self.response_logs.append({
-            'type': 'response',
-            'data': response_data
-        })
+        self._write_log(log_data)
         
-        # Log en el logger
-        self.logger.info(f"Response: {status_code} in {elapsed_time:.4f}s")
-        
-        return response
-    
-    def log_exception(self, exception):
+    def log_exception(
+        self, 
+        method: str, 
+        path: str, 
+        exception: Exception
+    ) -> None:
         """
-        Registrar una excepción.
+        Registrar una excepción durante el procesamiento.
         
         Args:
-            exception: Objeto de excepción
-            
-        Returns:
-            Diccionario con datos de la excepción
+            method: Método HTTP
+            path: Ruta de la solicitud
+            exception: Excepción capturada
         """
-        # Obtener datos de la excepción
-        timestamp = datetime.utcnow().isoformat()
-        exception_type = type(exception).__name__
-        exception_message = str(exception)
-        
-        # Datos de la excepción
-        exception_data = {
-            'timestamp': timestamp,
-            'type': exception_type,
-            'message': exception_message,
-            'path': request.path if request else None,
-            'method': request.method if request else None,
-            'request_id': getattr(g, 'request_id', None)
+        log_data = {
+            'type': 'exception',
+            'data': {
+                'request_id': g.get('request_id', str(uuid.uuid4())),
+                'timestamp': datetime.now().isoformat(),
+                'method': method,
+                'path': path,
+                'exception_type': type(exception).__name__,
+                'exception_message': str(exception)
+            }
         }
         
-        # Agregar a logs
-        self.exception_logs.append({
-            'type': 'exception',
-            'data': exception_data
-        })
+        self._write_log(log_data)
+        self.logger.error(f"API exception: {type(exception).__name__}: {str(exception)}")
         
-        # Log en el logger
-        self.logger.error(f"Exception: {exception_type} - {exception_message}")
-        
-        return exception_data
-    
-    def get_recent_logs(self, log_type: Optional[str] = None, count: int = 50) -> List[Dict[str, Any]]:
+    def _write_log(self, log_data: Dict) -> None:
         """
-        Obtener logs recientes.
+        Escribir un registro de log.
+        
+        Args:
+            log_data: Datos para registrar
+        """
+        with open(self.log_path, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(log_data) + '\n')
+            
+        # Registrar en el logger
+        log_type = log_data.get('type', 'unknown')
+        method = log_data.get('data', {}).get('method', 'UNKNOWN')
+        path = log_data.get('data', {}).get('path', 'UNKNOWN')
+        
+        if log_type == 'request':
+            self.logger.info(f"API request: {method} {path}")
+        elif log_type == 'response':
+            status = log_data.get('data', {}).get('status_code', 0)
+            duration = log_data.get('data', {}).get('duration', 0)
+            self.logger.info(f"API response: {method} {path} - {status} ({duration:.3f}s)")
+            
+    def get_recent_logs(
+        self, 
+        log_type: Optional[str] = None, 
+        count: int = 50
+    ) -> List[Dict]:
+        """
+        Obtener los logs más recientes.
         
         Args:
             log_type: Tipo de log (request, response, exception)
-            count: Número máximo de logs a devolver
+            count: Número máximo de logs
             
         Returns:
-            Lista de logs
+            Lista de registros de log
         """
-        all_logs = []
+        logs = []
         
-        if log_type is None or log_type == 'request':
-            all_logs.extend(list(self.request_logs))
+        try:
+            with open(self.log_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    try:
+                        log_entry = json.loads(line.strip())
+                        if not log_type or log_entry.get('type') == log_type:
+                            logs.append(log_entry)
+                    except:
+                        continue
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
             
-        if log_type is None or log_type == 'response':
-            all_logs.extend(list(self.response_logs))
-            
-        if log_type is None or log_type == 'exception':
-            all_logs.extend(list(self.exception_logs))
-        
-        # Ordenar por timestamp
-        all_logs.sort(key=lambda x: x['data'].get('timestamp', ''), reverse=True)
-        
-        return all_logs[:count]
+        # Retornar los más recientes primero
+        return sorted(
+            logs, 
+            key=lambda x: x.get('data', {}).get('timestamp', ''),
+            reverse=True
+        )[:count]
 
 
-def init_api_logger(app):
+def initialize_logging(app: Flask) -> None:
     """
-    Inicializar el logger de la API.
+    Configurar logging global para la aplicación.
+    
+    Args:
+        app: Aplicación Flask
+    """
+    # Configurar logger raíz
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # Asegurar que el directorio de logs exista
+    os.makedirs('data/logs', exist_ok=True)
+    
+    # Handler para los logs de la aplicación
+    app_handler = logging.FileHandler('data/logs/api.log')
+    app_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    root_logger.addHandler(app_handler)
+    
+    # Handler para la consola
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    root_logger.addHandler(console_handler)
+    
+    # Configurar nivel de log de bibliotecas externas
+    logging.getLogger('werkzeug').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    
+    logging.info(f"Logging inicializado para aplicación Flask")
+
+
+def init_api_logger(app: Flask) -> APILogger:
+    """
+    Inicializar el logger de API para una aplicación Flask.
     
     Args:
         app: Aplicación Flask
         
     Returns:
-        Instancia de APILogger
+        Instancia de APILogger configurada
     """
-    # Crear instancia de APILogger
-    api_logger = APILogger()
-    
-    # Registrar hooks para logging
-    @app.before_request
-    def before_request():
-        api_logger.log_request()
-    
-    @app.after_request
-    def after_request(response):
-        return api_logger.log_response(response)
-    
-    @app.errorhandler(Exception)
-    def handle_exception(e):
-        api_logger.log_exception(e)
-        # Re-raise para que Flask maneje la excepción
-        raise e
-    
-    # Guardar referencia en la aplicación
+    api_logger = APILogger(app)
     app.api_logger = api_logger
-    
     return api_logger

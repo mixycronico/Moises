@@ -14,7 +14,7 @@ from datetime import datetime
 
 from genesis.core.base import Component
 
-class MarketData(Component):
+class MarketDataManager(Component):
     """
     Gestor de datos de mercado con manejo de concurrencia y análisis técnico.
     
@@ -329,13 +329,13 @@ class SlippageController:
     basado en condiciones del mercado como ATR.
     """
     
-    def __init__(self, base_max_slippage: float, market_data: MarketData):
+    def __init__(self, base_max_slippage: float, market_data: MarketDataManager):
         """
         Inicializar el controlador de slippage.
         
         Args:
             base_max_slippage: Slippage máximo base
-            market_data: Instancia de MarketData
+            market_data: Instancia de MarketDataManager
         """
         self.base_max_slippage = max(0.0001, min(0.05, base_max_slippage))  # Entre 0.01% y 5%
         self.market_data = market_data

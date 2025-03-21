@@ -1,7 +1,12 @@
 """
-Módulo de análisis avanzado para el sistema Genesis.
+Módulo de análisis para el sistema Genesis.
 
-Este paquete proporciona componentes para análisis avanzado de datos del mercado,
-incluyendo análisis de OrderFlow, Microestructura de Mercado, Sentiment Analysis,
-y otros análisis avanzados.
+Este módulo proporciona herramientas para analizar datos del mercado,
+detectar anomalías, y estudiar la microestructura del mercado y el
+flujo de órdenes.
 """
+
+from genesis.analysis.market_microstructure import MarketMicrostructureAnalyzer
+from genesis.analysis.order_flow import OrderFlowAnalyzer
+
+__all__ = ["MarketMicrostructureAnalyzer", "OrderFlowAnalyzer"]

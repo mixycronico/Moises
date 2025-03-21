@@ -1,83 +1,125 @@
 """
-Configuración de Swagger UI para la API REST.
+Configuración de Swagger UI para la API REST del sistema Genesis.
 
-Este módulo proporciona funcionalidades para exponer la documentación 
-de la API REST utilizando Swagger UI.
+Este módulo proporciona funcionalidades para generar documentación
+OpenAPI/Swagger automáticamente para la API REST.
 """
 
-import os
-from flask import Blueprint, render_template, send_from_directory
+import logging
+from flask import Flask, Blueprint, jsonify, render_template_string
 
-
-def init_swagger(app):
+def init_swagger(app: Flask) -> None:
     """
-    Inicializar documentación Swagger.
+    Inicializar la documentación Swagger para la API.
     
     Args:
         app: Aplicación Flask
     """
-    # Crear Blueprint para Swagger
-    swagger_bp = Blueprint(
-        'swagger_ui',
-        __name__,
-        url_prefix='/api/docs',
-        template_folder='templates'
-    )
+    # Crear blueprint para la documentación
+    swagger_blueprint = Blueprint('swagger', __name__, url_prefix='/api/docs')
     
-    # Ruta para la interfaz Swagger
-    @swagger_bp.route('/', methods=['GET'])
+    # OpenAPI spec básica
+    openapi_spec = {
+        "openapi": "3.0.0",
+        "info": {
+            "title": "Genesis Trading System API",
+            "description": "API para el sistema de trading algorítmico Genesis",
+            "version": "1.0.0",
+            "contact": {
+                "name": "Genesis Team"
+            }
+        },
+        "servers": [
+            {
+                "url": "/api/v1",
+                "description": "API Genesis v1"
+            }
+        ],
+        "paths": {
+            "/ping": {
+                "get": {
+                    "summary": "Verificar estado de la API",
+                    "description": "Endpoint para verificar que la API está funcionando correctamente",
+                    "responses": {
+                        "200": {
+                            "description": "API funcionando correctamente",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "status": {
+                                                "type": "string",
+                                                "example": "success"
+                                            },
+                                            "message": {
+                                                "type": "string",
+                                                "example": "Genesis API está funcionando correctamente"
+                                            },
+                                            "version": {
+                                                "type": "string",
+                                                "example": "1.0.0"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    # Ruta para acceder a la especificación OpenAPI
+    @swagger_blueprint.route('/spec', methods=['GET'])
+    def get_spec():
+        return jsonify(openapi_spec)
+    
+    # Ruta para la interfaz Swagger UI
+    swagger_ui_html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Genesis API - Swagger UI</title>
+        <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@3/swagger-ui.css">
+        <style>
+            html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }
+            *, *:before, *:after { box-sizing: inherit; }
+            body { margin: 0; background: #fafafa; }
+        </style>
+    </head>
+    <body>
+        <div id="swagger-ui"></div>
+        <script src="https://unpkg.com/swagger-ui-dist@3/swagger-ui-bundle.js"></script>
+        <script>
+            window.onload = function() {
+                const ui = SwaggerUIBundle({
+                    url: "/api/docs/spec",
+                    dom_id: '#swagger-ui',
+                    deepLinking: true,
+                    presets: [
+                        SwaggerUIBundle.presets.apis,
+                        SwaggerUIBundle.SwaggerUIStandalonePreset
+                    ],
+                    layout: "BaseLayout",
+                    withCredentials: true
+                });
+                window.ui = ui;
+            };
+        </script>
+    </body>
+    </html>
+    """
+    
+    @swagger_blueprint.route('/', methods=['GET'])
     def swagger_ui():
-        """Interfaz Swagger UI."""
-        # Redirect para la API de FastAPI que ya incluye Swagger UI
-        return render_template(
-            'swagger.html',
-            api_url='/openapi.json'
-        )
+        return render_template_string(swagger_ui_html)
     
-    # Registrar el blueprint
-    app.register_blueprint(swagger_bp)
+    logging.getLogger('api').info('Swagger UI inicializado en /api/docs')
     
-    # Asegurar que existe directorio de templates
-    os.makedirs(os.path.join(os.path.dirname(__file__), 'templates'), exist_ok=True)
+    # Registrar blueprint
+    app.register_blueprint(swagger_blueprint)
     
-    # Crear template básico de Swagger UI si no existe
-    swagger_template_path = os.path.join(os.path.dirname(__file__), 'templates', 'swagger.html')
-    if not os.path.exists(swagger_template_path):
-        with open(swagger_template_path, 'w') as f:
-            f.write("""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genesis API - Swagger UI</title>
-    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui.css">
-    <style>
-        body { margin: 0; }
-        .swagger-ui .topbar { background-color: #2C3E50; }
-    </style>
-</head>
-<body>
-    <div id="swagger-ui"></div>
-    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@4/swagger-ui-bundle.js"></script>
-    <script>
-        window.onload = function() {
-            const ui = SwaggerUIBundle({
-                url: "{{ api_url }}",
-                dom_id: '#swagger-ui',
-                deepLinking: true,
-                presets: [
-                    SwaggerUIBundle.presets.apis,
-                    SwaggerUIBundle.SwaggerUIStandalonePreset
-                ],
-                layout: "BaseLayout",
-                supportedSubmitMethods: ["get", "post", "put", "delete", "patch"],
-            });
-            window.ui = ui;
-        };
-    </script>
-</body>
-</html>
-            """)
-    
-    return swagger_bp
+    return swagger_blueprint

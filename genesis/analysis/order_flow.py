@@ -1,554 +1,488 @@
 """
-Análisis de OrderFlow para el sistema Genesis.
+Módulo de análisis de flujo de órdenes.
 
-Este módulo proporciona funcionalidades para analizar el flujo de órdenes
-y detectar patrones de acumulación, distribución y desequilibrios en el mercado.
+Este módulo proporciona herramientas para analizar patrones en el
+flujo de órdenes, incluyendo desequilibrios, dominancia de compra/venta,
+y actividad inusual.
 """
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from typing import Dict, List, Any, Optional, Tuple, Union
-import logging
-import asyncio
-import time
 from datetime import datetime, timedelta
-import os
 
-from genesis.core.base import Component
-from genesis.utils.logger import setup_logging
-
-
-class OrderFlowAnalyzer(Component):
+class OrderFlowAnalyzer:
     """
-    Analizador de OrderFlow.
+    Analizador de flujo de órdenes.
     
-    Este componente analiza datos de OrderBook y trades en tiempo real
-    para detectar patrones de acumulación, distribución y desequilibrios.
+    Esta clase proporciona métodos para analizar y detectar patrones
+    en el flujo de órdenes, incluyendo desequilibrios y actividad inusual
+    que podría indicar cambios en la dirección del mercado.
     """
     
-    def __init__(self, name: str = "order_flow"):
+    def __init__(self):
+        """Inicializar el analizador de flujo de órdenes."""
+        pass
+    
+    def calculate_voi(self, trades: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Inicializar el analizador de OrderFlow.
+        Calcular el Índice de Desequilibrio de Volumen (VOI - Volume Imbalance Index).
+        
+        Este indicador mide la presión de compra/venta basándose en el volumen
+        negociado a diferentes niveles de precio.
         
         Args:
-            name: Nombre del componente
-        """
-        super().__init__(name)
-        self.logger = setup_logging(name)
-        
-        # Configuración
-        self.volume_threshold = 0.1  # 10% del volumen normal es considerado significativo
-        self.imbalance_threshold = 0.7  # 70% de desequilibrio se considera significativo
-        self.period = 100  # Número de ticks a analizar
-        
-        # Datos de OrderBook
-        # Symbol -> (timestamp, book_data)
-        self.order_books: Dict[str, List[Tuple[float, Dict[str, Any]]]] = {}
-        
-        # Datos de trades
-        # Symbol -> (timestamp, trade_data)
-        self.trades: Dict[str, List[Tuple[float, Dict[str, Any]]]] = {}
-        
-        # Resultados de análisis
-        # Symbol -> análisis
-        self.analysis_results: Dict[str, Dict[str, Any]] = {}
-        
-        # Directorio para gráficos
-        self.plot_dir = "data/plots/order_flow"
-        os.makedirs(self.plot_dir, exist_ok=True)
-    
-    async def start(self) -> None:
-        """Iniciar el analizador de OrderFlow."""
-        await super().start()
-        self.logger.info("Analizador de OrderFlow iniciado")
-    
-    async def stop(self) -> None:
-        """Detener el analizador de OrderFlow."""
-        await super().stop()
-        self.logger.info("Analizador de OrderFlow detenido")
-    
-    async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
-        Manejar eventos del bus de eventos.
-        
-        Args:
-            event_type: Tipo de evento
-            data: Datos del evento
-            source: Componente de origen
-        """
-        # Procesar datos del OrderBook
-        if event_type == "market.orderbook_updated":
-            await self._process_orderbook(data)
-        
-        # Procesar datos de trades
-        elif event_type == "market.trade_executed":
-            await self._process_trade(data)
-    
-    async def _process_orderbook(self, data: Dict[str, Any]) -> None:
-        """
-        Procesar actualización de OrderBook.
-        
-        Args:
-            data: Datos del OrderBook
-        """
-        symbol = data.get("symbol")
-        if not symbol:
-            return
-        
-        timestamp = data.get("timestamp", time.time())
-        
-        # Inicializar lista si es necesario
-        if symbol not in self.order_books:
-            self.order_books[symbol] = []
-        
-        # Añadir datos
-        self.order_books[symbol].append((timestamp, data))
-        
-        # Mantener solo los últimos N datos
-        self.order_books[symbol] = self.order_books[symbol][-self.period:]
-        
-        # Analizar si tenemos suficientes datos
-        if len(self.order_books[symbol]) >= 10:  # Mínimo 10 muestras para análisis
-            await self._analyze_orderbook(symbol)
-    
-    async def _process_trade(self, data: Dict[str, Any]) -> None:
-        """
-        Procesar trade ejecutado.
-        
-        Args:
-            data: Datos del trade
-        """
-        symbol = data.get("symbol")
-        if not symbol:
-            return
-        
-        timestamp = data.get("timestamp", time.time())
-        
-        # Inicializar lista si es necesario
-        if symbol not in self.trades:
-            self.trades[symbol] = []
-        
-        # Añadir datos
-        self.trades[symbol].append((timestamp, data))
-        
-        # Mantener solo los últimos N datos
-        self.trades[symbol] = self.trades[symbol][-self.period:]
-        
-        # Analizar si tenemos suficientes datos
-        if len(self.trades[symbol]) >= 10:  # Mínimo 10 muestras para análisis
-            await self._analyze_trades(symbol)
-    
-    async def _analyze_orderbook(self, symbol: str) -> None:
-        """
-        Analizar el OrderBook para un símbolo.
-        
-        Args:
-            symbol: Símbolo a analizar
-        """
-        # Extraer datos
-        order_books = self.order_books[symbol]
-        
-        # Inicializar resultados para este símbolo si es necesario
-        if symbol not in self.analysis_results:
-            self.analysis_results[symbol] = {}
-        
-        # Extraer bids y asks
-        bids = [ob[1].get("bids", []) for ob in order_books]
-        asks = [ob[1].get("asks", []) for ob in order_books]
-        
-        # Calcular métricas de OrderBook
-        bid_volume = sum([sum([bid[1] for bid in book]) for book in bids if book])
-        ask_volume = sum([sum([ask[1] for ask in book]) for book in asks if book])
-        
-        # Calcular desequilibrio de volumen
-        total_volume = bid_volume + ask_volume
-        if total_volume > 0:
-            bid_ratio = bid_volume / total_volume
-            ask_ratio = ask_volume / total_volume
-            imbalance = abs(bid_ratio - ask_ratio)
-        else:
-            bid_ratio = 0.5
-            ask_ratio = 0.5
-            imbalance = 0
-        
-        # Detectar walls (grandes órdenes en un nivel específico)
-        bid_walls = []
-        ask_walls = []
-        
-        if bids and bids[-1]:  # Usar el último OrderBook
-            last_bids = bids[-1]
-            avg_bid_volume = sum([bid[1] for bid in last_bids]) / len(last_bids) if last_bids else 0
-            for price, volume in last_bids:
-                if volume > avg_bid_volume * 3:  # 3x el volumen promedio
-                    bid_walls.append((price, volume))
-        
-        if asks and asks[-1]:  # Usar el último OrderBook
-            last_asks = asks[-1]
-            avg_ask_volume = sum([ask[1] for ask in last_asks]) / len(last_asks) if last_asks else 0
-            for price, volume in last_asks:
-                if volume > avg_ask_volume * 3:  # 3x el volumen promedio
-                    ask_walls.append((price, volume))
-        
-        # Calcular métricas de profundidad
-        bid_depth = sum([len(book) for book in bids if book]) / len(bids) if bids else 0
-        ask_depth = sum([len(book) for book in asks if book]) / len(asks) if asks else 0
-        
-        # Guardar resultados
-        result = {
-            "timestamp": datetime.now().isoformat(),
-            "bid_volume": bid_volume,
-            "ask_volume": ask_volume,
-            "bid_ratio": bid_ratio,
-            "ask_ratio": ask_ratio,
-            "imbalance": imbalance,
-            "bid_walls": bid_walls,
-            "ask_walls": ask_walls,
-            "bid_depth": bid_depth,
-            "ask_depth": ask_depth
-        }
-        
-        # Actualizar resultados
-        self.analysis_results[symbol]["orderbook"] = result
-        
-        # Emitir evento de análisis
-        significant_imbalance = imbalance > self.imbalance_threshold
-        if significant_imbalance:
-            direction = "compra" if bid_ratio > ask_ratio else "venta"
-            await self.emit_event("analysis.orderflow_imbalance", {
-                "symbol": symbol,
-                "imbalance": imbalance,
-                "direction": direction,
-                "bid_ratio": bid_ratio,
-                "ask_ratio": ask_ratio,
-                "timestamp": datetime.now().isoformat()
-            })
-            
-            self.logger.info(f"Desequilibrio de OrderFlow detectado en {symbol}: {imbalance:.2f} hacia {direction}")
-    
-    async def _analyze_trades(self, symbol: str) -> None:
-        """
-        Analizar trades para un símbolo.
-        
-        Args:
-            symbol: Símbolo a analizar
-        """
-        # Extraer datos
-        trade_data = self.trades[symbol]
-        
-        # Inicializar resultados para este símbolo si es necesario
-        if symbol not in self.analysis_results:
-            self.analysis_results[symbol] = {}
-        
-        # Extraer trades
-        trades = [t[1] for t in trade_data]
-        
-        # Separar por tipo
-        buy_trades = [t for t in trades if t.get("side") == "buy"]
-        sell_trades = [t for t in trades if t.get("side") == "sell"]
-        
-        # Calcular métricas de volumen
-        buy_volume = sum([t.get("amount", 0) for t in buy_trades])
-        sell_volume = sum([t.get("amount", 0) for t in sell_trades])
-        
-        # Calcular volumen total y promedio
-        total_volume = buy_volume + sell_volume
-        avg_trade_size = total_volume / len(trades) if trades else 0
-        
-        # Identificar trades grandes
-        large_trades = [t for t in trades if t.get("amount", 0) > avg_trade_size * 2]
-        
-        # Calcular desequilibrio de volumen
-        if total_volume > 0:
-            buy_ratio = buy_volume / total_volume
-            sell_ratio = sell_volume / total_volume
-            imbalance = abs(buy_ratio - sell_ratio)
-        else:
-            buy_ratio = 0.5
-            sell_ratio = 0.5
-            imbalance = 0
-        
-        # Guardar resultados
-        result = {
-            "timestamp": datetime.now().isoformat(),
-            "buy_volume": buy_volume,
-            "sell_volume": sell_volume,
-            "buy_ratio": buy_ratio,
-            "sell_ratio": sell_ratio,
-            "imbalance": imbalance,
-            "avg_trade_size": avg_trade_size,
-            "large_trades": len(large_trades)
-        }
-        
-        # Actualizar resultados
-        self.analysis_results[symbol]["trades"] = result
-        
-        # Emitir evento de análisis
-        significant_imbalance = imbalance > self.imbalance_threshold
-        if significant_imbalance:
-            direction = "compra" if buy_ratio > sell_ratio else "venta"
-            await self.emit_event("analysis.trade_imbalance", {
-                "symbol": symbol,
-                "imbalance": imbalance,
-                "direction": direction,
-                "buy_ratio": buy_ratio,
-                "sell_ratio": sell_ratio,
-                "timestamp": datetime.now().isoformat()
-            })
-            
-            self.logger.info(f"Desequilibrio de trades detectado en {symbol}: {imbalance:.2f} hacia {direction}")
-    
-    async def get_analysis(self, symbol: str) -> Dict[str, Any]:
-        """
-        Obtener resultados de análisis para un símbolo.
-        
-        Args:
-            symbol: Símbolo a consultar
+            trades: Lista de operaciones con precio, cantidad y lado
             
         Returns:
-            Resultados de análisis
+            Métricas de desequilibrio de volumen
         """
-        if symbol not in self.analysis_results:
+        if not trades:
             return {}
+            
+        # Convertir a DataFrame
+        df = pd.DataFrame(trades)
         
-        # Combinar resultados de OrderBook y trades
-        result = {
-            "symbol": symbol,
-            "timestamp": datetime.now().isoformat()
-        }
+        # Verificar columnas necesarias
+        required_columns = ["price", "amount", "side", "timestamp"]
+        for col in required_columns:
+            if col not in df.columns:
+                return {}
+                
+        # Asegurarse de que timestamp es datetime
+        if not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            
+        # Calcular delta VOI para cada operación
+        df["delta_voi"] = df.apply(
+            lambda x: x["amount"] if x["side"] == "buy" else -x["amount"],
+            axis=1
+        )
         
-        # Añadir datos de OrderBook si existen
-        if "orderbook" in self.analysis_results[symbol]:
-            ob_data = self.analysis_results[symbol]["orderbook"]
-            result.update({
-                "orderbook_imbalance": ob_data["imbalance"],
-                "bid_walls": len(ob_data["bid_walls"]),
-                "ask_walls": len(ob_data["ask_walls"]),
-                "bid_depth": ob_data["bid_depth"],
-                "ask_depth": ob_data["ask_depth"]
-            })
+        # Agrupar por intervalos de tiempo (5 minutos)
+        df["time_group"] = df["timestamp"].dt.floor("5min")
         
-        # Añadir datos de trades si existen
-        if "trades" in self.analysis_results[symbol]:
-            trade_data = self.analysis_results[symbol]["trades"]
-            result.update({
-                "trade_imbalance": trade_data["imbalance"],
-                "buy_ratio": trade_data["buy_ratio"],
-                "sell_ratio": trade_data["sell_ratio"],
-                "avg_trade_size": trade_data["avg_trade_size"],
-                "large_trades": trade_data["large_trades"]
-            })
+        # Calcular VOI acumulado para cada grupo de tiempo
+        voi_by_time = df.groupby("time_group")["delta_voi"].sum().reset_index()
+        voi_by_time.columns = ["timestamp", "voi"]
         
-        # Calcular desequilibrio combinado
-        ob_imbalance = self.analysis_results[symbol].get("orderbook", {}).get("imbalance", 0)
-        trade_imbalance = self.analysis_results[symbol].get("trades", {}).get("imbalance", 0)
+        # Calcular VOI acumulado total
+        cumulative_voi = df["delta_voi"].cumsum().tolist()
         
-        # Ponderación: 60% OrderBook, 40% trades
-        combined_imbalance = ob_imbalance * 0.6 + trade_imbalance * 0.4
-        result["combined_imbalance"] = combined_imbalance
+        # Calcular métricas
+        total_voi = df["delta_voi"].sum()
+        voi_last_1h = df[df["timestamp"] > df["timestamp"].max() - timedelta(hours=1)]["delta_voi"].sum()
         
-        # Determinar dirección dominante
-        ob_buy_bias = self.analysis_results[symbol].get("orderbook", {}).get("bid_ratio", 0.5) > 0.5
-        trade_buy_bias = self.analysis_results[symbol].get("trades", {}).get("buy_ratio", 0.5) > 0.5
-        
-        # Si ambos apuntan en la misma dirección, esa es la dominante
-        if ob_buy_bias == trade_buy_bias:
-            result["dominant_direction"] = "compra" if ob_buy_bias else "venta"
-            result["direction_confidence"] = combined_imbalance
+        # Calcular tendencia
+        if len(cumulative_voi) > 10:
+            # Últimos 10 intervalos
+            recent_trend = cumulative_voi[-1] - cumulative_voi[-10]
+            trend = "bullish" if recent_trend > 0 else "bearish" if recent_trend < 0 else "neutral"
         else:
-            # Si no coinciden, usar el que tiene mayor desequilibrio
-            if ob_imbalance > trade_imbalance:
-                result["dominant_direction"] = "compra" if ob_buy_bias else "venta"
-                result["direction_confidence"] = ob_imbalance
-            else:
-                result["dominant_direction"] = "compra" if trade_buy_bias else "venta"
-                result["direction_confidence"] = trade_imbalance
+            trend = "neutral"
+            
+        return {
+            "voi_total": total_voi,
+            "voi_last_1h": voi_last_1h,
+            "voi_by_time": voi_by_time.to_dict("records"),
+            "cumulative_voi": cumulative_voi,
+            "trend": trend
+        }
+    
+    def calculate_cvd(self, trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Calcular el Delta de Volumen Cumulativo (CVD - Cumulative Volume Delta).
         
+        Este indicador mide el desequilibrio entre volumen de compra y venta,
+        y se utiliza para identificar presión de compra/venta.
+        
+        Args:
+            trades: Lista de operaciones con precio, cantidad y lado
+            
+        Returns:
+            Métricas de delta de volumen acumulado
+        """
+        if not trades:
+            return {}
+            
+        # Convertir a DataFrame
+        df = pd.DataFrame(trades)
+        
+        # Verificar columnas necesarias
+        required_columns = ["price", "amount", "side", "timestamp"]
+        for col in required_columns:
+            if col not in df.columns:
+                return {}
+                
+        # Asegurarse de que timestamp es datetime
+        if not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            
+        # Calcular delta para cada operación
+        df["delta"] = df.apply(
+            lambda x: x["amount"] if x["side"] == "buy" else -x["amount"],
+            axis=1
+        )
+        
+        # Calcular CVD acumulado
+        df["cvd"] = df["delta"].cumsum()
+        
+        # Calcular estadísticas
+        cvd_series = df["cvd"].tolist()
+        timestamps = df["timestamp"].tolist()
+        
+        # Calcular pendiente reciente (últimas 20 operaciones o todas si hay menos)
+        window_size = min(20, len(df))
+        if window_size > 1:
+            recent_slope = (cvd_series[-1] - cvd_series[-window_size]) / window_size
+        else:
+            recent_slope = 0
+            
+        # Calcular otros estadísticos
+        max_cvd = df["cvd"].max()
+        min_cvd = df["cvd"].min()
+        latest_cvd = df["cvd"].iloc[-1] if not df.empty else 0
+        
+        # Obtener puntos de cambio significativos (donde la tendencia se invierte)
+        sign_changes = []
+        prev_sign = 0
+        
+        for i in range(1, len(df)):
+            delta = df["delta"].iloc[i]
+            curr_sign = 1 if delta > 0 else -1 if delta < 0 else 0
+            
+            if prev_sign != 0 and curr_sign != 0 and prev_sign != curr_sign:
+                sign_changes.append({
+                    "timestamp": df["timestamp"].iloc[i],
+                    "price": df["price"].iloc[i],
+                    "cvd": df["cvd"].iloc[i],
+                    "direction": "bullish" if curr_sign > 0 else "bearish"
+                })
+                
+            if curr_sign != 0:
+                prev_sign = curr_sign
+        
+        return {
+            "cvd_values": cvd_series,
+            "timestamps": timestamps,
+            "max_cvd": max_cvd,
+            "min_cvd": min_cvd,
+            "latest_cvd": latest_cvd,
+            "recent_slope": recent_slope,
+            "trend": "bullish" if recent_slope > 0 else "bearish" if recent_slope < 0 else "neutral",
+            "sign_changes": sign_changes
+        }
+    
+    def detect_large_orders(
+        self, 
+        trades: List[Dict[str, Any]], 
+        threshold_multiplier: float = 2.0
+    ) -> List[Dict[str, Any]]:
+        """
+        Detectar operaciones grandes que puedan indicar actividad inusual.
+        
+        Args:
+            trades: Lista de operaciones con precio, cantidad y lado
+            threshold_multiplier: Multiplicador para considerar una operación "grande"
+            
+        Returns:
+            Lista de operaciones grandes detectadas
+        """
+        if not trades:
+            return []
+            
+        # Convertir a DataFrame
+        df = pd.DataFrame(trades)
+        
+        # Verificar columnas necesarias
+        required_columns = ["price", "amount", "side", "timestamp"]
+        for col in required_columns:
+            if col not in df.columns:
+                return []
+                
+        # Calcular tamaño promedio
+        avg_size = df["amount"].mean()
+        
+        # Detectar operaciones grandes
+        large_trades = df[df["amount"] > avg_size * threshold_multiplier].copy()
+        
+        # Ordenar por tamaño descendente
+        large_trades = large_trades.sort_values("amount", ascending=False)
+        
+        # Calcular el impacto en el precio
+        if len(large_trades) > 0 and len(df) > 0:
+            for i, row in large_trades.iterrows():
+                # Encontrar el índice de esta operación en el DataFrame original
+                idx = df.index.get_loc(i)
+                
+                # Precio antes y después (si es posible)
+                if idx > 0:
+                    price_before = df.iloc[idx-1]["price"]
+                else:
+                    price_before = row["price"]
+                    
+                if idx < len(df) - 1:
+                    price_after = df.iloc[idx+1]["price"]
+                else:
+                    price_after = row["price"]
+                    
+                # Calcular el impacto
+                large_trades.loc[i, "price_impact_pct"] = ((price_after - price_before) / price_before) * 100
+        
+        # Convertir a lista de diccionarios
+        result = large_trades.to_dict("records")
+        
+        # Añadir contexto
+        for i, trade in enumerate(result):
+            trade["size_vs_avg"] = trade["amount"] / avg_size
+            trade["rank"] = i + 1
+            
         return result
     
-    async def generate_report(self, symbol: str) -> Dict[str, Any]:
+    def analyze_trade_clusters(self, trades: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        Generar reporte completo de OrderFlow para un símbolo.
+        Analizar clústeres de operaciones que puedan indicar comportamiento coordinado.
         
         Args:
-            symbol: Símbolo a analizar
+            trades: Lista de operaciones con precio, cantidad y lado
             
         Returns:
-            Reporte detallado
+            Análisis de clústeres de operaciones
         """
-        # Obtener análisis básico
-        analysis = await self.get_analysis(symbol)
-        if not analysis:
-            return {"error": "No hay datos suficientes para el análisis"}
+        if not trades:
+            return {}
+            
+        # Convertir a DataFrame
+        df = pd.DataFrame(trades)
         
-        # Generar gráficos
-        chart_path = await self._generate_chart(symbol)
+        # Verificar columnas necesarias
+        required_columns = ["price", "amount", "side", "timestamp"]
+        for col in required_columns:
+            if col not in df.columns:
+                return {}
+                
+        # Asegurarse de que timestamp es datetime
+        if not pd.api.types.is_datetime64_any_dtype(df["timestamp"]):
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
         
-        # Añadir insights
-        insights = []
+        # Ordenar por timestamp
+        df = df.sort_values("timestamp")
         
-        # Análisis de desequilibrio
-        if analysis.get("combined_imbalance", 0) > self.imbalance_threshold:
-            direction = analysis.get("dominant_direction", "")
-            insights.append(f"Fuerte desequilibrio ({analysis['combined_imbalance']:.2f}) detectado hacia {direction}")
+        # Calcular tiempo entre operaciones
+        df["time_diff"] = df["timestamp"].diff().dt.total_seconds()
         
-        # Análisis de paredes (walls)
-        bid_walls = analysis.get("bid_walls", 0)
-        ask_walls = analysis.get("ask_walls", 0)
-        if bid_walls > 0:
-            insights.append(f"Detectadas {bid_walls} paredes de compra significativas")
-        if ask_walls > 0:
-            insights.append(f"Detectadas {ask_walls} paredes de venta significativas")
+        # Definir un clúster como operaciones separadas por menos de 1 segundo
+        df["cluster_start"] = df["time_diff"] > 1.0
+        df["cluster_id"] = df["cluster_start"].cumsum()
         
-        # Análisis de trades grandes
-        large_trades = analysis.get("large_trades", 0)
-        if large_trades > 0:
-            insights.append(f"Detectados {large_trades} trades de gran volumen")
+        # Analizar clústeres
+        clusters = []
         
-        # Añadir al reporte
-        analysis["insights"] = insights
-        analysis["chart_path"] = chart_path
-        
-        return analysis
+        for cluster_id, group in df.groupby("cluster_id"):
+            if len(group) < 2:
+                continue  # Ignorar operaciones solitarias
+                
+            # Calcular propiedades del clúster
+            duration = (group["timestamp"].max() - group["timestamp"].min()).total_seconds()
+            buy_count = (group["side"] == "buy").sum()
+            sell_count = (group["side"] == "sell").sum()
+            buy_volume = group[group["side"] == "buy"]["amount"].sum()
+            sell_volume = group[group["side"] == "sell"]["amount"].sum()
+            
+            # Determinar la dirección del clúster
+            if buy_volume > sell_volume:
+                direction = "buy"
+            elif sell_volume > buy_volume:
+                direction = "sell"
+            else:
+                direction = "neutral"
+                
+            # Calcular el cambio de precio durante el clúster
+            price_start = group["price"].iloc[0]
+            price_end = group["price"].iloc[-1]
+            price_change = price_end - price_start
+            price_change_pct = (price_change / price_start) * 100 if price_start > 0 else 0
+            
+            clusters.append({
+                "cluster_id": cluster_id,
+                "start_time": group["timestamp"].min(),
+                "end_time": group["timestamp"].max(),
+                "duration_sec": duration,
+                "trade_count": len(group),
+                "trades_per_second": len(group) / max(duration, 0.001),
+                "buy_count": buy_count,
+                "sell_count": sell_count,
+                "buy_volume": buy_volume,
+                "sell_volume": sell_volume,
+                "total_volume": buy_volume + sell_volume,
+                "price_start": price_start,
+                "price_end": price_end,
+                "price_change": price_change,
+                "price_change_pct": price_change_pct,
+                "direction": direction
+            })
+            
+        # Filtrar clústeres significativos (alta velocidad de operaciones o gran volumen)
+        if clusters:
+            avg_volume = sum(c["total_volume"] for c in clusters) / len(clusters)
+            avg_trades_per_second = sum(c["trades_per_second"] for c in clusters) / len(clusters)
+            
+            significant_clusters = [
+                c for c in clusters if 
+                c["trades_per_second"] > avg_trades_per_second * 1.5 or
+                c["total_volume"] > avg_volume * 1.5
+            ]
+        else:
+            significant_clusters = []
+            
+        return {
+            "total_clusters": len(clusters),
+            "significant_clusters": len(significant_clusters),
+            "clusters": clusters,
+            "significant_clusters_detail": significant_clusters
+        }
     
-    async def _generate_chart(self, symbol: str) -> str:
+    def calculate_liquidity_consumption(
+        self, 
+        trades: List[Dict[str, Any]], 
+        orderbook_before_after: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
         """
-        Generar gráfico de análisis de OrderFlow.
+        Calcular el consumo de liquidez, indicando la agresividad de las órdenes.
         
         Args:
-            symbol: Símbolo a graficar
+            trades: Lista de operaciones
+            orderbook_before_after: Snapshots del libro de órdenes antes y después de operaciones grandes
             
         Returns:
-            Ruta al archivo del gráfico
+            Métricas de consumo de liquidez
         """
-        # Verificar si hay datos suficientes
-        if symbol not in self.analysis_results:
-            return ""
+        if not trades or not orderbook_before_after:
+            return {}
+            
+        # Analizar cada evento de consumo de liquidez
+        liquidity_events = []
         
-        try:
-            # Crear figura
-            plt.figure(figsize=(12, 8))
-            
-            # Datos de OrderBook
-            if "orderbook" in self.analysis_results[symbol]:
-                ob_data = self.analysis_results[symbol]["orderbook"]
+        for entry in orderbook_before_after:
+            if "trade" not in entry or "orderbook_before" not in entry or "orderbook_after" not in entry:
+                continue
                 
-                # Subplot para desequilibrio de OrderBook
-                plt.subplot(2, 2, 1)
-                plt.bar(["Compra", "Venta"], [ob_data["bid_ratio"], ob_data["ask_ratio"]])
-                plt.title(f"Desequilibrio de OrderBook: {ob_data['imbalance']:.2f}")
-                plt.ylim(0, 1)
+            trade = entry["trade"]
+            book_before = entry["orderbook_before"]
+            book_after = entry["orderbook_after"]
+            
+            # Verificar datos necesarios
+            if "side" not in trade or "amount" not in trade or "price" not in trade:
+                continue
                 
-                # Subplot para profundidad
-                plt.subplot(2, 2, 2)
-                plt.bar(["Compra", "Venta"], [ob_data["bid_depth"], ob_data["ask_depth"]])
-                plt.title("Profundidad del Libro")
+            side = trade["side"]
+            amount = trade["amount"]
+            price = trade["price"]
+            book_side = "asks" if side == "buy" else "bids"
             
-            # Datos de trades
-            if "trades" in self.analysis_results[symbol]:
-                trade_data = self.analysis_results[symbol]["trades"]
+            # Calcular liquidez consumida
+            if book_side in book_before and book_side in book_after:
+                # Calcular liquidez disponible antes
+                before_levels = book_before[book_side]
+                after_levels = book_after[book_side]
                 
-                # Subplot para desequilibrio de trades
-                plt.subplot(2, 2, 3)
-                plt.bar(["Compra", "Venta"], [trade_data["buy_ratio"], trade_data["sell_ratio"]])
-                plt.title(f"Desequilibrio de Trades: {trade_data['imbalance']:.2f}")
-                plt.ylim(0, 1)
-                
-                # Subplot para tamaño de trades
-                plt.subplot(2, 2, 4)
-                plt.bar(["Promedio", "Grandes"], [trade_data["avg_trade_size"], trade_data["large_trades"]])
-                plt.title("Tamaño de Trades")
-            
-            # Ajustar layout
-            plt.tight_layout()
-            
-            # Guardar gráfico
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            file_path = f"{self.plot_dir}/{symbol}_orderflow_{timestamp}.png"
-            plt.savefig(file_path)
-            plt.close()
-            
-            return file_path
+                # Liquidez desaparecida
+                if side == "buy":
+                    # Para compras, se consume liquidez en los asks (ventas)
+                    best_ask_before = before_levels[0][0] if before_levels else None
+                    best_ask_after = after_levels[0][0] if after_levels else None
+                    
+                    if best_ask_before is not None and best_ask_after is not None:
+                        # Verificar si se consumió un nivel completo
+                        levels_consumed = 0
+                        volume_consumed = 0
+                        
+                        for level in before_levels:
+                            if level[0] <= price:
+                                # Este nivel fue ejecutado
+                                levels_consumed += 1
+                                volume_consumed += level[1]
+                            else:
+                                break
+                                
+                        liquidity_events.append({
+                            "timestamp": trade.get("timestamp"),
+                            "side": side,
+                            "trade_amount": amount,
+                            "trade_price": price,
+                            "levels_consumed": levels_consumed,
+                            "volume_consumed": volume_consumed,
+                            "price_impact": ((best_ask_after - best_ask_before) / best_ask_before) * 100 
+                                          if best_ask_before > 0 else 0,
+                            "aggressive": volume_consumed > amount * 1.2  # Operación que consume más liquidez de la necesaria
+                        })
+                        
+                else:  # sell
+                    # Para ventas, se consume liquidez en los bids (compras)
+                    best_bid_before = before_levels[0][0] if before_levels else None
+                    best_bid_after = after_levels[0][0] if after_levels else None
+                    
+                    if best_bid_before is not None and best_bid_after is not None:
+                        # Verificar si se consumió un nivel completo
+                        levels_consumed = 0
+                        volume_consumed = 0
+                        
+                        for level in before_levels:
+                            if level[0] >= price:
+                                # Este nivel fue ejecutado
+                                levels_consumed += 1
+                                volume_consumed += level[1]
+                            else:
+                                break
+                                
+                        liquidity_events.append({
+                            "timestamp": trade.get("timestamp"),
+                            "side": side,
+                            "trade_amount": amount,
+                            "trade_price": price,
+                            "levels_consumed": levels_consumed,
+                            "volume_consumed": volume_consumed,
+                            "price_impact": ((best_bid_before - best_bid_after) / best_bid_before) * 100 
+                                          if best_bid_before > 0 else 0,
+                            "aggressive": volume_consumed > amount * 1.2  # Operación que consume más liquidez de la necesaria
+                        })
         
-        except Exception as e:
-            self.logger.error(f"Error al generar gráfico: {e}")
-            return ""
-
-
-# Función para transformar datos de OrderBook en DataFrame
-def orderbook_to_dataframe(bids: List[List[float]], asks: List[List[float]]) -> pd.DataFrame:
-    """
-    Convertir datos de OrderBook a DataFrame.
-    
-    Args:
-        bids: Lista de órdenes de compra [precio, volumen]
-        asks: Lista de órdenes de venta [precio, volumen]
+        # Calcular estadísticas agregadas
+        if not liquidity_events:
+            return {"events": []}
+            
+        buy_events = [e for e in liquidity_events if e["side"] == "buy"]
+        sell_events = [e for e in liquidity_events if e["side"] == "sell"]
         
-    Returns:
-        DataFrame con los datos de OrderBook
-    """
-    # Crear DataFrames separados
-    bids_df = pd.DataFrame(bids, columns=["price", "volume"])
-    asks_df = pd.DataFrame(asks, columns=["price", "volume"])
-    
-    # Añadir tipo
-    bids_df["type"] = "bid"
-    asks_df["type"] = "ask"
-    
-    # Combinar y ordenar por precio
-    df = pd.concat([bids_df, asks_df])
-    df = df.sort_values("price")
-    
-    return df
-
-
-# Función para detectar absorción en el OrderBook
-def detect_absorption(
-    orderbook_df: pd.DataFrame, 
-    trades: List[Dict[str, Any]],
-    threshold: float = 0.7
-) -> Dict[str, Any]:
-    """
-    Detectar absorción en el OrderBook.
-    
-    La absorción ocurre cuando grandes órdenes son ejecutadas sin
-    afectar significativamente el precio.
-    
-    Args:
-        orderbook_df: DataFrame con datos de OrderBook
-        trades: Lista de trades recientes
-        threshold: Umbral para considerar absorción significativa
-        
-    Returns:
-        Resultado del análisis de absorción
-    """
-    # Calcular volumen total de trades
-    trade_volume = sum([t.get("amount", 0) for t in trades])
-    
-    # Calcular volumen en el OrderBook
-    bid_volume = orderbook_df[orderbook_df["type"] == "bid"]["volume"].sum()
-    ask_volume = orderbook_df[orderbook_df["type"] == "ask"]["volume"].sum()
-    
-    # Calcular ratios
-    bid_ratio = trade_volume / bid_volume if bid_volume > 0 else 0
-    ask_ratio = trade_volume / ask_volume if ask_volume > 0 else 0
-    
-    # Determinar si hay absorción
-    is_bid_absorption = bid_ratio > threshold
-    is_ask_absorption = ask_ratio > threshold
-    
-    result = {
-        "bid_absorption": is_bid_absorption,
-        "ask_absorption": is_ask_absorption,
-        "bid_ratio": bid_ratio,
-        "ask_ratio": ask_ratio,
-        "trade_volume": trade_volume,
-        "bid_volume": bid_volume,
-        "ask_volume": ask_volume
-    }
-    
-    return result
-
-
-# Exportación para uso fácil
-order_flow_analyzer = OrderFlowAnalyzer()
+        # Calcular promedios para eventos de compra
+        if buy_events:
+            avg_buy_levels = sum(e["levels_consumed"] for e in buy_events) / len(buy_events)
+            avg_buy_impact = sum(e["price_impact"] for e in buy_events) / len(buy_events)
+            aggressive_buys = sum(1 for e in buy_events if e.get("aggressive", False))
+        else:
+            avg_buy_levels = 0
+            avg_buy_impact = 0
+            aggressive_buys = 0
+            
+        # Calcular promedios para eventos de venta
+        if sell_events:
+            avg_sell_levels = sum(e["levels_consumed"] for e in sell_events) / len(sell_events)
+            avg_sell_impact = sum(e["price_impact"] for e in sell_events) / len(sell_events)
+            aggressive_sells = sum(1 for e in sell_events if e.get("aggressive", False))
+        else:
+            avg_sell_levels = 0
+            avg_sell_impact = 0
+            aggressive_sells = 0
+            
+        return {
+            "events": liquidity_events,
+            "buy_events_count": len(buy_events),
+            "sell_events_count": len(sell_events),
+            "avg_buy_levels_consumed": avg_buy_levels,
+            "avg_sell_levels_consumed": avg_sell_levels,
+            "avg_buy_price_impact": avg_buy_impact,
+            "avg_sell_price_impact": avg_sell_impact,
+            "aggressive_buys": aggressive_buys,
+            "aggressive_sells": aggressive_sells,
+            "buy_sell_aggression_ratio": aggressive_buys / aggressive_sells if aggressive_sells > 0 else float('inf')
+        }

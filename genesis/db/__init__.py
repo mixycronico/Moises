@@ -1,6 +1,8 @@
 """
-Módulos de base de datos para el sistema Genesis.
+Módulo de base de datos para el sistema Genesis.
 
-Este paquete contiene los módulos relacionados con la persistencia de datos,
-incluyendo modelos, repositorios y utilitarios de base de datos.
+Este módulo proporciona la capa de acceso a datos y modelos
+para la persistencia de información del sistema de trading.
 """
+
+__all__ = []

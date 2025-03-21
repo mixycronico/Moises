@@ -1,318 +1,73 @@
 """
 Motor de backtesting para el sistema Genesis.
 
-Este módulo proporciona un motor avanzado para realizar backtesting de
-estrategias de trading utilizando datos históricos de mercado, simulando
-ejecuciones, slippage, y otras condiciones de mercado reales.
+Este módulo proporciona un motor avanzado de backtesting para probar
+estrategias de trading con datos históricos, incluyendo optimización
+de parámetros y análisis de resultados.
 """
 
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib
-matplotlib.use('Agg')  # Configurar backend no interactivo
-import os
-import json
-import asyncio
-import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Union, Callable, Type
 import logging
-import uuid
-from concurrent.futures import ProcessPoolExecutor
-import multiprocessing as mp
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List, Callable, Optional, Tuple, Any, Union
+from itertools import product
+import os
+import asyncio
 
 from genesis.core.base import Component
-from genesis.utils.logger import setup_logging
-from genesis.strategies.base import Strategy
+from genesis.data.market_data import MarketDataManager
+from genesis.strategies.base import Strategy, SignalType
 from genesis.risk.position_sizer import PositionSizer
-from genesis.risk.stop_loss import StopLossCalculator
-
-
-class BacktestResult:
-    """
-    Resultado de un backtest.
-    
-    Esta clase encapsula los resultados completos de un backtest,
-    incluyendo trades, métricas, y gráficos.
-    """
-    
-    def __init__(self, 
-                strategy_name: str,
-                symbol: str,
-                timeframe: str,
-                start_date: datetime,
-                end_date: datetime,
-                initial_balance: float):
-        """
-        Inicializar el resultado de backtest.
-        
-        Args:
-            strategy_name: Nombre de la estrategia
-            symbol: Símbolo de trading
-            timeframe: Timeframe utilizado
-            start_date: Fecha de inicio
-            end_date: Fecha de fin
-            initial_balance: Balance inicial
-        """
-        self.strategy_name = strategy_name
-        self.symbol = symbol
-        self.timeframe = timeframe
-        self.start_date = start_date
-        self.end_date = end_date
-        self.initial_balance = initial_balance
-        
-        # Trades y balance
-        self.trades: List[Dict[str, Any]] = []
-        self.equity_curve: List[float] = [initial_balance]
-        self.drawdowns: List[float] = [0.0]
-        
-        # Métricas
-        self.metrics: Dict[str, Any] = {
-            "total_trades": 0,
-            "winning_trades": 0,
-            "losing_trades": 0,
-            "win_rate": 0.0,
-            "profit_loss": 0.0,
-            "profit_factor": 0.0,
-            "sharpe_ratio": 0.0,
-            "sortino_ratio": 0.0,
-            "max_drawdown": 0.0,
-            "max_drawdown_pct": 0.0,
-            "avg_profit_per_trade": 0.0,
-            "avg_loss_per_trade": 0.0,
-            "expectancy": 0.0,
-            "annual_return": 0.0,
-            "recovery_factor": 0.0
-        }
-        
-        # Configuración de la estrategia
-        self.strategy_config: Dict[str, Any] = {}
-        
-        # Rutas a los gráficos
-        self.charts: Dict[str, str] = {}
-    
-    def add_trade(self, trade: Dict[str, Any]) -> None:
-        """
-        Añadir un trade al resultado.
-        
-        Args:
-            trade: Datos del trade
-        """
-        self.trades.append(trade)
-        
-        # Actualizar equity curve
-        current_balance = self.equity_curve[-1] + trade["profit"]
-        self.equity_curve.append(current_balance)
-        
-        # Calcular drawdown
-        peak = max(self.equity_curve)
-        drawdown = peak - current_balance
-        drawdown_pct = drawdown / peak if peak > 0 else 0
-        self.drawdowns.append(drawdown_pct)
-    
-    def calculate_metrics(self) -> None:
-        """Calcular métricas a partir de los trades."""
-        if not self.trades:
-            return
-        
-        # Métricas básicas
-        self.metrics["total_trades"] = len(self.trades)
-        
-        # Separar trades ganadores y perdedores
-        winning_trades = [t for t in self.trades if t["profit"] > 0]
-        losing_trades = [t for t in self.trades if t["profit"] <= 0]
-        
-        self.metrics["winning_trades"] = len(winning_trades)
-        self.metrics["losing_trades"] = len(losing_trades)
-        
-        # Win rate
-        self.metrics["win_rate"] = len(winning_trades) / len(self.trades) if self.trades else 0
-        
-        # Profit/Loss
-        self.metrics["profit_loss"] = sum(t["profit"] for t in self.trades)
-        
-        # Profit factor
-        total_profit = sum(t["profit"] for t in winning_trades)
-        total_loss = abs(sum(t["profit"] for t in losing_trades))
-        self.metrics["profit_factor"] = total_profit / total_loss if total_loss > 0 else float('inf')
-        
-        # Avg profit/loss per trade
-        self.metrics["avg_profit_per_trade"] = total_profit / len(winning_trades) if winning_trades else 0
-        self.metrics["avg_loss_per_trade"] = total_loss / len(losing_trades) if losing_trades else 0
-        
-        # Expectancy
-        self.metrics["expectancy"] = (self.metrics["win_rate"] * self.metrics["avg_profit_per_trade"]) - \
-                                    ((1 - self.metrics["win_rate"]) * self.metrics["avg_loss_per_trade"])
-        
-        # Max drawdown
-        max_drawdown_pct = max(self.drawdowns) if self.drawdowns else 0
-        self.metrics["max_drawdown_pct"] = max_drawdown_pct
-        
-        # Sharpe y Sortino
-        returns = []
-        for i in range(1, len(self.equity_curve)):
-            returns.append((self.equity_curve[i] - self.equity_curve[i-1]) / self.equity_curve[i-1])
-        
-        if returns:
-            avg_return = np.mean(returns)
-            std_return = np.std(returns)
-            
-            # Sharpe ratio (asumiendo tasa libre de riesgo = 0)
-            self.metrics["sharpe_ratio"] = avg_return / std_return if std_return > 0 else 0
-            
-            # Sortino ratio (solo considerando retornos negativos)
-            neg_returns = [r for r in returns if r < 0]
-            std_neg_return = np.std(neg_returns) if neg_returns else 0
-            self.metrics["sortino_ratio"] = avg_return / std_neg_return if std_neg_return > 0 else 0
-        
-        # Annual return
-        days = (self.end_date - self.start_date).days
-        if days > 0 and self.initial_balance > 0:
-            final_balance = self.equity_curve[-1]
-            total_return = (final_balance - self.initial_balance) / self.initial_balance
-            annual_return = ((1 + total_return) ** (365 / days)) - 1
-            self.metrics["annual_return"] = annual_return
-        
-        # Recovery factor
-        max_drawdown_amount = max_drawdown_pct * max(self.equity_curve)
-        self.metrics["max_drawdown"] = max_drawdown_amount
-        self.metrics["recovery_factor"] = self.metrics["profit_loss"] / max_drawdown_amount if max_drawdown_amount > 0 else float('inf')
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convertir el resultado a diccionario.
-        
-        Returns:
-            Diccionario con los resultados
-        """
-        result = {
-            "strategy_name": self.strategy_name,
-            "symbol": self.symbol,
-            "timeframe": self.timeframe,
-            "start_date": self.start_date.isoformat(),
-            "end_date": self.end_date.isoformat(),
-            "initial_balance": self.initial_balance,
-            "final_balance": self.equity_curve[-1] if self.equity_curve else self.initial_balance,
-            "trades_count": len(self.trades),
-            "metrics": self.metrics,
-            "strategy_config": self.strategy_config,
-            "charts": self.charts
-        }
-        
-        return result
-    
-    def save(self, file_path: str) -> bool:
-        """
-        Guardar el resultado a un archivo JSON.
-        
-        Args:
-            file_path: Ruta al archivo
-            
-        Returns:
-            True si se guardó correctamente, False en caso contrario
-        """
-        try:
-            # Convertir a diccionario
-            data = self.to_dict()
-            
-            # Convertir fechas a strings
-            data["start_date"] = self.start_date.isoformat()
-            data["end_date"] = self.end_date.isoformat()
-            
-            # Guardar
-            with open(file_path, "w") as f:
-                json.dump(data, f, indent=2)
-            
-            return True
-        except Exception as e:
-            print(f"Error al guardar resultados: {e}")
-            return False
-    
-    @classmethod
-    def load(cls, file_path: str) -> 'BacktestResult':
-        """
-        Cargar resultados desde un archivo JSON.
-        
-        Args:
-            file_path: Ruta al archivo
-            
-        Returns:
-            Instancia de BacktestResult
-        """
-        try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-            
-            # Crear instancia
-            start_date = datetime.fromisoformat(data["start_date"])
-            end_date = datetime.fromisoformat(data["end_date"])
-            
-            result = cls(
-                data["strategy_name"],
-                data["symbol"],
-                data["timeframe"],
-                start_date,
-                end_date,
-                data["initial_balance"]
-            )
-            
-            # Restaurar datos
-            result.metrics = data["metrics"]
-            result.strategy_config = data["strategy_config"]
-            result.charts = data["charts"]
-            
-            # Recrear equity curve
-            result.equity_curve = [data["initial_balance"], data["final_balance"]]
-            
-            return result
-        except Exception as e:
-            print(f"Error al cargar resultados: {e}")
-            return None
-
 
 class BacktestEngine(Component):
     """
-    Motor de backtesting para estrategias de trading.
+    Motor avanzado de backtesting para estrategias de trading.
     
-    Este componente permite realizar backtesting de estrategias utilizando
-    datos históricos, con simulación de condiciones de mercado reales.
+    Este componente permite realizar backtesting de estrategias de trading
+    con datos históricos, incluyendo simulación de comisiones, slippage,
+    y análisis de resultados.
     """
     
-    def __init__(self, name: str = "backtest_engine"):
+    def __init__(
+        self,
+        initial_capital: float = 100000.0,
+        commission: float = 0.001,
+        slippage: float = 0.0005,
+        name: str = "backtest_engine"
+    ):
         """
         Inicializar el motor de backtesting.
         
         Args:
+            initial_capital: Capital inicial para el backtest
+            commission: Comisión por operación (fracción del monto total)
+            slippage: Deslizamiento por operación (fracción del precio)
             name: Nombre del componente
         """
         super().__init__(name)
-        self.logger = setup_logging(name)
-        
-        # Configuración
-        self.data_dir = "data/historical"
-        self.results_dir = "data/backtest_results"
-        self.plots_dir = f"{self.results_dir}/plots"
-        
-        # Crear directorios si no existen
-        os.makedirs(self.data_dir, exist_ok=True)
-        os.makedirs(self.results_dir, exist_ok=True)
+        self.initial_capital = max(1000.0, initial_capital)
+        self.commission = max(0.0, min(0.01, commission))  # Entre 0% y 1%
+        self.slippage = max(0.0, min(0.01, slippage))  # Entre 0% y 1%
+        self.market_data = None
+        self.position_sizer = PositionSizer()
+        self.results = {}
+        self.logger = logging.getLogger(__name__)
+        self.plots_dir = os.path.join("data", "plots", "backtests")
         os.makedirs(self.plots_dir, exist_ok=True)
         
-        # Position sizing y stop loss
-        self.position_sizer = PositionSizer()
-        self.stop_loss_calculator = StopLossCalculator()
-    
     async def start(self) -> None:
         """Iniciar el motor de backtesting."""
         await super().start()
         self.logger.info("Motor de backtesting iniciado")
-    
+        
     async def stop(self) -> None:
         """Detener el motor de backtesting."""
         await super().stop()
         self.logger.info("Motor de backtesting detenido")
-    
+        
     async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
         Manejar eventos del bus de eventos.
@@ -322,1210 +77,653 @@ class BacktestEngine(Component):
             data: Datos del evento
             source: Componente de origen
         """
-        # Procesar eventos relacionados con backtesting
-        if event_type == "backtest.run":
+        if event_type == "backtest.request":
             strategy_name = data.get("strategy_name")
-            strategy_class = data.get("strategy_class")
-            strategy_params = data.get("strategy_params", {})
             symbol = data.get("symbol")
-            timeframe = data.get("timeframe", "1h")
+            timeframe = data.get("timeframe", "1d")
             start_date = data.get("start_date")
             end_date = data.get("end_date")
-            initial_balance = data.get("initial_balance", 10000.0)
+            params = data.get("params", {})
             
-            # Ejecutar backtest
-            result = await self.run_backtest(
-                strategy_class,
-                strategy_params,
-                symbol,
-                timeframe,
-                start_date,
-                end_date,
-                initial_balance
-            )
-            
-            # Emitir evento con resultados
-            if result:
-                await self.emit_event("backtest.completed", {
+            if not all([strategy_name, symbol, start_date, end_date]):
+                self.logger.error("Faltan parámetros obligatorios para el backtest")
+                return
+                
+            try:
+                result = await self.run_backtest(
+                    strategy_name=strategy_name,
+                    symbol=symbol,
+                    timeframe=timeframe,
+                    start_date=start_date,
+                    end_date=end_date,
+                    params=params
+                )
+                
+                await self.emit_event("backtest.result", {
                     "strategy_name": strategy_name,
                     "symbol": symbol,
-                    "timeframe": timeframe,
-                    "metrics": result.metrics,
-                    "result_id": str(uuid.uuid4())
+                    "result": result,
+                    "request_id": data.get("request_id")
                 })
-    
-    async def run_backtest(
-        self, 
-        strategy_class: Type[Strategy],
-        strategy_params: Dict[str, Any],
-        symbol: str,
-        timeframe: str = "1h",
-        start_date: Union[str, datetime] = None,
-        end_date: Union[str, datetime] = None,
-        initial_balance: float = 10000.0,
-        commission: float = 0.001,  # 0.1%
-        slippage: float = 0.0005,   # 0.05%
-        risk_per_trade: float = 0.02,  # 2%
-        generate_plots: bool = True
-    ) -> Optional[BacktestResult]:
+                
+            except Exception as e:
+                self.logger.error(f"Error en backtest: {e}")
+                await self.emit_event("backtest.error", {
+                    "strategy_name": strategy_name,
+                    "symbol": symbol,
+                    "error": str(e),
+                    "request_id": data.get("request_id")
+                })
+                
+    def set_market_data(self, market_data: MarketDataManager) -> None:
         """
-        Ejecutar un backtest para una estrategia.
+        Establecer la fuente de datos de mercado.
         
         Args:
-            strategy_class: Clase de la estrategia
-            strategy_params: Parámetros de la estrategia
+            market_data: Instancia de MarketDataManager
+        """
+        self.market_data = market_data
+        self.logger.info("Fuente de datos de mercado establecida")
+        
+    async def fetch_historical_data(
+        self,
+        symbol: str,
+        timeframe: str,
+        start_date: str,
+        end_date: str,
+        exchange: str = "binance"
+    ) -> pd.DataFrame:
+        """
+        Obtener datos históricos para un símbolo.
+        
+        Args:
             symbol: Símbolo de trading
-            timeframe: Timeframe para los datos
+            timeframe: Intervalo de tiempo (1m, 5m, 15m, 1h, 4h, 1d, etc.)
+            start_date: Fecha de inicio (formato YYYY-MM-DD)
+            end_date: Fecha de fin (formato YYYY-MM-DD)
+            exchange: Nombre del exchange
+            
+        Returns:
+            DataFrame con datos históricos
+        """
+        if self.market_data is None:
+            raise ValueError("No se ha establecido la fuente de datos de mercado")
+            
+        try:
+            self.logger.info(f"Obteniendo datos para {symbol} en {timeframe}")
+            
+            # Este método debe implementarse en MarketDataManager
+            # para proporcionar datos históricos
+            data = await self.market_data.get_historical_data(
+                symbol=symbol,
+                timeframe=timeframe,
+                start_date=start_date,
+                end_date=end_date,
+                exchange=exchange
+            )
+            
+            if data.empty:
+                self.logger.warning(f"No se encontraron datos para {symbol}")
+                return pd.DataFrame()
+                
+            return data
+            
+        except Exception as e:
+            self.logger.error(f"Error al obtener datos históricos: {e}")
+            return pd.DataFrame()
+            
+    async def calculate_indicators(self, df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+        """
+        Calcular indicadores técnicos para el backtest.
+        
+        Args:
+            df: DataFrame con datos históricos
+            params: Parámetros para los indicadores
+            
+        Returns:
+            DataFrame con indicadores calculados
+        """
+        # Verificar que el DataFrame tenga los campos necesarios
+        required_columns = ["open", "high", "low", "close", "volume"]
+        for col in required_columns:
+            if col not in df.columns and col.capitalize() not in df.columns:
+                self.logger.error(f"Columna '{col}' no encontrada en los datos")
+                return df
+                
+        # Normalizar nombres de columnas
+        for col in required_columns:
+            if col.capitalize() in df.columns and col not in df.columns:
+                df[col] = df[col.capitalize()]
+                
+        try:
+            # Calcular indicadores básicos
+            # En una implementación real, esto podría usar talib u otra biblioteca
+            # Aquí implementamos algunos indicadores básicos manualmente
+            
+            # Media móvil simple
+            fast_period = params.get("sma_fast_period", 20)
+            slow_period = params.get("sma_slow_period", 50)
+            df["sma_fast"] = df["close"].rolling(window=fast_period).mean()
+            df["sma_slow"] = df["close"].rolling(window=slow_period).mean()
+            
+            # RSI
+            rsi_period = params.get("rsi_period", 14)
+            delta = df["close"].diff()
+            gain = delta.where(delta > 0, 0)
+            loss = -delta.where(delta < 0, 0)
+            avg_gain = gain.rolling(window=rsi_period).mean()
+            avg_loss = loss.rolling(window=rsi_period).mean()
+            rs = avg_gain / avg_loss.replace(0, np.finfo(float).eps)
+            df["rsi"] = 100 - (100 / (1 + rs))
+            
+            # MACD
+            fast_period = params.get("macd_fast_period", 12)
+            slow_period = params.get("macd_slow_period", 26)
+            signal_period = params.get("macd_signal_period", 9)
+            
+            ema_fast = df["close"].ewm(span=fast_period, adjust=False).mean()
+            ema_slow = df["close"].ewm(span=slow_period, adjust=False).mean()
+            df["macd"] = ema_fast - ema_slow
+            df["macd_signal"] = df["macd"].ewm(span=signal_period, adjust=False).mean()
+            df["macd_histogram"] = df["macd"] - df["macd_signal"]
+            
+            return df.dropna()
+            
+        except Exception as e:
+            self.logger.error(f"Error al calcular indicadores: {e}")
+            return df
+            
+    async def run_strategy(
+        self,
+        strategy: Union[Strategy, Callable],
+        df: pd.DataFrame,
+        params: Dict[str, Any]
+    ) -> pd.DataFrame:
+        """
+        Ejecutar una estrategia de trading en datos históricos.
+        
+        Args:
+            strategy: Estrategia de trading (instancia de Strategy o función)
+            df: DataFrame con datos históricos e indicadores
+            params: Parámetros para la estrategia
+            
+        Returns:
+            DataFrame con señales de trading
+        """
+        try:
+            # Si es una función de estrategia
+            if callable(strategy) and not isinstance(strategy, Strategy):
+                return strategy(df, params)
+                
+            # Si es una instancia de Strategy
+            if isinstance(strategy, Strategy):
+                signals = []
+                for idx, row in df.iterrows():
+                    # Convertir la fila a un formato que la estrategia pueda usar
+                    data_point = row.to_dict()
+                    signal = await strategy.generate_signal(data_point.get("symbol", ""), pd.DataFrame([data_point]))
+                    signals.append(signal.get("signal", SignalType.HOLD))
+                    
+                df["signal"] = signals
+                return df
+                
+            raise ValueError("La estrategia proporcionada no es válida")
+            
+        except Exception as e:
+            self.logger.error(f"Error al ejecutar estrategia: {e}")
+            df["signal"] = SignalType.HOLD
+            return df
+            
+    async def simulate_trading(
+        self,
+        df: pd.DataFrame,
+        initial_capital: float = None
+    ) -> Dict[str, Any]:
+        """
+        Simular operaciones de trading basadas en señales.
+        
+        Args:
+            df: DataFrame con señales de trading
+            initial_capital: Capital inicial para la simulación
+            
+        Returns:
+            Resultados de la simulación
+        """
+        if initial_capital is None:
+            initial_capital = self.initial_capital
+            
+        if "signal" not in df.columns:
+            self.logger.error("No se encontraron señales en los datos")
+            return {}
+            
+        try:
+            # Inicializar variables para la simulación
+            capital = initial_capital
+            position = 0
+            equity = []
+            trades = []
+            position_value = []
+            cash = []
+            
+            for idx, row in df.iterrows():
+                signal = str(row["signal"]).lower()
+                close_price = row["close"]
+                
+                # Aplicar slippage
+                execution_price = close_price * (1 + self.slippage if signal == SignalType.BUY.lower() else 
+                                              1 - self.slippage if signal == SignalType.SELL.lower() else 1)
+                
+                # Procesar señal
+                if signal == SignalType.BUY.lower() and position == 0:  # Compra
+                    position = capital * (1 - self.commission) / execution_price
+                    capital = 0
+                    trades.append({
+                        "type": "buy",
+                        "price": execution_price,
+                        "time": idx,
+                        "commission": position * execution_price * self.commission
+                    })
+                    
+                elif signal == SignalType.SELL.lower() and position > 0:  # Venta
+                    capital = position * execution_price * (1 - self.commission)
+                    commission = position * execution_price * self.commission
+                    trades.append({
+                        "type": "sell",
+                        "price": execution_price,
+                        "time": idx,
+                        "commission": commission
+                    })
+                    position = 0
+                    
+                elif signal == SignalType.EXIT.lower() and position > 0:  # Cerrar posición
+                    capital = position * execution_price * (1 - self.commission)
+                    commission = position * execution_price * self.commission
+                    trades.append({
+                        "type": "exit",
+                        "price": execution_price,
+                        "time": idx,
+                        "commission": commission
+                    })
+                    position = 0
+                    
+                # Calcular equity en cada punto
+                pos_value = position * close_price
+                equity.append(capital + pos_value)
+                position_value.append(pos_value)
+                cash.append(capital)
+                
+            # Añadir resultados al DataFrame
+            df["equity"] = equity
+            df["position_value"] = position_value
+            df["cash"] = cash
+            
+            return self.calculate_metrics(df, trades)
+            
+        except Exception as e:
+            self.logger.error(f"Error en simulación de trading: {e}")
+            return {}
+            
+    def calculate_metrics(self, df: pd.DataFrame, trades: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Calcular métricas de rendimiento del backtest.
+        
+        Args:
+            df: DataFrame con resultados de la simulación
+            trades: Lista de operaciones realizadas
+            
+        Returns:
+            Métricas de rendimiento
+        """
+        try:
+            # Calcular retornos
+            returns = df["equity"].pct_change().fillna(0)
+            
+            # Retorno total
+            total_return = (df["equity"].iloc[-1] - self.initial_capital) / self.initial_capital
+            
+            # Sharpe Ratio (anualizado)
+            sharpe_ratio = np.sqrt(252) * returns.mean() / returns.std() if returns.std() != 0 else 0
+            
+            # Maximum Drawdown
+            rolling_max = df["equity"].cummax()
+            drawdown = (rolling_max - df["equity"]) / rolling_max
+            max_drawdown = drawdown.max()
+            
+            # Calcular ganancias/pérdidas por operación
+            if len(trades) > 0:
+                buy_trades = [t for t in trades if t["type"] == "buy"]
+                sell_trades = [t for t in trades if t["type"] in ("sell", "exit")]
+                
+                if len(buy_trades) == len(sell_trades):
+                    pnl = []
+                    for i in range(len(buy_trades)):
+                        buy_price = buy_trades[i]["price"]
+                        sell_price = sell_trades[i]["price"]
+                        buy_commission = buy_trades[i]["commission"]
+                        sell_commission = sell_trades[i]["commission"]
+                        pnl.append({
+                            "entry_time": buy_trades[i]["time"],
+                            "exit_time": sell_trades[i]["time"],
+                            "entry_price": buy_price,
+                            "exit_price": sell_price,
+                            "pnl_pct": (sell_price - buy_price) / buy_price,
+                            "commission": buy_commission + sell_commission
+                        })
+                else:
+                    pnl = []
+            else:
+                pnl = []
+                
+            # Calcular win rate
+            win_trades = sum(1 for p in pnl if p["pnl_pct"] > 0)
+            total_trades = len(pnl)
+            win_rate = win_trades / total_trades if total_trades > 0 else 0
+            
+            return {
+                "total_return": total_return,
+                "sharpe_ratio": sharpe_ratio,
+                "max_drawdown": max_drawdown,
+                "num_trades": len(trades) // 2,  # Cada operación completa = entrada + salida
+                "win_rate": win_rate,
+                "equity_curve": df["equity"].tolist(),
+                "trades": trades,
+                "pnl": pnl,
+                "first_date": df.index[0],
+                "last_date": df.index[-1]
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error al calcular métricas: {e}")
+            return {}
+            
+    async def optimize_strategy(
+        self,
+        strategy: Union[Strategy, Callable],
+        df: pd.DataFrame,
+        param_grid: Dict[str, List],
+        metric: str = "sharpe_ratio"
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Optimizar parámetros de una estrategia.
+        
+        Args:
+            strategy: Estrategia de trading
+            df: DataFrame con datos históricos
+            param_grid: Grid de parámetros a probar
+            metric: Métrica a optimizar
+            
+        Returns:
+            Tuple de (mejor resultado, mejores parámetros)
+        """
+        best_result = None
+        best_params = None
+        best_metric_value = float("-inf")
+        
+        # Generar todas las combinaciones de parámetros
+        keys, values = zip(*param_grid.items())
+        param_combinations = [dict(zip(keys, v)) for v in product(*values)]
+        
+        # Ejecutar backtest para cada combinación
+        for params in param_combinations:
+            self.logger.debug(f"Probando parámetros: {params}")
+            
+            # Calcular indicadores
+            df_with_indicators = await self.calculate_indicators(df.copy(), params)
+            
+            # Ejecutar estrategia
+            df_with_signals = await self.run_strategy(strategy, df_with_indicators, params)
+            
+            # Simular trading
+            result = await self.simulate_trading(df_with_signals)
+            
+            # Evaluar métrica
+            if metric in result and (best_result is None or result[metric] > best_metric_value):
+                best_metric_value = result[metric]
+                best_result = result
+                best_params = params
+                
+        if best_result is None:
+            raise ValueError("No se pudo optimizar la estrategia con los parámetros dados")
+            
+        return best_result, best_params
+        
+    async def run_backtest(
+        self,
+        strategy_name: str,
+        symbol: str,
+        timeframe: str,
+        start_date: str,
+        end_date: str,
+        params: Dict[str, Any] = None,
+        exchange: str = "binance"
+    ) -> Dict[str, Any]:
+        """
+        Ejecutar un backtest completo.
+        
+        Args:
+            strategy_name: Nombre de la estrategia
+            symbol: Símbolo de trading
+            timeframe: Intervalo de tiempo
             start_date: Fecha de inicio
             end_date: Fecha de fin
-            initial_balance: Balance inicial
-            commission: Comisión por operación (porcentaje)
-            slippage: Slippage por operación (porcentaje)
-            risk_per_trade: Riesgo por operación (porcentaje)
-            generate_plots: Si se deben generar gráficos
+            params: Parámetros para la estrategia
+            exchange: Nombre del exchange
             
         Returns:
             Resultados del backtest
         """
-        self.logger.info(f"Iniciando backtest para {strategy_class.__name__} en {symbol} ({timeframe})")
-        
-        # Convertir fechas si son strings
-        if isinstance(start_date, str):
-            start_date = datetime.fromisoformat(start_date)
-        if isinstance(end_date, str):
-            end_date = datetime.fromisoformat(end_date)
-        
-        # Si no se especifican fechas, usar últimos 3 meses
-        if not end_date:
-            end_date = datetime.now()
-        if not start_date:
-            start_date = end_date - timedelta(days=90)
-        
-        # Cargar datos históricos
-        data = await self._load_historical_data(symbol, timeframe, start_date, end_date)
-        if data is None or len(data) < 10:
-            self.logger.error(f"Datos insuficientes para {symbol} ({timeframe})")
-            return None
-        
-        # Inicializar resultado
-        result = BacktestResult(
-            strategy_class.__name__,
-            symbol,
-            timeframe,
-            start_date,
-            end_date,
-            initial_balance
-        )
-        
-        # Guardar configuración
-        result.strategy_config = {
-            "params": strategy_params,
-            "commission": commission,
-            "slippage": slippage,
-            "risk_per_trade": risk_per_trade
-        }
-        
-        # Inicializar estrategia
-        strategy = strategy_class(**strategy_params)
-        
-        # Variables para el backtest
-        balance = initial_balance
-        position = None
-        
-        # Recorrer los datos
-        for i in range(len(data)):
-            # Obtener datos hasta este punto (excluir datos futuros)
-            current_data = data.iloc[:i+1].copy()
-            
-            if i < 50:  # Requerir al menos 50 barras para iniciar
-                continue
-            
-            # Generar señal
-            signal = await strategy.generate_signal(symbol, current_data)
-            signal_type = signal.get("type", "hold")
-            
-            # Precio actual
-            current_price = current_data.iloc[-1]["close"]
-            current_time = current_data.index[-1]
-            
-            # Procesar señal
-            if position is None:  # Sin posición abierta
-                if signal_type in ("buy", "sell"):
-                    # Calcular tamaño de posición
-                    position_size = self.position_sizer.calculate(
-                        balance, 
-                        risk_per_trade, 
-                        signal.get("strength", 1.0)
-                    )
-                    
-                    # Aplicar comisión y slippage
-                    entry_price = current_price * (1 + slippage) if signal_type == "buy" else current_price * (1 - slippage)
-                    position_cost = position_size * (1 + commission)
-                    
-                    # Cantidad de unidades
-                    units = position_size / entry_price
-                    
-                    # Crear posición
-                    position = {
-                        "type": signal_type,
-                        "entry_price": entry_price,
-                        "units": units,
-                        "size": position_size,
-                        "entry_time": current_time,
-                        "stop_loss": signal.get("stop_loss", None),
-                        "take_profit": signal.get("take_profit", None)
-                    }
-                    
-                    # Restar comisión del balance
-                    balance -= position_size * commission
-                    
-                    # Registrar operación
-                    self.logger.debug(f"Abriendo posición {signal_type} a {entry_price} ({units} unidades)")
-            
-            else:  # Con posición abierta
-                # Verificar stop loss / take profit
-                exit_triggered = False
-                exit_reason = ""
+        try:
+            if params is None:
+                params = {}
                 
-                if position["type"] == "buy":
-                    # Stop loss
-                    if position["stop_loss"] and current_price <= position["stop_loss"]:
-                        exit_triggered = True
-                        exit_reason = "stop_loss"
-                    
-                    # Take profit
-                    elif position["take_profit"] and current_price >= position["take_profit"]:
-                        exit_triggered = True
-                        exit_reason = "take_profit"
+            # Obtener datos históricos
+            df = await self.fetch_historical_data(symbol, timeframe, start_date, end_date, exchange)
+            
+            if df.empty:
+                raise ValueError(f"No se encontraron datos para {symbol}")
                 
-                elif position["type"] == "sell":
-                    # Stop loss
-                    if position["stop_loss"] and current_price >= position["stop_loss"]:
-                        exit_triggered = True
-                        exit_reason = "stop_loss"
-                    
-                    # Take profit
-                    elif position["take_profit"] and current_price <= position["take_profit"]:
-                        exit_triggered = True
-                        exit_reason = "take_profit"
+            # Obtener estrategia
+            strategy = await self.get_strategy(strategy_name)
+            
+            if strategy is None:
+                raise ValueError(f"Estrategia '{strategy_name}' no encontrada")
                 
-                # Señal de cierre
-                if signal_type in ("exit", "close") or signal_type == "buy" and position["type"] == "sell" or signal_type == "sell" and position["type"] == "buy":
-                    exit_triggered = True
-                    exit_reason = "signal"
-                
-                # Si se debe cerrar la posición
-                if exit_triggered:
-                    # Aplicar slippage al precio de salida
-                    exit_price = current_price * (1 - slippage) if position["type"] == "buy" else current_price * (1 + slippage)
-                    
-                    # Calcular ganancia/pérdida
-                    if position["type"] == "buy":
-                        profit = (exit_price - position["entry_price"]) * position["units"]
-                    else:  # sell
-                        profit = (position["entry_price"] - exit_price) * position["units"]
-                    
-                    # Aplicar comisión
-                    profit -= position["size"] * commission
-                    
-                    # Actualizar balance
-                    balance += position["size"] + profit
-                    
-                    # Registrar trade
-                    trade = {
-                        "id": str(uuid.uuid4()),
-                        "symbol": symbol,
-                        "type": position["type"],
-                        "entry_price": position["entry_price"],
-                        "exit_price": exit_price,
-                        "entry_time": position["entry_time"].isoformat(),
-                        "exit_time": current_time.isoformat(),
-                        "units": position["units"],
-                        "size": position["size"],
-                        "profit": profit,
-                        "profit_pct": profit / position["size"],
-                        "exit_reason": exit_reason
-                    }
-                    
-                    # Añadir trade al resultado
-                    result.add_trade(trade)
-                    
-                    # Resetear posición
-                    position = None
-                    
-                    self.logger.debug(f"Cerrando posición a {exit_price}, profit: {profit:.2f}")
-        
-        # Cerrar posición abierta al final del backtest
-        if position is not None:
-            # Último precio
-            last_price = data.iloc[-1]["close"]
+            # Calcular indicadores
+            df_with_indicators = await self.calculate_indicators(df, params)
             
-            # Aplicar slippage
-            exit_price = last_price * (1 - slippage) if position["type"] == "buy" else last_price * (1 + slippage)
+            # Ejecutar estrategia
+            df_with_signals = await self.run_strategy(strategy, df_with_indicators, params)
             
-            # Calcular ganancia/pérdida
-            if position["type"] == "buy":
-                profit = (exit_price - position["entry_price"]) * position["units"]
-            else:  # sell
-                profit = (position["entry_price"] - exit_price) * position["units"]
+            # Simular trading
+            result = await self.simulate_trading(df_with_signals)
             
-            # Aplicar comisión
-            profit -= position["size"] * commission
-            
-            # Actualizar balance
-            balance += position["size"] + profit
-            
-            # Registrar trade
-            trade = {
-                "id": str(uuid.uuid4()),
-                "symbol": symbol,
-                "type": position["type"],
-                "entry_price": position["entry_price"],
-                "exit_price": exit_price,
-                "entry_time": position["entry_time"].isoformat(),
-                "exit_time": data.index[-1].isoformat(),
-                "units": position["units"],
-                "size": position["size"],
-                "profit": profit,
-                "profit_pct": profit / position["size"],
-                "exit_reason": "end_of_test"
+            # Guardar resultado
+            self.results[f"{strategy_name}_{symbol}"] = {
+                "metrics": result,
+                "params": params,
+                "df": df_with_signals
             }
             
-            # Añadir trade al resultado
-            result.add_trade(trade)
-            
-            self.logger.debug(f"Cerrando posición final a {exit_price}, profit: {profit:.2f}")
-        
-        # Calcular métricas
-        result.calculate_metrics()
-        
-        # Generar gráficos
-        if generate_plots:
-            await self._generate_plots(result, data)
-        
-        # Guardar resultado
-        result_path = f"{self.results_dir}/{strategy_class.__name__}_{symbol}_{timeframe}_{int(time.time())}.json"
-        result.save(result_path)
-        
-        self.logger.info(f"Backtest completado para {strategy_class.__name__} en {symbol} ({timeframe})")
-        self.logger.info(f"Trades: {result.metrics['total_trades']}, Win Rate: {result.metrics['win_rate']:.2%}, P/L: {result.metrics['profit_loss']:.2f}")
-        
-        return result
-    
-    async def _load_historical_data(
-        self,
-        symbol: str,
-        timeframe: str,
-        start_date: datetime,
-        end_date: datetime
-    ) -> Optional[pd.DataFrame]:
-        """
-        Cargar datos históricos para el backtest.
-        
-        Args:
-            symbol: Símbolo de trading
-            timeframe: Timeframe para los datos
-            start_date: Fecha de inicio
-            end_date: Fecha de fin
-            
-        Returns:
-            DataFrame con los datos históricos
-        """
-        # Intentar cargar desde archivo
-        file_path = f"{self.data_dir}/{symbol}_{timeframe}.csv"
-        
-        if os.path.exists(file_path):
-            try:
-                # Cargar datos
-                data = pd.read_csv(file_path)
-                
-                # Convertir timestamp a datetime y establecer como índice
-                data["timestamp"] = pd.to_datetime(data["timestamp"])
-                data.set_index("timestamp", inplace=True)
-                
-                # Filtrar por fechas
-                data = data[(data.index >= start_date) & (data.index <= end_date)]
-                
-                return data
-            except Exception as e:
-                self.logger.error(f"Error al cargar datos históricos: {e}")
-        
-        # Si no existe el archivo o hubo error, intentar cargar desde la base de datos
-        # Este método dependerá de la implementación específica de cómo se accede a los datos históricos
-        
-        # Si todo falla, generar datos sintéticos para testing
-        # NOTA: En una implementación real, esto debería reemplazarse por carga desde API o BD
-        self.logger.warning(f"Usando datos sintéticos para {symbol} ({timeframe})")
-        
-        # Generar fechas
-        date_range = pd.date_range(start=start_date, end=end_date, freq=self._timeframe_to_pandas_freq(timeframe))
-        
-        # Generar precios sintéticos
-        np.random.seed(42)  # Para reproducibilidad
-        
-        # Parámetros base
-        base_price = 100.0
-        volatility = 0.01
-        
-        # Generar precios como un paseo aleatorio
-        price_changes = np.random.normal(0, volatility, size=len(date_range))
-        
-        # Convertir a cambios porcentuales
-        price_multipliers = 1.0 + price_changes
-        
-        # Calcular precios acumulativos
-        prices = base_price * np.cumprod(price_multipliers)
-        
-        # Generar OHLCV
-        opens = prices.copy()
-        closes = np.roll(prices, -1)  # Precio siguiente
-        closes[-1] = closes[-2] * (1 + np.random.normal(0, volatility))  # Último precio
-        
-        # Generar high y low
-        high_offsets = np.abs(np.random.normal(0, volatility * 2, size=len(date_range)))
-        low_offsets = np.abs(np.random.normal(0, volatility * 2, size=len(date_range)))
-        
-        highs = np.maximum(opens, closes) + np.maximum(opens, closes) * high_offsets
-        lows = np.minimum(opens, closes) - np.minimum(opens, closes) * low_offsets
-        
-        # Asegurar que high >= max(open, close) y low <= min(open, close)
-        highs = np.maximum(highs, np.maximum(opens, closes))
-        lows = np.minimum(lows, np.minimum(opens, closes))
-        
-        # Generar volumen
-        volumes = np.random.gamma(2.0, 100000, size=len(date_range))
-        
-        # Crear DataFrame
-        data = pd.DataFrame({
-            "open": opens,
-            "high": highs,
-            "low": lows,
-            "close": closes,
-            "volume": volumes
-        }, index=date_range)
-        
-        return data
-    
-    def _timeframe_to_pandas_freq(self, timeframe: str) -> str:
-        """
-        Convertir timeframe a frecuencia de pandas.
-        
-        Args:
-            timeframe: Timeframe (e.g., '1m', '1h', '1d')
-            
-        Returns:
-            Frecuencia de pandas
-        """
-        # Extraer número y unidad
-        if len(timeframe) < 2:
-            return 'D'  # Default diario
-        
-        num = int(timeframe[:-1])
-        unit = timeframe[-1].lower()
-        
-        # Convertir
-        if unit == 'm':
-            return f'{num}T'  # Minutos
-        elif unit == 'h':
-            return f'{num}H'  # Horas
-        elif unit == 'd':
-            return f'{num}D'  # Días
-        elif unit == 'w':
-            return f'{num}W'  # Semanas
-        elif unit == 'M':
-            return f'{num}M'  # Meses
-        else:
-            return 'D'  # Default diario
-    
-    async def _generate_plots(self, result: BacktestResult, data: pd.DataFrame) -> None:
-        """
-        Generar gráficos para los resultados del backtest.
-        
-        Args:
-            result: Resultado del backtest
-            data: Datos históricos
-        """
-        strategy_name = result.strategy_name
-        symbol = result.symbol
-        timestamp = int(time.time())
-        
-        try:
-            # 1. Equity curve
-            plt.figure(figsize=(10, 6))
-            plt.plot(range(len(result.equity_curve)), result.equity_curve)
-            plt.title(f'Equity Curve - {strategy_name} ({symbol})')
-            plt.xlabel('Trades')
-            plt.ylabel('Balance')
-            plt.grid(True)
-            
-            equity_path = f"{self.plots_dir}/equity_{strategy_name}_{symbol}_{timestamp}.png"
-            plt.savefig(equity_path)
-            plt.close()
-            
-            result.charts["equity_curve"] = equity_path
-            
-            # 2. Drawdown
-            plt.figure(figsize=(10, 6))
-            plt.plot(range(len(result.drawdowns)), [d * 100 for d in result.drawdowns])
-            plt.title(f'Drawdown - {strategy_name} ({symbol})')
-            plt.xlabel('Trades')
-            plt.ylabel('Drawdown (%)')
-            plt.grid(True)
-            
-            drawdown_path = f"{self.plots_dir}/drawdown_{strategy_name}_{symbol}_{timestamp}.png"
-            plt.savefig(drawdown_path)
-            plt.close()
-            
-            result.charts["drawdown"] = drawdown_path
-            
-            # 3. Trades en el gráfico de precios
-            if len(result.trades) > 0 and len(data) > 0:
-                # Preparar gráfico de precios
-                plt.figure(figsize=(12, 8))
-                
-                # Convertir índice a lista para slicing
-                dates = data.index.tolist()
-                
-                # Plotear gráfico de precios
-                plt.plot(dates, data['close'], color='black', alpha=0.6)
-                plt.title(f'Trades - {strategy_name} ({symbol})')
-                plt.xlabel('Fecha')
-                plt.ylabel('Precio')
-                
-                # Plotear trades
-                for trade in result.trades:
-                    try:
-                        entry_time = datetime.fromisoformat(trade["entry_time"])
-                        exit_time = datetime.fromisoformat(trade["exit_time"])
-                        
-                        # Encontrar índices más cercanos
-                        entry_idx = data.index.get_indexer([entry_time], method='nearest')[0]
-                        exit_idx = data.index.get_indexer([exit_time], method='nearest')[0]
-                        
-                        # Si los índices son válidos
-                        if 0 <= entry_idx < len(data) and 0 <= exit_idx < len(data):
-                            # Color según tipo de trade
-                            color = 'green' if trade["type"] == "buy" else 'red'
-                            
-                            # Entrada
-                            plt.scatter(dates[entry_idx], trade["entry_price"], 
-                                       color=color, marker='^' if trade["type"] == "buy" else 'v', s=100)
-                            
-                            # Salida
-                            plt.scatter(dates[exit_idx], trade["exit_price"], 
-                                       color='blue', marker='o', s=100)
-                            
-                            # Línea conectando entrada y salida
-                            plt.plot([dates[entry_idx], dates[exit_idx]], 
-                                   [trade["entry_price"], trade["exit_price"]], 
-                                   color=color, linestyle='--', alpha=0.7)
-                    except (ValueError, KeyError, IndexError) as e:
-                        self.logger.error(f"Error al plotear trade: {e}")
-                
-                plt.grid(True)
-                plt.xticks(rotation=45)
-                
-                trades_path = f"{self.plots_dir}/trades_{strategy_name}_{symbol}_{timestamp}.png"
-                plt.savefig(trades_path)
-                plt.close()
-                
-                result.charts["trades"] = trades_path
-            
-            # 4. Distribución de ganancias/pérdidas
-            plt.figure(figsize=(10, 6))
-            profits = [t["profit"] for t in result.trades]
-            plt.hist(profits, bins=20, alpha=0.7, color='blue')
-            plt.axvline(x=0, color='red', linestyle='--')
-            plt.title(f'Distribución de P/L - {strategy_name} ({symbol})')
-            plt.xlabel('Ganancia/Pérdida')
-            plt.ylabel('Frecuencia')
-            plt.grid(True)
-            
-            profit_dist_path = f"{self.plots_dir}/profit_dist_{strategy_name}_{symbol}_{timestamp}.png"
-            plt.savefig(profit_dist_path)
-            plt.close()
-            
-            result.charts["profit_distribution"] = profit_dist_path
-            
-            # 5. Estadísticas mensuales
-            if len(result.trades) > 0:
-                # Convertir a DataFrame
-                trades_df = pd.DataFrame(result.trades)
-                
-                # Convertir fechas
-                trades_df["entry_time"] = pd.to_datetime(trades_df["entry_time"])
-                trades_df["exit_time"] = pd.to_datetime(trades_df["exit_time"])
-                
-                # Extraer mes
-                trades_df["month"] = trades_df["exit_time"].dt.strftime('%Y-%m')
-                
-                # Agrupar por mes
-                monthly_stats = trades_df.groupby("month").agg({
-                    "profit": ["sum", "count"],
-                    "id": "count"
-                })
-                
-                # Renombrar columnas
-                monthly_stats.columns = ["profit", "trades", "trades_count"]
-                
-                # Ordenar por mes
-                monthly_stats = monthly_stats.sort_index()
-                
-                # Plotear
-                plt.figure(figsize=(12, 6))
-                
-                # Gráfico de barras para ganancias/pérdidas
-                plt.bar(monthly_stats.index, monthly_stats["profit"], alpha=0.7, 
-                      color=['green' if p > 0 else 'red' for p in monthly_stats["profit"]])
-                
-                plt.title(f'Rendimiento Mensual - {strategy_name} ({symbol})')
-                plt.xlabel('Mes')
-                plt.ylabel('Ganancia/Pérdida')
-                plt.grid(True, axis='y')
-                plt.xticks(rotation=45)
-                
-                monthly_path = f"{self.plots_dir}/monthly_{strategy_name}_{symbol}_{timestamp}.png"
-                plt.savefig(monthly_path)
-                plt.close()
-                
-                result.charts["monthly_performance"] = monthly_path
-        
-        except Exception as e:
-            self.logger.error(f"Error al generar gráficos: {e}")
-    
-    async def optimize_strategy(
-        self,
-        strategy_class: Type[Strategy],
-        param_grid: Dict[str, List[Any]],
-        symbol: str,
-        timeframe: str = "1h",
-        start_date: Union[str, datetime] = None,
-        end_date: Union[str, datetime] = None,
-        initial_balance: float = 10000.0,
-        commission: float = 0.001,
-        slippage: float = 0.0005,
-        risk_per_trade: float = 0.02,
-        n_jobs: int = -1,
-        metric: str = "profit_loss"
-    ) -> Dict[str, Any]:
-        """
-        Optimizar parámetros de una estrategia mediante grid search.
-        
-        Args:
-            strategy_class: Clase de la estrategia
-            param_grid: Grid de parámetros a probar (dict de listas)
-            symbol: Símbolo de trading
-            timeframe: Timeframe para los datos
-            start_date: Fecha de inicio
-            end_date: Fecha de fin
-            initial_balance: Balance inicial
-            commission: Comisión por operación
-            slippage: Slippage por operación
-            risk_per_trade: Riesgo por operación
-            n_jobs: Número de jobs para paralelización (-1 para todos)
-            metric: Métrica a optimizar
-            
-        Returns:
-            Diccionario con los mejores parámetros y resultados
-        """
-        self.logger.info(f"Iniciando optimización para {strategy_class.__name__} en {symbol} ({timeframe})")
-        
-        # Verificar que param_grid sea un diccionario de listas
-        if not all(isinstance(values, list) for values in param_grid.values()):
-            self.logger.error("param_grid debe ser un diccionario de listas")
-            return {}
-        
-        # Cargar datos
-        data = await self._load_historical_data(symbol, timeframe, start_date, end_date)
-        if data is None or len(data) < 10:
-            self.logger.error(f"Datos insuficientes para {symbol} ({timeframe})")
-            return {}
-        
-        # Generar combinaciones de parámetros
-        param_combinations = self._generate_param_combinations(param_grid)
-        
-        # Número total de combinaciones
-        total_combinations = len(param_combinations)
-        self.logger.info(f"Evaluando {total_combinations} combinaciones de parámetros")
-        
-        # Ajustar n_jobs
-        if n_jobs == -1:
-            n_jobs = mp.cpu_count()
-        n_jobs = min(n_jobs, mp.cpu_count(), total_combinations)
-        
-        # Preparar resultados
-        all_results = []
-        
-        # Si es una sola combinación o pocas, hacerlo secuencialmente
-        if total_combinations <= 5:
-            for i, params in enumerate(param_combinations):
-                self.logger.debug(f"Evaluando combinación {i+1}/{total_combinations}: {params}")
-                
-                # Ejecutar backtest
-                result = await self.run_backtest(
-                    strategy_class,
-                    params,
-                    symbol,
-                    timeframe,
-                    start_date,
-                    end_date,
-                    initial_balance,
-                    commission,
-                    slippage,
-                    risk_per_trade,
-                    generate_plots=False
-                )
-                
-                # Guardar resultados
-                if result:
-                    all_results.append({
-                        "params": params,
-                        "metrics": result.metrics
-                    })
-        
-        # Para muchas combinaciones, usar paralelización
-        else:
-            # Crear función para evaluación en paralelo
-            def evaluate_params(params):
-                # Crear loop de asyncio para este proceso
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                
-                try:
-                    # Ejecutar backtest
-                    result = loop.run_until_complete(self.run_backtest(
-                        strategy_class,
-                        params,
-                        symbol,
-                        timeframe,
-                        start_date,
-                        end_date,
-                        initial_balance,
-                        commission,
-                        slippage,
-                        risk_per_trade,
-                        generate_plots=False
-                    ))
-                    
-                    # Devolver resultados
-                    if result:
-                        return {
-                            "params": params,
-                            "metrics": result.metrics
-                        }
-                    return None
-                
-                finally:
-                    loop.close()
-            
-            # Ejecutar en paralelo
-            with ProcessPoolExecutor(max_workers=n_jobs) as executor:
-                future_results = [executor.submit(evaluate_params, params) for params in param_combinations]
-                
-                # Recopilar resultados
-                for i, future in enumerate(future_results):
-                    try:
-                        result = future.result()
-                        if result:
-                            all_results.append(result)
-                        self.logger.debug(f"Completado {i+1}/{total_combinations}")
-                    except Exception as e:
-                        self.logger.error(f"Error en evaluación paralela: {e}")
-        
-        # Encontrar los mejores parámetros
-        if not all_results:
-            self.logger.error("No se obtuvieron resultados válidos")
-            return {}
-        
-        # Ordenar por la métrica seleccionada
-        sorted_results = sorted(all_results, key=lambda x: x["metrics"].get(metric, 0), reverse=True)
-        
-        # Mejores parámetros
-        best_result = sorted_results[0]
-        best_params = best_result["params"]
-        best_metrics = best_result["metrics"]
-        
-        self.logger.info(f"Optimización completada. Mejores parámetros: {best_params}")
-        self.logger.info(f"Mejor {metric}: {best_metrics.get(metric, 0)}")
-        
-        # Guardar resultados
-        result_path = f"{self.results_dir}/optimization_{strategy_class.__name__}_{symbol}_{timeframe}_{int(time.time())}.json"
-        
-        with open(result_path, "w") as f:
-            json.dump({
-                "strategy": strategy_class.__name__,
-                "symbol": symbol,
-                "timeframe": timeframe,
-                "start_date": start_date.isoformat() if isinstance(start_date, datetime) else start_date,
-                "end_date": end_date.isoformat() if isinstance(end_date, datetime) else end_date,
-                "param_grid": param_grid,
-                "best_params": best_params,
-                "best_metrics": best_metrics,
-                "all_results": sorted_results[:10]  # Guardar solo los 10 mejores
-            }, f, indent=2)
-        
-        # Volver a ejecutar con los mejores parámetros para generar gráficos
-        final_result = await self.run_backtest(
-            strategy_class,
-            best_params,
-            symbol,
-            timeframe,
-            start_date,
-            end_date,
-            initial_balance,
-            commission,
-            slippage,
-            risk_per_trade,
-            generate_plots=True
-        )
-        
-        # Devolver resultados
-        return {
-            "best_params": best_params,
-            "best_metrics": best_metrics,
-            "result_path": result_path,
-            "charts": final_result.charts if final_result else {}
-        }
-    
-    def _generate_param_combinations(self, param_grid: Dict[str, List[Any]]) -> List[Dict[str, Any]]:
-        """
-        Generar todas las combinaciones de parámetros.
-        
-        Args:
-            param_grid: Grid de parámetros
-            
-        Returns:
-            Lista de diccionarios con combinaciones
-        """
-        # Obtener nombres de parámetros y valores
-        param_names = list(param_grid.keys())
-        param_values = list(param_grid.values())
-        
-        # Función recursiva para generar combinaciones
-        def generate_combinations(index, current_combo):
-            if index == len(param_names):
-                return [current_combo.copy()]
-            
-            result = []
-            for value in param_values[index]:
-                current_combo[param_names[index]] = value
-                result.extend(generate_combinations(index + 1, current_combo))
+            self.logger.info(f"Backtest completado para {strategy_name} en {symbol}")
+            self.logger.info(f"Retorno: {result.get('total_return', 0):.2%}, Sharpe: {result.get('sharpe_ratio', 0):.2f}")
             
             return result
-        
-        return generate_combinations(0, {})
-    
-    async def walk_forward_analysis(
-        self,
-        strategy_class: Type[Strategy],
-        param_grid: Dict[str, List[Any]],
-        symbol: str,
-        timeframe: str = "1h",
-        start_date: Union[str, datetime] = None,
-        end_date: Union[str, datetime] = None,
-        window_size: int = 30,  # días
-        test_size: int = 10,    # días
-        step_size: int = 10,    # días
-        initial_balance: float = 10000.0,
-        commission: float = 0.001,
-        slippage: float = 0.0005,
-        risk_per_trade: float = 0.02,
-        metric: str = "profit_loss"
-    ) -> Dict[str, Any]:
+            
+        except Exception as e:
+            self.logger.error(f"Error al ejecutar backtest: {e}")
+            raise
+            
+    async def get_strategy(self, strategy_name: str) -> Union[Strategy, Callable, None]:
         """
-        Realizar análisis Walk-Forward para validación de estrategias.
+        Obtener una estrategia por nombre.
         
         Args:
-            strategy_class: Clase de la estrategia
-            param_grid: Grid de parámetros a probar
-            symbol: Símbolo de trading
-            timeframe: Timeframe para los datos
-            start_date: Fecha de inicio
-            end_date: Fecha de fin
-            window_size: Tamaño de la ventana de entrenamiento (días)
-            test_size: Tamaño de la ventana de prueba (días)
-            step_size: Tamaño del paso entre ventanas (días)
-            initial_balance: Balance inicial
-            commission: Comisión por operación
-            slippage: Slippage por operación
-            risk_per_trade: Riesgo por operación
-            metric: Métrica a optimizar
-            
-        Returns:
-            Resultados del análisis
-        """
-        self.logger.info(f"Iniciando análisis Walk-Forward para {strategy_class.__name__} en {symbol} ({timeframe})")
-        
-        # Convertir fechas si son strings
-        if isinstance(start_date, str):
-            start_date = datetime.fromisoformat(start_date)
-        if isinstance(end_date, str):
-            end_date = datetime.fromisoformat(end_date)
-        
-        # Si no se especifican fechas, usar últimos 6 meses
-        if not end_date:
-            end_date = datetime.now()
-        if not start_date:
-            start_date = end_date - timedelta(days=180)
-        
-        # Cargar datos históricos
-        data = await self._load_historical_data(symbol, timeframe, start_date, end_date)
-        if data is None or len(data) < 10:
-            self.logger.error(f"Datos insuficientes para {symbol} ({timeframe})")
-            return {}
-        
-        # Generar ventanas de análisis
-        windows = []
-        
-        # Convertir períodos a unidades de timeframe
-        window_size_td = timedelta(days=window_size)
-        test_size_td = timedelta(days=test_size)
-        step_size_td = timedelta(days=step_size)
-        
-        # Generar ventanas
-        current_train_start = start_date
-        
-        while current_train_start + window_size_td + test_size_td <= end_date:
-            train_end = current_train_start + window_size_td
-            test_end = train_end + test_size_td
-            
-            windows.append({
-                "train_start": current_train_start,
-                "train_end": train_end,
-                "test_start": train_end,
-                "test_end": test_end
-            })
-            
-            current_train_start += step_size_td
-        
-        # Si no hay suficientes ventanas, ajustar
-        if len(windows) < 2:
-            self.logger.warning("Período insuficiente para walk-forward. Ajustando ventanas.")
-            # Dividir el período en 2 (70% train, 30% test)
-            total_days = (end_date - start_date).days
-            train_days = int(total_days * 0.7)
-            
-            windows = [{
-                "train_start": start_date,
-                "train_end": start_date + timedelta(days=train_days),
-                "test_start": start_date + timedelta(days=train_days),
-                "test_end": end_date
-            }]
-        
-        self.logger.info(f"Analizando {len(windows)} ventanas de tiempo")
-        
-        # Resultados por ventana
-        window_results = []
-        
-        # Analizar cada ventana
-        for i, window in enumerate(windows):
-            self.logger.info(f"Ventana {i+1}/{len(windows)}: {window['train_start']} - {window['test_end']}")
-            
-            # Optimizar en datos de entrenamiento
-            self.logger.info(f"Optimizando en período de entrenamiento: {window['train_start']} - {window['train_end']}")
-            
-            opt_result = await self.optimize_strategy(
-                strategy_class,
-                param_grid,
-                symbol,
-                timeframe,
-                window["train_start"],
-                window["train_end"],
-                initial_balance,
-                commission,
-                slippage,
-                risk_per_trade,
-                metric=metric
-            )
-            
-            if not opt_result:
-                self.logger.error(f"Optimización fallida para ventana {i+1}")
-                continue
-            
-            best_params = opt_result["best_params"]
-            
-            # Probar en datos de prueba
-            self.logger.info(f"Probando en período de prueba: {window['test_start']} - {window['test_end']}")
-            
-            test_result = await self.run_backtest(
-                strategy_class,
-                best_params,
-                symbol,
-                timeframe,
-                window["test_start"],
-                window["test_end"],
-                initial_balance,
-                commission,
-                slippage,
-                risk_per_trade,
-                generate_plots=False
-            )
-            
-            if not test_result:
-                self.logger.error(f"Prueba fallida para ventana {i+1}")
-                continue
-            
-            # Guardar resultados
-            window_results.append({
-                "window": i+1,
-                "train_period": f"{window['train_start']} - {window['train_end']}",
-                "test_period": f"{window['test_start']} - {window['test_end']}",
-                "best_params": best_params,
-                "train_metrics": opt_result["best_metrics"],
-                "test_metrics": test_result.metrics
-            })
-        
-        # Si no hay resultados, salir
-        if not window_results:
-            self.logger.error("No se obtuvieron resultados válidos para ninguna ventana")
-            return {}
-        
-        # Calcular métricas agregadas
-        aggregated_metrics = self._aggregate_wfa_metrics(window_results)
-        
-        # Guardar resultados
-        result_path = f"{self.results_dir}/wfa_{strategy_class.__name__}_{symbol}_{timeframe}_{int(time.time())}.json"
-        
-        with open(result_path, "w") as f:
-            json.dump({
-                "strategy": strategy_class.__name__,
-                "symbol": symbol,
-                "timeframe": timeframe,
-                "start_date": start_date.isoformat() if isinstance(start_date, datetime) else start_date,
-                "end_date": end_date.isoformat() if isinstance(end_date, datetime) else end_date,
-                "param_grid": param_grid,
-                "window_size": window_size,
-                "test_size": test_size,
-                "step_size": step_size,
-                "window_results": window_results,
-                "aggregated_metrics": aggregated_metrics
-            }, f, indent=2)
-        
-        # Generar gráficos
-        charts = await self._generate_wfa_plots(window_results, symbol, strategy_class.__name__)
-        
-        self.logger.info(f"Análisis Walk-Forward completado. Robustez: {aggregated_metrics['robustness']:.2f}")
-        
-        return {
-            "window_results": window_results,
-            "aggregated_metrics": aggregated_metrics,
-            "result_path": result_path,
-            "charts": charts
-        }
-    
-    def _aggregate_wfa_metrics(self, window_results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Agregar métricas de walk-forward analysis.
-        
-        Args:
-            window_results: Resultados por ventana
-            
-        Returns:
-            Métricas agregadas
-        """
-        # Extraer métricas de test
-        test_metrics = [w["test_metrics"] for w in window_results]
-        
-        # Profit/Loss total y promedio
-        total_pl = sum(m.get("profit_loss", 0) for m in test_metrics)
-        avg_pl = total_pl / len(test_metrics) if test_metrics else 0
-        
-        # Win rates
-        win_rates = [m.get("win_rate", 0) for m in test_metrics]
-        avg_win_rate = sum(win_rates) / len(win_rates) if win_rates else 0
-        min_win_rate = min(win_rates) if win_rates else 0
-        max_win_rate = max(win_rates) if win_rates else 0
-        
-        # Sharpe ratios
-        sharpe_ratios = [m.get("sharpe_ratio", 0) for m in test_metrics]
-        avg_sharpe = sum(sharpe_ratios) / len(sharpe_ratios) if sharpe_ratios else 0
-        
-        # Trades
-        total_trades = sum(m.get("total_trades", 0) for m in test_metrics)
-        avg_trades = total_trades / len(test_metrics) if test_metrics else 0
-        
-        # Robustez (porcentaje de ventanas con profit > 0)
-        profitable_windows = sum(1 for m in test_metrics if m.get("profit_loss", 0) > 0)
-        robustness = profitable_windows / len(test_metrics) if test_metrics else 0
-        
-        # Consistencia (desviación estándar de win rates)
-        win_rate_std = np.std(win_rates) if len(win_rates) > 1 else 0
-        consistency = 1 - (win_rate_std / avg_win_rate) if avg_win_rate > 0 else 0
-        
-        # Deterioro (diferencia entre train y test)
-        deterioration = []
-        for w in window_results:
-            train_pl = w["train_metrics"].get("profit_loss", 0)
-            test_pl = w["test_metrics"].get("profit_loss", 0)
-            
-            if train_pl > 0:
-                # Deterioro como porcentaje del resultado de entrenamiento
-                det = (train_pl - test_pl) / abs(train_pl)
-                deterioration.append(det)
-        
-        avg_deterioration = sum(deterioration) / len(deterioration) if deterioration else 0
-        
-        return {
-            "total_profit_loss": total_pl,
-            "avg_profit_loss": avg_pl,
-            "avg_win_rate": avg_win_rate,
-            "min_win_rate": min_win_rate,
-            "max_win_rate": max_win_rate,
-            "win_rate_std": win_rate_std,
-            "avg_sharpe_ratio": avg_sharpe,
-            "total_trades": total_trades,
-            "avg_trades": avg_trades,
-            "robustness": robustness,
-            "consistency": consistency,
-            "avg_deterioration": avg_deterioration,
-            "windows_count": len(window_results)
-        }
-    
-    async def _generate_wfa_plots(
-        self, 
-        window_results: List[Dict[str, Any]], 
-        symbol: str, 
-        strategy_name: str
-    ) -> Dict[str, str]:
-        """
-        Generar gráficos para el análisis Walk-Forward.
-        
-        Args:
-            window_results: Resultados por ventana
-            symbol: Símbolo de trading
             strategy_name: Nombre de la estrategia
             
         Returns:
-            Diccionario con rutas a los gráficos
+            Estrategia de trading o None si no se encuentra
         """
-        charts = {}
-        timestamp = int(time.time())
+        # En una implementación real, esto buscaría en un registro de estrategias
+        # o cargaría dinámicamente una estrategia desde un módulo
         
+        # Por ahora implementamos algunas estrategias de ejemplo
+        if strategy_name == "trend_following":
+            return self.trend_following_strategy
+        elif strategy_name == "mean_reversion":
+            return self.mean_reversion_strategy
+        else:
+            # Buscar en el bus de eventos o en el sistema
+            await self.emit_event("strategy.request", {"strategy_name": strategy_name})
+            # Por ahora retornamos None, pero en una implementación real
+            # esperaríamos a que el componente de estrategia responda
+            return None
+            
+    def trend_following_strategy(self, df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+        """
+        Estrategia de seguimiento de tendencias basada en SMA.
+        
+        Args:
+            df: DataFrame con indicadores
+            params: Parámetros de la estrategia
+            
+        Returns:
+            DataFrame con señales
+        """
+        df["signal"] = SignalType.HOLD.lower()
+        
+        # Verificar que tenemos los indicadores necesarios
+        if "sma_fast" not in df.columns or "sma_slow" not in df.columns:
+            return df
+            
+        # Generar señales
+        df.loc[df["sma_fast"] > df["sma_slow"], "signal"] = SignalType.BUY.lower()
+        df.loc[df["sma_fast"] < df["sma_slow"], "signal"] = SignalType.SELL.lower()
+        
+        return df
+        
+    def mean_reversion_strategy(self, df: pd.DataFrame, params: Dict[str, Any]) -> pd.DataFrame:
+        """
+        Estrategia de reversión a la media basada en RSI.
+        
+        Args:
+            df: DataFrame con indicadores
+            params: Parámetros de la estrategia
+            
+        Returns:
+            DataFrame con señales
+        """
+        df["signal"] = SignalType.HOLD.lower()
+        
+        # Verificar que tenemos los indicadores necesarios
+        if "rsi" not in df.columns:
+            return df
+            
+        # Obtener parámetros
+        rsi_low = params.get("rsi_low", 30)
+        rsi_high = params.get("rsi_high", 70)
+        
+        # Generar señales
+        df.loc[df["rsi"] < rsi_low, "signal"] = SignalType.BUY.lower()
+        df.loc[df["rsi"] > rsi_high, "signal"] = SignalType.SELL.lower()
+        
+        return df
+        
+    def plot_results(self, strategy_name: str, symbol: str, show: bool = True, save: bool = False) -> Optional[str]:
+        """
+        Generar gráficos de resultados de backtest.
+        
+        Args:
+            strategy_name: Nombre de la estrategia
+            symbol: Símbolo de trading
+            show: Si se debe mostrar el gráfico
+            save: Si se debe guardar el gráfico
+            
+        Returns:
+            Ruta al archivo guardado o None
+        """
+        key = f"{strategy_name}_{symbol}"
+        if key not in self.results:
+            self.logger.error(f"No hay resultados para {key}")
+            return None
+            
         try:
-            # 1. Profit/Loss por ventana
-            plt.figure(figsize=(12, 6))
+            result = self.results[key]
+            metrics = result["metrics"]
+            df = result["df"]
             
-            # Datos para el gráfico
-            window_nums = [w["window"] for w in window_results]
-            train_pl = [w["train_metrics"].get("profit_loss", 0) for w in window_results]
-            test_pl = [w["test_metrics"].get("profit_loss", 0) for w in window_results]
+            # Crear figura
+            plt.figure(figsize=(12, 8))
             
-            # Graficar barras
-            width = 0.35
-            plt.bar([x - width/2 for x in window_nums], train_pl, width, label='Train', color='blue', alpha=0.7)
-            plt.bar([x + width/2 for x in window_nums], test_pl, width, label='Test', color='orange', alpha=0.7)
+            # Graficar precio y equity
+            ax1 = plt.subplot(2, 1, 1)
+            ax1.set_title(f"Backtest: {strategy_name} en {symbol}")
+            ax1.plot(df.index, df["close"], label="Precio", color="blue", alpha=0.6)
             
-            plt.axhline(y=0, color='red', linestyle='-', alpha=0.3)
-            plt.xlabel('Ventana')
-            plt.ylabel('Profit/Loss')
-            plt.title(f'Rendimiento por Ventana - {strategy_name} ({symbol})')
-            plt.legend()
-            plt.grid(True, alpha=0.3)
+            # Marcar operaciones
+            buy_signals = df[df["signal"] == SignalType.BUY.lower()]
+            sell_signals = df[df["signal"] == SignalType.SELL.lower()]
             
-            wfa_pl_path = f"{self.plots_dir}/wfa_pl_{strategy_name}_{symbol}_{timestamp}.png"
-            plt.savefig(wfa_pl_path)
-            plt.close()
+            ax1.scatter(buy_signals.index, buy_signals["close"], marker="^", color="green", 
+                      label="Compra", alpha=1, s=50)
+            ax1.scatter(sell_signals.index, sell_signals["close"], marker="v", color="red", 
+                      label="Venta", alpha=1, s=50)
             
-            charts["profit_loss_by_window"] = wfa_pl_path
+            ax1.set_ylabel("Precio")
+            ax1.legend()
+            ax1.grid(True, alpha=0.3)
             
-            # 2. Win Rate por ventana
-            plt.figure(figsize=(12, 6))
+            # Graficar equity
+            ax2 = plt.subplot(2, 1, 2, sharex=ax1)
+            ax2.plot(df.index, df["equity"], label="Equity", color="purple")
+            ax2.set_ylabel("Equity")
+            ax2.set_xlabel("Fecha")
+            ax2.grid(True, alpha=0.3)
             
-            # Datos para el gráfico
-            train_wr = [w["train_metrics"].get("win_rate", 0) * 100 for w in window_results]
-            test_wr = [w["test_metrics"].get("win_rate", 0) * 100 for w in window_results]
+            # Añadir métricas como texto
+            metrics_text = (
+                f"Retorno: {metrics.get('total_return', 0):.2%}  "
+                f"Sharpe: {metrics.get('sharpe_ratio', 0):.2f}  "
+                f"Drawdown: {metrics.get('max_drawdown', 0):.2%}  "
+                f"Win Rate: {metrics.get('win_rate', 0):.2%}  "
+                f"Ops: {metrics.get('num_trades', 0)}"
+            )
+            plt.figtext(0.5, 0.01, metrics_text, ha="center", fontsize=10, 
+                       bbox={"facecolor": "white", "alpha": 0.8, "pad": 5})
             
-            # Graficar barras
-            plt.bar([x - width/2 for x in window_nums], train_wr, width, label='Train', color='blue', alpha=0.7)
-            plt.bar([x + width/2 for x in window_nums], test_wr, width, label='Test', color='orange', alpha=0.7)
+            plt.tight_layout()
+            plt.subplots_adjust(bottom=0.1)
             
-            plt.xlabel('Ventana')
-            plt.ylabel('Win Rate (%)')
-            plt.title(f'Win Rate por Ventana - {strategy_name} ({symbol})')
-            plt.legend()
-            plt.grid(True, alpha=0.3)
-            
-            wfa_wr_path = f"{self.plots_dir}/wfa_wr_{strategy_name}_{symbol}_{timestamp}.png"
-            plt.savefig(wfa_wr_path)
-            plt.close()
-            
-            charts["win_rate_by_window"] = wfa_wr_path
-            
-            # 3. Estabilidad de parámetros
-            # Identificar parámetros comunes
-            if window_results and "best_params" in window_results[0]:
-                common_params = list(window_results[0]["best_params"].keys())
+            # Guardar o mostrar
+            saved_path = None
+            if save:
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                filename = f"{key}_{timestamp}.png"
+                filepath = os.path.join(self.plots_dir, filename)
+                plt.savefig(filepath, dpi=300, bbox_inches="tight")
+                saved_path = filepath
+                self.logger.info(f"Gráfico guardado en {filepath}")
                 
-                for param_name in common_params:
-                    param_values = [w["best_params"].get(param_name, None) for w in window_results]
-                    
-                    # Solo graficar si son valores numéricos
-                    if all(isinstance(v, (int, float)) for v in param_values if v is not None):
-                        plt.figure(figsize=(12, 4))
-                        plt.plot(window_nums, param_values, marker='o', linestyle='-', color='purple')
-                        plt.xlabel('Ventana')
-                        plt.ylabel(f'Valor de {param_name}')
-                        plt.title(f'Estabilidad de Parámetro: {param_name} - {strategy_name} ({symbol})')
-                        plt.grid(True, alpha=0.3)
-                        
-                        param_path = f"{self.plots_dir}/wfa_param_{param_name}_{strategy_name}_{symbol}_{timestamp}.png"
-                        plt.savefig(param_path)
-                        plt.close()
-                        
-                        charts[f"param_stability_{param_name}"] = param_path
-            
-            # 4. Métricas comparativas
-            plt.figure(figsize=(10, 6))
-            
-            # Datos para comparar train vs test
-            metrics_to_compare = ["profit_loss", "sharpe_ratio", "win_rate", "max_drawdown_pct"]
-            labels = ["Profit/Loss", "Sharpe Ratio", "Win Rate", "Max Drawdown"]
-            
-            # Calcular promedios
-            train_avgs = []
-            test_avgs = []
-            
-            for metric in metrics_to_compare:
-                train_vals = [w["train_metrics"].get(metric, 0) for w in window_results]
-                test_vals = [w["test_metrics"].get(metric, 0) for w in window_results]
+            if show:
+                plt.show()
+            else:
+                plt.close()
                 
-                # Normalizar para visualización
-                if metric == "win_rate" or metric == "max_drawdown_pct":
-                    train_vals = [v * 100 for v in train_vals]
-                    test_vals = [v * 100 for v in test_vals]
-                
-                train_avg = sum(train_vals) / len(train_vals) if train_vals else 0
-                test_avg = sum(test_vals) / len(test_vals) if test_vals else 0
-                
-                train_avgs.append(train_avg)
-                test_avgs.append(test_avg)
+            return saved_path
             
-            # Graficar
-            x = range(len(labels))
-            width = 0.35
-            
-            plt.bar([i - width/2 for i in x], train_avgs, width, label='Train', color='blue', alpha=0.7)
-            plt.bar([i + width/2 for i in x], test_avgs, width, label='Test', color='orange', alpha=0.7)
-            
-            plt.axhline(y=0, color='red', linestyle='-', alpha=0.3)
-            plt.xlabel('Métrica')
-            plt.ylabel('Valor')
-            plt.title(f'Comparación de Métricas - {strategy_name} ({symbol})')
-            plt.xticks(x, labels)
-            plt.legend()
-            plt.grid(True, alpha=0.3)
-            
-            metrics_path = f"{self.plots_dir}/wfa_metrics_{strategy_name}_{symbol}_{timestamp}.png"
-            plt.savefig(metrics_path)
-            plt.close()
-            
-            charts["metrics_comparison"] = metrics_path
-        
         except Exception as e:
-            self.logger.error(f"Error al generar gráficos WFA: {e}")
+            self.logger.error(f"Error al generar gráfico: {e}")
+            return None
+            
+    def get_result(self, strategy_name: str, symbol: str) -> Dict[str, Any]:
+        """
+        Obtener los resultados de un backtest.
         
-        return charts
-
-
-# Exportación para uso fácil
-backtest_engine = BacktestEngine()
+        Args:
+            strategy_name: Nombre de la estrategia
+            symbol: Símbolo de trading
+            
+        Returns:
+            Resultados del backtest o diccionario vacío si no hay resultados
+        """
+        key = f"{strategy_name}_{symbol}"
+        return self.results.get(key, {})

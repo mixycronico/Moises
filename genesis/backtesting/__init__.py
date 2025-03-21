@@ -1,6 +1,12 @@
 """
 Módulo de backtesting para el sistema Genesis.
 
-Este paquete proporciona herramientas para realizar backtesting y optimización
-de estrategias de trading utilizando datos históricos de los mercados.
+Este módulo proporciona herramientas para realizar backtesting
+de estrategias de trading, incluyendo simulación de operaciones,
+optimización de parámetros y análisis de resultados.
 """
+
+from genesis.backtesting.engine import BacktestEngine
+from genesis.backtesting.api import BacktestAPI
+
+__all__ = ["BacktestEngine", "BacktestAPI"]

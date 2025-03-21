@@ -15,9 +15,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from genesis.db.models import Base
 from genesis.utils.logger import setup_logging
-from genesis.api.rest import init_api
-from genesis.api.swagger import init_swagger
-from genesis.api.logger import init_api_logger
+from genesis.api import init_api, init_swagger
+from genesis.api.logger import APILogger
 
 # Configurar el logger
 logger = setup_logging('webapp')
@@ -46,7 +45,7 @@ init_api(app)
 init_swagger(app)
 
 # Inicializar logger API
-api_logger = init_api_logger(app)
+api_logger = APILogger(app)
 
 # Rutas básicas de la aplicación web
 @app.route('/')

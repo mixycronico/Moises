@@ -18,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.future import select
 
 from genesis.config.settings import settings
-from genesis.db.models import Base, Exchange, Symbol, Candle, Strategy, Signal, Trade, Balance, PerformanceMetric
+from genesis.db.models import Base, Candle, Trade, PerformanceMetric
 from genesis.utils.logger import setup_logging
 
 # Type variable for models

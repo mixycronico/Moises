@@ -1,6 +1,12 @@
 """
-Módulos de API para el sistema Genesis.
+Módulo API para el sistema Genesis.
 
-Este paquete contiene los módulos para la API REST y el servidor HTTP
-que proporcionan acceso a las funcionalidades del sistema.
+Este módulo proporciona interfaces para la comunicación con sistemas externos,
+incluyendo API REST, WebSockets, y aplicación web.
 """
+
+from genesis.api.init_api import init_api
+from genesis.api.swagger import init_swagger
+from genesis.api.logger import initialize_logging
+
+__all__ = ["init_api", "init_swagger", "initialize_logging"]
