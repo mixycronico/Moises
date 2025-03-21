@@ -100,6 +100,9 @@ class TestSignalGeneratorBasic(unittest.TestCase):
                 np.array([np.nan] * (len(self.sample_data) - 2) + [-0.1, 0.1])   # Histograma
             )
             
+            # El método calculate_macd debe ser usado, no directamente macd
+            self.indicators.macd.return_value = mock_calculate_macd.return_value
+            
             signal = self.signal_generator.generate_macd_signal(self.sample_data)
             self.assertEqual(signal, self.signal_generator.BUY)
     
@@ -112,6 +115,9 @@ class TestSignalGeneratorBasic(unittest.TestCase):
                 np.array([np.nan] * (len(self.sample_data) - 2) + [0.0, 0.0]),   # Señal
                 np.array([np.nan] * (len(self.sample_data) - 2) + [0.1, -0.1])   # Histograma
             )
+            
+            # El método calculate_macd debe ser usado, no directamente macd
+            self.indicators.macd.return_value = mock_calculate_macd.return_value
             
             signal = self.signal_generator.generate_macd_signal(self.sample_data)
             self.assertEqual(signal, self.signal_generator.SELL)
@@ -237,44 +243,68 @@ def test_bollinger_bands_signal_with_insufficient_data(signal_generator, sample_
 
 def test_combine_signals_majority_buy(signal_generator):
     """Verificar combinación de señales por mayoría con resultado compra."""
-    signals = [signal_generator.BUY, signal_generator.BUY, signal_generator.SELL]
+    signals = [
+        {"signal": signal_generator.SIGNAL_BUY},
+        {"signal": signal_generator.SIGNAL_BUY},
+        {"signal": signal_generator.SIGNAL_SELL}
+    ]
     result = signal_generator.combine_signals(signals, "majority")
-    assert result == signal_generator.BUY
+    assert result["signal"] == signal_generator.SIGNAL_BUY
 
 
 def test_combine_signals_majority_sell(signal_generator):
     """Verificar combinación de señales por mayoría con resultado venta."""
-    signals = [signal_generator.SELL, signal_generator.SELL, signal_generator.BUY]
+    signals = [
+        {"signal": signal_generator.SIGNAL_SELL},
+        {"signal": signal_generator.SIGNAL_SELL},
+        {"signal": signal_generator.SIGNAL_BUY}
+    ]
     result = signal_generator.combine_signals(signals, "majority")
-    assert result == signal_generator.SELL
+    assert result["signal"] == signal_generator.SIGNAL_SELL
 
 
 def test_combine_signals_majority_hold(signal_generator):
     """Verificar combinación de señales por mayoría con resultado mantener."""
-    signals = [signal_generator.HOLD, signal_generator.HOLD, signal_generator.BUY]
+    signals = [
+        {"signal": signal_generator.SIGNAL_HOLD},
+        {"signal": signal_generator.SIGNAL_HOLD},
+        {"signal": signal_generator.SIGNAL_BUY}
+    ]
     result = signal_generator.combine_signals(signals, "majority")
-    assert result == signal_generator.HOLD
+    assert result["signal"] == signal_generator.SIGNAL_HOLD
 
 
 def test_combine_signals_conservative_buy(signal_generator):
     """Verificar combinación de señales conservadora con resultado compra."""
-    signals = [signal_generator.BUY, signal_generator.BUY, signal_generator.BUY]
+    signals = [
+        {"signal": signal_generator.SIGNAL_BUY},
+        {"signal": signal_generator.SIGNAL_BUY},
+        {"signal": signal_generator.SIGNAL_BUY}
+    ]
     result = signal_generator.combine_signals(signals, "conservative")
-    assert result == signal_generator.BUY
+    assert result["signal"] == signal_generator.SIGNAL_BUY
 
 
 def test_combine_signals_conservative_mixed(signal_generator):
     """Verificar combinación de señales conservadora con señales mixtas."""
-    signals = [signal_generator.BUY, signal_generator.SELL, signal_generator.HOLD]
+    signals = [
+        {"signal": signal_generator.SIGNAL_BUY},
+        {"signal": signal_generator.SIGNAL_SELL},
+        {"signal": signal_generator.SIGNAL_HOLD}
+    ]
     result = signal_generator.combine_signals(signals, "conservative")
-    assert result == signal_generator.HOLD
+    assert result["signal"] == signal_generator.SIGNAL_HOLD
 
 
 def test_combine_signals_weighted(signal_generator):
     """Verificar combinación de señales ponderada."""
-    signals = [signal_generator.BUY, signal_generator.HOLD, signal_generator.HOLD]
+    signals = [
+        {"signal": signal_generator.SIGNAL_BUY},
+        {"signal": signal_generator.SIGNAL_HOLD},
+        {"signal": signal_generator.SIGNAL_HOLD}
+    ]
     result = signal_generator.combine_signals(signals, "weighted")
-    assert result == signal_generator.BUY
+    assert result["signal"] == signal_generator.SIGNAL_BUY
 
 
 if __name__ == "__main__":
