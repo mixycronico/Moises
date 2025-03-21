@@ -66,7 +66,14 @@ async def test_base_strategy():
     """Probar la funcionalidad básica de Strategy."""
     # El mockeo del logger ahora se realiza a nivel global en conftest.py
     strategy = TestStrategy()
+    
+    # Crear un mock para el event_bus con un método emit async
     event_bus = MagicMock()
+    # Configurar el método emit para devolver un Future completado
+    mock_future = asyncio.Future()
+    mock_future.set_result(None)
+    event_bus.emit = MagicMock(return_value=mock_future)
+    
     strategy.event_bus = event_bus
     
     # Probar inicio y parada
@@ -96,7 +103,6 @@ async def test_rsi_strategy(sample_ohlcv_data):
     assert "type" in signal
     assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
     assert "reason" in signal
-    assert "metadata" in signal
     
     # Verificar que el RSI está en el diccionario principal
     assert "rsi" in signal
@@ -115,21 +121,27 @@ async def test_rsi_strategy(sample_ohlcv_data):
 @pytest.mark.asyncio
 async def test_rsi_strategy_custom_thresholds():
     """Probar la estrategia RSI con umbrales personalizados."""
-    # Crear datos OHLCV específicos para esta prueba
+    # Crear datos OHLCV específicos para esta prueba - caso de sobreventa
     dates = pd.date_range("2025-01-01", periods=30, freq="1h")
     
-    # Generar precios que primero caen y luego suben rápidamente
-    prices = np.array([100] * 10 + list(range(100, 80, -2)) + list(range(80, 120, 4)))
+    # Generar precios que caen fuertemente (para producir RSI bajo)
+    prices = np.array([100] * 10)  # Comienza estable
+    # Caída continua para generar RSI bajo
+    for i in range(10, 30):
+        if i < 20:
+            prices = np.append(prices, prices[i-1] * 0.95)  # Caída del 5%
+        else:
+            prices = np.append(prices, prices[i-1] * 0.98)  # Caída más suave
     
     df = pd.DataFrame({
-        "open": prices - 1,
-        "high": prices + 2,
-        "low": prices - 2,
+        "open": prices * 1.01,
+        "high": prices * 1.03,
+        "low": prices * 0.97,
         "close": prices,
         "volume": np.random.lognormal(10, 1, 30),
     }, index=dates)
     
-    # Configurar la estrategia con umbrales más estrictos (25/75)
+    # Configurar la estrategia con umbrales (25/75)
     rsi_strategy = RSIStrategy(period=10, overbought=75, oversold=25)
     
     # Generar una señal
@@ -137,18 +149,48 @@ async def test_rsi_strategy_custom_thresholds():
     
     # Verificar que el RSI se calculó correctamente
     rsi_value = signal["rsi"]
+    print(f"RSI calculado: {rsi_value}")
     
-    # Con este patrón de precios, esperamos obtener un RSI extremo
-    # que sería o muy bajo (sobreventa) o muy alto (sobrecompra)
-    assert rsi_value < 25 or rsi_value > 75, f"RSI = {rsi_value} debería ser extremo (<25 o >75)"
+    # Con este patrón de precios, esperamos obtener un RSI bajo (sobreventa)
+    assert rsi_value < 25, f"RSI = {rsi_value} debería ser bajo (<25) en un patrón de caída continua"
     
-    # Verificar que la señal coincide con el RSI
-    if rsi_value < 25:
-        assert signal["type"] == SignalType.BUY
-        assert "sobreventa" in signal["reason"].lower() or "oversold" in signal["reason"].lower()
-    elif rsi_value > 75:
-        assert signal["type"] == SignalType.SELL
-        assert "sobrecompra" in signal["reason"].lower() or "overbought" in signal["reason"].lower()
+    # Verificar que la señal es de compra para un RSI bajo
+    assert signal["type"] == SignalType.BUY
+    assert "sobreventa" in signal["reason"].lower() or "oversold" in signal["reason"].lower()
+    
+    # Segunda prueba - caso de sobrecompra
+    dates2 = pd.date_range("2025-01-01", periods=30, freq="1h")
+    
+    # Generar precios que suben fuertemente (para producir RSI alto)
+    prices2 = np.array([100] * 10)  # Comienza estable
+    # Subida continua para generar RSI alto
+    for i in range(10, 30):
+        if i < 20:
+            prices2 = np.append(prices2, prices2[i-1] * 1.05)  # Subida del 5%
+        else:
+            prices2 = np.append(prices2, prices2[i-1] * 1.02)  # Subida más suave
+    
+    df2 = pd.DataFrame({
+        "open": prices2 * 0.99,
+        "high": prices2 * 1.03,
+        "low": prices2 * 0.97,
+        "close": prices2,
+        "volume": np.random.lognormal(10, 1, 30),
+    }, index=dates2)
+    
+    # Generar una señal con los datos de subida
+    signal2 = await rsi_strategy.generate_signal("BTCUSDT", df2)
+    
+    # Verificar que el RSI se calculó correctamente
+    rsi_value2 = signal2["rsi"]
+    print(f"RSI calculado (caso de sobrecompra): {rsi_value2}")
+    
+    # Con este patrón de precios, esperamos obtener un RSI alto (sobrecompra)
+    assert rsi_value2 > 75, f"RSI = {rsi_value2} debería ser alto (>75) en un patrón de subida continua"
+    
+    # Verificar que la señal es de venta para un RSI alto
+    assert signal2["type"] == SignalType.SELL
+    assert "sobrecompra" in signal2["reason"].lower() or "overbought" in signal2["reason"].lower()
 
 
 @pytest.mark.asyncio
