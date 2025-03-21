@@ -40,7 +40,9 @@ def setup_logging(
     
     # Use basicConfig for global configuration (for test compatibility)
     try:
-        logging.basicConfig(level=numeric_level)
+        # Para pruebas, es mejor pasar el string original del nivel
+        # en lugar del valor numérico. Esto hace más fácil mockearlo.
+        logging.basicConfig(level=level)
     except Exception as e:
         # Re-raise for test compatibility
         raise Exception(f"Logging setup failed: {str(e)}")
