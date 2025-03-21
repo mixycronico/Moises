@@ -407,7 +407,7 @@ class SignalGenerator:
                 "signal": self.SIGNAL_BUY,
                 "strength": abs(histogram[last_idx]) * 100,
                 "macd": macd_line[last_idx],
-                "signal": signal_line[last_idx],
+                "signal_line": signal_line[last_idx],
                 "histogram": histogram[last_idx]
             }
         
@@ -417,7 +417,7 @@ class SignalGenerator:
                 "signal": self.SIGNAL_SELL,
                 "strength": abs(histogram[last_idx]) * 100,
                 "macd": macd_line[last_idx],
-                "signal": signal_line[last_idx],
+                "signal_line": signal_line[last_idx],
                 "histogram": histogram[last_idx]
             }
         
@@ -425,7 +425,7 @@ class SignalGenerator:
         return {
             "signal": self.SIGNAL_HOLD,
             "macd": macd_line[last_idx],
-            "signal": signal_line[last_idx],
+            "signal_line": signal_line[last_idx],
             "histogram": histogram[last_idx]
         }
     
