@@ -169,3 +169,82 @@ class SystemLog(Base):
     user_id = Column(Integer)
     message = Column(Text, nullable=False)
     log_metadata = Column(JSON)
+
+# Tablas de Diccionario
+
+class DictSignalType(Base):
+    """Diccionario de tipos de señales de trading."""
+    __tablename__ = 'dict_signal_types'
+    
+    id = Column(Integer, primary_key=True)
+    code = Column(String(20), unique=True, nullable=False)  # 'BUY', 'SELL', 'HOLD'
+    name = Column(String(50), nullable=False)  # Nombre para mostrar
+    description = Column(String(200))
+    color = Column(String(20))  # Código de color para UI (ej. '#00FF00')
+    icon = Column(String(50))  # Nombre de icono para UI (ej. 'arrow-up')
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+
+class DictTradeStatus(Base):
+    """Diccionario de estados de operaciones."""
+    __tablename__ = 'dict_trade_status'
+    
+    id = Column(Integer, primary_key=True)
+    code = Column(String(20), unique=True, nullable=False)  # 'OPEN', 'CLOSED', 'CANCELED'
+    name = Column(String(50), nullable=False)  # Nombre para mostrar
+    description = Column(String(200))
+    color = Column(String(20))  # Código de color para UI
+    icon = Column(String(50))  # Nombre de icono para UI
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+
+class DictStrategyType(Base):
+    """Diccionario de tipos de estrategias."""
+    __tablename__ = 'dict_strategy_types'
+    
+    id = Column(Integer, primary_key=True)
+    code = Column(String(50), unique=True, nullable=False)  # 'RSI', 'BOLLINGER', 'MA_CROSSOVER', etc.
+    name = Column(String(100), nullable=False)  # Nombre para mostrar
+    description = Column(Text)
+    category = Column(String(50))  # 'TECHNICAL', 'FUNDAMENTAL', 'HYBRID'
+    complexity = Column(String(20))  # 'BASIC', 'INTERMEDIATE', 'ADVANCED'
+    risk_level = Column(String(20))  # 'LOW', 'MEDIUM', 'HIGH'
+    is_active = Column(Boolean, default=True)
+    params_schema = Column(JSON)  # Esquema de parámetros aceptados por la estrategia
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+
+class DictTradingPair(Base):
+    """Diccionario de pares de trading soportados."""
+    __tablename__ = 'dict_trading_pairs'
+    
+    id = Column(Integer, primary_key=True)
+    symbol = Column(String(20), unique=True, nullable=False)  # 'BTC/USDT', 'ETH/BTC', etc.
+    base_asset = Column(String(10), nullable=False)  # 'BTC', 'ETH', etc.
+    quote_asset = Column(String(10), nullable=False)  # 'USDT', 'BTC', etc.
+    min_order_size = Column(Float)
+    max_order_size = Column(Float)
+    price_precision = Column(Integer)  # Número de decimales para precio
+    quantity_precision = Column(Integer)  # Número de decimales para cantidad
+    is_active = Column(Boolean, default=True)
+    metadata = Column(JSON)  # Información adicional sobre el par
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
+
+class DictRiskLevel(Base):
+    """Diccionario de niveles de riesgo."""
+    __tablename__ = 'dict_risk_levels'
+    
+    id = Column(Integer, primary_key=True)
+    code = Column(String(20), unique=True, nullable=False)  # 'LOW', 'MEDIUM', 'HIGH'
+    name = Column(String(50), nullable=False)  # Nombre para mostrar
+    description = Column(String(200))
+    color = Column(String(20))  # Código de color para UI
+    max_position_size_pct = Column(Float)  # % máximo del capital para cada posición
+    max_drawdown_pct = Column(Float)  # % máximo de drawdown permitido
+    risk_per_trade_pct = Column(Float)  # % de riesgo por operación
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, onupdate=func.now())
