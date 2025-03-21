@@ -9,18 +9,15 @@ import os
 import sys
 import asyncio
 import logging
-
-# Agregar la ruta raíz al path
-sys.path.append(".")
-
-# Importar modelos y repositorio
-from genesis.db.models import Base
-from genesis.db.repository import Repository
-from genesis.db.paper_trading_models import PaperTradingAccount
+from sqlalchemy import create_engine, text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("db_setup")
+
+# Importar modelos
+from genesis.db.paper_trading_models import Base
 
 async def setup_database():
     """
@@ -29,49 +26,43 @@ async def setup_database():
     Esta función elimina todas las tablas existentes y las crea nuevamente
     según la estructura definida en los modelos.
     """
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        logger.error("Variable de entorno DATABASE_URL no definida")
+    # Obtener URL de la base de datos
+    db_url = os.environ.get('DATABASE_URL')
+    if not db_url:
+        logger.error("No se encontró la variable de entorno DATABASE_URL")
         return False
     
-    logger.info(f"Conectando a la base de datos: {database_url}")
+    logger.info(f"Conectando a la base de datos: {db_url}")
     
     try:
-        # Crear repositorio
-        repo = Repository(connection_string=database_url)
+        # Crear motor de base de datos
+        engine = create_engine(db_url)
         
-        # Eliminar todas las tablas
+        # Eliminar todas las tablas existentes relacionadas con paper trading
         logger.info("Eliminando tablas existentes...")
-        await repo.drop_tables(Base)
+        Base.metadata.drop_all(engine)
+        logger.info("Tablas eliminadas correctamente")
         
-        # Crear todas las tablas
-        logger.info("Creando nuevas tablas...")
-        await repo.create_tables(Base)
+        # Crear tablas nuevamente
+        logger.info("Creando tablas nuevas...")
+        Base.metadata.create_all(engine)
+        logger.info("Tablas creadas correctamente")
         
-        # Verificar que las tablas de paper trading también se hayan creado
-        logger.info("Verificando tablas de paper trading...")
-        try:
-            count = await repo.count(PaperTradingAccount)
-            logger.info(f"Tablas de paper trading creadas correctamente. Cuentas existentes: {count}")
-        except Exception as e:
-            logger.warning(f"No se pudo verificar las tablas de paper trading: {e}")
-        
-        logger.info("Base de datos actualizada exitosamente")
         return True
-    
+        
     except Exception as e:
         logger.error(f"Error al actualizar la base de datos: {e}")
         return False
 
-if __name__ == "__main__":
-    logger.info("Iniciando actualización de la base de datos...")
-    try:
-        success = asyncio.run(setup_database())
-        if success:
-            logger.info("Actualización completada con éxito")
-        else:
-            logger.error("Error al actualizar la base de datos")
-            sys.exit(1)
-    except Exception as e:
-        logger.error(f"Error inesperado: {e}")
+async def main():
+    """Función principal."""
+    success = await setup_database()
+    
+    if success:
+        logger.info("Base de datos actualizada correctamente")
+    else:
+        logger.error("Error al actualizar la base de datos")
         sys.exit(1)
+
+if __name__ == "__main__":
+    asyncio.run(main())

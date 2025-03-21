@@ -65,12 +65,25 @@ class CCXTExchange(Exchange):
         
         # Create the CCXT exchange instance
         exchange_class = getattr(ccxt, exchange_id)
-        self.exchange = exchange_class({
+        
+        # Preparar configuración
+        exchange_config = {
             'apiKey': api_key,
             'secret': secret,
-            'password': password,
-            **self.config
-        })
+            'password': password
+        }
+        
+        # Si estamos en modo testnet, lo configuramos después de crear la instancia
+        self.use_testnet = bool(self.config.get('testnet'))
+        
+        if self.use_testnet:
+            self.logger.info(f"Se usará el modo testnet para {exchange_id}")
+        
+        # Agregar el resto de la configuración
+        exchange_config.update(self.config)
+        
+        # Crear instancia del exchange
+        self.exchange = exchange_class(exchange_config)
         
         # Rate limiting
         self.rate_limit = {
@@ -89,15 +102,33 @@ class CCXTExchange(Exchange):
         
         try:
             self.logger.info(f"Initializing {self.exchange_id} exchange")
+            
+            # Si estamos en modo testnet, lo configuramos antes de cargar los mercados
+            if self.use_testnet:
+                self.logger.info(f"Activando modo testnet para {self.exchange_id}")
+                # Usar el método oficial de CCXT para activar el modo sandbox/testnet
+                self.exchange.set_sandbox_mode(True)
+            
             await self.exchange.load_markets()
             self.markets = self.exchange.markets
             
             self.logger.info(f"Initialized {self.exchange_id} with {len(self.markets)} markets")
+            if self.use_testnet:
+                self.logger.info(f"Usando TESTNET para {self.exchange_id}")
+            
+            # Verificar la conexión con una operación básica
+            try:
+                if self.exchange_id.lower() == 'binance':
+                    ticker = await self.fetch_ticker('BTC/USDT')
+                    self.logger.info(f"Conexión verificada. Precio BTC/USDT: {ticker['last']}")
+            except Exception as ticker_e:
+                self.logger.warning(f"Prueba de conexión no completada: {ticker_e}")
             
             # Emit exchange ready event
             await self.emit_event("exchange.ready", {
                 "exchange_id": self.exchange_id,
-                "market_count": len(self.markets)
+                "market_count": len(self.markets),
+                "testnet": self.use_testnet
             })
         except Exception as e:
             self.logger.error(f"Error initializing exchange: {e}")

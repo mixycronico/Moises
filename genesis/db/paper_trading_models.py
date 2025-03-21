@@ -1,156 +1,172 @@
 """
-Modelos de base de datos para Paper Trading.
+Modelos de base de datos para el modo Paper Trading.
 
-Este módulo define los modelos utilizados para el modo Paper Trading
-del sistema Genesis, permitiendo simular operaciones con datos reales
-sin ejecutar órdenes reales en los exchanges.
+Este módulo define las tablas y relaciones necesarias para el sistema
+de paper trading, que permite simular operaciones sin usar fondos reales.
 """
 
+import uuid
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, JSON
+from typing import List, Optional
+from sqlalchemy import (
+    Column, Integer, String, Float, DateTime, Boolean, 
+    ForeignKey, Enum, Text, UniqueConstraint, Index
+)
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-from genesis.db.models import Base
+Base = declarative_base()
 
 class PaperTradingAccount(Base):
-    """
-    Cuenta de Paper Trading para simular operaciones.
-    
-    Esta tabla almacena las cuentas virtuales para paper trading,
-    incluyendo el balance inicial y la configuración.
-    """
+    """Cuenta de paper trading."""
     __tablename__ = 'paper_trading_accounts'
     
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, nullable=True)  # Puede ser nulo para cuentas de sistema/test
     name = Column(String(100), nullable=False)
-    description = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
+    user_id = Column(Integer, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     initial_balance_usd = Column(Float, nullable=False, default=10000.0)
-    current_balance_usd = Column(Float, nullable=False, default=10000.0)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    is_active = Column(Boolean, nullable=False, default=True)
-    config = Column(JSON, nullable=True)  # Configuración adicional como fees, slippage, etc.
+    is_active = Column(Boolean, default=True)
     
     # Relaciones
-    balances = relationship("PaperAssetBalance", back_populates="account", cascade="all, delete-orphan")
-    orders = relationship("PaperOrder", back_populates="account", cascade="all, delete-orphan")
-    trades = relationship("PaperTrade", back_populates="account", cascade="all, delete-orphan")
-
-
-class PaperAssetBalance(Base):
-    """
-    Balance de un activo específico en una cuenta de Paper Trading.
+    balances = relationship("PaperTradingBalance", back_populates="account", cascade="all, delete-orphan")
+    orders = relationship("PaperTradingOrder", back_populates="account", cascade="all, delete-orphan")
+    trades = relationship("PaperTradingTrade", back_populates="account", cascade="all, delete-orphan")
     
-    Esta tabla almacena los balances de cada activo (BTC, ETH, etc.)
-    para cada cuenta de paper trading.
-    """
-    __tablename__ = 'paper_asset_balances'
+    def __repr__(self):
+        return f"<PaperTradingAccount(id={self.id}, name='{self.name}', user_id={self.user_id})>"
+
+
+class PaperTradingBalance(Base):
+    """Saldo de activos en una cuenta de paper trading."""
+    __tablename__ = 'paper_trading_balances'
     
     id = Column(Integer, primary_key=True)
     account_id = Column(Integer, ForeignKey('paper_trading_accounts.id'), nullable=False)
-    asset = Column(String(20), nullable=False)  # BTC, ETH, USDT, etc.
-    total = Column(Float, nullable=False, default=0.0)
-    available = Column(Float, nullable=False, default=0.0)
-    locked = Column(Float, nullable=False, default=0.0)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    asset = Column(String(20), nullable=False)  # Ej: BTC, ETH, USDT
+    free = Column(Float, nullable=False, default=0.0)  # Saldo disponible
+    locked = Column(Float, nullable=False, default=0.0)  # Saldo bloqueado en órdenes
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relaciones
     account = relationship("PaperTradingAccount", back_populates="balances")
     
+    # Restricciones
     __table_args__ = (
-        # Índice compuesto para búsquedas rápidas por cuenta y activo
-        {'sqlite_autoincrement': True},
+        UniqueConstraint('account_id', 'asset', name='uix_account_asset'),
     )
-
-
-class PaperOrder(Base):
-    """
-    Orden en el sistema de Paper Trading.
     
-    Esta tabla almacena las órdenes simuladas, con su estado y detalles.
-    """
-    __tablename__ = 'paper_orders'
+    def __repr__(self):
+        return f"<PaperTradingBalance(account_id={self.account_id}, asset='{self.asset}', free={self.free}, locked={self.locked})>"
+
+
+class PaperTradingOrder(Base):
+    """Orden en el sistema de paper trading."""
+    __tablename__ = 'paper_trading_orders'
     
     id = Column(Integer, primary_key=True)
-    order_id = Column(String(50), nullable=False, unique=True)  # ID único de la orden
+    order_id = Column(String(36), default=lambda: str(uuid.uuid4()), unique=True)
     account_id = Column(Integer, ForeignKey('paper_trading_accounts.id'), nullable=False)
-    symbol = Column(String(20), nullable=False)  # BTC/USDT, ETH/USDT, etc.
-    order_type = Column(String(20), nullable=False)  # limit, market, stop_loss, etc.
-    side = Column(String(10), nullable=False)  # buy, sell
+    symbol = Column(String(20), nullable=False)  # Ej: BTC/USDT
+    side = Column(Enum('buy', 'sell', name='order_side'), nullable=False)
+    type = Column(Enum('limit', 'market', 'stop_loss', 'take_profit', name='order_type'), nullable=False)
+    quantity = Column(Float, nullable=False)
     price = Column(Float, nullable=True)  # Null para órdenes market
-    amount = Column(Float, nullable=False)
-    filled = Column(Float, nullable=False, default=0.0)
-    remaining = Column(Float, nullable=False)
-    status = Column(String(20), nullable=False)  # open, closed, canceled, expired
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    closed_at = Column(DateTime, nullable=True)
-    extra = Column(JSON, nullable=True)  # Información adicional como stop price, condiciones, etc.
+    status = Column(Enum('pending', 'open', 'closed', 'canceled', name='order_status'), nullable=False, default='open')
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    filled_quantity = Column(Float, nullable=False, default=0.0)
+    average_price = Column(Float, nullable=True)
+    stop_price = Column(Float, nullable=True)  # Para órdenes stop
+    is_test = Column(Boolean, default=False)  # Indica si es una orden de prueba
     
     # Relaciones
     account = relationship("PaperTradingAccount", back_populates="orders")
-    trades = relationship("PaperTrade", back_populates="order", cascade="all, delete-orphan")
+    trades = relationship("PaperTradingTrade", back_populates="order", cascade="all, delete-orphan")
     
+    # Índices
     __table_args__ = (
-        # Índices para búsquedas comunes
-        {'sqlite_autoincrement': True},
+        Index('idx_orders_account_symbol', 'account_id', 'symbol'),
+        Index('idx_orders_status', 'status'),
     )
-
-
-class PaperTrade(Base):
-    """
-    Operación ejecutada en el sistema de Paper Trading.
     
-    Esta tabla almacena las operaciones (trades) que resultan
-    de la ejecución (total o parcial) de órdenes simuladas.
-    """
-    __tablename__ = 'paper_trades'
+    def __repr__(self):
+        return f"<PaperTradingOrder(order_id='{self.order_id}', symbol='{self.symbol}', side='{self.side}', status='{self.status}')>"
+
+
+class PaperTradingTrade(Base):
+    """Operación ejecutada en el sistema de paper trading."""
+    __tablename__ = 'paper_trading_trades'
     
     id = Column(Integer, primary_key=True)
-    trade_id = Column(String(50), nullable=False, unique=True)  # ID único del trade
+    trade_id = Column(String(36), default=lambda: str(uuid.uuid4()), unique=True)
+    order_id = Column(String(36), ForeignKey('paper_trading_orders.order_id'), nullable=False)
     account_id = Column(Integer, ForeignKey('paper_trading_accounts.id'), nullable=False)
-    order_id = Column(String(50), ForeignKey('paper_orders.order_id'), nullable=False)
     symbol = Column(String(20), nullable=False)
-    side = Column(String(10), nullable=False)  # buy, sell
+    side = Column(Enum('buy', 'sell', name='trade_side'), nullable=False)
+    quantity = Column(Float, nullable=False)
     price = Column(Float, nullable=False)
-    amount = Column(Float, nullable=False)
-    cost = Column(Float, nullable=False)  # price * amount
-    fee = Column(Float, nullable=False, default=0.0)
-    fee_currency = Column(String(10), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    strategy_id = Column(String(50), nullable=True)  # ID de la estrategia que generó el trade
-    extra = Column(JSON, nullable=True)  # Información adicional
+    commission = Column(Float, nullable=False, default=0.0)
+    commission_asset = Column(String(20), nullable=False, default='USDT')
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    strategy_id = Column(Integer, nullable=True)  # ID de la estrategia que generó la operación
     
     # Relaciones
     account = relationship("PaperTradingAccount", back_populates="trades")
-    order = relationship("PaperOrder", back_populates="trades")
+    order = relationship("PaperTradingOrder", back_populates="trades")
     
+    # Índices
     __table_args__ = (
-        # Índices para búsquedas comunes
-        {'sqlite_autoincrement': True},
+        Index('idx_trades_account_symbol', 'account_id', 'symbol'),
+        Index('idx_trades_timestamp', 'timestamp'),
     )
-
-
-class PaperBalanceSnapshot(Base):
-    """
-    Instantánea periódica del balance de una cuenta de Paper Trading.
     
-    Esta tabla almacena instantáneas del balance total en diferentes 
-    momentos para análisis de rendimiento y seguimiento.
-    """
-    __tablename__ = 'paper_balance_snapshots'
+    def __repr__(self):
+        return f"<PaperTradingTrade(trade_id='{self.trade_id}', symbol='{self.symbol}', side='{self.side}', price={self.price})>"
+
+
+class MarketData(Base):
+    """Datos de mercado históricos para paper trading."""
+    __tablename__ = 'market_data'
     
     id = Column(Integer, primary_key=True)
-    account_id = Column(Integer, ForeignKey('paper_trading_accounts.id'), nullable=False)
-    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow)
-    balance_usd = Column(Float, nullable=False)  # Balance total en USD
-    assets = Column(JSON, nullable=False)  # Desglose de activos en ese momento
-    daily_pnl = Column(Float, nullable=True)  # Ganancia/pérdida diaria si está disponible
-    total_pnl = Column(Float, nullable=True)  # Ganancia/pérdida total desde inicio
-    total_pnl_pct = Column(Float, nullable=True)  # Porcentaje de ganancia/pérdida total
+    symbol = Column(String(20), nullable=False)
+    timeframe = Column(String(10), nullable=False)  # Ej: 1m, 5m, 1h, 1d
+    timestamp = Column(DateTime, nullable=False)
+    open = Column(Float, nullable=False)
+    high = Column(Float, nullable=False)
+    low = Column(Float, nullable=False)
+    close = Column(Float, nullable=False)
+    volume = Column(Float, nullable=False)
+    source = Column(String(20), nullable=False, default='binance')  # Fuente de los datos (ej: 'binance', 'testnet')
     
+    # Índices y restricciones
     __table_args__ = (
-        # Índice para búsquedas por cuenta y fecha
-        {'sqlite_autoincrement': True},
+        UniqueConstraint('symbol', 'timeframe', 'timestamp', 'source', name='uix_market_data'),
+        Index('idx_market_data_symbol_timeframe', 'symbol', 'timeframe'),
+        Index('idx_market_data_timestamp', 'timestamp'),
     )
+    
+    def __repr__(self):
+        return f"<MarketData(symbol='{self.symbol}', timeframe='{self.timeframe}', timestamp='{self.timestamp}')>"
+
+
+class PaperTradingSettings(Base):
+    """Configuración para el sistema de paper trading."""
+    __tablename__ = 'paper_trading_settings'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    account_id = Column(Integer, ForeignKey('paper_trading_accounts.id'), nullable=False)
+    commission_rate = Column(Float, nullable=False, default=0.001)  # 0.1% por defecto
+    slippage_factor = Column(Float, nullable=False, default=0.0005)  # 0.05% por defecto
+    simulate_latency = Column(Boolean, default=False)
+    latency_ms = Column(Integer, default=200)  # Latencia simulada en milisegundos
+    price_data_source = Column(String(20), nullable=False, default='testnet')  # 'testnet', 'live', 'historical'
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f"<PaperTradingSettings(account_id={self.account_id}, commission_rate={self.commission_rate})>"
