@@ -265,7 +265,7 @@ def init_trading_pairs(session):
             'max_order_size': 1000.0,
             'price_precision': 2,
             'quantity_precision': 6,
-            'metadata': {
+            'additional_data': {
                 'popular': True,
                 'category': 'MAJOR',
                 'description': 'Bitcoin vs Tether',
@@ -280,7 +280,7 @@ def init_trading_pairs(session):
             'max_order_size': 5000.0,
             'price_precision': 2,
             'quantity_precision': 5,
-            'metadata': {
+            'additional_data': {
                 'popular': True,
                 'category': 'MAJOR',
                 'description': 'Ethereum vs Tether',
@@ -295,7 +295,7 @@ def init_trading_pairs(session):
             'max_order_size': 1000.0,
             'price_precision': 8,
             'quantity_precision': 5,
-            'metadata': {
+            'additional_data': {
                 'popular': True,
                 'category': 'CRYPTO_PAIR',
                 'description': 'Ethereum vs Bitcoin',
@@ -310,7 +310,7 @@ def init_trading_pairs(session):
             'max_order_size': 50000.0,
             'price_precision': 2,
             'quantity_precision': 2,
-            'metadata': {
+            'additional_data': {
                 'popular': True,
                 'category': 'ALTCOIN',
                 'description': 'Solana vs Tether',
@@ -325,7 +325,7 @@ def init_trading_pairs(session):
             'max_order_size': 100000.0,
             'price_precision': 5,
             'quantity_precision': 1,
-            'metadata': {
+            'additional_data': {
                 'popular': True,
                 'category': 'ALTCOIN',
                 'description': 'Ripple vs Tether',
@@ -351,7 +351,7 @@ def init_trading_pairs(session):
                 max_order_size=data['max_order_size'],
                 price_precision=data['price_precision'],
                 quantity_precision=data['quantity_precision'],
-                metadata=data['metadata'],
+                additional_data=data['additional_data'],
                 is_active=True,
                 created_at=datetime.now()
             )

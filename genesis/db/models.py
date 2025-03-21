@@ -229,7 +229,7 @@ class DictTradingPair(Base):
     price_precision = Column(Integer)  # Número de decimales para precio
     quantity_precision = Column(Integer)  # Número de decimales para cantidad
     is_active = Column(Boolean, default=True)
-    metadata = Column(JSON)  # Información adicional sobre el par
+    additional_data = Column(JSON)  # Información adicional sobre el par
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
 
