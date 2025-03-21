@@ -1,0 +1,257 @@
+Entiendo que quieres categorizar los tests para tu sistema de trading Genesis en tres niveles —básico, intermedio y avanzado— según su complejidad y la parte del sistema que evalúan. A continuación, te proporciono una explicación detallada y completa de cómo estructurar e implementar estos tests para cubrir todas las áreas de tu sistema de trading automatizado. Dado que no tengo información específica sobre la implementación de Genesis, haré suposiciones razonables basadas en sistemas de trading típicos (como manejo de datos, cálculo de indicadores, generación de señales y ejecución de órdenes). Si tienes detalles particulares que quieras compartir, puedo ajustar las sugerencias.
+
+---
+
+## 1. Categoría Básica
+
+**Propósito:** 
+Los tests básicos verifican que las funciones y componentes fundamentales del sistema funcionen correctamente de forma aislada. Son rápidos, ligeros y no dependen de datos en tiempo real ni de interacciones complejas. Sirven como base para asegurar que las piezas individuales del sistema sean confiables antes de probar flujos más complejos.
+
+**Características:** 
+- Pruebas unitarias simples. 
+- Ejecución rápida (idealmente en milisegundos). 
+- Sin dependencias externas (como APIs de exchanges). 
+
+**Ejemplos de tests y cómo implementarlos:**
+
+### Tests de validación simple
+- **Qué evalúan:** Aseguran que las funciones básicas retornen los datos esperados en el formato correcto. 
+- **Ejemplo:** Verificar que una función que parsea datos de un CSV funcione bien. 
+ ```python
+ import pandas as pd
+ def test_parse_csv():
+ data = parse_csv("test_data.csv") # Suponiendo que esta función existe en tu sistema
+ assert isinstance(data, pd.DataFrame), "Los datos deben ser un DataFrame"
+ assert set(data.columns) == {"timestamp", "open", "high", "low", "close", "volume"}, "Columnas incorrectas"
+ ```
+
+### Tests de cálculo de indicadores
+- **Qué evalúan:** Confirman que los indicadores técnicos (RSI, MACD, medias móviles, etc.) se calculen correctamente. 
+- **Ejemplo:** Probar el cálculo del RSI (Índice de Fuerza Relativa). 
+ ```python
+ def test_rsi_calculation():
+ data = pd.DataFrame({"close": [100, 102, 101, 103, 105, 104, 106, 107, 108, 110]})
+ rsi = calculate_rsi(data, period=5) # Suponiendo que tienes esta función
+ assert len(rsi) == len(data), "Longitud incorrecta"
+ assert 0 <= rsi.iloc[-1] <= 100, "RSI fuera de rango"
+ ```
+
+### Tests de generación de señales
+- **Qué evalúan:** Verifican que las estrategias generen señales (compra/venta) bajo condiciones predefinidas. 
+- **Ejemplo:** Probar una señal basada en RSI. 
+ ```python
+ def test_rsi_signal_generation():
+ data = pd.DataFrame({"rsi": [25, 30, 35, 70, 75, 80]})
+ signal = generate_rsi_signal(data, oversold=30, overbought=70) # Función ficticia
+ assert signal == "BUY", "Se esperaba señal de compra al cruzar el nivel de sobreventa"
+ ```
+
+### Tests de funciones auxiliares
+- **Qué evalúan:** Prueban utilidades como conversión de timestamps o manejo de formatos. 
+- **Ejemplo:** Conversión de fecha a timestamp Unix. 
+ ```python
+ def test_timestamp_conversion():
+ ts = convert_to_unix("2023-01-01 00:00:00") # Función ficticia
+ assert ts == 1672531200, "Conversión de timestamp incorrecta"
+ ```
+
+**Cómo implementarlos:** 
+1. Usa `pytest` como framework de testing. Instálalo con `pip install pytest`. 
+2. Crea un archivo (por ejemplo, `test_basic.py`) y escribe los tests como funciones con el prefijo `test_`. 
+3. Ejecuta los tests con el comando `pytest test_basic.py -v`. 
+
+---
+
+## 2. Categoría Intermedia
+
+**Propósito:** 
+Los tests intermedios evalúan flujos de trabajo más completos y escenarios con múltiples condiciones. Incluyen datos simulados o mockeados (como respuestas de exchanges) para probar cómo el sistema reacciona en entornos controlados, pero sin depender aún de condiciones de mercado real.
+
+**Características:** 
+- Pruebas de integración entre componentes. 
+- Uso de mocks para simular dependencias externas. 
+- Escenarios más detallados que combinan varias funciones. 
+
+**Ejemplos de tests y cómo implementarlos:**
+
+### Tests de integración de estrategias
+- **Qué evalúan:** Simulan un flujo completo: entrada de datos → cálculo de indicadores → generación de señales → ejecución de órdenes. 
+- **Ejemplo:** Probar una estrategia RSI con un exchange simulado. 
+ ```python
+ from unittest.mock import Mock
+ def test_full_strategy_flow():
+ mock_exchange = Mock() # Simula un exchange
+ mock_exchange.place_order.return_value = {"status": "filled"}
+ strategy = RSIStrategy() # Suponiendo que tienes esta clase
+ data = pd.DataFrame({"close": [100, 101, 102, 103, 104]})
+ signal = strategy.generate_signal(data)
+ if signal == "BUY":
+ order = mock_exchange.place_order("BTCUSDT", "buy", 0.1)
+ assert order["status"] == "filled", "La orden no se ejecutó correctamente"
+ ```
+
+### Tests con datos mockeados de exchanges
+- **Qué evalúan:** Verifican que el sistema maneje órdenes y balances con respuestas simuladas de un exchange. 
+- **Ejemplo:** Probar la ejecución de una orden. 
+ ```python
+ def test_order_execution():
+ mock_exchange = Mock()
+ mock_exchange.get_balance.return_value = 10000
+ mock_exchange.place_order.return_value = {"status": "filled", "amount": 0.1}
+ order = mock_exchange.place_order("BTCUSDT", "buy", 0.1)
+ assert order["status"] == "filled", "Orden no completada"
+ assert mock_exchange.get_balance("BTC") == 0.1, "Balance no actualizado"
+ ```
+
+### Tests de manejo de errores
+- **Qué evalúan:** Aseguran que el sistema gestione fallos como desconexiones o datos inválidos. 
+- **Ejemplo:** Simular una desconexión del exchange. 
+ ```python
+ import pytest
+ def test_exchange_disconnection():
+ mock_exchange = Mock()
+ mock_exchange.get_price.side_effect = ConnectionError("Disconnected")
+ with pytest.raises(ConnectionError):
+ mock_exchange.get_price("BTCUSDT")
+ ```
+
+### Tests de concurrencia básica
+- **Qué evalúan:** Verifican que múltiples estrategias puedan ejecutarse simultáneamente sin conflictos. 
+- **Ejemplo:** Probar dos estrategias asíncronas. 
+ ```python
+ import asyncio
+ async def test_multiple_strategies():
+ strategy1 = RSIStrategy()
+ strategy2 = MACDStrategy() # Suponiendo que existe
+ data = pd.DataFrame({"close": [100, 101, 102]})
+ tasks = [
+ asyncio.create_task(strategy1.generate_signal(data)),
+ asyncio.create_task(strategy2.generate_signal(data))
+ ]
+ signals = await asyncio.gather(*tasks)
+ assert len(signals) == 2, "No se ejecutaron ambas estrategias"
+ ```
+
+**Cómo implementarlos:** 
+1. Instala `pytest-asyncio` con `pip install pytest-asyncio` para tests asíncronos. 
+2. Usa `unittest.mock` (incluido en Python) para simular exchanges u otras dependencias. 
+3. Organiza los tests en un archivo como `test_intermediate.py`. 
+4. Ejecuta con `pytest test_intermediate.py -v --asyncio-mode=auto`. 
+
+---
+
+## 3. Categoría Avanzada
+
+**Propósito:** 
+Los tests avanzados replican escenarios complejos, prueban el rendimiento bajo carga pesada y validan la integración con APIs externas o backtesting con datos históricos reales. Son cruciales para garantizar la robustez y escalabilidad de Genesis.
+
+**Características:** 
+- Escenarios cercanos a la realidad (mercado volátil, fallos, alta carga). 
+- Pruebas de rendimiento y resiliencia. 
+- Dependencia de entornos más reales (sandboxes, datos históricos). 
+
+**Ejemplos de tests y cómo implementarlos:**
+
+### Tests de backtesting con datos históricos
+- **Qué evalúan:** Ejecutan estrategias completas con grandes conjuntos de datos para medir rendimiento. 
+- **Ejemplo:** Backtest de una estrategia RSI. 
+ ```python
+ def test_backtest_performance():
+ data = load_historical_data("BTCUSDT", "1h", "2020-01-01", "2023-01-01") # Función ficticia
+ strategy = RSIStrategy()
+ backtest = Backtest(strategy, data, initial_capital=10000) # Clase ficticia
+ results = backtest.run()
+ assert results["total_return"] > 0, "Rendimiento negativo"
+ assert results["sharpe_ratio"] > 1.0, "Sharpe ratio insuficiente"
+ ```
+
+### Tests de estrés y rendimiento
+- **Qué evalúan:** Verifican cómo se comporta el sistema bajo alta carga o frecuencia. 
+- **Ejemplo:** Simular trading de alta frecuencia. 
+ ```python
+ def test_high_frequency_trading():
+ data_stream = simulate_high_frequency_data() # Generador ficticio
+ strategy = HighFrequencyStrategy()
+ for _ in range(10000): # 10,000 operaciones
+ signal = strategy.generate_signal(next(data_stream))
+ # Aquí podrías procesar la señal si aplica
+ ```
+
+### Tests de resiliencia ante fallos
+- **Qué evalúan:** Aseguran que el sistema se recupere de desconexiones o timeouts. 
+- **Ejemplo:** Simular reconexión tras fallo. 
+ ```python
+ def test_reconnection_after_failure():
+ mock_exchange = Mock()
+ mock_exchange.get_price.side_effect = [10000, ConnectionError("Disconnected"), 10001]
+ price = None
+ for _ in range(3):
+ try:
+ price = mock_exchange.get_price("BTCUSDT")
+ except ConnectionError:
+ mock_exchange.reconnect = Mock() # Simula reconexión
+ continue
+ assert price == 10001, "No se recuperó tras fallo"
+ ```
+
+### Tests de integración con APIs externas
+- **Qué evalúan:** Validan la interacción con exchanges reales (usando sandboxes). 
+- **Ejemplo:** Probar un exchange real en modo prueba. 
+ ```python
+ def test_real_exchange_integration():
+ exchange = RealExchange(api_key="test_key", api_secret="test_secret") # Usa sandbox
+ balance = exchange.get_balance("USDT")
+ assert balance > 0, "Balance no obtenido"
+ order = exchange.place_order("BTCUSDT", "buy", 0.001)
+ assert order["status"] == "filled", "Orden no ejecutada"
+ ```
+
+**Cómo implementarlos:** 
+1. Usa `pytest-benchmark` (`pip install pytest-benchmark`) para medir rendimiento. 
+2. Obtén datos históricos (por ejemplo, con `ccxt` o fuentes como Binance). 
+3. Configura un entorno sandbox con un exchange real (como Binance Testnet). 
+4. Ejecuta con `pytest test_advanced.py -v`. 
+
+---
+
+## Pasos para implementar todos los tests
+
+1. **Configura el entorno:** 
+ - Instala dependencias: `pip install pytest pytest-asyncio pytest-benchmark ccxt pandas`. 
+ - Crea una estructura de carpetas: 
+ ```
+ tests/
+ basic/
+ test_basic.py
+ intermediate/
+ test_intermediate.py
+ advanced/
+ test_advanced.py
+ ```
+
+2. **Escribe fixtures comunes:** 
+ - En un archivo `conftest.py`, define datos simulados o mocks reutilizables. 
+ ```python
+ import pytest
+ @pytest.fixture
+ def mock_exchange():
+ from unittest.mock import Mock
+ return Mock()
+ ```
+
+3. **Automatiza la ejecución:** 
+ - Usa un pipeline de CI/CD (como GitHub Actions) para correr tests básicos e intermedios automáticamente. 
+ - Ejecuta tests avanzados manualmente o en entornos dedicados. 
+
+4. **Monitorea resultados:** 
+ - Genera reportes con `pytest --html=report.html`. 
+ - Usa herramientas de cobertura como `pytest-cov` para asegurar que todo esté testeado. 
+
+---
+
+## Recomendación para empezar
+- **Comienza con los básicos:** Implementa los tests de validación y cálculo de indicadores para cubrir las funciones esenciales. 
+- **Pasa a los intermedios:** Una vez que los básicos funcionen, prueba flujos completos con mocks. 
+- **Termina con los avanzados:** Dedica tiempo a backtesting y pruebas de estrés cuando el sistema esté más maduro. 
+
+Si quieres desarrollar un test específico primero o necesitas ayuda con algún aspecto (como configurar `pytest` o simular datos), ¡avísame y lo trabajamos juntos! 
