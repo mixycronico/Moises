@@ -1,0 +1,164 @@
+import pytest
+from genesis.config import Config
+from genesis.logger import Logger
+from genesis.exchange_manager import ExchangeManager
+from genesis.security import Security
+from unittest.mock import Mock, patch
+import logging
+
+# Fixtures para reutilizar instancias en las pruebas
+@pytest.fixture
+def config():
+    """Fixture que proporciona una instancia de Config."""
+    return Config()
+
+@pytest.fixture
+def exchange_manager():
+    """Fixture que proporciona una instancia de ExchangeManager con exchanges simulados."""
+    return ExchangeManager(["Binance", "KuCoin"])
+
+@pytest.fixture
+def mock_logger():
+    """Fixture que simula el comportamiento del logging."""
+    with patch('genesis.logger.logging') as mock_logging:
+        yield mock_logging
+
+# Pruebas para Config
+def test_config_load_and_set(config):
+    """Prueba la carga y el establecimiento de configuraciones."""
+    # Valor por defecto
+    assert config.get("log_level") == "INFO"
+
+    # Cambiar y verificar
+    config.set("log_level", "DEBUG")
+    assert config.get("log_level") == "DEBUG"
+
+def test_config_get_non_existent_key(config):
+    """Prueba el comportamiento con una clave inexistente."""
+    assert config.get("non_existent_key") is None
+    assert config.get("non_existent_key", default="DEFAULT") == "DEFAULT"
+
+def test_config_set_invalid_type(config):
+    """Prueba el manejo de tipos no válidos al establecer configuraciones."""
+    with pytest.raises(TypeError):
+        config.set("log_level", 123)  # Suponiendo que Config valida tipos
+
+# Pruebas para Logger
+def test_logger_setup_logging(mock_logger):
+    """Prueba que se configure el logging correctamente."""
+    Logger.setup_logging()
+    mock_logger.basicConfig.assert_called_once()
+    mock_logger.getLogger.assert_called_once_with("genesis")
+
+def test_logger_setup_logging_with_custom_level(mock_logger, config):
+    """Prueba la configuración del logger con un nivel personalizado."""
+    config.set("log_level", "DEBUG")
+    Logger.setup_logging(config=config)
+    mock_logger.basicConfig.assert_called_once_with(level=logging.DEBUG)
+
+def test_logger_setup_logging_failure(mock_logger):
+    """Prueba el manejo de errores al configurar el logging."""
+    mock_logger.basicConfig.side_effect = Exception("Logging setup failed")
+    with pytest.raises(Exception, match="Logging setup failed"):
+        Logger.setup_logging()
+
+# Pruebas para Security
+def test_security_hashing_and_verification():
+    """Prueba el hashing y la verificación de contraseñas."""
+    password = "securepassword"
+    hashed, salt = Security.hash_password(password)
+    
+    # Verificación correcta
+    assert Security.verify_password(password, hashed, salt)
+    
+    # Verificación incorrecta
+    wrong_password = "wrongpassword"
+    assert not Security.verify_password(wrong_password, hashed, salt)
+
+def test_security_hash_password_empty():
+    """Prueba el manejo de contraseñas vacías."""
+    with pytest.raises(ValueError, match="Password cannot be empty"):
+        Security.hash_password("")
+
+def test_security_verify_password_invalid_hash():
+    """Prueba la verificación con un hash inválido."""
+    password = "securepassword"
+    hashed, salt = Security.hash_password(password)
+    invalid_hash = "invalid_hash_format"
+    assert not Security.verify_password(password, invalid_hash, salt)
+
+# Pruebas para ExchangeManager
+def test_exchange_manager_initialization(exchange_manager):
+    """Prueba la inicialización de ExchangeManager."""
+    assert "Binance" in exchange_manager.exchanges
+    assert "KuCoin" in exchange_manager.exchanges
+    assert exchange_manager.selector is not None
+
+def test_exchange_manager_get_best_exchange(exchange_manager):
+    """Prueba la selección del mejor exchange."""
+    mock_selector = Mock()
+    mock_selector.get_best_exchange.return_value = "Binance"
+    exchange_manager.selector = mock_selector
+
+    best_exchange = exchange_manager.get_best_exchange("BTC/USDT")
+    assert best_exchange == "Binance"
+    mock_selector.get_best_exchange.assert_called_once_with("BTC/USDT")
+
+def test_exchange_manager_get_best_exchange_no_exchanges(exchange_manager):
+    """Prueba el comportamiento cuando no hay exchanges disponibles."""
+    exchange_manager.exchanges = {}
+    with pytest.raises(ValueError, match="No exchanges available"):
+        exchange_manager.get_best_exchange("BTC/USDT")
+
+def test_exchange_manager_execute_trade(exchange_manager):
+    """Prueba la ejecución de una operación en el mejor exchange."""
+    mock_client = Mock()
+    mock_client.place_order.return_value = {"status": "success", "message": "Order placed"}
+    exchange_manager.exchanges["Binance"] = mock_client
+
+    with patch.object(exchange_manager, 'get_best_exchange', return_value="Binance"):
+        result = exchange_manager.execute_trade("BTC/USDT", "buy", 0.01)
+        assert result["status"] == "success"
+        assert result["message"] == "Order placed"
+        mock_client.place_order.assert_called_once_with("BTC/USDT", "buy", 0.01)
+
+def test_exchange_manager_execute_trade_invalid_symbol(exchange_manager):
+    """Prueba el manejo de símbolos inválidos."""
+    mock_client = Mock()
+    mock_client.place_order.side_effect = ValueError("Invalid symbol")
+    exchange_manager.exchanges["Binance"] = mock_client
+
+    with patch.object(exchange_manager, 'get_best_exchange', return_value="Binance"):
+        with pytest.raises(ValueError, match="Invalid symbol"):
+            exchange_manager.execute_trade("INVALID/SYMBOL", "buy", 0.01)
+
+def test_exchange_manager_execute_trade_exchange_unavailable(exchange_manager):
+    """Prueba el comportamiento cuando el exchange no está disponible."""
+    with patch.object(exchange_manager, 'get_best_exchange', return_value="NonExistent"):
+        with pytest.raises(KeyError, match="Exchange NonExistent not found"):
+            exchange_manager.execute_trade("BTC/USDT", "buy", 0.01)
+
+# Pruebas de integración (ejemplo)
+def test_config_and_logger_integration(config, mock_logger):
+    """Prueba la integración entre Config y Logger."""
+    config.set("log_level", "WARNING")
+    Logger.setup_logging(config=config)
+    mock_logger.basicConfig.assert_called_once_with(level=logging.WARNING)
+
+def test_security_and_exchange_manager_integration(exchange_manager):
+    """Prueba la integración entre Security y ExchangeManager (simulada)."""
+    password = "securepassword"
+    hashed, salt = Security.hash_password(password)
+    
+    # Simulamos un método que usa credenciales seguras para autenticar un exchange
+    mock_client = Mock()
+    mock_client.authenticate.return_value = True
+    exchange_manager.exchanges["Binance"] = mock_client
+
+    with patch.object(exchange_manager, 'get_best_exchange', return_value="Binance"):
+        exchange_manager.exchanges["Binance"].authenticate(hashed, salt)
+        mock_client.authenticate.assert_called_once_with(hashed, salt)
+
+# Ejecutar las pruebas con cobertura
+if __name__ == "__main__":
+    pytest.main(["-v", "--cov=genesis", "--cov-report=html"])

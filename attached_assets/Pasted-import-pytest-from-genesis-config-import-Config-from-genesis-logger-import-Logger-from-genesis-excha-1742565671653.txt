@@ -1,0 +1,54 @@
+import pytest
+from genesis.config import Config
+from genesis.logger import Logger
+from genesis.exchange_manager import ExchangeManager
+from genesis.security import Security
+from unittest.mock import Mock
+
+def test_config_load_and_set():
+    """Prueba la carga y el establecimiento de configuraciones."""
+    config = Config()
+    default_value = config.get("log_level")
+    assert default_value == "INFO"
+
+    # Cambiar y verificar
+    config.set("log_level", "DEBUG")
+    assert config.get("log_level") == "DEBUG"
+
+def test_logger_setup_logging():
+    """Prueba que se configure el logging correctamente."""
+    # Esto no prueba un resultado directo sino que asegura que el método no lanza excepciones.
+    try:
+        Logger.setup_logging()
+    except Exception:
+        pytest.fail("Logger setup failed unexpectedly")
+
+def test_security_hashing_and_verification():
+    """Prueba el hashing y la verificación de contraseñas."""
+    password = "securepassword"
+    hashed, salt = Security.hash_password(password)
+    assert Security.verify_password(password, hashed, salt)
+
+    wrong_password = "wrongpassword"
+    assert not Security.verify_password(wrong_password, hashed, salt)
+
+def test_exchange_manager_get_best_exchange():
+    """Prueba la selección del mejor exchange."""
+    mock_client = Mock()
+    mock_client.get_best_exchange.return_value = "Binance"
+    exchange_manager = ExchangeManager(["Binance", "KuCoin"])
+    exchange_manager.selector = mock_client  # Sustituimos por un mock
+
+    best_exchange = exchange_manager.get_best_exchange("BTC/USDT")
+    assert best_exchange == "Binance"
+
+def test_exchange_manager_execute_trade():
+    """Prueba la ejecución de una operación en el mejor exchange."""
+    mock_client = Mock()
+    mock_client.place_order.return_value = {"status": "success", "message": "Order placed"}
+    exchange_manager = ExchangeManager(["Binance"])
+    exchange_manager.exchanges["Binance"] = mock_client  # Sustituimos por un mock
+
+    result = exchange_manager.execute_trade("BTC/USDT", "buy", 0.01)
+    assert result["status"] == "success"
+    assert result["message"] == "Order placed"
