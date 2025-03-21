@@ -94,31 +94,45 @@ class TestSignalGeneratorBasic(unittest.TestCase):
         """Verificar que se genera señal de compra en cruce alcista de MACD."""
         # Mock de macd para simular un cruce alcista
         with patch.object(self.indicators, 'macd') as mock_macd:
-            mock_macd.return_value = (
-                # Estas condiciones crean un cruce alcista: 
-                # MACD estaba por debajo de la línea de señal y ahora está por encima
-                np.array([np.nan] * (len(self.sample_data) - 2) + [-0.2, 0.1]),  # MACD cruza al alza
-                np.array([np.nan] * (len(self.sample_data) - 2) + [-0.1, 0.0]),  # Señal
-                np.array([np.nan] * (len(self.sample_data) - 2) + [-0.1, 0.1])   # Histograma
-            )
+            # Simulamos un cruce alcista donde:
+            # - En el penúltimo punto, MACD (-0.2) < Signal (-0.1)
+            # - En el último punto, MACD (0.1) > Signal (0.0)
+            macd_line = np.array([np.nan] * (len(self.sample_data) - 2) + [-0.2, 0.1])
+            signal_line = np.array([np.nan] * (len(self.sample_data) - 2) + [-0.1, 0.0])
+            histogram = macd_line - signal_line
             
-            signal = self.signal_generator.macd_signal(self.sample_data)
-            self.assertEqual(signal["signal"], self.signal_generator.SIGNAL_BUY)
+            mock_macd.return_value = (macd_line, signal_line, histogram)
+            
+            # Verificamos los valores que devuelve el mock
+            print(f"Penúltimo MACD: {macd_line[-2]}, Señal: {signal_line[-2]}")
+            print(f"Último MACD: {macd_line[-1]}, Señal: {signal_line[-1]}")
+            
+            result = self.signal_generator.macd_signal(self.sample_data)
+            print(f"Resultado: {result}")
+            
+            self.assertEqual(result["signal"], self.signal_generator.SIGNAL_BUY)
     
     def test_macd_signal_bearish(self):
         """Verificar que se genera señal de venta en cruce bajista de MACD."""
         # Mock de macd para simular un cruce bajista
         with patch.object(self.indicators, 'macd') as mock_macd:
-            mock_macd.return_value = (
-                # Estas condiciones crean un cruce bajista: 
-                # MACD estaba por encima de la línea de señal y ahora está por debajo
-                np.array([np.nan] * (len(self.sample_data) - 2) + [0.2, -0.1]),  # MACD cruza a la baja
-                np.array([np.nan] * (len(self.sample_data) - 2) + [0.1, 0.0]),   # Señal
-                np.array([np.nan] * (len(self.sample_data) - 2) + [0.1, -0.1])   # Histograma
-            )
+            # Simulamos un cruce bajista donde:
+            # - En el penúltimo punto, MACD (0.2) > Signal (0.1)
+            # - En el último punto, MACD (-0.1) < Signal (0.0)
+            macd_line = np.array([np.nan] * (len(self.sample_data) - 2) + [0.2, -0.1])
+            signal_line = np.array([np.nan] * (len(self.sample_data) - 2) + [0.1, 0.0])
+            histogram = macd_line - signal_line
             
-            signal = self.signal_generator.macd_signal(self.sample_data)
-            self.assertEqual(signal["signal"], self.signal_generator.SIGNAL_SELL)
+            mock_macd.return_value = (macd_line, signal_line, histogram)
+            
+            # Verificamos los valores que devuelve el mock
+            print(f"Penúltimo MACD: {macd_line[-2]}, Señal: {signal_line[-2]}")
+            print(f"Último MACD: {macd_line[-1]}, Señal: {signal_line[-1]}")
+            
+            result = self.signal_generator.macd_signal(self.sample_data)
+            print(f"Resultado: {result}")
+            
+            self.assertEqual(result["signal"], self.signal_generator.SIGNAL_SELL)
     
     def test_macd_signal_neutral(self):
         """Verificar que se genera señal neutral cuando no hay cruce de MACD."""
