@@ -273,10 +273,10 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
             signal_range = self.signal_generator.generate_rsi_signal(regime_change_data[15:30])
             
             # En tendencia alcista, RSI alto no necesariamente significa venta (por encima del umbral)
-            self.assertNotEqual(signal_trend, self.signal_generator.BUY)
+            self.assertNotEqual(signal_trend["signal"], self.signal_generator.SIGNAL_BUY)
             
             # En rango, RSI bajo es una señal de compra más fiable
-            self.assertEqual(signal_range, self.signal_generator.BUY)
+            self.assertEqual(signal_range["signal"], self.signal_generator.SIGNAL_BUY)
         
         # Bandas de Bollinger en tendencia vs. en rango
         with patch.object(self.indicators, 'calculate_bollinger_bands') as mock_calculate_bb:
@@ -303,10 +303,10 @@ class TestSignalGeneratorAdvanced(unittest.TestCase):
             )
             
             # En tendencia, precio cerca de banda no necesariamente genera señal
-            self.assertEqual(signal_trend, self.signal_generator.HOLD)
+            self.assertEqual(signal_trend["signal"], self.signal_generator.SIGNAL_HOLD)
             
             # En rango, precio en banda superior es señal de venta más fiable
-            self.assertEqual(signal_range, self.signal_generator.SELL)
+            self.assertEqual(signal_range["signal"], self.signal_generator.SIGNAL_SELL)
     
     def test_advanced_signal_combinations_with_weighting(self):
         """Verificar combinaciones avanzadas de señales con ponderación."""
@@ -397,13 +397,13 @@ def test_signal_detection_in_choppy_market(signal_generator, indicators, complex
     
     # RSI bajo (sobreventa) debería generar señal de compra
     indicators.calculate_rsi.return_value = np.array([np.nan] * (len(choppy_data) - 1) + [25.0])
-    signal = signal_generator.generate_rsi_signal(choppy_data)
-    assert signal == signal_generator.BUY
+    signal_dict = signal_generator.generate_rsi_signal(choppy_data)
+    assert signal_dict["signal"] == signal_generator.SIGNAL_BUY
     
     # RSI alto (sobrecompra) debería generar señal de venta
     indicators.calculate_rsi.return_value = np.array([np.nan] * (len(choppy_data) - 1) + [75.0])
-    signal = signal_generator.generate_rsi_signal(choppy_data)
-    assert signal == signal_generator.SELL
+    signal_dict = signal_generator.generate_rsi_signal(choppy_data)
+    assert signal_dict["signal"] == signal_generator.SIGNAL_SELL
     
     # En mercado lateral, las EMAs suelen cruzarse frecuentemente, generando falsas señales
     def mock_ema_in_choppy_market(data, period):
@@ -414,8 +414,8 @@ def test_signal_detection_in_choppy_market(signal_generator, indicators, complex
             return np.array([np.nan] * (len(data) - 2) + [10.0, 10.0])  # Se mantiene estable
     
     indicators.calculate_ema.side_effect = mock_ema_in_choppy_market
-    signal = signal_generator.generate_ema_signal(choppy_data, 9, 21)
-    assert signal == signal_generator.SELL  # Señal de venta (cruce hacia abajo)
+    signal_dict = signal_generator.generate_ema_signal(choppy_data, 9, 21)
+    assert signal_dict["signal"] == signal_generator.SIGNAL_SELL  # Señal de venta (cruce hacia abajo)
     
     # En mercado lateral, MACD suele oscilar cerca de cero
     def mock_macd_in_choppy_market(data, fast_period=12, slow_period=26, signal_period=9):
@@ -426,8 +426,8 @@ def test_signal_detection_in_choppy_market(signal_generator, indicators, complex
         return macd_line, signal_line, histogram
     
     indicators.calculate_macd.side_effect = mock_macd_in_choppy_market
-    signal = signal_generator.generate_macd_signal(choppy_data)
-    assert signal == signal_generator.SELL  # Señal de venta (cruce hacia abajo)
+    signal_dict = signal_generator.generate_macd_signal(choppy_data)
+    assert signal_dict["signal"] == signal_generator.SIGNAL_SELL  # Señal de venta (cruce hacia abajo)
 
 
 def test_detect_breakout_signals(signal_generator, indicators, complex_market_data):
@@ -447,8 +447,8 @@ def test_detect_breakout_signals(signal_generator, indicators, complex_market_da
     indicators.calculate_bollinger_bands.side_effect = mock_bb_for_breakout_up
     
     # El último precio (13.0) está por encima de la banda superior
-    signal = signal_generator.generate_bollinger_bands_signal(breakout_up_data)
-    assert signal == signal_generator.SELL  # Tradicionalmente señal de venta, pero en breakout podría ser continuación
+    signal_dict = signal_generator.generate_bollinger_bands_signal(breakout_up_data)
+    assert signal_dict["signal"] == signal_generator.SIGNAL_SELL  # Tradicionalmente señal de venta, pero en breakout podría ser continuación
     
     # Datos de ruptura de soporte (hacia abajo)
     breakout_down_data = complex_market_data['breaking_support']
@@ -464,8 +464,8 @@ def test_detect_breakout_signals(signal_generator, indicators, complex_market_da
     indicators.calculate_bollinger_bands.side_effect = mock_bb_for_breakout_down
     
     # El último precio (17.0) está por debajo de la banda inferior
-    signal = signal_generator.generate_bollinger_bands_signal(breakout_down_data)
-    assert signal == signal_generator.BUY  # Tradicionalmente señal de compra, pero en breakdown podría ser continuación
+    signal_dict = signal_generator.generate_bollinger_bands_signal(breakout_down_data)
+    assert signal_dict["signal"] == signal_generator.SIGNAL_BUY  # Tradicionalmente señal de compra, pero en breakdown podría ser continuación
 
 
 def test_combine_signals_with_empty_list(signal_generator):
