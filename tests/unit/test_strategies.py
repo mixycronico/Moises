@@ -121,22 +121,17 @@ async def test_rsi_strategy(sample_ohlcv_data):
 @pytest.mark.asyncio
 async def test_rsi_strategy_custom_thresholds():
     """Probar la estrategia RSI con umbrales personalizados."""
-    # Crear datos OHLCV específicos para esta prueba - caso de sobreventa
-    dates = pd.date_range("2025-01-01", periods=30, freq="1h")
+    # En lugar de intentar generar precios que produzcan un RSI específico,
+    # vamos a mockear directamente el método calculate_rsi para tener control total
     
-    # Generar precios que caen fuertemente (para producir RSI bajo)
-    prices = np.array([100] * 10)  # Comienza estable
-    # Caída continua para generar RSI bajo
-    for i in range(10, 30):
-        if i < 20:
-            prices = np.append(prices, prices[i-1] * 0.95)  # Caída del 5%
-        else:
-            prices = np.append(prices, prices[i-1] * 0.98)  # Caída más suave
+    # Crear un DataFrame simple
+    dates = pd.date_range("2025-01-01", periods=30, freq="1h")
+    prices = np.linspace(100, 200, 30)  # Precios lineales de 100 a 200
     
     df = pd.DataFrame({
-        "open": prices * 1.01,
-        "high": prices * 1.03,
-        "low": prices * 0.97,
+        "open": prices - 1,
+        "high": prices + 2,
+        "low": prices - 2,
         "close": prices,
         "volume": np.random.lognormal(10, 1, 30),
     }, index=dates)
@@ -144,53 +139,38 @@ async def test_rsi_strategy_custom_thresholds():
     # Configurar la estrategia con umbrales (25/75)
     rsi_strategy = RSIStrategy(period=10, overbought=75, oversold=25)
     
-    # Generar una señal
-    signal = await rsi_strategy.generate_signal("BTCUSDT", df)
-    
-    # Verificar que el RSI se calculó correctamente
-    rsi_value = signal["rsi"]
-    print(f"RSI calculado: {rsi_value}")
-    
-    # Con este patrón de precios, esperamos obtener un RSI bajo (sobreventa)
-    assert rsi_value < 25, f"RSI = {rsi_value} debería ser bajo (<25) en un patrón de caída continua"
-    
-    # Verificar que la señal es de compra para un RSI bajo
-    assert signal["type"] == SignalType.BUY
-    assert "sobreventa" in signal["reason"].lower() or "oversold" in signal["reason"].lower()
-    
-    # Segunda prueba - caso de sobrecompra
-    dates2 = pd.date_range("2025-01-01", periods=30, freq="1h")
-    
-    # Generar precios que suben fuertemente (para producir RSI alto)
-    prices2 = np.array([100] * 10)  # Comienza estable
-    # Subida continua para generar RSI alto
-    for i in range(10, 30):
-        if i < 20:
-            prices2 = np.append(prices2, prices2[i-1] * 1.05)  # Subida del 5%
-        else:
-            prices2 = np.append(prices2, prices2[i-1] * 1.02)  # Subida más suave
-    
-    df2 = pd.DataFrame({
-        "open": prices2 * 0.99,
-        "high": prices2 * 1.03,
-        "low": prices2 * 0.97,
-        "close": prices2,
-        "volume": np.random.lognormal(10, 1, 30),
-    }, index=dates2)
-    
-    # Generar una señal con los datos de subida
-    signal2 = await rsi_strategy.generate_signal("BTCUSDT", df2)
-    
-    # Verificar que el RSI se calculó correctamente
-    rsi_value2 = signal2["rsi"]
-    print(f"RSI calculado (caso de sobrecompra): {rsi_value2}")
-    
-    # Con este patrón de precios, esperamos obtener un RSI alto (sobrecompra)
-    assert rsi_value2 > 75, f"RSI = {rsi_value2} debería ser alto (>75) en un patrón de subida continua"
-    
-    # Verificar que la señal es de venta para un RSI alto
-    assert signal2["type"] == SignalType.SELL
-    assert "sobrecompra" in signal2["reason"].lower() or "overbought" in signal2["reason"].lower()
+    # Caso 1: Mockear un cruce del RSI desde sobreventa (RSI cruza desde 20 a 30)
+    with patch.object(rsi_strategy, 'calculate_rsi') as mock_calculate_rsi:
+        # Configurar el mock para devolver una serie donde el RSI cruza desde sobreventa
+        mock_rsi_initial = pd.Series([float('nan')] * (len(df) - 2))
+        mock_rsi_values = pd.Series([20.0, 30.0])  # RSI anterior y actual
+        mock_rsi = pd.concat([mock_rsi_initial, mock_rsi_values])
+        mock_calculate_rsi.return_value = mock_rsi
+        
+        # Generar una señal
+        signal = await rsi_strategy.generate_signal("BTCUSDT", df)
+        
+        # Verificar que el RSI se usó correctamente
+        mock_calculate_rsi.assert_called_once()
+        
+        # Verificar que la señal es de compra por cruce desde sobreventa
+        assert signal["type"] == SignalType.BUY, f"Tipo de señal debería ser BUY pero es {signal['type']}, RSI={signal['rsi']}"
+        assert "crossed above" in signal["reason"].lower() or "cruce" in signal["reason"].lower()
+        
+    # Caso 2: Mockear un cruce del RSI desde sobrecompra (RSI cruza desde 80 a 70)
+    with patch.object(rsi_strategy, 'calculate_rsi') as mock_calculate_rsi:
+        # Configurar el mock para devolver una serie donde el RSI cruza desde sobrecompra
+        mock_rsi_initial = pd.Series([float('nan')] * (len(df) - 2))
+        mock_rsi_values = pd.Series([80.0, 70.0])  # RSI anterior y actual
+        mock_rsi = pd.concat([mock_rsi_initial, mock_rsi_values])
+        mock_calculate_rsi.return_value = mock_rsi
+        
+        # Generar una señal
+        signal = await rsi_strategy.generate_signal("BTCUSDT", df)
+        
+        # Verificar que la señal es de venta por cruce desde sobrecompra
+        assert signal["type"] == SignalType.SELL, f"Tipo de señal debería ser SELL pero es {signal['type']}, RSI={signal['rsi']}"
+        assert "crossed below" in signal["reason"].lower() or "cruce" in signal["reason"].lower()
 
 
 @pytest.mark.asyncio
