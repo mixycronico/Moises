@@ -223,17 +223,19 @@ def test_signal_generator_rsi_neutral_simplified(signal_generator):
     # Configurar el mock para RSI en zona neutral
     rsi_values = np.array([np.nan, np.nan, np.nan, 45, 50])  # 30 < Último valor < 70 (neutral)
     
-    # Mockear el cálculo de RSI para devolver valores controlados
-    signal_generator.indicators.calculate_rsi.return_value = rsi_values
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_rsi_signal(prices)
-    
-    # Verificar que se llamó a calculate_rsi con los parámetros correctos
-    signal_generator.indicators.calculate_rsi.assert_called_once_with(prices, 14)
-    
-    # Verificar el resultado esperado
-    assert signal == signal_generator.NEUTRAL
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_rsi') as mock_rsi:
+        # Configurar el valor de retorno del mock
+        mock_rsi.return_value = rsi_values
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_rsi_signal(prices)
+        
+        # Verificar que se llamó a calculate_rsi con los parámetros correctos
+        mock_rsi.assert_called_once_with(prices, 14)
+        
+        # Verificar el resultado esperado
+        assert signal == signal_generator.NEUTRAL
 
 
 # Tests para MACD simplificados
@@ -246,22 +248,24 @@ def test_signal_generator_macd_bullish_simplified(signal_generator):
     signal_line = np.array([np.nan, np.nan, 6, 7, 6])     # Línea de señal (MACD cruza por encima)
     histogram = np.array([np.nan, np.nan, -1, -1, 2])     # Histograma (positivo al final)
     
-    # Mockear el cálculo de MACD para devolver valores controlados
-    signal_generator.indicators.calculate_macd.return_value = (macd_line, signal_line, histogram)
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_macd_signal(prices)
-    
-    # Verificar que se llamó a calculate_macd con los parámetros correctos
-    signal_generator.indicators.calculate_macd.assert_called_once_with(
-        prices, 
-        fast_period=12, 
-        slow_period=26, 
-        signal_period=9
-    )
-    
-    # Verificar el resultado esperado
-    assert signal == "BUY"
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_macd') as mock_macd:
+        # Configurar el valor de retorno del mock
+        mock_macd.return_value = (macd_line, signal_line, histogram)
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_macd_signal(prices)
+        
+        # Verificar que se llamó a calculate_macd con los parámetros correctos
+        mock_macd.assert_called_once_with(
+            prices, 
+            fast_period=12, 
+            slow_period=26, 
+            signal_period=9
+        )
+        
+        # Verificar el resultado esperado
+        assert signal == "BUY"
 
 
 def test_signal_generator_macd_bearish_simplified(signal_generator):
@@ -273,22 +277,24 @@ def test_signal_generator_macd_bearish_simplified(signal_generator):
     signal_line = np.array([np.nan, np.nan, 4, 3, 5])    # Línea de señal (MACD cruza por debajo)
     histogram = np.array([np.nan, np.nan, 1, 1, -3])     # Histograma (negativo al final)
     
-    # Mockear el cálculo de MACD para devolver valores controlados
-    signal_generator.indicators.calculate_macd.return_value = (macd_line, signal_line, histogram)
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_macd_signal(prices)
-    
-    # Verificar que se llamó a calculate_macd con los parámetros correctos
-    signal_generator.indicators.calculate_macd.assert_called_once_with(
-        prices, 
-        fast_period=12, 
-        slow_period=26, 
-        signal_period=9
-    )
-    
-    # Verificar el resultado esperado
-    assert signal == "SELL"
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_macd') as mock_macd:
+        # Configurar el valor de retorno del mock
+        mock_macd.return_value = (macd_line, signal_line, histogram)
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_macd_signal(prices)
+        
+        # Verificar que se llamó a calculate_macd con los parámetros correctos
+        mock_macd.assert_called_once_with(
+            prices, 
+            fast_period=12, 
+            slow_period=26, 
+            signal_period=9
+        )
+        
+        # Verificar el resultado esperado
+        assert signal == "SELL"
 
 
 def test_signal_generator_macd_neutral_simplified(signal_generator):

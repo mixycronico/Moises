@@ -1,0 +1,514 @@
+¡Entendido! Vamos a categorizar y desarrollar un conjunto completo de tests para tu sistema de trading (`Genesis`) según los niveles de complejidad que mencionaste: **Básica**, **Intermedia** y **Avanzada**. Usaremos el contexto de tu sistema, que incluye estrategias de trading (RSI, Bollinger Bands, Moving Average Crossover, MACD, Sentiment) y módulos de gestión de riesgos (`RiskManager`, `PositionSizer`, `StopLoss`). También consideraremos las interacciones con datos históricos, APIs externas, y condiciones de mercado simuladas.
+
+Voy a estructurar los tests en las tres categorías, explicando qué evalúan, cómo se implementan, y proporcionando ejemplos completos de código para cada nivel. Usaremos Python con bibliotecas como `unittest` para estructurar los tests, `pandas` para manejar datos, y `asyncio` para manejar operaciones asíncronas (dado que tu sistema usa `asyncio`).
+
+---
+
+### 1. Categoría Básica: Tests de Validación Simple
+**Objetivo:** Verificar que las funciones básicas del sistema retornen los datos esperados, sin depender de datos en tiempo real ni interacciones complejas. Estas pruebas son rápidas y ligeras, ideales como punto de partida.
+
+**Qué evaluar:**
+- Funcionalidad básica de los módulos de gestión de riesgos (`RiskManager`, `PositionSizer`, `StopLoss`).
+- Generación de señales básicas por parte de las estrategias (RSI, Bollinger Bands, etc.).
+- Validaciones de entrada (por ejemplo, precios no negativos, parámetros válidos).
+
+**Ejemplo de implementación:**
+
+```python
+import unittest
+import pandas as pd
+import numpy as np
+from datetime import datetime
+import asyncio
+
+# Importar módulos del sistema Genesis
+from genesis.risk.risk_manager import RiskManager
+from genesis.risk.position_sizer import PositionSizer
+from genesis.risk.stop_loss import StopLoss
+from genesis.strategies.mean_reversion import RSIStrategy
+from genesis.strategies.base import SignalType
+
+class BasicTests(unittest.TestCase):
+    def setUp(self):
+        """Configuración inicial para los tests básicos."""
+        self.loop = asyncio.get_event_loop()
+        # Datos simples para pruebas
+        dates = pd.date_range("2025-01-01", periods=20, freq="1h")
+        self.simple_data = pd.DataFrame({
+            "open": np.full(20, 100.0),
+            "high": np.full(20, 102.0),
+            "low": np.full(20, 98.0),
+            "close": np.full(20, 100.0),
+            "volume": np.full(20, 1000.0)
+        }, index=dates)
+
+    def test_position_sizer_basic(self):
+        """Verifica que PositionSizer calcula correctamente el tamaño de posición."""
+        position_sizer = PositionSizer(risk_per_trade=0.02)
+        capital = 10000
+        entry_price = 100
+        stop_loss_price = 95  # 5% de pérdida
+        size = position_sizer.calculate_position_size(capital, entry_price, stop_loss_price)
+        
+        # Riesgo = 2% de 10000 = 200, distancia al stop-loss = 5, tamaño = 200 / 5 = 40
+        expected_size = 40
+        self.assertEqual(size, expected_size, f"Tamaño esperado: {expected_size}, obtenido: {size}")
+
+    def test_stop_loss_basic(self):
+        """Verifica que StopLoss calcula correctamente el precio de stop-loss."""
+        stop_loss = StopLoss(risk_percentage=0.05)
+        entry_price = 100
+        stop_loss_price = stop_loss.calculate_stop_loss(entry_price, is_long=True)
+        
+        # Stop-loss = 100 * (1 - 0.05) = 95
+        expected_price = 95
+        self.assertEqual(stop_loss_price, expected_price, f"Stop-loss esperado: {expected_price}, obtenido: {stop_loss_price}")
+
+    def test_risk_manager_rejects_high_risk(self):
+        """Verifica que RiskManager rechaza operaciones con riesgo excesivo."""
+        position_sizer = PositionSizer(risk_per_trade=0.02)
+        stop_loss = StopLoss(risk_percentage=0.05)
+        risk_manager = RiskManager(max_risk_per_trade=0.01, max_total_risk=0.1, position_sizer=position_sizer, stop_loss_calculator=stop_loss)
+        
+        capital = 10000
+        entry_price = 100
+        success, details = risk_manager.evaluate_trade(capital, entry_price, is_long=True)
+        
+        # Riesgo por operación = (100 - 95) * 40 / 10000 = 2%, excede el máximo de 1%
+        self.assertFalse(success, "RiskManager debería rechazar la operación por riesgo excesivo")
+        self.assertIn("Riesgo por operación excede", details["reason"])
+
+    async def test_rsi_strategy_hold(self):
+        """Verifica que RSIStrategy genera HOLD con datos planos."""
+        strategy = RSIStrategy(period=14, overbought=70, oversold=30)
+        signal = await strategy.generate_signal("BTCUSDT", self.simple_data)
+        
+        self.assertEqual(signal["type"], SignalType.HOLD, "Debería generar HOLD con datos planos")
+        self.assertTrue(30 <= signal["rsi"] <= 70, f"RSI ({signal['rsi']}) debería estar en zona neutral")
+
+    def test_invalid_input(self):
+        """Verifica que los módulos manejan correctamente entradas inválidas."""
+        position_sizer = PositionSizer(risk_per_trade=0.02)
+        with self.assertRaises(ValueError):
+            position_sizer.calculate_position_size(10000, -100, 95)  # Precio negativo
+        
+        stop_loss = StopLoss(risk_percentage=0.05)
+        with self.assertRaises(ValueError):
+            stop_loss.calculate_stop_loss(-100, is_long=True)  # Precio negativo
+
+    def run_async_test(self, coro):
+        """Ejecuta una coroutine en un test."""
+        return self.loop.run_until_complete(coro)
+
+    def test_rsi_strategy_hold_sync(self):
+        """Ejecuta el test asíncrono de RSI."""
+        self.run_async_test(self.test_rsi_strategy_hold())
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+**Explicación:**
+- **Tests incluidos:**
+  - `test_position_sizer_basic`: Verifica que `PositionSizer` calcula correctamente el tamaño de posición.
+  - `test_stop_loss_basic`: Verifica que `StopLoss` calcula el stop-loss esperado.
+  - `test_risk_manager_rejects_high_risk`: Verifica que `RiskManager` rechaza operaciones con riesgo excesivo.
+  - `test_rsi_strategy_hold`: Verifica que la estrategia RSI genera una señal HOLD con datos planos.
+  - `test_invalid_input`: Verifica que los módulos manejan correctamente entradas inválidas.
+- **Características:**
+  - Usa datos estáticos simples (precios constantes) para pruebas predecibles.
+  - No depende de datos externos ni interacciones complejas.
+  - Rápido de ejecutar, ideal para validaciones iniciales.
+
+---
+
+### 2. Categoría Intermedia: Tests con Escenarios Detallados
+**Objetivo:** Cubrir casos más detallados, incluyendo datos simulados que representen condiciones de mercado realistas. Evalúan flujos de trabajo completos en entornos controlados.
+
+**Qué evaluar:**
+- Generación de señales en escenarios simulados (por ejemplo, tendencias, volatilidad alta/baja).
+- Interacción entre módulos (por ejemplo, `RiskManager` usando `PositionSizer` y `StopLoss`).
+- Flujos completos: desde la generación de señales hasta la evaluación de riesgo y ejecución simulada.
+
+**Ejemplo de implementación:**
+
+```python
+import unittest
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+import asyncio
+
+# Importar módulos del sistema Genesis
+from genesis.risk.risk_manager import RiskManager
+from genesis.risk.position_sizer import PositionSizer
+from genesis.risk.stop_loss import StopLoss
+from genesis.strategies.mean_reversion import RSIStrategy, BollingerBandsStrategy
+from genesis.strategies.trend_following import MovingAverageCrossover, MACDStrategy
+from genesis.strategies.sentiment_based import SentimentStrategy
+from genesis.strategies.base import SignalType
+
+class IntermediateTests(unittest.TestCase):
+    def setUp(self):
+        """Configuración inicial para los tests intermedios."""
+        self.loop = asyncio.get_event_loop()
+        # Generar datos simulados con patrones realistas
+        dates = pd.date_range("2025-01-01", periods=100, freq="1h")
+        prices = [100.0]
+        for i in range(1, 100):
+            if i < 30:  # Tendencia alcista
+                prices.append(prices[-1] * 1.01)
+            elif i < 60:  # Tendencia bajista
+                prices.append(prices[-1] * 0.99)
+            else:  # Volatilidad alta
+                prices.append(prices[-1] * (1 + np.random.normal(0, 0.02)))
+        
+        self.data = pd.DataFrame({
+            "open": np.array(prices) - 0.5,
+            "high": np.array(prices) + 1.0,
+            "low": np.array(prices) - 1.0,
+            "close": prices,
+            "volume": np.random.lognormal(10, 1, 100)
+        }, index=dates)
+
+        # Configurar gestión de riesgos
+        self.position_sizer = PositionSizer(risk_per_trade=0.02)
+        self.stop_loss = StopLoss(risk_percentage=0.05)
+        self.risk_manager = RiskManager(
+            max_risk_per_trade=0.02,
+            max_total_risk=0.1,
+            position_sizer=self.position_sizer,
+            stop_loss_calculator=self.stop_loss
+        )
+
+    async def test_rsi_strategy_trend(self):
+        """Verifica que RSIStrategy genera señales correctas en una tendencia bajista."""
+        strategy = RSIStrategy(period=14, overbought=70, oversold=30)
+        # Usar datos hasta el punto de tendencia bajista (índice 50)
+        signal = await strategy.generate_signal("BTCUSDT", self.data.iloc[:50])
+        
+        self.assertEqual(signal["type"], SignalType.BUY, "Debería generar BUY en tendencia bajista (sobreventa)")
+        self.assertTrue(signal["rsi"] < 30, f"RSI ({signal['rsi']}) debería estar en sobreventa")
+
+    async def test_bollinger_volatility(self):
+        """Verifica que BollingerBandsStrategy genera señales en alta volatilidad."""
+        strategy = BollingerBandsStrategy(period=20, std_dev=2.0)
+        # Usar datos en la región de alta volatilidad (índice 60 en adelante)
+        signal = await strategy.generate_signal("BTCUSDT", self.data.iloc[60:])
+        
+        if signal["type"] == SignalType.BUY:
+            self.assertTrue(signal["price"] < signal["lower"], "Precio debería estar bajo la banda inferior")
+        elif signal["type"] == SignalType.SELL:
+            self.assertTrue(signal["price"] > signal["upper"], "Precio debería estar sobre la banda superior")
+
+    async def test_full_workflow(self):
+        """Verifica un flujo completo: señal -> evaluación de riesgo -> ejecución simulada."""
+        strategy = MovingAverageCrossover(fast_period=10, slow_period=30)
+        capital = 10000
+        
+        # Generar señal
+        signal = await strategy.generate_signal("BTCUSDT", self.data)
+        
+        if signal["type"] == SignalType.BUY:
+            # Evaluar riesgo
+            entry_price = self.data["close"][-1]
+            success, position = self.risk_manager.evaluate_trade(capital, entry_price, is_long=True)
+            self.assertTrue(success, "RiskManager debería aceptar la operación")
+            
+            # Verificar que la posición tiene los datos esperados
+            self.assertIn("position_size", position)
+            self.assertIn("stop_loss_price", position)
+            self.assertEqual(position["entry_price"], entry_price)
+
+    def run_async_test(self, coro):
+        """Ejecuta una coroutine en un test."""
+        return self.loop.run_until_complete(coro)
+
+    def test_rsi_strategy_trend_sync(self):
+        self.run_async_test(self.test_rsi_strategy_trend())
+
+    def test_bollinger_volatility_sync(self):
+        self.run_async_test(self.test_bollinger_volatility())
+
+    def test_full_workflow_sync(self):
+        self.run_async_test(self.test_full_workflow())
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+**Explicación:**
+- **Tests incluidos:**
+  - `test_rsi_strategy_trend`: Verifica que `RSIStrategy` genera una señal de compra en una tendencia bajista (sobreventa).
+  - `test_bollinger_volatility`: Verifica que `BollingerBandsStrategy` genera señales correctas en un período de alta volatilidad.
+  - `test_full_workflow`: Simula un flujo completo: genera una señal con `MovingAverageCrossover`, evalúa el riesgo con `RiskManager`, y verifica que la posición resultante es válida.
+- **Características:**
+  - Usa datos simulados con patrones realistas (tendencias alcistas, bajistas, y volatilidad).
+  - Evalúa interacciones entre módulos (estrategias y gestión de riesgos).
+  - Cubre flujos de trabajo completos en un entorno controlado.
+
+---
+
+### 3. Categoría Avanzada: Tests de Escenarios Complejos
+**Objetivo:** Replicar escenarios complejos (cambios abruptos, fallas del sistema), pruebas de rendimiento bajo carga pesada, e integración con APIs externas o backtesting con datos históricos reales.
+
+**Qué evaluar:**
+- Respuesta a condiciones extremas (por ejemplo, caídas del mercado del 20% en un día).
+- Rendimiento bajo carga (múltiples símbolos, alta frecuencia de datos).
+- Integración con APIs externas (por ejemplo, datos en tiempo real de un exchange).
+- Backtesting con grandes conjuntos de datos históricos.
+
+**Ejemplo de implementación:**
+
+```python
+import unittest
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+import asyncio
+import yfinance as yf
+import ccxt.async_support as ccxt
+import time
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("advanced_tests")
+
+# Importar módulos del sistema Genesis
+from genesis.risk.risk_manager import RiskManager
+from genesis.risk.position_sizer import PositionSizer
+from genesis.risk.stop_loss import StopLoss
+from genesis.strategies.mean_reversion import RSIStrategy
+from genesis.strategies.base import SignalType
+
+class AdvancedTests(unittest.TestCase):
+    def setUp(self):
+        """Configuración inicial para los tests avanzados."""
+        self.loop = asyncio.get_event_loop()
+        # Configurar gestión de riesgos
+        self.position_sizer = PositionSizer(risk_per_trade=0.02)
+        self.stop_loss = StopLoss(risk_percentage=0.05)
+        self.risk_manager = RiskManager(
+            max_risk_per_trade=0.02,
+            max_total_risk=0.1,
+            position_sizer=self.position_sizer,
+            stop_loss_calculator=self.stop_loss
+        )
+
+    async def test_market_crash(self):
+        """Verifica que el sistema maneja correctamente una caída abrupta del mercado."""
+        # Generar datos con una caída del 20%
+        dates = pd.date_range("2025-01-01", periods=100, freq="1h")
+        prices = [100.0] * 50 + [80.0] * 50  # Caída del 20% a mitad de camino
+        data = pd.DataFrame({
+            "open": np.array(prices) - 0.5,
+            "high": np.array(prices) + 1.0,
+            "low": np.array(prices) - 1.0,
+            "close": prices,
+            "volume": np.random.lognormal(10, 1, 100)
+        }, index=dates)
+
+        strategy = RSIStrategy(period=14, overbought=70, oversold=30)
+        capital = 10000
+        positions = []
+
+        for date, row in data.iterrows():
+            signal = await strategy.generate_signal("BTCUSDT", data.loc[:date])
+            price = row["close"]
+            
+            if signal["type"] == SignalType.BUY and not positions:
+                success, position = self.risk_manager.evaluate_trade(capital, price, is_long=True)
+                if success:
+                    positions.append(position)
+            
+            # Verificar stop-loss
+            if positions:
+                pos = positions[0]
+                if price <= pos["stop_loss_price"]:
+                    profit = (price - pos["entry_price"]) * pos["position_size"]
+                    capital += profit
+                    positions.pop(0)
+                    break
+        
+        self.assertTrue(len(positions) == 0, "La posición debería haberse cerrado por stop-loss durante la caída")
+        self.assertTrue(capital < 10000, "El capital debería haber disminuido debido a la pérdida")
+
+    async def test_high_frequency_load(self):
+        """Verifica el rendimiento bajo carga pesada (múltiples símbolos, alta frecuencia)."""
+        symbols = ["BTCUSDT", "ETHUSDT", "XRPUSDT"]
+        strategy = RSIStrategy(period=14, overbought=70, oversold=30)
+        
+        # Generar datos de alta frecuencia (1 minuto)
+        dates = pd.date_range("2025-01-01", periods=1440, freq="1min")  # 1 día
+        data = {}
+        for symbol in symbols:
+            prices = np.random.normal(0, 0.01, 1440).cumsum() + 100
+            data[symbol] = pd.DataFrame({
+                "open": prices - 0.5,
+                "high": prices + 1.0,
+                "low": prices - 1.0,
+                "close": prices,
+                "volume": np.random.lognormal(10, 1, 1440)
+            }, index=dates)
+
+        start_time = time.time()
+        tasks = []
+        for symbol in symbols:
+            for date in data[symbol].index:
+                tasks.append(strategy.generate_signal(symbol, data[symbol].loc[:date]))
+        
+        await asyncio.gather(*tasks)
+        elapsed_time = time.time() - start_time
+        
+        logger.info(f"Tiempo total para {len(tasks)} señales: {elapsed_time:.2f} segundos")
+        self.assertTrue(elapsed_time < 10, "El sistema debería procesar las señales en menos de 10 segundos")
+
+    async def test_real_data_backtest(self):
+        """Realiza un backtest con datos históricos reales."""
+        # Descargar datos reales de Yahoo Finance
+        data = yf.download("BTC-USD", start="2023-01-01", end="2024-01-01", interval="1h")
+        data = data.rename(columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"})
+        
+        strategy = RSIStrategy(period=14, overbought=70, oversold=30)
+        capital = 10000
+        positions = []
+        equity = []
+
+        for date, row in data.iterrows():
+            signal = await strategy.generate_signal("BTC-USD", data.loc[:date])
+            price = row["close"]
+            
+            current_equity = capital + sum(
+                (price - pos["entry_price"]) * pos["position_size"]
+                for pos in positions
+            )
+            equity.append(current_equity)
+            
+            if signal["type"] == SignalType.BUY and not positions:
+                success, position = self.risk_manager.evaluate_trade(capital, price, is_long=True)
+                if success:
+                    positions.append(position)
+            
+            if positions:
+                pos = positions[0]
+                if price <= pos["stop_loss_price"] or signal["type"] == SignalType.SELL:
+                    profit = (price - pos["entry_price"]) * pos["position_size"]
+                    capital += profit
+                    positions.pop(0)
+
+        final_equity = capital + sum(
+            (data["close"][-1] - pos["entry_price"]) * pos["position_size"]
+            for pos in positions
+        )
+        logger.info(f"Capital final: ${final_equity:.2f}")
+        self.assertTrue(final_equity > 0, "El capital final no debería ser negativo")
+
+    async def test_api_integration(self):
+        """Verifica la integración con una API externa (Binance)."""
+        exchange = ccxt.binance()
+        try:
+            # Obtener datos en tiempo real
+            ohlcv = await exchange.fetch_ohlcv("BTC/USDT", timeframe="1h", limit=100)
+            data = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+            data["timestamp"] = pd.to_datetime(data["timestamp"], unit="ms")
+            data.set_index("timestamp", inplace=True)
+
+            strategy = RSIStrategy(period=14, overbought=70, oversold=30)
+            signal = await strategy.generate_signal("BTC/USDT", data)
+            
+            self.assertIn(signal["type"], [SignalType.BUY, SignalType.SELL, SignalType.HOLD], "La señal debería ser válida")
+            logger.info(f"Señal generada con datos reales: {signal['type']}")
+        finally:
+            await exchange.close()
+
+    def run_async_test(self, coro):
+        """Ejecuta una coroutine en un test."""
+        return self.loop.run_until_complete(coro)
+
+    def test_market_crash_sync(self):
+        self.run_async_test(self.test_market_crash())
+
+    def test_high_frequency_load_sync(self):
+        self.run_async_test(self.test_high_frequency_load())
+
+    def test_real_data_backtest_sync(self):
+        self.run_async_test(self.test_real_data_backtest())
+
+    def test_api_integration_sync(self):
+        self.run_async_test(self.test_api_integration())
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+**Explicación:**
+- **Tests incluidos:**
+  - `test_market_crash`: Simula una caída abrupta del mercado y verifica que el stop-loss se activa correctamente.
+  - `test_high_frequency_load`: Prueba el rendimiento con datos de alta frecuencia y múltiples símbolos.
+  - `test_real_data_backtest`: Realiza un backtest con datos históricos reales de Yahoo Finance.
+  - `test_api_integration`: Integra con la API de Binance para obtener datos en tiempo real y generar señales.
+- **Características:**
+  - Maneja escenarios complejos como caídas del mercado y alta carga.
+  - Integra con APIs externas (`yfinance` y `ccxt`).
+  - Evalúa el rendimiento con métricas de tiempo y estabilidad.
+
+**Dependencias adicionales:**
+```bash
+pip install yfinance ccxt
+```
+
+---
+
+### Estructura Final de los Tests
+Puedes organizar los tests en archivos separados para mayor claridad:
+
+- `test_basic.py`: Contiene los tests de la categoría básica.
+- `test_intermediate.py`: Contiene los tests de la categoría intermedia.
+- `test_advanced.py`: Contiene los tests de la categoría avanzada.
+
+Para ejecutar todos los tests, puedes usar un script como este:
+
+```python
+import unittest
+
+# Cargar todos los tests
+loader = unittest.TestLoader()
+suite = unittest.TestSuite()
+
+# Agregar tests de cada categoría
+suite.addTests(loader.loadTestsFromName("test_basic.BasicTests"))
+suite.addTests(loader.loadTestsFromName("test_intermediate.IntermediateTests"))
+suite.addTests(loader.loadTestsFromName("test_advanced.AdvancedTests"))
+
+# Ejecutar los tests
+runner = unittest.TextTestRunner(verbosity=2)
+runner.run(suite)
+```
+
+---
+
+### Resumen de las Categorías
+1. **Básica:**
+   - Evalúa funciones individuales con datos estáticos.
+   - Rápida y ligera, ideal para validaciones iniciales.
+   - Ejemplo: Verificar que `PositionSizer` calcula correctamente el tamaño de posición.
+
+2. **Intermedia:**
+   - Usa datos simulados con patrones realistas.
+   - Evalúa flujos completos (señal -> riesgo -> ejecución).
+   - Ejemplo: Verificar que `RSIStrategy` genera señales correctas en una tendencia bajista.
+
+3. **Avanzada:**
+   - Simula escenarios complejos (caídas del mercado, alta carga).
+   - Integra con APIs externas y datos reales.
+   - Ejemplo: Backtest con datos históricos reales y prueba de integración con Binance.
+
+---
+
+### ¿Qué sigue?
+- **Automatización:** Configura un pipeline de CI/CD (por ejemplo, con GitHub Actions) para ejecutar estos tests automáticamente.
+- **Cobertura:** Usa una herramienta como `coverage.py` para medir la cobertura de los tests y asegurarte de que cubren todo el código.
+- **Escenarios adicionales:** Agrega más pruebas avanzadas, como simulación de desconexiones de API o pruebas de concurrencia con múltiples traders.
+
+¿Te gustaría profundizar en alguna de estas áreas o ajustar algún test específico? ¡Estoy aquí para ayudarte!
