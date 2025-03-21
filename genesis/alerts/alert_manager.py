@@ -57,15 +57,64 @@ class AlertManager:
         """Obtener el límite de volatilidad."""
         return self._volatility_limit
         
+    @volatility_limit.setter
+    def volatility_limit(self, value: float) -> None:
+        """
+        Establecer el límite de volatilidad.
+        
+        Args:
+            value: Nuevo límite de volatilidad (porcentaje)
+            
+        Raises:
+            ValueError: Si el valor es negativo o mayor a 100
+        """
+        if value < 0:
+            raise ValueError("El límite de volatilidad no puede ser negativo")
+        if value > 100:
+            raise ValueError("El límite de volatilidad no puede ser mayor al 100%")
+        self._volatility_limit = value
+        
     @property
     def price_change_limit(self) -> float:
         """Obtener el límite de cambio de precio."""
         return self._price_change_limit
         
+    @price_change_limit.setter
+    def price_change_limit(self, value: float) -> None:
+        """
+        Establecer el límite de cambio de precio.
+        
+        Args:
+            value: Nuevo límite de cambio de precio (porcentaje)
+            
+        Raises:
+            ValueError: Si el valor es negativo o mayor a 100
+        """
+        if value < 0:
+            raise ValueError("El límite de cambio de precio no puede ser negativo")
+        if value > 100:
+            raise ValueError("El límite de cambio de precio no puede ser mayor al 100%")
+        self._price_change_limit = value
+        
     @property
     def min_balance(self) -> float:
         """Obtener el balance mínimo."""
         return self._min_balance
+        
+    @min_balance.setter
+    def min_balance(self, value: float) -> None:
+        """
+        Establecer el balance mínimo.
+        
+        Args:
+            value: Nuevo balance mínimo
+            
+        Raises:
+            ValueError: Si el valor es negativo
+        """
+        if value < 0:
+            raise ValueError("El balance mínimo no puede ser negativo")
+        self._min_balance = value
     
     def add_notifier(self, name: str, notifier) -> None:
         """
