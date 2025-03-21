@@ -11,7 +11,7 @@ import numpy as np
 
 # Importar componentes de gestión de riesgos
 from genesis.risk.position_sizer import PositionSizer
-from genesis.risk.stop_loss import StopLoss
+from genesis.risk.stop_loss import StopLossCalculator as StopLoss  # Renombrar para facilitar la transición
 from genesis.risk.risk_manager import RiskManager
 
 
