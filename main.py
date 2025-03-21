@@ -1,8 +1,9 @@
 """
 Main entry point for the Genesis trading system.
 
-This module initializes and starts the system, setting up all components
-and providing the main entry point for operation.
+Este módulo inicializa y arranca el sistema, configurando todos los componentes
+y proporcionando el punto de entrada principal para la operación.
+También expone la aplicación Flask para Gunicorn.
 """
 
 import asyncio
@@ -11,6 +12,9 @@ import signal
 import argparse
 import logging
 from typing import List, Dict, Any, Optional
+
+# Importar la aplicación Flask para Gunicorn
+from app import app
 
 from genesis.config.settings import settings
 from genesis.core.engine import Engine
