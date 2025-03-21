@@ -1,0 +1,417 @@
+¡Entendido! Vamos a crear un **backtest** completo que utilice los módulos que desarrollamos (`RiskManager`, `PositionSizer`, y `StopLoss`) para probar una estrategia de trading. Un backtest es una simulación que evalúa cómo habría funcionado una estrategia de trading en datos históricos. Te proporcionaré un ejemplo completo que incluye:
+
+- Una estrategia simple de trading (por ejemplo, basada en cruces de medias móviles).
+- Uso de los módulos de gestión de riesgos que ya creamos.
+- Cálculo de métricas de rendimiento (como ganancia total, drawdown, ratio de Sharpe, etc.).
+- Visualización de resultados (opcional, si deseas generar gráficos).
+
+Voy a asumir que tienes acceso a datos históricos de precios (por ejemplo, precios de cierre diarios de un activo). Si no tienes datos, te mostraré cómo generar datos sintéticos para probar el backtest. También usaré Python con bibliotecas comunes como `pandas` para manejar datos y `matplotlib` para visualización.
+
+---
+
+### Backtest Completo
+
+#### 1. Configuración inicial
+Primero, necesitamos los datos históricos y las bibliotecas necesarias. Usaremos `pandas` para manejar los datos y `numpy` para cálculos. Si no tienes datos reales, generaremos datos sintéticos.
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+# Generar datos sintéticos (si no tienes datos reales)
+def generate_synthetic_data(start_date, days=500, initial_price=100, volatility=0.02):
+    dates = [start_date + timedelta(days=i) for i in range(days)]
+    prices = [initial_price]
+    for i in range(1, days):
+        # Simulamos un movimiento aleatorio con cierta volatilidad
+        change = np.random.normal(0, volatility)
+        new_price = prices[-1] * (1 + change)
+        prices.append(new_price)
+    
+    data = pd.DataFrame({
+        "Date": dates,
+        "Close": prices
+    })
+    data.set_index("Date", inplace=True)
+    return data
+
+# Generar datos sintéticos
+start_date = datetime(2023, 1, 1)
+data = generate_synthetic_data(start_date, days=500)
+print(data.head())
+```
+
+**Notas:**
+- Si tienes datos reales (por ejemplo, un CSV con columnas "Date" y "Close"), puedes cargarlos así:
+  ```python
+  data = pd.read_csv("historical_data.csv", parse_dates=["Date"], index_col="Date")
+  ```
+
+---
+
+#### 2. Definir la estrategia de trading
+Usaremos una estrategia simple basada en el cruce de medias móviles:
+- **Señal de compra:** Cuando la media móvil rápida (20 días) cruza por encima de la media móvil lenta (50 días).
+- **Señal de venta:** Cuando la media móvil rápida cruza por debajo de la media móvil lenta.
+
+```python
+# Calcular medias móviles
+data["SMA20"] = data["Close"].rolling(window=20).mean()
+data["SMA50"] = data["Close"].rolling(window=50).mean()
+
+# Generar señales de trading
+data["Signal"] = 0  # 0: Sin posición, 1: Compra (larga), -1: Venta (corta)
+data["Signal"][20:] = np.where(data["SMA20"][20:] > data["SMA50"][20:], 1, 0)  # Compra
+data["Signal"] = data["Signal"].diff()  # 1: Entrada larga, -1: Salida
+data["Signal"] = data["Signal"].fillna(0)
+```
+
+---
+
+#### 3. Integrar los módulos de gestión de riesgos
+Usaremos los módulos que ya creamos (`RiskManager`, `PositionSizer`, `StopLoss`) para gestionar las operaciones. Asegúrate de que los archivos `risk_manager.py`, `position_sizer.py`, y `stop_loss.py` estén en la carpeta `genesis/risk/`.
+
+```python
+from genesis.risk.risk_manager import RiskManager
+from genesis.risk.position_sizer import PositionSizer
+from genesis.risk.stop_loss import StopLoss
+
+# Configurar los módulos de gestión de riesgos
+stop_loss_calculator = StopLoss(risk_percentage=0.05)
+position_sizer = PositionSizer(risk_per_trade=0.02)
+risk_manager = RiskManager(
+    max_risk_per_trade=0.02,
+    max_total_risk=0.1,
+    position_sizer=position_sizer,
+    stop_loss_calculator=stop_loss_calculator
+)
+```
+
+---
+
+#### 4. Implementar el backtest
+Simularemos las operaciones día por día, aplicando las reglas de la estrategia y las restricciones de riesgo.
+
+```python
+# Parámetros del backtest
+initial_capital = 10000  # Capital inicial
+capital = initial_capital
+positions = []  # Lista de posiciones abiertas
+equity = []  # Historial de capital
+trades = []  # Historial de operaciones
+
+# Iterar sobre los datos
+for date, row in data.iterrows():
+    price = row["Close"]
+    signal = row["Signal"]
+    
+    # Registrar el capital actual
+    current_equity = capital + sum((price - pos["entry_price"]) * pos["position_size"] if pos["is_long"] else (pos["entry_price"] - price) * pos["position_size"] for pos in positions)
+    equity.append(current_equity)
+    
+    # Procesar señales de entrada
+    if signal == 1:  # Señal de compra
+        event = {
+            "type": "new_trade",
+            "capital": capital,
+            "entry_price": price,
+            "is_long": True
+        }
+        success, details = risk_manager.handle_event(event)
+        if success:
+            position = details
+            positions.append(position)
+            trades.append({
+                "date": date,
+                "type": "buy",
+                "price": price,
+                "size": position["position_size"],
+                "stop_loss": position["stop_loss_price"]
+            })
+    
+    # Revisar posiciones abiertas (stop-loss y señales de salida)
+    new_positions = []
+    for pos in positions:
+        stop_loss_price = pos["stop_loss_price"]
+        if pos["is_long"] and (price <= stop_loss_price or signal == -1):  # Salida por stop-loss o señal de venta
+            profit = (price - pos["entry_price"]) * pos["position_size"]
+            capital += profit
+            event = {
+                "type": "close_position",
+                "position": pos,
+                "capital": capital
+            }
+            risk_manager.handle_event(event)
+            trades.append({
+                "date": date,
+                "type": "sell",
+                "price": price,
+                "size": pos["position_size"],
+                "profit": profit
+            })
+        else:
+            new_positions.append(pos)
+    positions = new_positions
+
+# Convertir equity a una serie para análisis
+equity = pd.Series(equity, index=data.index)
+```
+
+---
+
+#### 5. Calcular métricas de rendimiento
+Calcularemos métricas comunes para evaluar el rendimiento del backtest:
+- **Ganancia total:** Diferencia entre el capital final e inicial.
+- **Drawdown máximo:** Máxima pérdida desde un pico.
+- **Ratio de Sharpe:** Rendimiento ajustado por riesgo.
+- **Número de operaciones:** Total de operaciones realizadas.
+
+```python
+# Calcular métricas
+final_capital = capital + sum((data["Close"][-1] - pos["entry_price"]) * pos["position_size"] if pos["is_long"] else (pos["entry_price"] - data["Close"][-1]) * pos["position_size"] for pos in positions)
+total_return = (final_capital - initial_capital) / initial_capital * 100
+
+# Calcular retornos diarios
+returns = equity.pct_change().dropna()
+
+# Drawdown máximo
+rolling_max = equity.cummax()
+drawdown = (equity - rolling_max) / rolling_max
+max_drawdown = drawdown.min() * 100
+
+# Ratio de Sharpe (anualizado, asumiendo 252 días de trading por año)
+sharpe_ratio = returns.mean() / returns.std() * np.sqrt(252)
+
+# Número de operaciones
+num_trades = len(trades) // 2  # Cada operación tiene una entrada y una salida
+
+# Imprimir resultados
+print(f"Capital inicial: ${initial_capital:.2f}")
+print(f"Capital final: ${final_capital:.2f}")
+print(f"Rendimiento total: {total_return:.2f}%")
+print(f"Drawdown máximo: {max_drawdown:.2f}%")
+print(f"Ratio de Sharpe: {sharpe_ratio:.2f}")
+print(f"Número de operaciones: {num_trades}")
+```
+
+---
+
+#### 6. Visualización de resultados
+Opcionalmente, podemos graficar el capital (equity curve), los precios, y las señales de compra/venta.
+
+```python
+# Graficar resultados
+plt.figure(figsize=(14, 8))
+
+# Gráfico 1: Precios y señales
+plt.subplot(2, 1, 1)
+plt.plot(data["Close"], label="Precio de cierre", color="blue")
+plt.plot(data["SMA20"], label="SMA 20", color="orange")
+plt.plot(data["SMA50"], label="SMA 50", color="green")
+buys = data[data["Signal"] == 1]["Close"]
+sells = data[data["Signal"] == -1]["Close"]
+plt.scatter(buys.index, buys, marker="^", color="green", label="Compra", s=100)
+plt.scatter(sells.index, sells, marker="v", color="red", label="Venta", s=100)
+plt.title("Precios y Señales de Trading")
+plt.legend()
+
+# Gráfico 2: Curva de capital
+plt.subplot(2, 1, 2)
+plt.plot(equity, label="Capital", color="purple")
+plt.title("Curva de Capital")
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+### Código Completo del Backtest
+Aquí tienes el código completo en un solo bloque para que puedas copiarlo y ejecutarlo:
+
+```python
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+# Importar los módulos de gestión de riesgos
+from genesis.risk.risk_manager import RiskManager
+from genesis.risk.position_sizer import PositionSizer
+from genesis.risk.stop_loss import StopLoss
+
+# Generar datos sintéticos
+def generate_synthetic_data(start_date, days=500, initial_price=100, volatility=0.02):
+    dates = [start_date + timedelta(days=i) for i in range(days)]
+    prices = [initial_price]
+    for i in range(1, days):
+        change = np.random.normal(0, volatility)
+        new_price = prices[-1] * (1 + change)
+        prices.append(new_price)
+    
+    data = pd.DataFrame({
+        "Date": dates,
+        "Close": prices
+    })
+    data.set_index("Date", inplace=True)
+    return data
+
+# Generar datos
+start_date = datetime(2023, 1, 1)
+data = generate_synthetic_data(start_date, days=500)
+
+# Calcular medias móviles y señales
+data["SMA20"] = data["Close"].rolling(window=20).mean()
+data["SMA50"] = data["Close"].rolling(window=50).mean()
+data["Signal"] = 0
+data["Signal"][20:] = np.where(data["SMA20"][20:] > data["SMA50"][20:], 1, 0)
+data["Signal"] = data["Signal"].diff().fillna(0)
+
+# Configurar gestión de riesgos
+stop_loss_calculator = StopLoss(risk_percentage=0.05)
+position_sizer = PositionSizer(risk_per_trade=0.02)
+risk_manager = RiskManager(
+    max_risk_per_trade=0.02,
+    max_total_risk=0.1,
+    position_sizer=position_sizer,
+    stop_loss_calculator=stop_loss_calculator
+)
+
+# Backtest
+initial_capital = 10000
+capital = initial_capital
+positions = []
+equity = []
+trades = []
+
+for date, row in data.iterrows():
+    price = row["Close"]
+    signal = row["Signal"]
+    
+    current_equity = capital + sum((price - pos["entry_price"]) * pos["position_size"] if pos["is_long"] else (pos["entry_price"] - price) * pos["position_size"] for pos in positions)
+    equity.append(current_equity)
+    
+    if signal == 1:
+        event = {
+            "type": "new_trade",
+            "capital": capital,
+            "entry_price": price,
+            "is_long": True
+        }
+        success, details = risk_manager.handle_event(event)
+        if success:
+            position = details
+            positions.append(position)
+            trades.append({
+                "date": date,
+                "type": "buy",
+                "price": price,
+                "size": position["position_size"],
+                "stop_loss": position["stop_loss_price"]
+            })
+    
+    new_positions = []
+    for pos in positions:
+        stop_loss_price = pos["stop_loss_price"]
+        if pos["is_long"] and (price <= stop_loss_price or signal == -1):
+            profit = (price - pos["entry_price"]) * pos["position_size"]
+            capital += profit
+            event = {
+                "type": "close_position",
+                "position": pos,
+                "capital": capital
+            }
+            risk_manager.handle_event(event)
+            trades.append({
+                "date": date,
+                "type": "sell",
+                "price": price,
+                "size": pos["position_size"],
+                "profit": profit
+            })
+        else:
+            new_positions.append(pos)
+    positions = new_positions
+
+# Calcular métricas
+equity = pd.Series(equity, index=data.index)
+final_capital = capital + sum((data["Close"][-1] - pos["entry_price"]) * pos["position_size"] if pos["is_long"] else (pos["entry_price"] - data["Close"][-1]) * pos["position_size"] for pos in positions)
+total_return = (final_capital - initial_capital) / initial_capital * 100
+returns = equity.pct_change().dropna()
+rolling_max = equity.cummax()
+drawdown = (equity - rolling_max) / rolling_max
+max_drawdown = drawdown.min() * 100
+sharpe_ratio = returns.mean() / returns.std() * np.sqrt(252)
+num_trades = len(trades) // 2
+
+# Imprimir resultados
+print(f"Capital inicial: ${initial_capital:.2f}")
+print(f"Capital final: ${final_capital:.2f}")
+print(f"Rendimiento total: {total_return:.2f}%")
+print(f"Drawdown máximo: {max_drawdown:.2f}%")
+print(f"Ratio de Sharpe: {sharpe_ratio:.2f}")
+print(f"Número de operaciones: {num_trades}")
+
+# Visualización
+plt.figure(figsize=(14, 8))
+plt.subplot(2, 1, 1)
+plt.plot(data["Close"], label="Precio de cierre", color="blue")
+plt.plot(data["SMA20"], label="SMA 20", color="orange")
+plt.plot(data["SMA50"], label="SMA 50", color="green")
+buys = data[data["Signal"] == 1]["Close"]
+sells = data[data["Signal"] == -1]["Close"]
+plt.scatter(buys.index, buys, marker="^", color="green", label="Compra", s=100)
+plt.scatter(sells.index, sells, marker="v", color="red", label="Venta", s=100)
+plt.title("Precios y Señales de Trading")
+plt.legend()
+
+plt.subplot(2, 1, 2)
+plt.plot(equity, label="Capital", color="purple")
+plt.title("Curva de Capital")
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+---
+
+### Explicación del Backtest
+1. **Datos:** Generamos datos sintéticos con un movimiento aleatorio para simular precios. Puedes reemplazarlos con datos reales.
+2. **Estrategia:** Usamos el cruce de medias móviles para generar señales de compra y venta.
+3. **Gestión de riesgos:** Integramos los módulos `RiskManager`, `PositionSizer`, y `StopLoss` para controlar el riesgo de cada operación.
+4. **Simulación:** Iteramos sobre los datos, ejecutamos operaciones según las señales, y aplicamos stop-loss.
+5. **Métricas:** Calculamos métricas clave para evaluar el rendimiento.
+6. **Visualización:** Graficamos los precios, señales, y la curva de capital.
+
+---
+
+### ¿Cómo usar este backtest?
+1. **Asegúrate de tener los módulos:** Los archivos `risk_manager.py`, `position_sizer.py`, y `stop_loss.py` deben estar en la carpeta `genesis/risk/`.
+2. **Instala las dependencias:** Necesitas `pandas`, `numpy`, y `matplotlib`. Puedes instalarlas con:
+   ```bash
+   pip install pandas numpy matplotlib
+   ```
+3. **Ejecuta el código:** Copia el código completo en un archivo (por ejemplo, `backtest.py`) y ejecútalo.
+4. **Ajusta según tus necesidades:**
+   - Cambia la estrategia (por ejemplo, usa otro indicador como RSI).
+   - Modifica los parámetros de riesgo (por ejemplo, ajusta `risk_per_trade` o `risk_percentage`).
+   - Usa datos reales en lugar de datos sintéticos.
+
+---
+
+### ¿Qué sigue?
+- **Datos reales:** Si tienes datos históricos (por ejemplo, de Yahoo Finance), puedo ayudarte a integrarlos. Por ejemplo, puedes usar la biblioteca `yfinance` para descargar datos:
+  ```python
+  import yfinance as yf
+  data = yf.download("AAPL", start="2023-01-01", end="2024-01-01")
+  data = data[["Close"]].copy()
+  ```
+- **Estrategia más avanzada:** Si quieres probar una estrategia más compleja (por ejemplo, basada en RSI, MACD, o machine learning), puedo ayudarte a implementarla.
+- **Métricas adicionales:** Puedo agregar más métricas como el ratio de Calmar, el win rate, o el profit factor.
+- **Optimización:** Si quieres optimizar los parámetros (por ejemplo, las ventanas de las medias móviles), puedo ayudarte a implementar un proceso de optimización.
+
+¿Te gustaría profundizar en alguno de estos aspectos? ¿O hay algo específico que quieras ajustar en el backtest? ¡Estoy aquí para ayudarte!
