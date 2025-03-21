@@ -25,6 +25,7 @@ from email.mime.application import MIMEApplication
 
 from genesis.core.base import Component
 from genesis.utils.logger import setup_logging
+from genesis.utils.log_manager import query_logs, get_log_stats
 from genesis.notifications.email_notifier import email_notifier
 
 
@@ -435,6 +436,11 @@ class ReportGenerator(Component):
                 "profit_loss": 0.0,
                 "profit_loss_percent": 0.0
             },
+            "logs": {
+                "total": 0,
+                "by_level": {},
+                "entries": []
+            },
             "plots": {}
         }
         
@@ -487,6 +493,34 @@ class ReportGenerator(Component):
             
             # Generar gráficos
             result["plots"] = await self._generate_daily_plots(trades, strategies, date)
+            
+            # Obtener logs relevantes para el día
+            try:
+                # Convertir fecha a formato ISO para la consulta
+                start_date_str = date.replace(hour=0, minute=0, second=0).isoformat()
+                end_date_str = date.replace(hour=23, minute=59, second=59).isoformat()
+                
+                # Consultar logs para este período
+                logs_data = query_logs(
+                    start_date=start_date_str,
+                    end_date=end_date_str,
+                    limit=100
+                )
+                
+                # Obtener estadísticas de logs
+                log_stats = get_log_stats(start_date_str, end_date_str)
+                
+                # Actualizar la sección de logs en el resultado
+                result["logs"] = {
+                    "total": len(logs_data),
+                    "by_level": log_stats.get("by_level", {}),
+                    "by_component": log_stats.get("by_component", {}),
+                    "entries": logs_data
+                }
+                
+                self.logger.info(f"Se añadieron {len(logs_data)} registros de logs al informe diario.")
+            except Exception as e:
+                self.logger.error(f"Error al obtener logs para el informe diario: {e}")
             
         except Exception as e:
             self.logger.error(f"Error al recopilar datos diarios: {e}")
@@ -1308,6 +1342,7 @@ class ReportGenerator(Component):
         trades = data.get("trades", [])
         strategies = data.get("strategies", {})
         portfolio = data.get("portfolio", {})
+        logs = data.get("logs", {"total": 0, "by_level": {}, "by_component": {}, "entries": []})
         
         # Generar HTML
         html = f"""
