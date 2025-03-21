@@ -87,8 +87,8 @@ def backtest_engine():
     
     # Crear engine de backtesting
     engine = BacktestEngine(
-        initial_balance=10000.0,
-        fee_rate=0.001,
+        initial_capital=10000.0,
+        commission=0.001,
         slippage=0.0005
     )
     
@@ -98,9 +98,9 @@ def backtest_engine():
 @pytest.mark.asyncio
 async def test_backtest_engine_initialization(backtest_engine):
     """Probar la inicialización del motor de backtesting."""
-    assert backtest_engine.initial_balance == 10000.0
-    assert backtest_engine.current_balance == 10000.0
-    assert backtest_engine.fee_rate == 0.001
+    assert backtest_engine.initial_capital == 10000.0
+    assert backtest_engine.current_capital == 10000.0  # Asumiendo que existe esta propiedad
+    assert backtest_engine.commission == 0.001
     assert backtest_engine.slippage == 0.0005
     assert backtest_engine.positions == {}
     assert backtest_engine.trade_history == []
