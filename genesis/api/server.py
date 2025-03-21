@@ -19,7 +19,7 @@ from werkzeug.serving import make_server
 
 from genesis.core.base import Component
 from genesis.utils.logger import setup_logging
-from genesis.api.rest import init_api, api_bp
+from genesis.api.init_api import init_api
 
 
 class APIServer(Component):
