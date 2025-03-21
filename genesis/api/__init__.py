@@ -1,7 +1,6 @@
 """
-API module for the Genesis trading system.
+Módulo de API para el sistema Genesis.
 
-This module provides a REST API for interacting with the trading system,
-allowing for monitoring, configuration, and control.
+Este paquete proporciona componentes para la API REST, rutas, y
+servicios relacionados con la exposición de funcionalidades del sistema.
 """
-

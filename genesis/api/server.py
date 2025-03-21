@@ -1,212 +1,197 @@
 """
-API server implementation.
+Servidor de API para el sistema Genesis.
 
-This module provides a FastAPI server for the Genesis trading system API.
+Este módulo proporciona un servidor de API que integra los diferentes endpoints
+y gestiona las solicitudes externas al sistema.
 """
 
-import asyncio
-import logging
-from typing import Dict, Any, Optional, List
 import os
 import json
+import asyncio
+import threading
+import logging
+from typing import Dict, List, Any, Optional, Callable, Awaitable
 import time
-from datetime import datetime, timedelta
+import signal
 
-import uvicorn
-from fastapi import FastAPI, HTTPException, Depends, Query, Path, Body
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import APIKeyHeader
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from flask import Flask
+from werkzeug.serving import make_server
 
-from genesis.config.settings import settings
 from genesis.core.base import Component
 from genesis.utils.logger import setup_logging
+from genesis.api.rest import init_api, api_bp
 
 
 class APIServer(Component):
     """
-    API server component for the Genesis trading system.
+    Servidor de API para el sistema Genesis.
     
-    This component provides a REST API for monitoring, configuration,
-    and control of the trading system.
+    Este componente proporciona una API para acceso externo al sistema.
     """
     
     def __init__(
-        self, 
+        self,
         name: str = "api_server",
-        host: Optional[str] = None,
-        port: Optional[int] = None
+        host: str = "0.0.0.0",
+        port: int = 5000,
+        debug: bool = False
     ):
         """
-        Initialize the API server.
+        Inicializar el servidor de API.
         
         Args:
-            name: Component name
-            host: API server host
-            port: API server port
+            name: Nombre del componente
+            host: Host para escuchar solicitudes
+            port: Puerto para escuchar solicitudes
+            debug: Ejecutar en modo debug
         """
         super().__init__(name)
         self.logger = setup_logging(name)
         
-        self.host = host or settings.get('api.host', '0.0.0.0')
-        self.port = port or settings.get('api.port', 8000)
-        self.debug = settings.get('api.debug', False)
+        # Configuración del servidor
+        self.host = host
+        self.port = port
+        self.debug = debug
         
-        # Create FastAPI app
-        self.app = FastAPI(
-            title="Genesis Trading API",
-            description="API for the Genesis automated cryptocurrency trading system",
-            version="0.1.0"
-        )
-        
-        # Add CORS middleware
-        self.app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-        
-        # Set up API routes
-        self._setup_routes()
-        
-        # Server instance
+        # Estado del servidor
+        self.running = False
         self.server = None
+        self.server_thread = None
         
-        # Event bus message cache
-        self.event_cache: Dict[str, List[Dict[str, Any]]] = {
-            "strategy.signal": [],
-            "trade.opened": [],
-            "trade.closed": [],
-            "performance.metrics": [],
-            "market.analyzed": [],
-            "market.anomalies": []
+        # Bus de eventos
+        self.event_bus = None
+        
+        # Diccionario para almacenar contexto y datos compartidos
+        self.shared_context = {
+            "engine": None,
+            "components": {}
         }
-        self.max_cache_size = 100  # Maximum number of events to keep per type
-    
-    def _setup_routes(self) -> None:
-        """Set up API routes."""
-        # Health check endpoint
-        @self.app.get("/health")
-        async def health_check():
-            return {
-                "status": "ok",
-                "timestamp": datetime.now().isoformat(),
-                "version": "0.1.0"
-            }
-        
-        # System status endpoint
-        @self.app.get("/status")
-        async def system_status():
-            return {
-                "status": "running" if self.running else "stopped",
-                "uptime": self._get_uptime(),
-                "components": self._get_component_statuses(),
-                "timestamp": datetime.now().isoformat()
-            }
-        
-        # Get recent events
-        @self.app.get("/events/{event_type}")
-        async def get_events(event_type: str, limit: int = Query(10, ge=1, le=100)):
-            if event_type not in self.event_cache and event_type != "all":
-                raise HTTPException(status_code=404, detail=f"Event type '{event_type}' not found")
-            
-            if event_type == "all":
-                # Combine all event types
-                all_events = []
-                for events in self.event_cache.values():
-                    all_events.extend(events)
-                
-                # Sort by timestamp if available
-                all_events.sort(
-                    key=lambda x: x.get("timestamp", ""),
-                    reverse=True
-                )
-                
-                return {"events": all_events[:limit]}
-            
-            return {"events": self.event_cache[event_type][:limit]}
-    
-    def _get_uptime(self) -> str:
-        """
-        Get system uptime.
-        
-        Returns:
-            Uptime string
-        """
-        # Placeholder for actual uptime calculation
-        return "0 days, 0 hours, 0 minutes"
-    
-    def _get_component_statuses(self) -> Dict[str, Any]:
-        """
-        Get status of all components.
-        
-        Returns:
-            Component status dictionary
-        """
-        # This would be populated with actual component statuses
-        return {}
     
     async def start(self) -> None:
-        """Start the API server."""
+        """Iniciar el servidor de API."""
         await super().start()
         
-        # Start server in a background task
-        self.server_task = asyncio.create_task(self._run_server())
+        # Iniciar el servidor Flask en un thread separado
+        self._start_server()
         
-        self.logger.info(f"API server starting on {self.host}:{self.port}")
+        self.logger.info(f"Servidor de API iniciado en {self.host}:{self.port}")
     
     async def stop(self) -> None:
-        """Stop the API server."""
-        # Cancel the server task
-        if hasattr(self, 'server_task') and self.server_task:
-            self.server_task.cancel()
-            try:
-                await self.server_task
-            except asyncio.CancelledError:
-                pass
+        """Detener el servidor de API."""
+        self._stop_server()
         
         await super().stop()
-        self.logger.info("API server stopped")
-    
-    async def _run_server(self) -> None:
-        """Run the uvicorn server."""
-        config = uvicorn.Config(
-            app=self.app,
-            host=self.host,
-            port=self.port,
-            log_level="info",
-            loop="asyncio"
-        )
-        server = uvicorn.Server(config)
-        await server.serve()
+        self.logger.info("Servidor de API detenido")
     
     async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
-        Handle events from the event bus.
-        
-        Caches recent events for API endpoints.
+        Manejar eventos del bus de eventos.
         
         Args:
-            event_type: Event type
-            data: Event data
-            source: Source component
+            event_type: Tipo de evento
+            data: Datos del evento
+            source: Componente de origen
         """
-        # Add timestamp if not present
-        if "timestamp" not in data:
-            data["timestamp"] = datetime.now().isoformat()
+        # Almacenar referencia al bus de eventos la primera vez
+        if event_type == "system.init" and "event_bus" in data:
+            self.event_bus = data["event_bus"]
+            self.shared_context["event_bus"] = self.event_bus
+            self.logger.debug("Referencia al bus de eventos almacenada")
         
-        # Add source component
-        data["source"] = source
+        # Almacenar referencia al motor principal
+        elif event_type == "system.engine_ready" and "engine" in data:
+            self.shared_context["engine"] = data["engine"]
+            self.logger.debug("Referencia al motor almacenada")
         
-        # Cache the event if it's a type we're interested in
-        if event_type in self.event_cache:
-            # Add to front of list (newest first)
-            self.event_cache[event_type].insert(0, data)
+        # Almacenar referencias a componentes importantes
+        elif event_type == "system.component_ready":
+            component_type = data.get("type")
+            component = data.get("component")
+            if component_type and component:
+                self.shared_context["components"][component_type] = component
+                self.logger.debug(f"Componente registrado: {component_type}")
+    
+    def _create_app(self) -> Flask:
+        """
+        Crear la aplicación Flask.
+        
+        Returns:
+            Aplicación Flask configurada
+        """
+        from app import app
+        
+        # Exponer el contexto compartido a la aplicación Flask
+        app.config["GENESIS_CONTEXT"] = self.shared_context
+        
+        # Inicializar la API REST
+        init_api(app)
+        
+        return app
+    
+    def _start_server(self) -> None:
+        """Iniciar el servidor en un thread separado."""
+        if self.running:
+            return
+        
+        self.running = True
+        
+        # Crear y configurar la aplicación Flask
+        app = self._create_app()
+        
+        # Función para ejecutar el servidor
+        def run_server():
+            self.logger.info(f"Iniciando servidor HTTP en {self.host}:{self.port}")
             
-            # Trim to max size
-            if len(self.event_cache[event_type]) > self.max_cache_size:
-                self.event_cache[event_type] = self.event_cache[event_type][:self.max_cache_size]
+            # Crear servidor
+            self.server = make_server(self.host, self.port, app)
+            
+            # Configurar manejo de señales para SIGINT y SIGTERM
+            original_sigint_handler = signal.getsignal(signal.SIGINT)
+            original_sigterm_handler = signal.getsignal(signal.SIGTERM)
+            
+            def handle_signal(sig, frame):
+                self.logger.info(f"Señal recibida ({sig}), deteniendo servidor...")
+                # Restaurar manejadores originales
+                signal.signal(signal.SIGINT, original_sigint_handler)
+                signal.signal(signal.SIGTERM, original_sigterm_handler)
+                
+                # Detener el servidor
+                if self.server:
+                    self.server.shutdown()
+            
+            # Establecer manejadores
+            signal.signal(signal.SIGINT, handle_signal)
+            signal.signal(signal.SIGTERM, handle_signal)
+            
+            # Iniciar servidor
+            try:
+                self.server.serve_forever()
+            finally:
+                self.logger.info("Servidor HTTP detenido")
+                self.running = False
+        
+        # Iniciar el thread del servidor
+        self.server_thread = threading.Thread(target=run_server, daemon=True)
+        self.server_thread.start()
+    
+    def _stop_server(self) -> None:
+        """Detener el servidor HTTP."""
+        if not self.running or not self.server:
+            return
+        
+        self.logger.info("Deteniendo servidor HTTP...")
+        
+        # Detener el servidor
+        if self.server:
+            self.server.shutdown()
+        
+        # Esperar al thread
+        if self.server_thread and self.server_thread.is_alive():
+            self.server_thread.join(timeout=5)
+        
+        self.running = False
+        self.logger.info("Servidor HTTP detenido")
 
+
+# Exportación para uso fácil
+api_server = APIServer()

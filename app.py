@@ -3,16 +3,21 @@ Aplicación web para el sistema de trading Genesis.
 
 Este módulo proporciona la interfaz web para el sistema de trading,
 permitiendo la visualización de datos, configuración y monitoreo.
+También expone la API REST para integración con sistemas externos.
 """
 
 import os
+import logging
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from genesis.db.models import Base
 from genesis.utils.logger import setup_logging
+from genesis.api.rest import init_api
+from genesis.api.swagger import init_swagger
 
 # Configurar el logger
 logger = setup_logging('webapp')
+logging.basicConfig(level=logging.DEBUG)
 
 # Crear la aplicación Flask
 app = Flask(__name__)
@@ -30,6 +35,12 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 db = SQLAlchemy(model_class=Base)
 db.init_app(app)
 
+# Inicializar API REST
+init_api(app)
+
+# Inicializar documentación Swagger
+init_swagger(app)
+
 # Rutas básicas de la aplicación web
 @app.route('/')
 def index():
@@ -37,11 +48,14 @@ def index():
     return jsonify({
         "status": "ok",
         "message": "Genesis Trading System API",
-        "version": "0.1.0",
+        "version": "1.0.0",
+        "documentation": "/api/docs",
         "endpoints": [
             "/",
             "/health",
-            "/status"
+            "/status",
+            "/api/v1/...",
+            "/api/docs"
         ]
     })
 
@@ -62,6 +76,8 @@ def status():
         "message": "Sistema operativo",
         "components": {
             "api": "active",
+            "rest_api": "active",
+            "swagger": "active",
             "database": "connected" if check_database_connection() else "disconnected",
         }
     })
