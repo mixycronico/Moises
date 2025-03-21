@@ -277,29 +277,43 @@ class BacktestEngine(Component):
                 signals = []
                 signal_types = []
                 
-                for idx, row in df.iterrows():
-                    # Convertir la fila a un formato que la estrategia pueda usar
-                    data_point = row.to_dict()
-                    data_point["symbol"] = data_point.get("symbol", "BTC/USDT")  # Asegurarse de que haya un símbolo
+                # Símbolo predeterminado para backtesting
+                symbol = "BTC/USDT"
+                
+                # Procesar cada fila para generar señales
+                for i, (idx, row) in enumerate(df.iterrows()):
+                    # Para cada punto, necesitamos pasar suficientes datos históricos
+                    # para que la estrategia pueda calcular indicadores
+                    end_idx = i + 1  # Incluye la fila actual
                     
-                    # Crear un DataFrame con la fila actual para la estrategia
-                    row_df = pd.DataFrame([data_point], index=[idx])
+                    # Asegurarse de que pasamos al menos 2 puntos de datos (para TestStrategy)
+                    # o más si la estrategia lo requiere
+                    window_size = max(30, i + 1)  # Por defecto 30 barras o todas hasta ahora
+                    start_idx = max(0, end_idx - window_size)
+                    
+                    # Obtener un subconjunto del DataFrame
+                    history_df = df.iloc[start_idx:end_idx].copy()
                     
                     # Llamar a la estrategia para obtener la señal
-                    signal_data = await strategy.generate_signal(data_point.get("symbol", "BTC/USDT"), row_df)
-                    
-                    # Para test_backtesting, puede devolver un diccionario con signal_type
-                    if isinstance(signal_data, dict) and "signal_type" in signal_data:
-                        signal_type = str(signal_data["signal_type"]).lower()
-                        signal_types.append(signal_type)
-                        signals.append(signal_data)
-                    # Formato normal, devuelve un dict con "signal"
-                    elif isinstance(signal_data, dict) and "signal" in signal_data:
-                        signal_type = str(signal_data.get("signal", SignalType.HOLD)).lower()
-                        signal_types.append(signal_type)
-                        signals.append(signal_data)
-                    # Fallback a HOLD si el formato no es reconocido
-                    else:
+                    try:
+                        signal_data = await strategy.generate_signal(symbol, history_df)
+                        
+                        # Para test_backtesting, puede devolver un diccionario con signal_type
+                        if isinstance(signal_data, dict) and "signal_type" in signal_data:
+                            signal_type = str(signal_data["signal_type"]).lower()
+                            signal_types.append(signal_type)
+                            signals.append(signal_data)
+                        # Formato normal, devuelve un dict con "signal"
+                        elif isinstance(signal_data, dict) and "signal" in signal_data:
+                            signal_type = str(signal_data.get("signal", SignalType.HOLD)).lower()
+                            signal_types.append(signal_type)
+                            signals.append(signal_data)
+                        # Fallback a HOLD si el formato no es reconocido
+                        else:
+                            signal_types.append(SignalType.HOLD.lower())
+                            signals.append({"signal": SignalType.HOLD, "timestamp": idx})
+                    except Exception as e:
+                        self.logger.error(f"Error al generar señal para {idx}: {e}")
                         signal_types.append(SignalType.HOLD.lower())
                         signals.append({"signal": SignalType.HOLD, "timestamp": idx})
                 
