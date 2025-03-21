@@ -424,7 +424,8 @@ class BacktestEngine(Component):
         Returns:
             Tupla con (trades, equity_curve, signals)
         """
-        if "signal" not in df.columns:
+        # Verificar que haya señales en el DataFrame
+        if "signal" not in df.columns and "signal_data" not in df.columns:
             self.logger.error("No se encontraron señales en los datos")
             return [], [], []
             
@@ -437,12 +438,45 @@ class BacktestEngine(Component):
             # Ejecutar el backtesting
             for idx, row in df.iterrows():
                 timestamp = idx
-                signal_type = str(row["signal"]).lower()
-                close_price = row["close"]
                 
-                # Aplicar slippage
-                slippage_factor = self.slippage if signal_type == SignalType.BUY.lower() else -self.slippage if signal_type == SignalType.SELL.lower() else 0
-                execution_price = close_price * (1 + slippage_factor)
+                # Obtener la señal y el precio
+                # Para las pruebas, podemos tener tres casos:
+                # 1. La señal está en signal_data como un objeto completo de signal
+                # 2. La señal está en signal y proviene de signal_type en la señal generada
+                # 3. La señal está en signal directamente como un string
+                
+                close_price = row["close"]
+                execution_price = close_price
+                signal_type = ""
+                
+                # Caso 1: La señal completa está en signal_data 
+                if "signal_data" in df.columns and isinstance(row["signal_data"], dict):
+                    signal_data = row["signal_data"]
+                    
+                    # Si signal_data tiene signal_type (del test)
+                    if "signal_type" in signal_data:
+                        signal_type = str(signal_data["signal_type"]).lower()
+                        # Si tiene price, usarlo
+                        if "price" in signal_data:
+                            execution_price = signal_data["price"]
+                    # Si signal_data tiene signal (del motor normal)
+                    elif "signal" in signal_data:
+                        signal_type = str(signal_data["signal"]).lower()
+                
+                # Caso 2 y 3: La señal está directamente en la columna signal
+                else:
+                    if "signal" in df.columns:
+                        signal = row["signal"]
+                        # Puede ser un objeto SignalType o un string
+                        if hasattr(signal, "lower"):
+                            signal_type = str(signal).lower()
+                        else:
+                            signal_type = str(signal).lower()
+                
+                # Aplicar slippage si no tenemos un precio de ejecución específico
+                if execution_price == close_price:
+                    slippage_factor = self.slippage if signal_type == SignalType.BUY.lower() else -self.slippage if signal_type == SignalType.SELL.lower() else 0
+                    execution_price = close_price * (1 + slippage_factor)
                 
                 # Guardar la señal actual
                 signal_data = {
@@ -512,10 +546,13 @@ class BacktestEngine(Component):
                 current_equity = self.current_balance + unrealized_pnl
                 equity_curve.append(current_equity)
             
+            self.logger.info(f"Simulación completada con {len(trades)} operaciones")
             return trades, equity_curve, signals
             
         except Exception as e:
             self.logger.error(f"Error en simulación de trading con posiciones: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return [], [self.initial_balance], []
     
     def _open_position(
@@ -1028,11 +1065,20 @@ class BacktestEngine(Component):
             # Calcular estadísticas
             stats = self.calculate_backtest_statistics(trades, equity_curve)
             
+            # Añadir estadísticas adicionales
+            stats['initial_capital'] = self.initial_capital
+            stats['final_capital'] = equity_curve[-1] if equity_curve else self.initial_capital
+            stats['total_return'] = ((stats['final_capital'] - self.initial_capital) / self.initial_capital * 100 
+                                    if self.initial_capital > 0 else 0)
+            
             # Preparar resultados
             results = {
                 "trades": trades,
                 "equity_curve": equity_curve,
-                "signals": signals
+                "signals": signals,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "strategy": strategy_name if strategy_name else getattr(strategy, 'name', 'unknown_strategy')
             }
             
             # Guardar resultado si estamos en modo histórico
@@ -1043,9 +1089,16 @@ class BacktestEngine(Component):
                     "params": params,
                     "df": df_with_signals
                 }
-                
-                self.logger.info(f"Backtest completado para {strategy_name} en {symbol}")
-                self.logger.info(f"Retorno: {stats.get('profit_loss', 0):.2%}, Operaciones: {stats.get('total_trades', 0)}")
+            
+            # Mejorar mensajes de log para cualquier modo
+            strategy_display = strategy_name
+            if not strategy_display and strategy:
+                strategy_display = getattr(strategy, 'name', 'estrategia')
+            
+            self.logger.info(f"Backtest completado para {strategy_display} en {symbol}")
+            self.logger.info(f"Rendimiento total: {stats.get('total_return', 0):.2f}%, " 
+                           f"Win rate: {stats.get('win_rate', 0):.2f}%, "
+                           f"Operaciones: {stats.get('total_trades', 0)}")
             
             return results, stats
             

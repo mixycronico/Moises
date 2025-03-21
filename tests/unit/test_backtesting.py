@@ -163,6 +163,7 @@ async def test_backtest_position_management(backtest_engine, sample_ohlcv_data):
         index = min(len(backtest_engine.equity_curve), len(signals) - 1)
         signal = signals[index].copy()
         signal["timestamp"] = data.index[-1]
+        print(f"⏩ Generando señal {signal['signal_type']} en {signal['timestamp']}")
         return signal
     
     strategy.generate_signal = mock_generate_signal
