@@ -29,8 +29,10 @@ from genesis.risk.manager import RiskManager
 from genesis.analytics.performance import PerformanceTracker
 from genesis.analytics.visualization import Visualizer
 from genesis.analytics.reporting import ReportGenerator
-from genesis.db.repository import DatabaseManager
-from genesis.db.repository import TradeRepository, CandleRepository
+from genesis.db.repository import Repository
+from genesis.db.models import Base
+from genesis.db.paper_trading_models import PaperTradingAccount
+from genesis.trading.paper_trading import PaperTradingManager
 from genesis.api.server import APIServer
 from genesis.workers.scheduler import Scheduler, Task
 from genesis.workers.processor import TaskProcessor
@@ -67,6 +69,11 @@ def parse_arguments():
         action="store_true",
         help="Run only the API server"
     )
+    parser.add_argument(
+        "--paper-trading",
+        action="store_true",
+        help="Run in paper trading mode"
+    )
     return parser.parse_args()
 
 
@@ -86,13 +93,9 @@ async def setup_system(args) -> Engine:
     # Create the main engine
     engine = Engine()
     
-    # Initialize database
-    db_manager = DatabaseManager()
-    db_manager.create_tables()
-    
-    # Create repositories
-    trade_repo = TradeRepository(db_manager)
-    candle_repo = CandleRepository(db_manager)
+    # Initialize database and repository
+    repo = Repository()
+    await repo.create_tables(Base)
     
     # API server (always enabled)
     api_server = APIServer()
@@ -106,9 +109,24 @@ async def setup_system(args) -> Engine:
     # Parse symbols
     symbols = args.symbols.split(",")
     
-    # Create exchange
-    exchange = CCXTExchange(args.exchange)
-    engine.register_component(exchange)
+    # Setup paper trading or live exchange
+    if args.paper_trading:
+        logger.info("Running in paper trading mode with Binance Testnet")
+        # Use testnet for paper trading
+        exchange = CCXTExchange(args.exchange, config={"testnet": True})
+        engine.register_component(exchange)
+        
+        # Add paper trading manager
+        paper_trading_manager = PaperTradingManager()
+        engine.register_component(paper_trading_manager)
+        
+        # Create default account if none exists
+        await paper_trading_manager.ensure_default_account()
+    else:
+        # Use regular exchange
+        logger.info(f"Using live exchange: {args.exchange}")
+        exchange = CCXTExchange(args.exchange)
+        engine.register_component(exchange)
     
     # Market data components
     market_data = MarketDataManager()

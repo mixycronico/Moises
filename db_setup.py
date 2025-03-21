@@ -7,21 +7,22 @@ según la estructura definida en los modelos.
 
 import os
 import sys
+import asyncio
 import logging
-from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError
 
 # Agregar la ruta raíz al path
 sys.path.append(".")
 
-# Importar modelos de base de datos
+# Importar modelos y repositorio
 from genesis.db.models import Base
+from genesis.db.repository import Repository
+from genesis.db.paper_trading_models import PaperTradingAccount
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def setup_database():
+async def setup_database():
     """
     Recrear todas las tablas en la base de datos.
     
@@ -36,28 +37,41 @@ def setup_database():
     logger.info(f"Conectando a la base de datos: {database_url}")
     
     try:
-        # Crear motor de base de datos
-        engine = create_engine(database_url)
+        # Crear repositorio
+        repo = Repository(connection_string=database_url)
         
         # Eliminar todas las tablas
         logger.info("Eliminando tablas existentes...")
-        Base.metadata.drop_all(engine)
+        await repo.drop_tables(Base)
         
         # Crear todas las tablas
         logger.info("Creando nuevas tablas...")
-        Base.metadata.create_all(engine)
+        await repo.create_tables(Base)
+        
+        # Verificar que las tablas de paper trading también se hayan creado
+        logger.info("Verificando tablas de paper trading...")
+        try:
+            count = await repo.count(PaperTradingAccount)
+            logger.info(f"Tablas de paper trading creadas correctamente. Cuentas existentes: {count}")
+        except Exception as e:
+            logger.warning(f"No se pudo verificar las tablas de paper trading: {e}")
         
         logger.info("Base de datos actualizada exitosamente")
         return True
     
-    except SQLAlchemyError as e:
+    except Exception as e:
         logger.error(f"Error al actualizar la base de datos: {e}")
         return False
 
 if __name__ == "__main__":
     logger.info("Iniciando actualización de la base de datos...")
-    if setup_database():
-        logger.info("Actualización completada con éxito")
-    else:
-        logger.error("Error al actualizar la base de datos")
+    try:
+        success = asyncio.run(setup_database())
+        if success:
+            logger.info("Actualización completada con éxito")
+        else:
+            logger.error("Error al actualizar la base de datos")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Error inesperado: {e}")
         sys.exit(1)
