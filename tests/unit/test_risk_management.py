@@ -206,23 +206,30 @@ def test_trailing_stop_loss():
     entry_price = 50000
     current_price = 55000  # Precio ha subido un 10%
     
-    trailing_stop = calculator.calculate_trailing_stop(
+    # Usar la nueva interfaz de calculate_trailing_stop
+    trailing_stop_result = calculator.calculate_trailing_stop(
         entry_price=entry_price,
         current_price=current_price,
-        side="buy"
+        is_long=True,
+        activation_pct=0,  # Activado inmediatamente
+        stop_pct=0.01      # 1% de trailing stop
     )
     
     # Verificar que el trailing stop está correctamente calculado: 55000 * 0.99 = 54450
     expected_trailing_stop = 54450
-    assert trailing_stop == expected_trailing_stop
+    assert trailing_stop_result["price"] == expected_trailing_stop
+    assert trailing_stop_result["activated"] is True
     
     # Para una posición corta
-    trailing_stop_short = calculator.calculate_trailing_stop(
+    trailing_stop_short_result = calculator.calculate_trailing_stop(
         entry_price=entry_price,
         current_price=45000,  # Precio ha bajado un 10%
-        side="sell"
+        is_long=False,
+        activation_pct=0,  # Activado inmediatamente
+        stop_pct=0.01      # 1% de trailing stop
     )
     
     # Verificar que el trailing stop está correctamente calculado: 45000 * 1.01 = 45450
     expected_trailing_stop_short = 45450
-    assert trailing_stop_short == expected_trailing_stop_short
+    assert trailing_stop_short_result["price"] == expected_trailing_stop_short
+    assert trailing_stop_short_result["activated"] is True
