@@ -942,53 +942,228 @@ class BacktestEngine(Component):
     async def optimize_strategy(
         self,
         strategy: Union[Strategy, Callable],
-        df: pd.DataFrame,
-        param_grid: Dict[str, List],
-        metric: str = "sharpe_ratio"
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        data: Dict[str, pd.DataFrame],
+        symbol: str,
+        param_space: Dict[str, List],
+        metric: str = "profit_loss",
+        timeframe: str = "1d",
+        threads: int = 4
+    ) -> List[Dict[str, Any]]:
         """
         Optimizar parámetros de una estrategia.
         
+        Esta es la versión que espera el test_backtesting.py, con parámetros de acuerdo a dicha prueba.
+        
         Args:
             strategy: Estrategia de trading
-            df: DataFrame con datos históricos
-            param_grid: Grid de parámetros a probar
+            data: Diccionario {symbol: DataFrame} con datos para el backtest
+            symbol: Símbolo de trading a optimizar
+            param_space: Espacio de parámetros a probar (formato diccionario)
             metric: Métrica a optimizar
+            timeframe: Marco temporal para el backtest
+            threads: Número de hilos para la optimización
             
         Returns:
-            Tuple de (mejor resultado, mejores parámetros)
+            Lista de resultados de optimización
         """
-        best_result = None
-        best_params = None
-        best_metric_value = float("-inf")
+        # Verificar parámetros
+        if not isinstance(data, dict) or symbol not in data:
+            raise ValueError(f"Datos no válidos o símbolo {symbol} no encontrado")
+            
+        if not isinstance(param_space, dict) or not param_space:
+            raise ValueError("Espacio de parámetros no válido")
+            
+        # Datos para el símbolo
+        df = data[symbol]
         
         # Generar todas las combinaciones de parámetros
-        keys, values = zip(*param_grid.items())
-        param_combinations = [dict(zip(keys, v)) for v in product(*values)]
+        keys = list(param_space.keys())
+        values = [param_space[key] for key in keys]
+        param_combinations = [dict(zip(keys, combo)) for combo in product(*values)]
         
-        # Ejecutar backtest para cada combinación
-        for params in param_combinations:
-            self.logger.debug(f"Probando parámetros: {params}")
+        self.logger.info(f"Optimizando estrategia con {len(param_combinations)} combinaciones de parámetros")
+        
+        results = []
+        
+        # Ejecutar backtests en paralelo
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = []
             
-            # Calcular indicadores
-            df_with_indicators = await self.calculate_indicators(df.copy(), params)
-            
-            # Ejecutar estrategia
-            df_with_signals = await self.run_strategy(strategy, df_with_indicators, params)
-            
-            # Simular trading
-            result = await self.simulate_trading(df_with_signals)
-            
-            # Evaluar métrica
-            if metric in result and (best_result is None or result[metric] > best_metric_value):
-                best_metric_value = result[metric]
-                best_result = result
-                best_params = params
+            for params in param_combinations:
+                # Crear una copia de la estrategia con los parámetros actuales
+                strategy_instance = strategy
+                if hasattr(strategy, 'clone'):
+                    strategy_instance = strategy.clone()
                 
-        if best_result is None:
-            raise ValueError("No se pudo optimizar la estrategia con los parámetros dados")
+                # Establecer parámetros
+                if hasattr(strategy_instance, 'set_params'):
+                    strategy_instance.set_params(params)
+                
+                # Programar el backtest
+                future = executor.submit(
+                    asyncio.run,
+                    self._run_single_optimization(
+                        strategy=strategy_instance,
+                        data=data,
+                        symbol=symbol,
+                        params=params,
+                        timeframe=timeframe
+                    )
+                )
+                futures.append(future)
             
-        return best_result, best_params
+            # Recoger resultados
+            for future in futures:
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    self.logger.error(f"Error en optimización: {e}")
+        
+        # Ordenar resultados por la métrica especificada
+        results.sort(key=lambda x: x["metrics"][metric] if "metrics" in x and metric in x["metrics"] else float("-inf"), reverse=True)
+        
+        return results
+        
+    async def _run_single_optimization(
+        self,
+        strategy: Strategy,
+        data: Dict[str, pd.DataFrame],
+        symbol: str,
+        params: Dict[str, Any],
+        timeframe: str
+    ) -> Dict[str, Any]:
+        """
+        Ejecutar un solo backtest para optimización.
+        
+        Args:
+            strategy: Estrategia de trading
+            data: Diccionario {symbol: DataFrame} con datos para el backtest
+            symbol: Símbolo de trading
+            params: Parámetros para esta ejecución
+            timeframe: Marco temporal
+            
+        Returns:
+            Resultados del backtest
+        """
+        try:
+            # Crear una copia del motor de backtesting para esta ejecución
+            engine = BacktestEngine(
+                initial_capital=self.initial_capital,
+                commission=self.commission,
+                slippage=self.slippage
+            )
+            
+            # Ejecutar el backtest
+            results, stats = await engine.run_backtest(
+                strategy=strategy,
+                data=data,
+                symbol=symbol,
+                timeframe=timeframe,
+                params=params
+            )
+            
+            # Devolver resultados en el formato esperado
+            return {
+                "params": params,
+                "metrics": stats,
+                "trades": results["trades"] if "trades" in results else []
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error en optimización: {e}")
+            return {
+                "params": params,
+                "metrics": {"error": str(e)},
+                "trades": []
+            }
+    
+    async def run_multi_asset_backtest(
+        self,
+        strategy: Strategy,
+        data: Dict[str, pd.DataFrame],
+        timeframe: str = "1d",
+        start_date: str = None,
+        end_date: str = None,
+        params: Dict[str, Any] = None
+    ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
+        """
+        Ejecutar un backtest con múltiples activos.
+        
+        Args:
+            strategy: Estrategia de trading
+            data: Diccionario {symbol: DataFrame} con datos para cada activo
+            timeframe: Marco temporal
+            start_date: Fecha de inicio (opcional)
+            end_date: Fecha de fin (opcional)
+            params: Parámetros para la estrategia
+            
+        Returns:
+            Tuple con (resultados por activo, estadísticas combinadas)
+        """
+        if not isinstance(data, dict) or not data:
+            raise ValueError("El parámetro data debe ser un diccionario no vacío")
+            
+        # Resultados y estadísticas por activo
+        results_by_asset = {}
+        all_trades = []
+        all_equity_curves = []
+        
+        # Ejecutar backtest para cada activo
+        for symbol, df in data.items():
+            self.logger.info(f"Ejecutando backtest para {symbol}")
+            
+            # Filtrar por fechas si se especifican
+            if start_date or end_date:
+                if start_date:
+                    df = df[df.index >= pd.to_datetime(start_date)]
+                if end_date:
+                    df = df[df.index <= pd.to_datetime(end_date)]
+            
+            # Ejecutar backtest individual
+            results, stats = await self.run_backtest(
+                strategy=strategy,
+                data={symbol: df},
+                symbol=symbol,
+                timeframe=timeframe,
+                params=params
+            )
+            
+            # Guardar resultados
+            results_by_asset[symbol] = results
+            
+            # Acumular operaciones y curva de capital para estadísticas combinadas
+            if "trades" in results:
+                for trade in results["trades"]:
+                    trade["symbol"] = symbol  # Añadir símbolo para identificación
+                    all_trades.append(trade)
+                    
+            if "equity_curve" in results and results["equity_curve"]:
+                # Normalizar curva de capital para combinar
+                norm_equity = np.array(results["equity_curve"]) / results["equity_curve"][0]
+                all_equity_curves.append(norm_equity)
+        
+        # Calcular estadísticas combinadas
+        stats_combined = {
+            "total_trades": len(all_trades),
+            "win_trades": sum(1 for t in all_trades if t.get("profit_loss", 0) > 0),
+            "loss_trades": sum(1 for t in all_trades if t.get("profit_loss", 0) <= 0),
+            "profit_loss": sum(t.get("profit_loss", 0) for t in all_trades),
+            "win_rate": (sum(1 for t in all_trades if t.get("profit_loss", 0) > 0) / max(1, len(all_trades))) * 100
+        }
+        
+        # Calcular rendimiento combinado si hay curvas de capital
+        if all_equity_curves:
+            # Promedio de curvas normalizadas
+            avg_equity_curve = sum(all_equity_curves) / len(all_equity_curves)
+            stats_combined["combined_return"] = (avg_equity_curve[-1] - 1) * 100
+            
+            # Drawdown de la curva combinada
+            peak = np.maximum.accumulate(avg_equity_curve)
+            drawdown = (peak - avg_equity_curve) / peak * 100
+            stats_combined["max_drawdown"] = drawdown.max()
+        
+        return results_by_asset, stats_combined
         
     async def run_backtest(
         self,
