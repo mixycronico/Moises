@@ -6,6 +6,7 @@ seguridad y gestión de exchanges.
 """
 
 import pytest
+import logging
 from unittest.mock import Mock, patch
 
 # Importar componentes del sistema
@@ -15,45 +16,114 @@ from genesis.security.manager import SecurityUtils
 from genesis.exchanges.manager import ExchangeManager
 
 
-def test_config_load_and_set():
+# Fixtures para reutilizar instancias en las pruebas
+@pytest.fixture
+def config():
+    """Fixture que proporciona una instancia de Config."""
+    return Config()
+
+
+@pytest.fixture
+def exchange_manager():
+    """Fixture que proporciona una instancia de ExchangeManager con exchanges simulados."""
+    return ExchangeManager(exchanges=["binance", "kucoin"])
+
+
+@pytest.fixture
+def mock_logger():
+    """Fixture que simula el comportamiento del logging."""
+    with patch('genesis.utils.logger.logging') as mock_logging:
+        yield mock_logging
+
+
+# Pruebas para Config
+def test_config_load_and_set(config):
     """Prueba la carga y el establecimiento de configuraciones."""
-    config = Config()
-    default_value = config.get("log_level")
-    assert default_value == "INFO"
+    # Valor por defecto
+    assert config.get("log_level") == "INFO"
 
     # Cambiar y verificar
     config.set("log_level", "DEBUG")
     assert config.get("log_level") == "DEBUG"
 
 
-def test_logger_setup_logging():
+def test_config_get_non_existent_key(config):
+    """Prueba el comportamiento con una clave inexistente."""
+    assert config.get("non_existent_key") is None
+    assert config.get("non_existent_key", default="DEFAULT") == "DEFAULT"
+
+
+def test_config_set_invalid_type(config):
+    """Prueba el manejo de tipos no válidos al establecer configuraciones."""
+    with pytest.raises(TypeError):
+        config.set("log_level", 123)  # Suponiendo que Config valida tipos
+
+
+# Pruebas para Logger
+def test_logger_setup_logging(mock_logger):
     """Prueba que se configure el logging correctamente."""
-    # Esto no prueba un resultado directo sino que asegura que el método no lanza excepciones.
     try:
         logger = setup_logging("test_logger")
         assert logger is not None
+        mock_logger.getLogger.assert_called_with("test_logger")
     except Exception:
         pytest.fail("Logger setup failed unexpectedly")
 
 
+def test_logger_setup_logging_with_custom_level(mock_logger, config):
+    """Prueba la configuración del logger con un nivel personalizado."""
+    config.set("log_level", "DEBUG")
+    setup_logging("test_logger", level="DEBUG")
+    mock_logger.basicConfig.assert_called_once_with(level=logging.DEBUG)
+
+
+def test_logger_setup_logging_failure(mock_logger):
+    """Prueba el manejo de errores al configurar el logging."""
+    mock_logger.basicConfig.side_effect = Exception("Logging setup failed")
+    with pytest.raises(Exception, match="Logging setup failed"):
+        setup_logging("test_logger")
+
+
+# Pruebas para Security
 def test_security_hashing_and_verification():
     """Prueba el hashing y la verificación de contraseñas."""
     password = "securepassword"
     hashed = SecurityUtils.hash_password(password)
+    
+    # Verificación correcta
     assert SecurityUtils.verify_password(password, hashed)
-
+    
+    # Verificación incorrecta
     wrong_password = "wrongpassword"
     assert not SecurityUtils.verify_password(wrong_password, hashed)
 
 
-def test_exchange_manager_get_best_exchange():
+def test_security_hash_password_empty():
+    """Prueba el manejo de contraseñas vacías."""
+    with pytest.raises(ValueError, match="Password cannot be empty"):
+        SecurityUtils.hash_password("")
+
+
+def test_security_verify_password_invalid_hash():
+    """Prueba la verificación con un hash inválido."""
+    password = "securepassword"
+    invalid_hash = "invalid_hash_format"
+    assert not SecurityUtils.verify_password(password, invalid_hash)
+
+
+# Pruebas para ExchangeManager
+def test_exchange_manager_initialization(exchange_manager):
+    """Prueba la inicialización de ExchangeManager."""
+    assert "binance" in exchange_manager.exchanges
+    assert "kucoin" in exchange_manager.exchanges
+    assert exchange_manager.selector is not None
+
+
+def test_exchange_manager_get_best_exchange(exchange_manager):
     """Prueba la selección del mejor exchange."""
     # Mockear el selector de exchanges
     mock_selector = Mock()
     mock_selector.get_best_exchange.return_value = "binance"
-    
-    # Crear exchange manager con el selector mockeado
-    exchange_manager = ExchangeManager()
     exchange_manager.selector = mock_selector
     
     # Probar selección de mejor exchange
@@ -64,7 +134,16 @@ def test_exchange_manager_get_best_exchange():
     mock_selector.get_best_exchange.assert_called_once_with("BTC/USDT")
 
 
-def test_exchange_manager_execute_trade():
+def test_exchange_manager_get_best_exchange_no_exchanges():
+    """Prueba el comportamiento cuando no hay exchanges disponibles."""
+    exchange_manager = ExchangeManager()
+    exchange_manager.exchanges = {}
+    
+    with pytest.raises(ValueError, match="No exchanges available"):
+        exchange_manager.get_best_exchange("BTC/USDT")
+
+
+def test_exchange_manager_execute_trade(exchange_manager):
     """Prueba la ejecución de una operación en el mejor exchange."""
     # Crear un mock para el exchange
     mock_exchange = Mock()
@@ -72,9 +151,6 @@ def test_exchange_manager_execute_trade():
     
     # Mockear el método get_exchange para que devuelva nuestro mock
     with patch.object(ExchangeManager, 'get_exchange', return_value=mock_exchange):
-        # Crear exchange manager
-        exchange_manager = ExchangeManager()
-        
         # Probar ejecución de trade
         result = exchange_manager.execute_trade("BTC/USDT", "buy", 0.01, price=40000)
         
@@ -86,7 +162,29 @@ def test_exchange_manager_execute_trade():
         mock_exchange.execute_trade.assert_called_once_with("BTC/USDT", "buy", 0.01, price=40000)
 
 
-def test_exchange_manager_get_market_data():
+def test_exchange_manager_execute_trade_invalid_symbol(exchange_manager):
+    """Prueba el manejo de símbolos inválidos."""
+    # Crear un mock para el exchange que falla con símbolos inválidos
+    mock_exchange = Mock()
+    mock_exchange.execute_trade.side_effect = ValueError("Invalid symbol")
+    
+    # Mockear el método get_exchange para que devuelva nuestro mock
+    with patch.object(ExchangeManager, 'get_exchange', return_value=mock_exchange):
+        # Probar ejecución de trade con símbolo inválido
+        with pytest.raises(ValueError, match="Invalid symbol"):
+            exchange_manager.execute_trade("INVALID/SYMBOL", "buy", 0.01)
+
+
+def test_exchange_manager_execute_trade_exchange_unavailable(exchange_manager):
+    """Prueba el comportamiento cuando el exchange no está disponible."""
+    # Mockear get_exchange para simular que devuelve None para un exchange no disponible
+    with patch.object(ExchangeManager, 'get_exchange', return_value=None):
+        # Probar ejecución de trade con exchange no disponible
+        with pytest.raises(ValueError, match="Exchange not available"):
+            exchange_manager.execute_trade("BTC/USDT", "buy", 0.01)
+
+
+def test_exchange_manager_get_market_data(exchange_manager):
     """Prueba la obtención de datos de mercado."""
     # Crear un mock para el exchange
     mock_exchange = Mock()
@@ -101,9 +199,6 @@ def test_exchange_manager_get_market_data():
     
     # Mockear el método get_exchange para que devuelva nuestro mock
     with patch.object(ExchangeManager, 'get_exchange', return_value=mock_exchange):
-        # Crear exchange manager
-        exchange_manager = ExchangeManager()
-        
         # Probar obtención de datos
         ticker = exchange_manager.get_ticker("BTC/USDT")
         
@@ -115,7 +210,7 @@ def test_exchange_manager_get_market_data():
         mock_exchange.fetch_ticker.assert_called_once_with("BTC/USDT")
 
 
-def test_exchange_manager_get_balance():
+def test_exchange_manager_get_balance(exchange_manager):
     """Prueba la obtención de saldo en un exchange."""
     # Crear un mock para el exchange
     mock_exchange = Mock()
@@ -127,9 +222,6 @@ def test_exchange_manager_get_balance():
     
     # Mockear el método get_exchange para que devuelva nuestro mock
     with patch.object(ExchangeManager, 'get_exchange', return_value=mock_exchange):
-        # Crear exchange manager
-        exchange_manager = ExchangeManager()
-        
         # Probar obtención de saldo
         balance = exchange_manager.get_balance("binance")
         
@@ -139,3 +231,26 @@ def test_exchange_manager_get_balance():
         
         # Verificar que se llamó al método fetch_balance del exchange
         mock_exchange.fetch_balance.assert_called_once()
+
+
+# Pruebas de integración
+def test_config_and_logger_integration(config, mock_logger):
+    """Prueba la integración entre Config y Logger."""
+    config.set("log_level", "WARNING")
+    setup_logging("test_logger", config=config)
+    mock_logger.basicConfig.assert_called_once_with(level=logging.WARNING)
+
+
+def test_security_and_exchange_manager_integration(exchange_manager):
+    """Prueba la integración entre Security y ExchangeManager (simulada)."""
+    password = "securepassword"
+    hashed = SecurityUtils.hash_password(password)
+    
+    # Simulamos un método que usa credenciales seguras para autenticar un exchange
+    mock_client = Mock()
+    mock_client.authenticate.return_value = True
+    exchange_manager.exchanges["binance"] = mock_client
+
+    with patch.object(exchange_manager, 'get_best_exchange', return_value="binance"):
+        exchange_manager.exchanges["binance"].authenticate(hashed)
+        mock_client.authenticate.assert_called_once_with(hashed)
