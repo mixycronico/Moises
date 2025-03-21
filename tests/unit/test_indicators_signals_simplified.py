@@ -306,22 +306,24 @@ def test_signal_generator_macd_neutral_simplified(signal_generator):
     signal_line = np.array([np.nan, np.nan, 3, 4, 5])    # Línea de señal (siempre por debajo, sin cruce)
     histogram = np.array([np.nan, np.nan, 2, 2, 2])      # Histograma (sin cambio significativo)
     
-    # Mockear el cálculo de MACD para devolver valores controlados
-    signal_generator.indicators.calculate_macd.return_value = (macd_line, signal_line, histogram)
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_macd_signal(prices)
-    
-    # Verificar que se llamó a calculate_macd con los parámetros correctos
-    signal_generator.indicators.calculate_macd.assert_called_once_with(
-        prices, 
-        fast_period=12, 
-        slow_period=26, 
-        signal_period=9
-    )
-    
-    # Verificar el resultado esperado
-    assert signal == signal_generator.NEUTRAL
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_macd') as mock_macd:
+        # Configurar el valor de retorno del mock
+        mock_macd.return_value = (macd_line, signal_line, histogram)
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_macd_signal(prices)
+        
+        # Verificar que se llamó a calculate_macd con los parámetros correctos
+        mock_macd.assert_called_once_with(
+            prices, 
+            fast_period=12, 
+            slow_period=26, 
+            signal_period=9
+        )
+        
+        # Verificar el resultado esperado
+        assert signal == signal_generator.NEUTRAL
 
 
 # Tests para Bollinger Bands simplificados
@@ -334,21 +336,23 @@ def test_signal_generator_bollinger_bands_buy_simplified(signal_generator):
     middle_band = np.array([np.nan, np.nan, 120, 130, 130])  # Banda media
     lower_band = np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior (precio = 110 está cerca)
     
-    # Mockear el cálculo de Bollinger Bands para devolver valores controlados
-    signal_generator.indicators.calculate_bollinger_bands.return_value = (upper_band, middle_band, lower_band)
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_bollinger_bands_signal(prices)
-    
-    # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
-    signal_generator.indicators.calculate_bollinger_bands.assert_called_once_with(
-        prices, 
-        window=20, 
-        num_std_dev=2
-    )
-    
-    # Verificar el resultado esperado
-    assert signal == "BUY"
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_bollinger_bands') as mock_bb:
+        # Configurar el valor de retorno del mock
+        mock_bb.return_value = (upper_band, middle_band, lower_band)
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_bollinger_bands_signal(prices)
+        
+        # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
+        mock_bb.assert_called_once_with(
+            prices, 
+            window=20, 
+            num_std_dev=2
+        )
+        
+        # Verificar el resultado esperado
+        assert signal == "BUY"
 
 
 def test_signal_generator_bollinger_bands_sell_simplified(signal_generator):
@@ -360,21 +364,23 @@ def test_signal_generator_bollinger_bands_sell_simplified(signal_generator):
     middle_band = np.array([np.nan, np.nan, 120, 130, 130])  # Banda media
     lower_band = np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior
     
-    # Mockear el cálculo de Bollinger Bands para devolver valores controlados
-    signal_generator.indicators.calculate_bollinger_bands.return_value = (upper_band, middle_band, lower_band)
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_bollinger_bands_signal(prices)
-    
-    # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
-    signal_generator.indicators.calculate_bollinger_bands.assert_called_once_with(
-        prices, 
-        window=20, 
-        num_std_dev=2
-    )
-    
-    # Verificar el resultado esperado
-    assert signal == "SELL"
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_bollinger_bands') as mock_bb:
+        # Configurar el valor de retorno del mock
+        mock_bb.return_value = (upper_band, middle_band, lower_band)
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_bollinger_bands_signal(prices)
+        
+        # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
+        mock_bb.assert_called_once_with(
+            prices, 
+            window=20, 
+            num_std_dev=2
+        )
+        
+        # Verificar el resultado esperado
+        assert signal == "SELL"
 
 
 def test_signal_generator_bollinger_bands_neutral_simplified(signal_generator):
@@ -386,21 +392,23 @@ def test_signal_generator_bollinger_bands_neutral_simplified(signal_generator):
     middle_band = np.array([np.nan, np.nan, 120, 130, 130])  # Banda media (precio = 130 está en la media)
     lower_band = np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior
     
-    # Mockear el cálculo de Bollinger Bands para devolver valores controlados
-    signal_generator.indicators.calculate_bollinger_bands.return_value = (upper_band, middle_band, lower_band)
-    
-    # Ejecutar la función bajo prueba
-    signal = signal_generator.generate_bollinger_bands_signal(prices)
-    
-    # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
-    signal_generator.indicators.calculate_bollinger_bands.assert_called_once_with(
-        prices, 
-        window=20, 
-        num_std_dev=2
-    )
-    
-    # Verificar el resultado esperado
-    assert signal == signal_generator.NEUTRAL
+    # Usar patch directamente para mockear la función
+    with patch.object(TechnicalIndicators, 'calculate_bollinger_bands') as mock_bb:
+        # Configurar el valor de retorno del mock
+        mock_bb.return_value = (upper_band, middle_band, lower_band)
+        
+        # Ejecutar la función bajo prueba
+        signal = signal_generator.generate_bollinger_bands_signal(prices)
+        
+        # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
+        mock_bb.assert_called_once_with(
+            prices, 
+            window=20, 
+            num_std_dev=2
+        )
+        
+        # Verificar el resultado esperado
+        assert signal == signal_generator.NEUTRAL
 
 
 # Tests para combinación de señales simplificados
