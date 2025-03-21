@@ -23,4 +23,5 @@ dependencies = [
     "scipy>=1.15.2",
     "sqlalchemy>=2.0.39",
     "uvicorn>=0.34.0",
+    "pycryptodome>=3.22.0",
 ]

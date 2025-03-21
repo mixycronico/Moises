@@ -6,21 +6,20 @@ alertas basadas en diferentes condiciones del mercado y del sistema.
 """
 
 import asyncio
-import time
-import threading
-import random
-import os
-import json
-from typing import Dict, List, Any, Optional, Callable
-from datetime import datetime
 import logging
+from typing import Optional, List, Dict, Any, Union
+from datetime import datetime
 
 from genesis.core.base import Component
-from genesis.utils.logger import setup_logging
-
+from genesis.notifications.email_notifier import EmailNotifier
 
 class AlertCondition:
-    """Clase para representar una condición de alerta."""
+    """
+    Clase para representar una condición de alerta.
+    
+    Esta clase define las condiciones para disparar una alerta,
+    incluyendo el tipo de condición y los parámetros específicos.
+    """
     
     def __init__(
         self,
@@ -45,15 +44,15 @@ class AlertCondition:
         self.condition_type = condition_type
         self.params = params
         self.message_template = message_template
-        self.last_triggered = 0  # Timestamp de la última vez que se activó
-        self.is_active = True
+        self.last_triggered = None
+        self.enabled = True
         
     def to_dict(self) -> Dict[str, Any]:
         """
-        Convertir a diccionario.
+        Convertir a diccionario para almacenamiento o transmisión.
         
         Returns:
-            Diccionario con los datos de la alerta
+            Representación como diccionario
         """
         return {
             "name": self.name,
@@ -61,584 +60,513 @@ class AlertCondition:
             "condition_type": self.condition_type,
             "params": self.params,
             "message_template": self.message_template,
-            "is_active": self.is_active
+            "last_triggered": self.last_triggered,
+            "enabled": self.enabled
         }
-    
+        
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'AlertCondition':
         """
-        Crear desde diccionario.
+        Crear una condición de alerta desde un diccionario.
         
         Args:
-            data: Diccionario con los datos de la alerta
+            data: Datos de la condición
             
         Returns:
             Instancia de AlertCondition
         """
         condition = cls(
-            data["name"],
-            data["symbol"],
-            data["condition_type"],
-            data["params"],
-            data["message_template"]
+            name=data["name"],
+            symbol=data["symbol"],
+            condition_type=data["condition_type"],
+            params=data["params"],
+            message_template=data["message_template"]
         )
-        condition.is_active = data.get("is_active", True)
+        condition.last_triggered = data.get("last_triggered")
+        condition.enabled = data.get("enabled", True)
         return condition
-
-
+        
 class AlertManager(Component):
     """
-    Gestor de alertas para el sistema Genesis.
+    Gestor de alertas del sistema.
     
-    Este componente monitorea diferentes condiciones del mercado
-    y genera alertas cuando se cumplen.
+    Este componente gestiona la creación, evaluación y envío de alertas
+    basadas en diferentes condiciones y canales.
     """
     
     def __init__(
         self,
-        name: str = "alert_manager",
-        check_interval: float = 10.0
+        email_notifier: EmailNotifier,
+        name: str = "alert_manager"
     ):
         """
         Inicializar el gestor de alertas.
         
         Args:
+            email_notifier: Instancia de EmailNotifier para enviar correos
             name: Nombre del componente
-            check_interval: Intervalo en segundos para comprobar alertas
         """
         super().__init__(name)
-        self.logger = setup_logging(name)
-        self.check_interval = check_interval
-        
-        # Condiciones de alerta registradas
+        self.email_notifier = email_notifier
         self.conditions: Dict[str, AlertCondition] = {}
+        self.throttle_times: Dict[str, int] = {}  # Para evitar envío excesivo
+        self.logger = logging.getLogger(__name__)
         
-        # Callbacks para evaluar condiciones
-        self.condition_evaluators: Dict[str, Callable] = {
-            "price": self._evaluate_price_condition,
-            "indicator": self._evaluate_indicator_condition,
-            "volume": self._evaluate_volume_condition,
-            "time": self._evaluate_time_condition,
-            "custom": self._evaluate_custom_condition
-        }
-        
-        # Cache de datos del mercado
-        self.market_data_cache: Dict[str, Dict[str, Any]] = {}
-        
-        # Ruta para persistencia
-        self.storage_path = "data/alerts"
-        os.makedirs(self.storage_path, exist_ok=True)
-    
     async def start(self) -> None:
         """Iniciar el gestor de alertas."""
         await super().start()
-        
-        # Cargar alertas guardadas
-        self._load_alerts()
-        
-        # Iniciar bucle de comprobación
-        self.check_task = asyncio.create_task(self._check_loop())
-        
         self.logger.info("Gestor de alertas iniciado")
-    
+        
     async def stop(self) -> None:
         """Detener el gestor de alertas."""
-        # Cancelar tarea de comprobación
-        if hasattr(self, 'check_task') and self.check_task:
-            self.check_task.cancel()
-            try:
-                await self.check_task
-            except asyncio.CancelledError:
-                pass
-        
-        # Guardar alertas
-        self._save_alerts()
-        
         await super().stop()
         self.logger.info("Gestor de alertas detenido")
-    
-    def add_condition(self, condition: AlertCondition) -> bool:
-        """
-        Añadir una condición de alerta.
         
-        Args:
-            condition: Condición de alerta
-            
-        Returns:
-            True si se añadió correctamente, False en caso contrario
-        """
-        # Generar ID único si no existe
-        condition_id = f"{condition.symbol}_{condition.name}_{int(time.time())}"
-        
-        # Comprobar si el tipo de condición está soportado
-        if condition.condition_type not in self.condition_evaluators:
-            self.logger.error(f"Tipo de condición no soportado: {condition.condition_type}")
-            return False
-        
-        # Añadir la condición
-        self.conditions[condition_id] = condition
-        self.logger.info(f"Condición de alerta añadida: {condition_id}")
-        
-        # Guardar alertas
-        self._save_alerts()
-        
-        return True
-    
-    def remove_condition(self, condition_id: str) -> bool:
-        """
-        Eliminar una condición de alerta.
-        
-        Args:
-            condition_id: ID de la condición
-            
-        Returns:
-            True si se eliminó correctamente, False en caso contrario
-        """
-        if condition_id in self.conditions:
-            del self.conditions[condition_id]
-            self.logger.info(f"Condición de alerta eliminada: {condition_id}")
-            
-            # Guardar alertas
-            self._save_alerts()
-            
-            return True
-        
-        return False
-    
-    def enable_condition(self, condition_id: str) -> bool:
-        """
-        Activar una condición de alerta.
-        
-        Args:
-            condition_id: ID de la condición
-            
-        Returns:
-            True si se activó correctamente, False en caso contrario
-        """
-        if condition_id in self.conditions:
-            self.conditions[condition_id].is_active = True
-            self.logger.info(f"Condición de alerta activada: {condition_id}")
-            return True
-        
-        return False
-    
-    def disable_condition(self, condition_id: str) -> bool:
-        """
-        Desactivar una condición de alerta.
-        
-        Args:
-            condition_id: ID de la condición
-            
-        Returns:
-            True si se desactivó correctamente, False en caso contrario
-        """
-        if condition_id in self.conditions:
-            self.conditions[condition_id].is_active = False
-            self.logger.info(f"Condición de alerta desactivada: {condition_id}")
-            return True
-        
-        return False
-    
-    def get_conditions(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Obtener todas las condiciones de alerta.
-        
-        Returns:
-            Diccionario de condiciones
-        """
-        return {id: condition.to_dict() for id, condition in self.conditions.items()}
-    
     async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
         Manejar eventos del bus de eventos.
-        
-        Este método procesa eventos que actualizan los datos del mercado
-        y pueden activar alertas.
         
         Args:
             event_type: Tipo de evento
             data: Datos del evento
             source: Componente de origen
         """
-        # Actualizar cache de datos del mercado
-        if event_type == "market.ticker_updated":
-            self._update_market_data(data)
-        elif event_type == "market.indicator_updated":
-            self._update_indicator_data(data)
-    
-    async def _check_loop(self) -> None:
-        """Bucle principal para comprobar condiciones de alerta."""
-        self.logger.info("Iniciando bucle de comprobación de alertas")
-        
-        while True:
-            # Comprobar todas las condiciones activas
-            for condition_id, condition in self.conditions.items():
-                if not condition.is_active:
-                    continue
+        if event_type == "alert.add_condition":
+            condition = AlertCondition(
+                name=data.get("name", ""),
+                symbol=data.get("symbol", ""),
+                condition_type=data.get("condition_type", ""),
+                params=data.get("params", {}),
+                message_template=data.get("message_template", "")
+            )
+            self.add_condition(condition)
+            
+        elif event_type == "alert.remove_condition":
+            name = data.get("name")
+            if name:
+                self.remove_condition(name)
                 
-                # Evaluar la condición
-                try:
-                    is_triggered, details = await self._evaluate_condition(condition)
+        elif event_type == "alert.check_price":
+            symbol = data.get("symbol")
+            price = data.get("price")
+            if symbol and price is not None:
+                await self.check_price_alerts(symbol, price)
+                
+        elif event_type == "alert.send":
+            alert_type = data.get("type")
+            alert_data = data.get("data", {})
+            recipients = data.get("recipients")
+            await self.send_alert(alert_type, alert_data, recipients)
+            
+    def add_condition(self, condition: AlertCondition) -> bool:
+        """
+        Añadir una condición de alerta.
+        
+        Args:
+            condition: Condición a añadir
+            
+        Returns:
+            True si se añadió correctamente, False en caso contrario
+        """
+        if not condition.name:
+            self.logger.error("No se puede añadir una condición sin nombre.")
+            return False
+            
+        if condition.name in self.conditions:
+            self.logger.warning(f"Reemplazando condición existente: {condition.name}")
+            
+        self.conditions[condition.name] = condition
+        self.logger.info(f"Condición añadida: {condition.name}, tipo: {condition.condition_type}")
+        return True
+        
+    def remove_condition(self, name: str) -> bool:
+        """
+        Eliminar una condición por su nombre.
+        
+        Args:
+            name: Nombre de la condición
+            
+        Returns:
+            True si se eliminó correctamente, False en caso contrario
+        """
+        if name in self.conditions:
+            del self.conditions[name]
+            self.logger.info(f"Condición eliminada: {name}")
+            return True
+        else:
+            self.logger.warning(f"Condición no encontrada: {name}")
+            return False
+            
+    def enable_condition(self, name: str) -> bool:
+        """
+        Habilitar una condición.
+        
+        Args:
+            name: Nombre de la condición
+            
+        Returns:
+            True si se habilitó correctamente, False en caso contrario
+        """
+        if name in self.conditions:
+            self.conditions[name].enabled = True
+            self.logger.info(f"Condición habilitada: {name}")
+            return True
+        return False
+        
+    def disable_condition(self, name: str) -> bool:
+        """
+        Deshabilitar una condición.
+        
+        Args:
+            name: Nombre de la condición
+            
+        Returns:
+            True si se deshabilitó correctamente, False en caso contrario
+        """
+        if name in self.conditions:
+            self.conditions[name].enabled = False
+            self.logger.info(f"Condición deshabilitada: {name}")
+            return True
+        return False
+        
+    def get_conditions(self, filter_type: Optional[str] = None) -> List[AlertCondition]:
+        """
+        Obtener todas las condiciones o filtradas por tipo.
+        
+        Args:
+            filter_type: Tipo de condición para filtrar
+            
+        Returns:
+            Lista de condiciones
+        """
+        if filter_type:
+            return [c for c in self.conditions.values() if c.condition_type == filter_type]
+        else:
+            return list(self.conditions.values())
+            
+    async def check_price_alerts(self, symbol: str, current_price: float) -> None:
+        """
+        Verificar alertas de precio para un símbolo.
+        
+        Args:
+            symbol: Símbolo de trading
+            current_price: Precio actual
+        """
+        triggered = []
+        for condition in self.get_conditions("price"):
+            if not condition.enabled or condition.symbol != symbol:
+                continue
+                
+            # Evaluar la condición de precio
+            if self._evaluate_price_condition(condition, current_price):
+                # Verificar si está dentro del tiempo de limitación
+                if self._can_trigger(condition.name):
+                    triggered.append(condition)
+                    condition.last_triggered = datetime.utcnow().isoformat()
                     
-                    # Si se activó, emitir evento de alerta
-                    if is_triggered:
-                        # Actualizar timestamp de última activación
-                        condition.last_triggered = time.time()
-                        
-                        # Crear mensaje personalizado
-                        message = self._format_alert_message(condition, details)
-                        
-                        # Determinar severidad
-                        severity = condition.params.get("severity", "info")
-                        
-                        # Emitir evento
-                        await self.emit_event("alert.triggered", {
-                            "type": condition.condition_type,
-                            "symbol": condition.symbol,
-                            "name": condition.name,
-                            "message": message,
-                            "severity": severity,
-                            "details": details,
-                            "condition_id": condition_id,
-                            "timestamp": datetime.now().isoformat()
-                        })
-                        
-                        self.logger.info(f"Alerta activada: {condition_id} - {message}")
-                
-                except Exception as e:
-                    self.logger.error(f"Error al evaluar condición {condition_id}: {e}")
+        # Enviar alertas para condiciones disparadas
+        for condition in triggered:
+            # Formato del mensaje
+            message = self._format_message(condition, {
+                "symbol": symbol,
+                "price": current_price,
+                "time": datetime.utcnow().isoformat()
+            })
             
-            # Esperar el intervalo configurado
-            await asyncio.sleep(self.check_interval)
-    
-    async def _evaluate_condition(self, condition: AlertCondition) -> tuple:
+            # Emitir evento
+            await self.emit_event("alert.triggered", {
+                "condition_name": condition.name,
+                "symbol": symbol,
+                "price": current_price
+            })
+            
+            # Enviar notificación por correo
+            subject = f"Alerta de precio - {symbol}"
+            details = {
+                "Símbolo": symbol,
+                "Precio": f"{current_price:.2f}",
+                "Condición": condition.name,
+                "Tipo": condition.condition_type
+            }
+            html_message = EmailNotifier.create_html_message("Alerta de Precio", details)
+            
+            # Usar email_notifier para enviar
+            await self.email_notifier.send_email(
+                subject=subject,
+                message=html_message,
+                recipients=condition.params.get("recipients"),
+                html=True
+            )
+            
+    def _evaluate_price_condition(self, condition: AlertCondition, price: float) -> bool:
         """
-        Evaluar una condición de alerta.
+        Evaluar si una condición de precio se cumple.
         
         Args:
             condition: Condición a evaluar
+            price: Precio actual
             
         Returns:
-            Tupla (is_triggered, details)
+            True si la condición se cumple, False en caso contrario
         """
-        # Obtener el evaluador adecuado
-        evaluator = self.condition_evaluators.get(condition.condition_type)
-        if not evaluator:
-            self.logger.error(f"No hay evaluador para el tipo: {condition.condition_type}")
-            return False, {}
+        params = condition.params
+        condition_type = params.get("condition", "above")
+        target_price = params.get("target_price", 0.0)
         
-        # Evaluar la condición
-        return await evaluator(condition)
-    
-    async def _evaluate_price_condition(self, condition: AlertCondition) -> tuple:
+        if condition_type == "above" and price > target_price:
+            return True
+        elif condition_type == "below" and price < target_price:
+            return True
+        elif condition_type == "change":
+            # Condición de cambio porcentual
+            pct_change = params.get("pct_change", 5.0)
+            reference_price = params.get("reference_price", price)
+            change = abs(price - reference_price) / reference_price * 100
+            return change >= pct_change
+            
+        return False
+        
+    def _can_trigger(self, condition_name: str) -> bool:
         """
-        Evaluar una condición de precio.
+        Verificar si una condición puede dispararse según límites de tiempo.
         
         Args:
-            condition: Condición a evaluar
+            condition_name: Nombre de la condición
             
         Returns:
-            Tupla (is_triggered, details)
+            True si puede dispararse, False en caso contrario
         """
-        # Obtener datos actuales del mercado
-        market_data = self.market_data_cache.get(condition.symbol)
-        if not market_data:
-            return False, {}
+        now = datetime.utcnow().timestamp()
+        last_time = self.throttle_times.get(condition_name, 0)
         
-        # Obtener precio actual
-        current_price = market_data.get("price")
-        if current_price is None:
-            return False, {}
+        # Límite predeterminado de 5 minutos (300 segundos) entre alertas
+        min_interval = 300
         
-        # Obtener parámetros de la condición
-        comparator = condition.params.get("comparator", "==")
-        target_price = condition.params.get("price", 0)
-        
-        # Evaluar según el comparador
-        is_triggered = False
-        if comparator == "==":
-            is_triggered = current_price == target_price
-        elif comparator == "!=":
-            is_triggered = current_price != target_price
-        elif comparator == ">":
-            is_triggered = current_price > target_price
-        elif comparator == ">=":
-            is_triggered = current_price >= target_price
-        elif comparator == "<":
-            is_triggered = current_price < target_price
-        elif comparator == "<=":
-            is_triggered = current_price <= target_price
-        
-        details = {
-            "current_price": current_price,
-            "target_price": target_price,
-            "comparator": comparator
-        }
-        
-        return is_triggered, details
-    
-    async def _evaluate_indicator_condition(self, condition: AlertCondition) -> tuple:
-        """
-        Evaluar una condición de indicador.
-        
-        Args:
-            condition: Condición a evaluar
+        if now - last_time >= min_interval:
+            self.throttle_times[condition_name] = now
+            return True
             
-        Returns:
-            Tupla (is_triggered, details)
+        return False
+        
+    def _format_message(self, condition: AlertCondition, data: Dict[str, Any]) -> str:
         """
-        # Simulación simple de evaluación de indicadores
-        # En una implementación real, se consultaría el valor actual del indicador
-        
-        # Obtener parámetros
-        indicator = condition.params.get("indicator", "")
-        comparator = condition.params.get("comparator", "==")
-        threshold = condition.params.get("threshold", 0)
-        
-        # Aquí se consultaría el valor actual del indicador
-        # Por ahora, simulamos un valor
-        current_value = random.random() * 100  # Simulación
-        
-        # Evaluar según el comparador
-        is_triggered = False
-        if comparator == "==":
-            is_triggered = current_value == threshold
-        elif comparator == "!=":
-            is_triggered = current_value != threshold
-        elif comparator == ">":
-            is_triggered = current_value > threshold
-        elif comparator == ">=":
-            is_triggered = current_value >= threshold
-        elif comparator == "<":
-            is_triggered = current_value < threshold
-        elif comparator == "<=":
-            is_triggered = current_value <= threshold
-        
-        details = {
-            "indicator": indicator,
-            "current_value": current_value,
-            "threshold": threshold,
-            "comparator": comparator
-        }
-        
-        return is_triggered, details
-    
-    async def _evaluate_volume_condition(self, condition: AlertCondition) -> tuple:
-        """
-        Evaluar una condición de volumen.
+        Formatear un mensaje de alerta.
         
         Args:
-            condition: Condición a evaluar
-            
-        Returns:
-            Tupla (is_triggered, details)
-        """
-        # Obtener datos actuales del mercado
-        market_data = self.market_data_cache.get(condition.symbol)
-        if not market_data:
-            return False, {}
-        
-        # Obtener volumen actual
-        current_volume = market_data.get("volume", 0)
-        
-        # Obtener parámetros de la condición
-        comparator = condition.params.get("comparator", "==")
-        threshold = condition.params.get("threshold", 0)
-        
-        # Evaluar según el comparador
-        is_triggered = False
-        if comparator == "==":
-            is_triggered = current_volume == threshold
-        elif comparator == "!=":
-            is_triggered = current_volume != threshold
-        elif comparator == ">":
-            is_triggered = current_volume > threshold
-        elif comparator == ">=":
-            is_triggered = current_volume >= threshold
-        elif comparator == "<":
-            is_triggered = current_volume < threshold
-        elif comparator == "<=":
-            is_triggered = current_volume <= threshold
-        
-        details = {
-            "current_volume": current_volume,
-            "threshold": threshold,
-            "comparator": comparator
-        }
-        
-        return is_triggered, details
-    
-    async def _evaluate_time_condition(self, condition: AlertCondition) -> tuple:
-        """
-        Evaluar una condición de tiempo.
-        
-        Args:
-            condition: Condición a evaluar
-            
-        Returns:
-            Tupla (is_triggered, details)
-        """
-        # Obtener hora actual
-        now = datetime.now()
-        
-        # Obtener parámetros de la condición
-        time_str = condition.params.get("time", "")
-        days = condition.params.get("days", [])  # 0=lunes, 6=domingo
-        
-        # Si no hay configuración de tiempo, no se activa
-        if not time_str:
-            return False, {}
-        
-        # Parsear hora
-        try:
-            hour, minute = map(int, time_str.split(":"))
-            target_time = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        except Exception:
-            return False, {"error": "Formato de hora inválido"}
-        
-        # Comprobar si la hora actual está dentro del rango de activación
-        # (permitimos un margen de un minuto)
-        time_diff = abs((now - target_time).total_seconds())
-        is_time_match = time_diff <= 60  # Un minuto de margen
-        
-        # Comprobar si el día actual está en la lista de días
-        is_day_match = True
-        if days:
-            current_day = now.weekday()  # 0=lunes, 6=domingo
-            is_day_match = current_day in days
-        
-        is_triggered = is_time_match and is_day_match
-        
-        details = {
-            "current_time": now.strftime("%H:%M"),
-            "target_time": time_str,
-            "current_day": now.weekday(),
-            "target_days": days
-        }
-        
-        return is_triggered, details
-    
-    async def _evaluate_custom_condition(self, condition: AlertCondition) -> tuple:
-        """
-        Evaluar una condición personalizada.
-        
-        Args:
-            condition: Condición a evaluar
-            
-        Returns:
-            Tupla (is_triggered, details)
-        """
-        # Esta implementación dependerá de la lógica específica
-        # Por ahora, devolvemos False
-        return False, {}
-    
-    def _update_market_data(self, data: Dict[str, Any]) -> None:
-        """
-        Actualizar datos del mercado en el cache.
-        
-        Args:
-            data: Datos del mercado
-        """
-        symbol = data.get("symbol")
-        if not symbol:
-            return
-        
-        # Actualizar o crear entrada en el cache
-        if symbol not in self.market_data_cache:
-            self.market_data_cache[symbol] = {}
-        
-        # Actualizar datos
-        self.market_data_cache[symbol].update({
-            "price": data.get("price"),
-            "volume": data.get("volume"),
-            "bid": data.get("bid"),
-            "ask": data.get("ask"),
-            "high": data.get("high"),
-            "low": data.get("low"),
-            "timestamp": data.get("timestamp") or datetime.now().isoformat()
-        })
-    
-    def _update_indicator_data(self, data: Dict[str, Any]) -> None:
-        """
-        Actualizar datos de indicadores en el cache.
-        
-        Args:
-            data: Datos del indicador
-        """
-        symbol = data.get("symbol")
-        indicator = data.get("indicator")
-        
-        if not symbol or not indicator:
-            return
-        
-        # Actualizar o crear entrada en el cache
-        if symbol not in self.market_data_cache:
-            self.market_data_cache[symbol] = {}
-        
-        if "indicators" not in self.market_data_cache[symbol]:
-            self.market_data_cache[symbol]["indicators"] = {}
-        
-        # Actualizar indicador
-        self.market_data_cache[symbol]["indicators"][indicator] = {
-            "value": data.get("value"),
-            "timestamp": data.get("timestamp") or datetime.now().isoformat()
-        }
-    
-    def _format_alert_message(self, condition: AlertCondition, details: Dict[str, Any]) -> str:
-        """
-        Formatear mensaje de alerta.
-        
-        Args:
-            condition: Condición que se activó
-            details: Detalles de la activación
+            condition: Condición de la alerta
+            data: Datos para el formato
             
         Returns:
             Mensaje formateado
         """
-        # Usar plantilla o crear mensaje predeterminado
-        if condition.message_template:
-            try:
-                # Formatear usando la plantilla y los detalles
-                return condition.message_template.format(**details)
-            except Exception as e:
-                self.logger.error(f"Error al formatear mensaje: {e}")
-        
-        # Mensaje predeterminado si no hay plantilla o hay error
-        return f"Alerta: {condition.name} para {condition.symbol}"
-    
-    def _save_alerts(self) -> None:
-        """Guardar condiciones de alerta en disco."""
         try:
-            alerts_data = {id: condition.to_dict() for id, condition in self.conditions.items()}
-            file_path = os.path.join(self.storage_path, "alerts.json")
+            return condition.message_template.format(**data)
+        except KeyError as e:
+            self.logger.error(f"Error al formatear mensaje: {e}")
+            return f"Alerta: {condition.name} disparada."
             
-            with open(file_path, 'w') as f:
-                json.dump(alerts_data, f, indent=2)
+    async def send_alert(
+        self, 
+        alert_type: str, 
+        alert_data: Dict[str, Any], 
+        recipients: Optional[List[str]] = None
+    ) -> None:
+        """
+        Enviar una alerta específica.
+        
+        Args:
+            alert_type: Tipo de alerta (anomalía, estrategia, etc.)
+            alert_data: Datos de la alerta
+            recipients: Lista de destinatarios
+        """
+        if alert_type == "anomalia":
+            await self.alerta_anomalia(
+                symbol=alert_data.get("symbol", ""),
+                z_score=alert_data.get("z_score", 0.0),
+                price=alert_data.get("price", 0.0),
+                mean=alert_data.get("mean", 0.0),
+                std=alert_data.get("std", 0.0),
+                destinatarios=recipients
+            )
+        elif alert_type == "estrategia":
+            await self.alerta_estrategia(
+                strategy_name=alert_data.get("strategy_name", ""),
+                performance=alert_data.get("performance", 0.0),
+                capital=alert_data.get("capital", 0.0),
+                destinatarios=recipients
+            )
+        elif alert_type == "falla_sistema":
+            await self.alerta_falla_sistema(
+                error_message=alert_data.get("error_message", ""),
+                destinatarios=recipients
+            )
+        elif alert_type == "kill_switch":
+            await self.alerta_kill_switch(
+                market_drop=alert_data.get("market_drop", 0.0),
+                capital=alert_data.get("capital", 0.0),
+                destinatarios=recipients
+            )
+        else:
+            self.logger.warning(f"Tipo de alerta desconocido: {alert_type}")
             
-            self.logger.debug(f"Alertas guardadas en {file_path}")
-        except Exception as e:
-            self.logger.error(f"Error al guardar alertas: {e}")
-    
-    def _load_alerts(self) -> None:
-        """Cargar condiciones de alerta desde disco."""
-        file_path = os.path.join(self.storage_path, "alerts.json")
+    async def alerta_anomalia(
+        self, 
+        symbol: str, 
+        z_score: float, 
+        price: float, 
+        mean: float, 
+        std: float,
+        destinatarios: Optional[List[str]] = None
+    ) -> None:
+        """
+        Enviar una alerta de anomalía en el mercado con formato HTML.
         
-        if not os.path.exists(file_path):
-            self.logger.debug(f"No hay archivo de alertas en {file_path}")
-            return
-        
+        Args:
+            symbol: Símbolo del par de trading
+            z_score: Valor de la anomalía (z-score)
+            price: Precio actual
+            mean: Media del precio
+            std: Desviación estándar
+            destinatarios: Lista de destinatarios
+        """
         try:
-            with open(file_path, 'r') as f:
-                alerts_data = json.load(f)
-            
-            # Crear condiciones desde los datos
-            for id, data in alerts_data.items():
-                self.conditions[id] = AlertCondition.from_dict(data)
-            
-            self.logger.info(f"Cargadas {len(self.conditions)} alertas")
+            asunto = f"🚨 Anomalía Detectada en {symbol}"
+            details = {
+                "Símbolo": symbol,
+                "Z-Score": f"{z_score:.2f}",
+                "Precio Actual": f"${price:.2f}",
+                "Promedio": f"${mean:.2f}",
+                "Desviación Estándar": f"${std:.2f}"
+            }
+            mensaje = EmailNotifier.create_html_message("Anomalía Detectada", details)
+            await self.email_notifier.send_email(asunto, mensaje, destinatarios, html=True)
+            self.logger.info(f"Alerta de anomalía enviada para {symbol}, z_score={z_score:.2f}")
         except Exception as e:
-            self.logger.error(f"Error al cargar alertas: {e}")
-
-
-# Exportación para uso fácil
-alert_manager = AlertManager()
+            self.logger.error(f"Error al enviar alerta de anomalía: {e}")
+            
+    async def alerta_estrategia(
+        self, 
+        strategy_name: str,
+        performance: float, 
+        capital: float,
+        destinatarios: Optional[List[str]] = None
+    ) -> None:
+        """
+        Enviar una alerta sobre el desempeño de una estrategia con formato HTML.
+        
+        Args:
+            strategy_name: Nombre de la estrategia
+            performance: Rendimiento de la estrategia
+            capital: Capital actual
+            destinatarios: Lista de destinatarios
+        """
+        try:
+            asunto = f"📈 Actualización de Estrategia: {strategy_name}"
+            details = {
+                "Estrategia": strategy_name,
+                "Rendimiento": f"{performance:.2f}%",
+                "Capital Actual": f"${capital:.2f}"
+            }
+            mensaje = EmailNotifier.create_html_message("Actualización de Estrategia", details)
+            await self.email_notifier.send_email(asunto, mensaje, destinatarios, html=True)
+            self.logger.info(f"Alerta de estrategia enviada para {strategy_name}, rendimiento={performance:.2f}%")
+        except Exception as e:
+            self.logger.error(f"Error al enviar alerta de estrategia: {e}")
+            
+    async def alerta_falla_sistema(
+        self, 
+        error_message: str, 
+        destinatarios: Optional[List[str]] = None
+    ) -> None:
+        """
+        Enviar una alerta de fallo crítico del sistema con formato HTML.
+        
+        Args:
+            error_message: Mensaje de error
+            destinatarios: Lista de destinatarios
+        """
+        try:
+            asunto = "⚠️ Falla Crítica en Genesis"
+            details = {
+                "Mensaje de Error": error_message,
+                "Sistema": "Genesis Trading Platform",
+                "Timestamp": datetime.utcnow().isoformat()
+            }
+            mensaje = EmailNotifier.create_html_message("Falla Crítica del Sistema", details)
+            await self.email_notifier.send_email(asunto, mensaje, destinatarios, html=True)
+            self.logger.critical(f"Alerta de falla crítica enviada: {error_message}")
+        except Exception as e:
+            self.logger.error(f"Error al enviar alerta de falla: {e}")
+            
+    async def alerta_kill_switch(
+        self, 
+        market_drop: float, 
+        capital: float,
+        destinatarios: Optional[List[str]] = None
+    ) -> None:
+        """
+        Enviar una alerta cuando se activa el kill switch con formato HTML.
+        
+        Args:
+            market_drop: Caída del mercado en porcentaje
+            capital: Capital actual
+            destinatarios: Lista de destinatarios
+        """
+        try:
+            asunto = "🛑 Kill Switch Activado"
+            details = {
+                "Causa": f"Caída del mercado del {market_drop:.2%}",
+                "Capital Actual": f"${capital:.2f}",
+                "Acción": "Todo convertido a USDT",
+                "Timestamp": datetime.utcnow().isoformat()
+            }
+            mensaje = EmailNotifier.create_html_message("Kill Switch Activado", details)
+            await self.email_notifier.send_email(asunto, mensaje, destinatarios, html=True)
+            self.logger.critical(f"Alerta de kill switch enviada: caída del {market_drop:.2%}")
+        except Exception as e:
+            self.logger.error(f"Error al enviar alerta de kill switch: {e}")
+            
+    async def enviar_alerta_genérica(
+        self, 
+        asunto: str, 
+        mensaje: str, 
+        destinatarios: Optional[List[str]] = None
+    ) -> None:
+        """
+        Enviar una alerta genérica por correo electrónico.
+        
+        Args:
+            asunto: Asunto del correo
+            mensaje: Cuerpo del mensaje (texto plano)
+            destinatarios: Lista de correos electrónicos
+        """
+        try:
+            await self.email_notifier.send_email(asunto, mensaje, destinatarios, html=False)
+            self.logger.info(f"Alerta genérica enviada: {asunto}")
+        except Exception as e:
+            self.logger.error(f"Error al enviar alerta genérica: {e}")
+            
+    def get_alert_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Obtener historial de alertas disparadas.
+        
+        Args:
+            limit: Número máximo de alertas a devolver
+            
+        Returns:
+            Lista de alertas disparadas
+        """
+        # En una implementación real, esto consultaría una base de datos
+        # o un archivo de logs para obtener el historial.
+        # Aquí simplemente devolvemos una lista de condiciones
+        # que han sido disparadas recientemente.
+        triggered = []
+        for condition in self.conditions.values():
+            if condition.last_triggered:
+                triggered.append(condition.to_dict())
+                
+        # Ordenar por fecha de disparo (más reciente primero)
+        triggered.sort(key=lambda x: x.get("last_triggered", ""), reverse=True)
+        
+        # Limitar resultados
+        return triggered[:limit]

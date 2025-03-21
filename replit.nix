@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.gmp
     pkgs.xsimd
     pkgs.tk
     pkgs.tcl

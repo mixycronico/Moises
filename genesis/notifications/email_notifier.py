@@ -1,185 +1,233 @@
 """
-Implementación de notificaciones por email.
+Notificador de correo electrónico para el sistema Genesis.
 
-Este módulo proporciona una implementación del canal de notificación
-para enviar notificaciones por correo electrónico.
+Este módulo proporciona funcionalidades para enviar notificaciones
+por correo electrónico de forma asíncrona y con formato HTML.
 """
 
+import asyncio
+import logging
 import smtplib
-import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import asyncio
-import os
-from typing import Dict, Any, List, Optional, Tuple
+from typing import List, Optional, Dict, Any, Union
 
-from genesis.notifications.base import NotificationChannel
-from genesis.config.settings import settings
-from genesis.utils.logger import setup_logging
+from genesis.core.base import Component
 
-
-class EmailNotifier(NotificationChannel):
+class EmailNotifier(Component):
     """
-    Canal de notificación por correo electrónico.
+    Cliente avanzado para envío asíncrono de notificaciones por correo electrónico.
     
-    Envía notificaciones utilizando un servidor SMTP.
+    Este componente gestiona el envío de correos electrónicos para notificaciones
+    del sistema, con soporte para formatos HTML y reintentos automáticos.
     """
     
     def __init__(
         self,
-        name: str = "email",
-        smtp_server: Optional[str] = None,
-        smtp_port: Optional[int] = None,
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        sender: Optional[str] = None,
-        use_tls: bool = True
+        smtp_server: str,
+        smtp_port: int,
+        username: str,
+        password: str,
+        max_retries: int = 3,
+        name: str = "email_notifier"
     ):
         """
-        Inicializar el notificador de email.
+        Inicializar el cliente de notificación por correo.
         
         Args:
-            name: Nombre del canal
-            smtp_server: Servidor SMTP
-            smtp_port: Puerto SMTP
-            username: Nombre de usuario para autenticación
-            password: Contraseña para autenticación
-            sender: Dirección de correo del remitente
-            use_tls: Si se debe usar TLS
+            smtp_server: Dirección del servidor SMTP (e.g., smtp.gmail.com)
+            smtp_port: Puerto del servidor SMTP (e.g., 465 para SSL)
+            username: Correo electrónico del remitente
+            password: Contraseña o token de aplicación del correo
+            max_retries: Máximo número de reintentos en caso de fallo
+            name: Nombre del componente
         """
         super().__init__(name)
-        
-        # Cargar configuración desde settings o environment variables
-        self.smtp_server = smtp_server or settings.get('notifications.email.smtp_server') or os.environ.get('EMAIL_SMTP_SERVER')
-        self.smtp_port = smtp_port or settings.get('notifications.email.smtp_port') or int(os.environ.get('EMAIL_SMTP_PORT', 587))
-        self.username = username or settings.get('notifications.email.username') or os.environ.get('EMAIL_USERNAME')
-        self.password = password or settings.get('notifications.email.password') or os.environ.get('EMAIL_PASSWORD')
-        self.sender = sender or settings.get('notifications.email.sender') or os.environ.get('EMAIL_SENDER')
-        self.use_tls = use_tls
-        
-        # Validar configuración
-        if not all([self.smtp_server, self.smtp_port, self.username, self.password, self.sender]):
-            self.logger.warning("Configuración incompleta para el notificador de email")
-    
-    async def send(self, 
-                  recipient: str, 
-                  subject: str, 
-                  message: str, 
-                  html_message: Optional[str] = None,
-                  cc: Optional[List[str]] = None,
-                  bcc: Optional[List[str]] = None,
-                  attachments: Optional[List[Tuple[str, bytes]]] = None,
-                  **kwargs) -> bool:
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
+        self.username = username
+        self.password = password
+        self.max_retries = max_retries
+        self.logger = logging.getLogger(__name__)
+
+    async def start(self) -> None:
+        """Iniciar el notificador de correo."""
+        await super().start()
+        self._validate_config()
+        self.logger.info("Notificador de correo iniciado")
+
+    async def stop(self) -> None:
+        """Detener el notificador de correo."""
+        await super().stop()
+        self.logger.info("Notificador de correo detenido")
+
+    async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
-        Enviar una notificación por correo electrónico.
+        Manejar eventos del bus de eventos.
         
         Args:
-            recipient: Dirección de correo del destinatario
-            subject: Asunto del correo
-            message: Cuerpo del mensaje en texto plano
-            html_message: Cuerpo del mensaje en HTML (opcional)
-            cc: Lista de direcciones en copia
-            bcc: Lista de direcciones en copia oculta
-            attachments: Lista de archivos adjuntos (nombre, datos)
-            **kwargs: Parámetros adicionales
+            event_type: Tipo de evento
+            data: Datos del evento
+            source: Componente de origen
+        """
+        if event_type == "notification.email.send":
+            subject = data.get("subject", "Notificación de Genesis")
+            message = data.get("message", "")
+            recipients = data.get("recipients")
+            html = data.get("html", False)
             
-        Returns:
-            True si se envió correctamente, False en caso contrario
+            try:
+                await self.send_email(subject, message, recipients, html)
+                await self.emit_event("notification.email.sent", {
+                    "success": True,
+                    "subject": subject,
+                    "recipients": recipients,
+                    "request_id": data.get("request_id")
+                })
+            except Exception as e:
+                self.logger.error(f"Error al enviar correo: {e}")
+                await self.emit_event("notification.email.error", {
+                    "success": False,
+                    "error": str(e),
+                    "subject": subject,
+                    "recipients": recipients,
+                    "request_id": data.get("request_id")
+                })
+
+    def _validate_config(self):
+        """Validar los parámetros de configuración."""
+        if not all([self.smtp_server, self.smtp_port, self.username, self.password]):
+            raise ValueError("Todos los parámetros de configuración (server, port, username, password) son obligatorios.")
+        if not isinstance(self.smtp_port, int) or self.smtp_port <= 0:
+            raise ValueError("El puerto SMTP debe ser un entero positivo.")
+
+    def _create_message(self, subject: str, body: str, recipients: List[str], html: bool = False) -> MIMEMultipart:
         """
-        # Validar configuración
-        if not all([self.smtp_server, self.smtp_port, self.username, self.password, self.sender]):
-            self.logger.error("Configuración incompleta para el notificador de email")
-            return False
-        
-        # Ejecutar en un thread para evitar bloquear el loop de asyncio
-        try:
-            return await asyncio.to_thread(
-                self._send_email,
-                recipient,
-                subject,
-                message,
-                html_message,
-                cc,
-                bcc,
-                attachments
-            )
-        except Exception as e:
-            self.logger.error(f"Error al enviar email: {e}")
-            return False
-    
-    def _send_email(
-        self,
-        recipient: str,
-        subject: str,
-        message: str,
-        html_message: Optional[str] = None,
-        cc: Optional[List[str]] = None,
-        bcc: Optional[List[str]] = None,
-        attachments: Optional[List[Tuple[str, bytes]]] = None
-    ) -> bool:
-        """
-        Enviar un correo electrónico (método sincrónico).
+        Crear el mensaje de correo con soporte para HTML.
         
         Args:
-            recipient: Dirección de correo del destinatario
             subject: Asunto del correo
-            message: Cuerpo del mensaje en texto plano
-            html_message: Cuerpo del mensaje en HTML (opcional)
-            cc: Lista de direcciones en copia
-            bcc: Lista de direcciones en copia oculta
-            attachments: Lista de archivos adjuntos (nombre, datos)
+            body: Cuerpo del mensaje
+            recipients: Lista de destinatarios
+            html: Si el cuerpo es HTML
             
         Returns:
-            True si se envió correctamente, False en caso contrario
+            Mensaje MIME creado
         """
-        # Crear el mensaje
-        email_message = MIMEMultipart("alternative")
-        email_message["Subject"] = subject
-        email_message["From"] = self.sender
-        email_message["To"] = recipient
-        
-        # Añadir CC si existe
-        if cc:
-            email_message["Cc"] = ", ".join(cc)
-        
-        # Añadir texto plano
-        part1 = MIMEText(message, "plain")
-        email_message.attach(part1)
-        
-        # Añadir HTML si existe
-        if html_message:
-            part2 = MIMEText(html_message, "html")
-            email_message.attach(part2)
-        
-        # Combinar destinatarios
-        recipients = [recipient]
-        if cc:
-            recipients.extend(cc)
-        if bcc:
-            recipients.extend(bcc)
-        
-        try:
-            # Crear conexión segura
-            context = ssl.create_default_context()
-            
-            # Conectar al servidor y enviar
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                if self.use_tls:
-                    server.starttls(context=context)
-                
-                # Autenticar
-                server.login(self.username, self.password)
-                
-                # Enviar
-                server.sendmail(self.sender, recipients, email_message.as_string())
-            
-            self.logger.info(f"Email enviado a {recipient}")
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Error al enviar email: {e}")
-            return False
+        msg = MIMEMultipart("alternative")
+        msg['From'] = self.username
+        msg['To'] = ", ".join(recipients)
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, "html" if html else "plain"))
+        return msg
 
+    async def _send_email_with_retry(self, msg: MIMEMultipart, recipients: List[str]) -> None:
+        """
+        Enviar email con reintentos en caso de error.
+        
+        Args:
+            msg: Mensaje MIME a enviar
+            recipients: Lista de destinatarios
+        """
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(
+                    None,
+                    lambda: self._send_email_sync(msg, recipients)
+                )
+                # Si llegamos aquí, el envío fue exitoso
+                self.logger.info(f"Correo enviado a: {', '.join(recipients)}")
+                return
+            except (smtplib.SMTPException, ConnectionError) as e:
+                if attempt == self.max_retries:
+                    self.logger.error(f"Fallo crítico al enviar correo tras {self.max_retries} intentos: {e}")
+                    raise
+                    
+                wait_time = 2 ** attempt  # Exponential backoff
+                self.logger.warning(f"Intento {attempt}/{self.max_retries} fallido: {e}. Reintentando en {wait_time}s...")
+                await asyncio.sleep(wait_time)
 
-# Exportación para uso fácil
-email_notifier = EmailNotifier()
+    def _send_email_sync(self, msg: MIMEMultipart, recipients: List[str]) -> None:
+        """
+        Enviar email de forma síncrona.
+        
+        Args:
+            msg: Mensaje MIME a enviar
+            recipients: Lista de destinatarios
+        """
+        with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
+            server.login(self.username, self.password)
+            server.sendmail(self.username, recipients, msg.as_string())
+
+    async def send_email(
+        self, 
+        subject: str, 
+        message: str, 
+        recipients: Optional[List[str]] = None, 
+        html: bool = False
+    ) -> None:
+        """
+        Enviar un correo electrónico de forma asíncrona.
+        
+        Args:
+            subject: Asunto del correo
+            message: Cuerpo del mensaje (texto plano o HTML)
+            recipients: Lista de destinatarios; si None, usa el username
+            html: Indica si el mensaje es en formato HTML
+        """
+        recipients = recipients or [self.username]
+        if not isinstance(recipients, list) or not all(isinstance(r, str) for r in recipients):
+            raise ValueError("Los destinatarios deben ser una lista de strings.")
+
+        msg = self._create_message(subject, message, recipients, html)
+        await self._send_email_with_retry(msg, recipients)
+
+    @classmethod
+    def create_html_message(
+        cls, 
+        title: str, 
+        details: Dict[str, Union[str, int, float]], 
+        footer_text: Optional[str] = None
+    ) -> str:
+        """
+        Crear un mensaje HTML con formato profesional.
+        
+        Args:
+            title: Título del mensaje
+            details: Diccionario de detalles a mostrar
+            footer_text: Texto opcional para el pie de página
+            
+        Returns:
+            Mensaje HTML formateado
+        """
+        html = """
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; color: #333; }
+                h2 { color: #2c3e50; }
+                .detail { margin: 5px 0; }
+                .footer { font-size: 12px; color: #777; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <h2>{title}</h2>
+            {details}
+            <div class="footer">
+                {footer}
+            </div>
+        </body>
+        </html>
+        """
+        # Convertir detalles a HTML
+        details_html = "".join(f"<p class='detail'><strong>{k}:</strong> {v}</p>" for k, v in details.items())
+        
+        # Texto del pie de página
+        footer = footer_text or "Enviado por Genesis"
+        
+        return html.format(
+            title=title,
+            details=details_html,
+            footer=footer
+        )
