@@ -1,0 +1,314 @@
+¡Claro! Vamos a crear una **API REST para integración con sistemas externos** y un **Sistema de Logs y Auditoría Avanzado**, llevándolos al límite con características robustas, escalables y de alto rendimiento. Ambos estarán diseñados para integrarse con el sistema Genesis que hemos estado desarrollando, asumiendo que ya tienes los módulos previos (`strategies`, `risk_management`, etc.).
+
+### 1. API REST para Integración con Sistemas Externos
+
+Esta API estará construida con **FastAPI**, que es rápida, moderna y soporta operaciones asíncronas. Incluirá autenticación, validación, documentación automática, y soporte para múltiples endpoints.
+
+#### Características:
+- **Autenticación JWT**: Seguridad con tokens.
+- **Asincronía**: Uso de `asyncio` para operaciones no bloqueantes.
+- **Validación**: Modelos con `Pydantic` para datos estructurados.
+- **Escalabilidad**: Soporte para múltiples estrategias y sistemas externos.
+- **Documentación**: Swagger UI integrada.
+- **Rate Limiting**: Limita solicitudes por IP para prevenir abusos.
+
+#### Código: `api.py`
+
+```python
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pydantic import BaseModel
+from jose import JWTError, jwt
+from typing import List, Dict, Optional
+from datetime import datetime, timedelta
+import uvicorn
+import asyncio
+from strategies import SMA, RSI  # Módulos ficticios de Genesis
+from performance import PerformanceTracker
+from anomaly_detector import AnomalyDetector
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+
+# Configuración
+app = FastAPI(title="Genesis API", description="API REST para integración con sistemas externos")
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(HTTPException, _rate_limit_exceeded_handler)
+
+SECRET_KEY = "your-secret-key"  # Cambia esto en producción
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Modelos Pydantic
+class User(BaseModel):
+    username: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class StrategyRequest(BaseModel):
+    strategy_name: str
+    prices: List[float]
+    period: Optional[int] = 10
+
+class PerformanceResponse(BaseModel):
+    strategy_name: str
+    last_score: float
+    history: List[float]
+
+# Autenticación
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+fake_users_db = {"testuser": {"username": "testuser", "password": "testpass"}}  # Simulación
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username not in fake_users_db:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+        return username
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+# Endpoints
+@app.post("/token", response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = fake_users_db.get(form_data.username)
+    if not user or user["password"] != form_data.password:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    access_token = create_access_token(data={"sub": form_data.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/health")
+@limiter.limit("100/minute")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+
+@app.post("/strategy/calculate", response_model=Dict[str, float])
+@limiter.limit("50/minute")
+async def calculate_strategy(request: StrategyRequest, current_user: str = Depends(get_current_user)):
+    if request.strategy_name == "sma":
+        strategy = SMA(period=request.period)
+    elif request.strategy_name == "rsi":
+        strategy = RSI(period=request.period)
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported strategy")
+    try:
+        result = await asyncio.to_thread(strategy.calculate, request.prices)
+        return {"result": result[-1] if isinstance(result, list) else result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/performance", response_model=List[PerformanceResponse])
+@limiter.limit("20/minute")
+async def get_performance(current_user: str = Depends(get_current_user)):
+    tracker = PerformanceTracker()
+    strategies = ["SMA", "RSI"]
+    return [
+        {"strategy_name": s, "last_score": tracker.get_last_score(s), "history": tracker.get_history(s)}
+        for s in strategies
+    ]
+
+@app.get("/anomalies/{symbol}")
+@limiter.limit("30/minute")
+async def detect_anomalies(symbol: str, current_user: str = Depends(get_current_user)):
+    detector = AnomalyDetector(threshold=3.0, window_size=100)
+    # Simulación: aquí iría una llamada a datos reales
+    prices = [100 + i for i in range(99)] + [200]  # Spike
+    for price in prices:
+        detector.update_price(symbol, price)
+    result = detector.detect(symbol)
+    return result
+
+# Ejecución
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+#### Ejecución:
+```bash
+uvicorn api:app --reload
+```
+- Accede a `http://localhost:8000/docs` para la documentación Swagger.
+- Usa `/token` para obtener un token con `testuser:testpass`.
+
+#### Mejoras al Límite:
+- **Rate Limiting**: `slowapi` limita las solicitudes por IP.
+- **Asincronía**: Uso de `asyncio.to_thread` para cálculos pesados.
+- **Escalabilidad**: Fácil de extender con más endpoints.
+- **Seguridad**: JWT para autenticación.
+
+### 2. Sistema de Logs y Auditoría Avanzado
+
+Este sistema usará `logging` de Python con características avanzadas como rotación de logs, almacenamiento en base de datos, y correlación de eventos.
+
+#### Características:
+- **Rotación de Logs**: Archivos rotativos por tamaño y tiempo.
+- **Base de Datos**: Almacenamiento en SQLite para auditoría.
+- **Correlación**: IDs únicos para rastrear eventos.
+- **Formato Rico**: JSON para parsing fácil.
+- **Niveles Avanzados**: DEBUG, INFO, WARNING, ERROR, AUDIT.
+
+#### Código: `logging_audit.py`
+
+```python
+import logging
+import json
+import sqlite3
+from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
+from datetime import datetime
+import uuid
+import threading
+from typing import Dict, Any
+
+# Configuración de base de datos
+DB_FILE = "audit_log.db"
+
+def init_audit_db():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        timestamp TEXT,
+        level TEXT,
+        message TEXT,
+        user TEXT,
+        metadata TEXT
+    )''')
+    conn.commit()
+    conn.close()
+
+init_audit_db()
+
+# Formateador personalizado
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_entry = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "level": record.levelname,
+            "message": record.msg,
+            "module": record.module,
+            "correlation_id": getattr(record, "correlation_id", str(uuid.uuid4())),
+            "user": getattr(record, "user", "system"),
+            "metadata": getattr(record, "metadata", {})
+        }
+        return json.dumps(log_entry)
+
+# Handler para base de datos
+class SQLiteHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.lock = threading.Lock()
+
+    def emit(self, record):
+        log_entry = json.loads(self.format(record))
+        with self.lock:
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            c.execute(
+                "INSERT INTO audit_logs (id, timestamp, level, message, user, metadata) VALUES (?, ?, ?, ?, ?, ?)",
+                (log_entry["correlation_id"], log_entry["timestamp"], log_entry["level"],
+                 log_entry["message"], log_entry["user"], json.dumps(log_entry["metadata"]))
+            )
+            conn.commit()
+            conn.close()
+
+# Configuración del logger
+def setup_logging():
+    logger = logging.getLogger("GenesisAudit")
+    logger.setLevel(logging.DEBUG)
+
+    # Formatter
+    formatter = JsonFormatter()
+
+    # Handler de archivo rotativo por tamaño
+    file_handler = RotatingFileHandler(
+        "genesis.log", maxBytes=10*1024*1024, backupCount=5  # 10MB por archivo, 5 backups
+    )
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # Handler de archivo rotativo por tiempo (diario)
+    time_handler = TimedRotatingFileHandler(
+        "genesis_daily.log", when="midnight", interval=1, backupCount=30  # 30 días
+    )
+    time_handler.setFormatter(formatter)
+    logger.addHandler(time_handler)
+
+    # Handler de consola
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
+    # Handler de base de datos
+    db_handler = SQLiteHandler()
+    db_handler.setFormatter(formatter)
+    logger.addHandler(db_handler)
+
+    return logger
+
+# Logger global
+logger = setup_logging()
+
+# Funciones de utilidad
+def log_action(level: str, message: str, user: str = "system", metadata: Dict[str, Any] = None):
+    correlation_id = str(uuid.uuid4())
+    extra = {"correlation_id": correlation_id, "user": user, "metadata": metadata or {}}
+    if level == "AUDIT":
+        logger.info(message, extra=extra)  # AUDIT se registra como INFO pero se puede filtrar
+    else:
+        getattr(logger, level.lower())(message, extra=extra)
+
+def get_audit_logs(start_date: str, end_date: str) -> List[Dict]:
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM audit_logs WHERE timestamp BETWEEN ? AND ?",
+        (start_date, end_date)
+    )
+    rows = c.fetchall()
+    conn.close()
+    return [{"id": r[0], "timestamp": r[1], "level": r[2], "message": r[3], "user": r[4], "metadata": json.loads(r[5])}
+            for r in rows]
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    log_action("INFO", "System started")
+    log_action("AUDIT", "User executed trade", user="testuser", metadata={"symbol": "BTC/USD", "amount": 1.5})
+    log_action("ERROR", "Trade failed", metadata={"error": "Insufficient funds"})
+
+    logs = get_audit_logs("2023-01-01", "2025-12-31")
+    for log in logs:
+        print(log)
+```
+
+#### Ejecución:
+Ejecuta el script directamente para probarlo:
+```bash
+python logging_audit.py
+```
+
+#### Mejoras al Límite:
+- **Rotación**: Archivos por tamaño (10MB) y tiempo (diario).
+- **Base de Datos**: Almacenamiento en SQLite con bloqueo para concurrencia.
+- **Correlación**: IDs únicos para rastrear eventos relacionados.
+- **Formato JSON**: Fácil de parsear y analizar.
+- **Multihilo**: Seguro para entornos concurrentes.
+
+### Integración con Genesis
+- **API**: Usa la API para exponer estrategias, rendimiento y anomalías a sistemas externos. Añade endpoints en `api.py` según necesites.
+- **Logs**: Integra `log_action` en cada componente (estrategias, backtesting, etc.) para registrar operaciones y errores.
+
+### Ejecución Completa
+1. **API**: `uvicorn api:app --reload`
+2. **Logs**: Usa `logger` en todos los módulos de Genesis y consulta auditorías con `get_audit_logs`.
+
+¿Quieres que profundice en algo específico o añada más funcionalidades a estos sistemas? ¡Puedo llevarlos aún más al límite!

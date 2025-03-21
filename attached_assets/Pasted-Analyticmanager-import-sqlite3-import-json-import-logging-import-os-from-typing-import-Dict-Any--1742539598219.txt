@@ -1,0 +1,142 @@
+Analyticmanager
+
+
+
+import sqlite3
+import json
+import logging
+import os
+from typing import Dict, Any, List, Optional
+from collections import deque
+from datetime import datetime
+import matplotlib.pyplot as plt
+import numpy as np
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
+
+logger = logging.getLogger("AnalyticsManager")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+class AnalyticsManager:
+    def __init__(self, db_path: str = "data/analytics.db", max_hist: int = 1000):
+        self.db_path = db_path
+        self.max_hist = max(0, max_hist)
+        self.executor = ThreadPoolExecutor(max_workers=5)
+        self._init_db()
+        self.loop = asyncio.get_event_loop()
+
+    def _init_db(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS performance (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    strategy_name TEXT NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    score REAL NOT NULL
+                )
+            """)
+            conn.commit()
+
+    async def registrar_resultado(self, strategy_name: str, score: float) -> None:
+        if not isinstance(strategy_name, str) or not strategy_name.strip():
+            raise ValueError("El nombre de la estrategia debe ser una cadena no vacía.")
+        if not isinstance(score, (int, float)) or not (-float("inf") < score < float("inf")):
+            raise ValueError("El score debe ser un número finito.")
+
+        timestamp = datetime.utcnow().isoformat()
+        await self.loop.run_in_executor(
+            self.executor,
+            lambda: self._insert_record(strategy_name, timestamp, score)
+        )
+
+    def _insert_record(self, strategy_name: str, timestamp: str, score: float):
+        with sqlite3.connect(self.db_path) as conn:
+            # Mantener solo los últimos max_hist registros por estrategia
+            conn.execute("""
+                DELETE FROM performance WHERE strategy_name = ? AND id NOT IN (
+                    SELECT id FROM performance WHERE strategy_name = ? 
+                    ORDER BY timestamp DESC LIMIT ?
+                )
+            """, (strategy_name, strategy_name, self.max_hist))
+            conn.execute(
+                "INSERT INTO performance (strategy_name, timestamp, score) VALUES (?, ?, ?)",
+                (strategy_name, timestamp, score)
+            )
+            conn.commit()
+
+    def calcular_promedio(self, strategy_name: str) -> Optional[float]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT AVG(score) FROM performance WHERE strategy_name = ?",
+                (strategy_name,)
+            )
+            result = cursor.fetchone()[0]
+            return float(result) if result is not None else None
+
+    def estrategia_recomendada(self) -> Optional[str]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT strategy_name, AVG(score) as avg_score 
+                FROM performance 
+                GROUP BY strategy_name 
+                HAVING COUNT(*) > 0
+            """)
+            results = {row[0]: row[1] for row in cursor.fetchall()}
+            if not results:
+                return None
+            best = max(results, key=results.get)
+            logger.info(f"Estrategia recomendada: {best} ({results[best]:.4f})")
+            return best
+
+    def generar_grafico(self, strategy_name: str, output_path: Optional[str] = None) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT timestamp, score FROM performance WHERE strategy_name = ? ORDER BY timestamp",
+                (strategy_name,)
+            )
+            data = cursor.fetchall()
+            if not data:
+                logger.warning(f"No hay historial para {strategy_name}")
+                return
+
+        fechas = np.array([datetime.fromisoformat(row[0]) for row in data])
+        scores = np.array([row[1] for row in data])
+
+        plt.figure(figsize=(10, 4))
+        plt.plot(fechas, scores, marker="o", linestyle="-", color="b", label=strategy_name)
+        plt.title(f"Rendimiento de {strategy_name}", fontsize=12, pad=10)
+        plt.xlabel("Fecha", fontsize=10)
+        plt.ylabel("Score", fontsize=10)
+        plt.legend()
+        plt.grid(True, linestyle="--", alpha=0.7)
+        plt.tight_layout()
+
+        if output_path:
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            plt.savefig(output_path, dpi=300, bbox_inches="tight")
+            plt.close()
+            logger.info(f"Gráfico guardado en {output_path}")
+        else:
+            plt.show()
+
+    def obtener_historial(self, strategy_name: str) -> List[Dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "SELECT timestamp, score FROM performance WHERE strategy_name = ? ORDER BY timestamp",
+                (strategy_name,)
+            )
+            return [{"timestamp": row[0], "score": row[1]} for row in cursor.fetchall()]
+
+async def main():
+    analytics = AnalyticsManager()
+    await asyncio.gather(
+        analytics.registrar_resultado("sma_crossover", 0.82),
+        analytics.registrar_resultado("sma_crossover", 0.67),
+        analytics.registrar_resultado("rsi", 0.61),
+        analytics.registrar_resultado("macd", 0.44),
+    )
+    print(f"Estrategia recomendada: {analytics.estrategia_recomendada()}")
+    analytics.generar_grafico("sma_crossover", "data/plots/sma_crossover.png")
+
+if __name__ == "__main__":
+    asyncio.run(main())

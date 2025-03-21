@@ -1,0 +1,266 @@
+¡Perfecto! Vamos a crear un **Sistema de Reportes Automatizados** que genere informes periódicos para inversionistas de manera profesional, eficiente y visualmente atractiva. Este sistema estará diseñado para llevarlo "al límite" con las siguientes características:
+
+1. **Automatización completa**: Generará informes en PDF con datos actualizados automáticamente.
+2. **Integración con backtesting**: Usará los resultados del sistema de backtesting previo para reportar métricas de rendimiento.
+3. **Datos en tiempo real**: Incluirá precios actuales y estadísticas del mercado.
+4. **Visualizaciones avanzadas**: Gráficos de equity, drawdown, distribución de retornos, etc.
+5. **Personalización**: Permitirá configurar el diseño y contenido del informe.
+6. **Distribución**: Enviará los informes por correo electrónico automáticamente.
+7. **Escalabilidad**: Soporte para múltiples activos y estrategias.
+
+Aquí tienes el código:
+
+```python
+import logging
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import ccxt
+from datetime import datetime, timedelta
+import yfinance as yf
+from typing import List, Dict, Optional
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+import os
+from advanced_backtest_system import AdvancedBacktestSystem  # Importamos el sistema de backtesting previo
+
+# Logging configuration
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("ReportingSystem")
+
+
+class AutomatedReportingSystem:
+    """Sistema de reportes automatizados para inversionistas"""
+
+    def __init__(self, backtest_system: AdvancedBacktestSystem, email_config: Dict, output_dir: str = "reports"):
+        self.backtest = backtest_system
+        self.exchange = ccxt.binance()
+        self.email_config = email_config  # Configuración de correo: {"sender": "", "password": "", "recipients": []}
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        self.report_date = datetime.now().strftime("%Y-%m-%d")
+
+    def fetch_realtime_data(self, symbol: str) -> Dict:
+        """Obtiene datos en tiempo real desde Binance"""
+        try:
+            ticker = self.exchange.fetch_ticker(symbol + "/USDT")
+            return {
+                "price": ticker["last"],
+                "volume": ticker["quoteVolume"],
+                "change_24h": ticker["percentage"]
+            }
+        except Exception as e:
+            logger.error(f"Error al obtener datos en tiempo real de {symbol}: {e}")
+            return {}
+
+    def generate_performance_summary(self, symbol: str) -> Dict:
+        """Genera un resumen de rendimiento basado en el backtest"""
+        if symbol not in self.backtest.results:
+            logger.warning(f"No hay resultados de backtest para {symbol}")
+            return {}
+        
+        metrics = self.backtest.results[symbol]["metrics"]
+        return {
+            "total_return": metrics["total_return"] * 100,
+            "sharpe_ratio": metrics["sharpe_ratio"],
+            "max_drawdown": metrics["max_drawdown"] * 100,
+            "num_trades": metrics["num_trades"],
+            "equity_curve": metrics["equity_curve"]
+        }
+
+    def plot_equity_curve(self, symbol: str, pdf: PdfPages) -> None:
+        """Genera gráfico de la curva de equity"""
+        equity = self.generate_performance_summary(symbol).get("equity_curve")
+        if equity is None:
+            return
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(equity, label=f"Equity Curve ({symbol})", color="blue")
+        plt.title(f"Equity Curve - {symbol}")
+        plt.xlabel("Time")
+        plt.ylabel("Equity (USD)")
+        plt.legend()
+        plt.grid()
+        pdf.savefig()
+        plt.close()
+
+    def plot_drawdown(self, symbol: str, pdf: PdfPages) -> None:
+        """Genera gráfico de drawdown"""
+        equity = self.generate_performance_summary(symbol).get("equity_curve")
+        if equity is None:
+            return
+        
+        drawdown = (equity.cummax() - equity) / equity.cummax() * 100
+        plt.figure(figsize=(10, 6))
+        plt.plot(drawdown, label="Drawdown", color="red")
+        plt.title(f"Drawdown - {symbol}")
+        plt.xlabel("Time")
+        plt.ylabel("Drawdown (%)")
+        plt.legend()
+        plt.grid()
+        pdf.savefig()
+        plt.close()
+
+    def plot_return_distribution(self, symbol: str, pdf: PdfPages) -> None:
+        """Genera histograma de distribución de retornos"""
+        equity = self.generate_performance_summary(symbol).get("equity_curve")
+        if equity is None:
+            return
+        
+        returns = equity.pct_change().dropna()
+        plt.figure(figsize=(10, 6))
+        plt.hist(returns, bins=50, color="green", alpha=0.7)
+        plt.title(f"Return Distribution - {symbol}")
+        plt.xlabel("Daily Return")
+        plt.ylabel("Frequency")
+        plt.grid()
+        pdf.savefig()
+        plt.close()
+
+    def generate_pdf_report(self, symbols: List[str], period: str = "Monthly") -> str:
+        """Genera un informe en PDF"""
+        filename = f"{self.output_dir}/Investment_Report_{self.report_date}_{period}.pdf"
+        with PdfPages(filename) as pdf:
+            # Portada
+            plt.figure(figsize=(10, 6))
+            plt.text(0.5, 0.5, f"{period} Investment Report\n{self.report_date}", 
+                     ha="center", va="center", fontsize=20)
+            plt.axis("off")
+            pdf.savefig()
+            plt.close()
+
+            # Contenido por símbolo
+            for symbol in symbols:
+                # Resumen de rendimiento
+                summary = self.generate_performance_summary(symbol)
+                real_time = self.fetch_realtime_data(symbol)
+                
+                if summary:
+                    plt.figure(figsize=(10, 6))
+                    text = (f"Performance Summary - {symbol}\n\n"
+                            f"Total Return: {summary['total_return']:.2f}%\n"
+                            f"Sharpe Ratio: {summary['sharpe_ratio']:.2f}\n"
+                            f"Max Drawdown: {summary['max_drawdown']:.2f}%\n"
+                            f"Number of Trades: {summary['num_trades']}\n\n"
+                            f"Real-Time Data:\n"
+                            f"Price: ${real_time.get('price', 0):.2f}\n"
+                            f"24h Change: {real_time.get('change_24h', 0):.2f}%\n"
+                            f"24h Volume: ${real_time.get('volume', 0):,.2f}")
+                    plt.text(0.1, 0.9, text, fontsize=12, va="top")
+                    plt.axis("off")
+                    pdf.savefig()
+                    plt.close()
+
+                # Gráficos
+                self.plot_equity_curve(symbol, pdf)
+                self.plot_drawdown(symbol, pdf)
+                self.plot_return_distribution(symbol, pdf)
+
+        logger.info(f"Informe generado: {filename}")
+        return filename
+
+    def send_email(self, filename: str, period: str) -> None:
+        """Envía el informe por correo electrónico"""
+        msg = MIMEMultipart()
+        msg["From"] = self.email_config["sender"]
+        msg["To"] = ", ".join(self.email_config["recipients"])
+        msg["Subject"] = f"{period} Investment Report - {self.report_date}"
+
+        body = f"Dear Investors,\n\nPlease find attached the {period.lower()} investment report for {self.report_date}.\n\nBest regards,\nYour Investment Team"
+        msg.attach(MIMEText(body, "plain"))
+
+        with open(filename, "rb") as f:
+            attachment = MIMEApplication(f.read(), _subtype="pdf")
+            attachment.add_header("Content-Disposition", "attachment", filename=os.path.basename(filename))
+            msg.attach(attachment)
+
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login(self.email_config["sender"], self.email_config["password"])
+                server.send_message(msg)
+            logger.info("Informe enviado por correo con éxito")
+        except Exception as e:
+            logger.error(f"Error al enviar el correo: {e}")
+
+    def generate_and_send_report(self, symbols: List[str], period: str = "Monthly") -> None:
+        """Genera y envía el informe completo"""
+        filename = self.generate_pdf_report(symbols, period)
+        self.send_email(filename, period)
+
+
+# Uso del sistema de reportes
+if __name__ == "__main__":
+    # Configuración de correo (ejemplo, usa tus credenciales reales)
+    email_config = {
+        "sender": "tu_email@gmail.com",
+        "password": "tu_app_password",  # Usa una contraseña de aplicación si tienes 2FA
+        "recipients": ["inversor1@example.com", "inversor2@example.com"]
+    }
+
+    # Inicializar el sistema de backtesting
+    backtest = AdvancedBacktestSystem(initial_capital=100000)
+    symbols = ["BTC", "ETH", "SOL"]
+    timeframe = "1d"
+    start_date = "2022-01-01"
+    end_date = "2025-03-21"
+    trend_params = {"adx_threshold": [20, 25, 30]}
+
+    # Ejecutar backtest primero
+    backtest.run_backtest(symbols, timeframe, start_date, end_date, backtest.trend_following_strategy, trend_params)
+
+    # Inicializar y ejecutar el sistema de reportes
+    reporting = AutomatedReportingSystem(backtest, email_config)
+    reporting.generate_and_send_report(symbols, period="Monthly")
+```
+
+### Características Avanzadas:
+
+1. **Automatización Completa**:
+   - Genera un PDF con `matplotlib` y `PdfPages` y lo envía por correo con `smtplib`.
+
+2. **Integración con Backtesting**:
+   - Usa los resultados del `AdvancedBacktestSystem` para incluir métricas de rendimiento como retorno total, Sharpe Ratio y drawdown.
+
+3. **Datos en Tiempo Real**:
+   - `fetch_realtime_data` obtiene precios actuales, cambios de 24h y volumen desde Binance con `ccxt`.
+
+4. **Visualizaciones**:
+   - Gráficos de equity (`plot_equity_curve`), drawdown (`plot_drawdown`) y distribución de retornos (`plot_return_distribution`).
+
+5. **Personalización**:
+   - Puedes ajustar el contenido del informe modificando las funciones de generación de texto y gráficos.
+
+6. **Distribución por Correo**:
+   - `send_email` envía el PDF a una lista de destinatarios configurada en `email_config`.
+
+7. **Escalabilidad**:
+   - Soporta múltiples activos (`symbols`) y periodos (mensual, semanal, etc.) con facilidad.
+
+### Configuración Requerida:
+
+- **Dependencias**:
+  ```bash
+  pip install matplotlib pandas ccxt yfinance
+  ```
+- **Correo Electrónico**:
+  - Usa un correo de Gmail con una contraseña de aplicación (si tienes autenticación de dos factores activada).
+  - Actualiza `email_config` con tus credenciales y lista de destinatarios.
+
+### Mejoras Potenciales:
+
+- **Plantillas HTML**: Usa `jinja2` para generar informes en HTML más estilizados antes de convertirlos a PDF.
+- **Programación**: Integra `schedule` o `cron` para ejecutar el sistema automáticamente cada mes/semana.
+- **Más Métricas**: Añade comparación con benchmarks (ej. Bitcoin), ratios de Sortino o Calmar.
+- **Internacionalización**: Soporte para múltiples idiomas en los informes.
+- **Almacenamiento**: Guarda copias de los informes en una base de datos o S3.
+
+### Uso:
+1. Configura el backtesting y ejecuta una simulación.
+2. Define la configuración de correo.
+3. Genera y envía el informe con `generate_and_send_report`.
+
+¿Te gustaría que profundice en alguna mejora específica o que ajuste algo del diseño? ¡Puedo llevarlo aún más lejos si quieres!

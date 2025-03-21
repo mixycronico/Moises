@@ -1,0 +1,213 @@
+
+
+import logging
+import time
+import threading
+import random
+import os
+import json
+from typing import Dict, List, Optional, Tuple, Any
+from .api_client import APIClient
+from .exchange_selector import ExchangeSelector
+
+# Configuración de logging
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.INFO
+)
+
+class Config:
+    """Clase para manejar la configuración global del sistema."""
+    
+    CONFIG_FILE = "config.json"
+
+    def __init__(self):
+        self.config = {}
+        self.load_config()
+
+    def load_config(self):
+        """Carga la configuración desde un archivo JSON."""
+        default_config = {"log_level": "INFO", "retry_attempts": 3}
+        if os.path.exists(self.CONFIG_FILE):
+            try:
+                with open(self.CONFIG_FILE, "r") as f:
+                    self.config = json.load(f)
+            except Exception as e:
+                logging.error(f"Error cargando configuración: {e}")
+                self.config = default_config
+        else:
+            self.config = default_config
+            self.save_config()
+
+    def get(self, key, default=None):
+        """Obtiene un valor de configuración."""
+        return self.config.get(key, default)
+
+    def set(self, key, value):
+        """Establece un valor de configuración y lo guarda."""
+        self.config[key] = value
+        try:
+            with open(self.CONFIG_FILE, "w") as f:
+                json.dump(self.config, f, indent=4)
+        except Exception as e:
+            logging.error(f"Error guardando configuración: {e}")
+
+    def save_config(self):
+        """Guarda la configuración en un archivo."""
+        with open(self.CONFIG_FILE, "w") as f:
+            json.dump(self.config, f, indent=4)
+
+
+class Logger:
+    """Manejo avanzado de logs con rotación de archivos."""
+    
+    LOG_FILE = "genesis.log"
+
+    @staticmethod
+    def setup_logging():
+        logging.basicConfig(
+            filename=Logger.LOG_FILE,
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s"
+        )
+        logging.info("Sistema de logs iniciado")
+
+
+class ExchangeManager:
+    """Manejo de múltiples exchanges y distribución de operaciones."""
+    
+    def __init__(self, exchange_list: List[str]):
+        self.exchanges = {name: APIClient(name) for name in exchange_list}
+        self.selector = ExchangeSelector(self.exchanges)
+
+    def get_best_exchange(self, trading_pair: str) -> Optional[str]:
+        """Devuelve el mejor exchange para operar en un par de trading."""
+        return self.selector.get_best_exchange(trading_pair)
+
+    def execute_trade(self, trading_pair: str, side: str, amount: float) -> Dict[str, Any]:
+        """Ejecuta una operación en el mejor exchange disponible."""
+        exchange = self.get_best_exchange(trading_pair)
+        if not exchange:
+            return {"status": "error", "message": "No suitable exchange found"}
+        
+        client = self.exchanges[exchange]
+        return client.place_order(trading_pair, side, amount)
+
+
+class EventManager:
+    """Sistema de eventos para comunicación entre módulos."""
+    
+    def __init__(self):
+        self.subscribers = {}
+
+    def subscribe(self, event_type: str, handler):
+        """Registra un handler para un tipo de evento."""
+        if event_type not in self.subscribers:
+            self.subscribers[event_type] = []
+        self.subscribers[event_type].append(handler)
+
+    def publish(self, event_type: str, data=None):
+        """Ejecuta los handlers registrados para un evento."""
+        if event_type in self.subscribers:
+            for handler in self.subscribers[event_type]:
+                handler(data)
+
+
+class SystemManager:
+    """Orquestador del sistema, maneja la inicialización y monitoreo."""
+    
+    def __init__(self, exchange_list: List[str]):
+        self.config = Config()
+        self.logger = Logger()
+        self.exchange_manager = ExchangeManager(exchange_list)
+        self.event_manager = EventManager()
+        self.running = False
+
+    def start_system(self):
+        """Inicia el sistema y todos los módulos necesarios."""
+        logging.info("Iniciando Genesis...")
+        self.running = True
+        threading.Thread(target=self.monitor_exchanges, daemon=True).start()
+
+    def stop_system(self):
+        """Detiene el sistema de forma segura."""
+        logging.info("Deteniendo Genesis...")
+        self.running = False
+
+    def monitor_exchanges(self):
+        """Monitorea los exchanges y detecta fallos."""
+        while self.running:
+            for exchange_name, client in self.exchange_manager.exchanges.items():
+                try:
+                    balance = client.get_balance()
+                    logging.info(f"Balance en {exchange_name}: {balance}")
+                except Exception as e:
+                    logging.error(f"Error en {exchange_name}: {e}")
+            time.sleep(60)
+
+    def system_status(self) -> Dict[str, Any]:
+        """Devuelve el estado actual del sistema."""
+        return {
+            "running": self.running,
+            "exchanges": list(self.exchange_manager.exchanges.keys()),
+            "log_level": self.config.get("log_level"),
+        }
+
+
+class Utils:
+    """Funciones auxiliares para el sistema."""
+    
+    @staticmethod
+    def format_currency(value: float, currency: str = "USD") -> str:
+        """Formatea un valor numérico como moneda."""
+        return f"${value:,.2f}" if currency == "USD" else f"{value:,.2f} {currency}"
+
+    @staticmethod
+    def retry_operation(operation, max_attempts=3, delay=2):
+        """Ejecuta una operación con reintentos en caso de error."""
+        for attempt in range(max_attempts):
+            try:
+                return operation()
+            except Exception as e:
+                logging.warning(f"Intento {attempt + 1} fallido: {e}")
+                time.sleep(delay)
+        raise Exception("Operación fallida después de varios intentos")
+
+
+class Security:
+    """Manejo de seguridad y auditoría."""
+    
+    @staticmethod
+    def hash_password(password: str) -> Tuple[str, str]:
+        """Hashea una contraseña con un salt aleatorio."""
+        import hashlib, secrets
+        salt = secrets.token_hex(16)
+        hashed = hashlib.sha256((password + salt).encode()).hexdigest()
+        return hashed, salt
+
+    @staticmethod
+    def verify_password(password: str, hashed: str, salt: str) -> bool:
+        """Verifica una contraseña hasheada."""
+        return Security.hash_password(password, salt)[0] == hashed
+
+    @staticmethod
+    def audit_log(action: str, user: str, details: str):
+        """Registra acciones sensibles en un log de auditoría."""
+        with open("audit.log", "a") as f:
+            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {user} - {action} - {details}\n")
+
+
+class FailoverHandler:
+    """Manejo de fallos en exchanges y redirección a otros mercados."""
+
+    def __init__(self, exchanges: Dict[str, APIClient]):
+        self.exchanges = exchanges
+
+    def execute_with_failover(self, trading_pair: str, side: str, amount: float) -> Dict[str, str]:
+        """Ejecuta la operación en otro exchange si el principal falla."""
+        for exchange_name, client in self.exchanges.items():
+            try:
+                return client.place_order(trading_pair, side, amount)
+            except Exception as e:
+                logging.warning(f"Error en {exchange_name}: {e}")
+        return {"status": "error", "message": "No available exchange"}

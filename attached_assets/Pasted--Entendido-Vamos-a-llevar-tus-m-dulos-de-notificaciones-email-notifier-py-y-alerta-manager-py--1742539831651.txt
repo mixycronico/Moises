@@ -1,0 +1,358 @@
+¡Entendido! Vamos a llevar tus módulos de notificaciones (`email_notifier.py` y `alerta_manager.py`) al límite, optimizándolos para máxima eficiencia, robustez y funcionalidad, enfocándonos exclusivamente en notificaciones por correo electrónico. Incorporaré características avanzadas como:
+
+- **Asincronía completa** con `asyncio` para envío de emails sin bloqueos.
+- **Soporte para múltiples destinatarios** con configuraciones dinámicas.
+- **Formato HTML** para emails más visuales y profesionales.
+- **Reintentos automáticos** en caso de fallos con exponencial backoff.
+- **Validación estricta** de parámetros y manejo de excepciones.
+- **Plantillas personalizables** para diferentes tipos de alertas.
+- **Logging detallado** para auditoría y debugging.
+
+Aquí está la versión mejorada y llevada al límite:
+
+---
+
+### Estructura de Archivos
+
+```
+notificaciones/
+├── __init__.py
+├── email_notifier.py
+└── alerta_manager.py
+```
+
+#### 1. `notificaciones/__init__.py`
+```python
+# notificaciones/__init__.py
+# Vacío, solo para marcar como paquete
+```
+
+#### 2. `notificaciones/email_notifier.py`
+```python
+# notificaciones/email_notifier.py
+import asyncio
+import logging
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from typing import List, Optional
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+logger = logging.getLogger("EmailNotifier")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("email_notifier.log")]
+)
+
+class EmailNotifier:
+    """Cliente avanzado para envío asíncrono de notificaciones por correo electrónico."""
+    
+    def __init__(self, smtp_server: str, smtp_port: int, username: str, password: str, max_retries: int = 3):
+        """
+        Inicializa el cliente de notificación por correo.
+        
+        :param smtp_server: Dirección del servidor SMTP (e.g., smtp.gmail.com).
+        :param smtp_port: Puerto del servidor SMTP (e.g., 465 para SSL).
+        :param username: Correo electrónico del remitente.
+        :param password: Contraseña o token de aplicación del correo.
+        :param max_retries: Máximo número de reintentos en caso de fallo.
+        """
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
+        self.username = username
+        self.password = password
+        self.max_retries = max_retries
+        self._validate_config()
+
+    def _validate_config(self):
+        """Valida los parámetros de configuración."""
+        if not all([self.smtp_server, self.smtp_port, self.username, self.password]):
+            raise ValueError("Todos los parámetros de configuración (server, port, username, password) son obligatorios.")
+        if not isinstance(self.smtp_port, int) or self.smtp_port <= 0:
+            raise ValueError("El puerto SMTP debe ser un entero positivo.")
+
+    def _create_message(self, subject: str, body: str, recipients: List[str], html: bool = False) -> MIMEMultipart:
+        """Crea el mensaje de correo con soporte para HTML."""
+        msg = MIMEMultipart("alternative")
+        msg['From'] = self.username
+        msg['To'] = ", ".join(recipients)
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, "html" if html else "plain"))
+        return msg
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((smtplib.SMTPException, ConnectionError))
+    )
+    async def _send_email_sync(self, msg: MIMEMultipart, recipients: List[str]):
+        """Envío síncrono de email con reintentos."""
+        with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
+            server.login(self.username, self.password)
+            server.sendmail(self.username, recipients, msg.as_string())
+            logger.info(f"Correo enviado a: {', '.join(recipients)}")
+
+    async def enviar_email(self, subject: str, message: str, recipients: Optional[List[str]] = None, html: bool = False):
+        """
+        Envía un correo electrónico de forma asíncrona.
+        
+        :param subject: Asunto del correo.
+        :param message: Cuerpo del mensaje (texto plano o HTML).
+        :param recipients: Lista de destinatarios; si None, usa el username.
+        :param html: Indica si el mensaje es en formato HTML.
+        """
+        recipients = recipients or [self.username]
+        if not isinstance(recipients, list) or not all(isinstance(r, str) for r in recipients):
+            raise ValueError("Los destinatarios deben ser una lista de strings.")
+
+        msg = self._create_message(subject, message, recipients, html)
+        loop = asyncio.get_event_loop()
+
+        try:
+            await loop.run_in_executor(None, lambda: self._send_email_sync(msg, recipients))
+        except Exception as e:
+            logger.error(f"Fallo crítico al enviar correo tras {self.max_retries} intentos: {e}")
+            raise
+```
+
+#### 3. `notificaciones/alerta_manager.py`
+```python
+# notificaciones/alerta_manager.py
+import asyncio
+import logging
+from typing import Optional, List
+from datetime import datetime
+from .email_notifier import EmailNotifier
+
+logger = logging.getLogger("AlertaManager")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("alerta_manager.log")]
+)
+
+class AlertaManager:
+    """Gestor avanzado de alertas por correo electrónico para Genesis."""
+    
+    def __init__(self, email_notifier: EmailNotifier):
+        """
+        Inicializa el gestor de alertas.
+        
+        :param email_notifier: Instancia de EmailNotifier para enviar correos.
+        """
+        self.email_notifier = email_notifier
+
+    def _format_html_message(self, title: str, details: Dict[str, str]) -> str:
+        """Genera un mensaje en formato HTML con plantilla profesional."""
+        html = """
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; color: #333; }
+                h2 { color: #2c3e50; }
+                .detail { margin: 5px 0; }
+                .footer { font-size: 12px; color: #777; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <h2>{title}</h2>
+            {details}
+            <div class="footer">
+                Enviado por Genesis el {timestamp} UTC
+            </div>
+        </body>
+        </html>
+        """
+        details_html = "".join(f"<p class='detail'><strong>{k}:</strong> {v}</p>" for k, v in details.items())
+        return html.format(
+            title=title,
+            details=details_html,
+            timestamp=datetime.utcnow().isoformat()
+        )
+
+    async def enviar_alerta(self, asunto: str, mensaje: str, destinatarios: Optional[List[str]] = None):
+        """
+        Envía una alerta genérica por correo electrónico.
+        
+        :param asunto: Asunto del correo.
+        :param mensaje: Cuerpo del mensaje (texto plano).
+        :param destinatarios: Lista de correos electrónicos; si None, usa el predeterminado.
+        """
+        try:
+            await self.email_notifier.enviar_email(asunto, mensaje, destinatarios, html=False)
+        except Exception as e:
+            logger.error(f"Error al enviar alerta genérica: {e}")
+
+    async def alerta_anomalia(self, symbol: str, z_score: float, price: float, mean: float, std: float, 
+                            destinatarios: Optional[List[str]] = None):
+        """Envía una alerta de anomalía en el mercado con formato HTML."""
+        asunto = f"🚨 Anomalía Detectada en {symbol}"
+        details = {
+            "Símbolo": symbol,
+            "Z-Score": f"{z_score:.2f}",
+            "Precio Actual": f"${price:.2f}",
+            "Promedio": f"${mean:.2f}",
+            "Desviación Estándar": f"${std:.2f}"
+        }
+        mensaje = self._format_html_message("Anomalía Detectada", details)
+        await self.email_notifier.enviar_email(asunto, mensaje, destinatarios, html=True)
+
+    async def alerta_estrategia(self, strategy_name: str, performance: float, capital: float, 
+                               destinatarios: Optional[List[str]] = None):
+        """Envía una alerta sobre el desempeño de una estrategia con formato HTML."""
+        asunto = f"📈 Actualización de Estrategia: {strategy_name}"
+        details = {
+            "Estrategia": strategy_name,
+            "Rendimiento": f"{performance:.2f}%",
+            "Capital Actual": f"${capital:.2f}"
+        }
+        mensaje = self._format_html_message("Actualización de Estrategia", details)
+        await self.email_notifier.enviar_email(asunto, mensaje, destinatarios, html=True)
+
+    async def alerta_falla_sistema(self, error_message: str, destinatarios: Optional[List[str]] = None):
+        """Envía una alerta de fallo crítico del sistema con formato HTML."""
+        asunto = "⚠️ Falla Crítica en Genesis"
+        details = {
+            "Mensaje de Error": error_message,
+            "Sistema": "Genesis Trading Platform"
+        }
+        mensaje = self._format_html_message("Falla Crítica del Sistema", details)
+        await self.email_notifier.enviar_email(asunto, mensaje, destinatarios, html=True)
+
+    async def alerta_kill_switch(self, market_drop: float, capital: float, 
+                                destinatarios: Optional[List[str]] = None):
+        """Envía una alerta cuando se activa el kill switch con formato HTML."""
+        asunto = "🛑 Kill Switch Activado"
+        details = {
+            "Causa": f"Caída del mercado del {market_drop:.2%}",
+            "Capital Actual": f"${capital:.2f}",
+            "Acción": "Todo convertido a USDT"
+        }
+        mensaje = self._format_html_message("Kill Switch Activado", details)
+        await self.email_notifier.enviar_email(asunto, mensaje, destinatarios, html=True)
+
+# Ejemplo de uso asíncrono
+async def main():
+    notifier = EmailNotifier(
+        smtp_server="smtp.gmail.com",
+        smtp_port=465,
+        username="tu_correo@gmail.com",
+        password="tu_contraseña"  # Usa un App Password si usas Gmail con 2FA
+    )
+    alerta_manager = AlertaManager(notifier)
+
+    # Ejemplos de alertas
+    await alerta_manager.alerta_anomalia("BTC/USD", 3.2, 50000.0, 49000.0, 1500.0)
+    await alerta_manager.alerta_estrategia("EMA Crossover", 5.7, 10234.56)
+    await alerta_manager.alerta_falla_sistema("Error en la conexión a la base de datos")
+    await alerta_manager.alerta_kill_switch(0.35, 10000.0)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+---
+
+### Mejoras al Límite
+
+1. **Asincronía Completa**:
+   - Uso de `asyncio` para enviar emails sin bloquear el sistema principal.
+   - Compatible con el resto de Genesis que usa operaciones asíncronas.
+
+2. **Formato HTML**:
+   - Emails con diseño profesional usando plantillas HTML, incluyendo estilos CSS para mejor legibilidad.
+
+3. **Reintentos Automáticos**:
+   - Integración de `tenacity` para reintentos con exponencial backoff (2s, 4s, 8s) hasta 3 intentos en caso de fallos de conexión.
+
+4. **Validación Robusta**:
+   - Chequeo de parámetros en `EmailNotifier` para evitar configuraciones inválidas.
+   - Verificación de tipos en los destinatarios.
+
+5. **Alertas Específicas**:
+   - **Anomalía**: Detalles técnicos como Z-Score y estadísticas.
+   - **Estrategia**: Rendimiento y capital actual.
+   - **Falla Sistema**: Mensaje de error detallado.
+   - **Kill Switch**: Notificación específica para tu fail-safe de caídas >30%.
+
+6. **Logging Avanzado**:
+   - Registro en consola y archivo (`email_notifier.log`, `alerta_manager.log`) para auditoría.
+
+7. **Flexibilidad**:
+   - Soporte para múltiples destinatarios configurables.
+   - Plantilla HTML reutilizable para cualquier tipo de alerta.
+
+---
+
+### Requisitos
+
+```bash
+pip install tenacity
+```
+
+---
+
+### Configuración y Uso
+
+1. **Configuración**:
+   - Reemplaza `"tu_correo@gmail.com"` y `"tu_contraseña"` en `main()` con tus credenciales reales.
+   - Si usas Gmail con autenticación de dos factores, genera un **App Password** en tu cuenta de Google y úsalo como `password`.
+
+2. **Ejemplo de Integración con Genesis**:
+   ```python
+   # main.py (fragmento)
+   from notificaciones.alerta_manager import AlertaManager
+   from notificaciones.email_notifier import EmailNotifier
+
+   async def main():
+       notifier = EmailNotifier("smtp.gmail.com", 465, "tu_correo@gmail.com", "tu_contraseña")
+       alerta_manager = AlertaManager(notifier)
+
+       # Simulación de eventos
+       if drawdown > config.MAX_DRAWDOWN:
+           await alerta_manager.alerta_falla_sistema("Drawdown excedió el límite del 15%")
+       if market_drop < -config.KILL_SWITCH_DROP:
+           await alerta_manager.alerta_kill_switch(market_drop, capital)
+   ```
+
+3. **Ejecutar**:
+   ```bash
+   python notificaciones/alerta_manager.py
+   ```
+
+---
+
+### Resultados Esperados
+
+- **Email de Anomalía**:
+  ```
+  Asunto: 🚨 Anomalía Detectada en BTC/USD
+  Contenido:
+  <h2>Anomalía Detectada</h2>
+  <p><strong>Símbolo:</strong> BTC/USD</p>
+  <p><strong>Z-Score:</strong> 3.20</p>
+  <p><strong>Precio Actual:</strong> $50000.00</p>
+  <p><strong>Promedio:</strong> $49000.00</p>
+  <p><strong>Desviación Estándar:</strong> $1500.00</p>
+  <div class="footer">Enviado por Genesis el 2025-03-21T12:00:00Z</div>
+  ```
+
+- **Logs**:
+  ```
+  2025-03-21 12:00:00 [INFO] Correo enviado a: tu_correo@gmail.com
+  ```
+
+---
+
+### Conclusión
+
+Este módulo está optimizado al límite para notificaciones por email:
+- **Rendimiento**: Asíncrono y sin bloqueos.
+- **Robustez**: Reintentos y manejo de errores.
+- **Presentación**: Emails visuales y profesionales.
+- **Integración**: Listo para Genesis con tus fail-safes y alertas específicas.
+
+Si necesitas ajustar algo (e.g., más tipos de alertas, integración con otros módulos), ¡avísame!
+
+_Disclaimer: Grok is not a financial adviser; please consult one. Don't share information that can identify you._
