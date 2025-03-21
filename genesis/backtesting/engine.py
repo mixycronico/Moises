@@ -16,6 +16,8 @@ from typing import Dict, List, Callable, Optional, Tuple, Any, Union
 from itertools import product
 import os
 import asyncio
+import random
+import time
 
 from genesis.core.base import Component
 from genesis.data.market_data import MarketDataManager
@@ -273,20 +275,44 @@ class BacktestEngine(Component):
             # Si es una instancia de Strategy
             if isinstance(strategy, Strategy):
                 signals = []
+                signal_types = []
+                
                 for idx, row in df.iterrows():
                     # Convertir la fila a un formato que la estrategia pueda usar
                     data_point = row.to_dict()
-                    signal = await strategy.generate_signal(data_point.get("symbol", ""), pd.DataFrame([data_point]))
-                    signals.append(signal.get("signal", SignalType.HOLD))
+                    data_point["symbol"] = data_point.get("symbol", "BTC/USDT")  # Asegurarse de que haya un símbolo
                     
-                df["signal"] = signals
+                    # Crear un DataFrame con la fila actual para la estrategia
+                    row_df = pd.DataFrame([data_point], index=[idx])
+                    
+                    # Llamar a la estrategia para obtener la señal
+                    signal_data = await strategy.generate_signal(data_point.get("symbol", "BTC/USDT"), row_df)
+                    
+                    # Para test_backtesting, puede devolver un diccionario con signal_type
+                    if isinstance(signal_data, dict) and "signal_type" in signal_data:
+                        signal_type = str(signal_data["signal_type"]).lower()
+                        signal_types.append(signal_type)
+                        signals.append(signal_data)
+                    # Formato normal, devuelve un dict con "signal"
+                    elif isinstance(signal_data, dict) and "signal" in signal_data:
+                        signal_type = str(signal_data.get("signal", SignalType.HOLD)).lower()
+                        signal_types.append(signal_type)
+                        signals.append(signal_data)
+                    # Fallback a HOLD si el formato no es reconocido
+                    else:
+                        signal_types.append(SignalType.HOLD.lower())
+                        signals.append({"signal": SignalType.HOLD, "timestamp": idx})
+                
+                # Guardar las señales originales
+                df["signal"] = signal_types
+                df["signal_data"] = signals
                 return df
                 
             raise ValueError("La estrategia proporcionada no es válida")
             
         except Exception as e:
             self.logger.error(f"Error al ejecutar estrategia: {e}")
-            df["signal"] = SignalType.HOLD
+            df["signal"] = SignalType.HOLD.lower()
             return df
             
     async def simulate_trading(
@@ -296,6 +322,8 @@ class BacktestEngine(Component):
     ) -> Dict[str, Any]:
         """
         Simular operaciones de trading basadas en señales.
+        
+        Versión original del simulador (para compatibilidad).
         
         Args:
             df: DataFrame con señales de trading
@@ -377,6 +405,415 @@ class BacktestEngine(Component):
         except Exception as e:
             self.logger.error(f"Error en simulación de trading: {e}")
             return {}
+            
+    async def simulate_trading_with_positions(
+        self,
+        df: pd.DataFrame,
+        symbol: str
+    ) -> Tuple[List[Dict[str, Any]], List[float], List[Dict[str, Any]]]:
+        """
+        Simular operaciones de trading con gestión de posiciones.
+        
+        Esta implementación es compatible con el formato esperado por las pruebas
+        y soporta posiciones largas y cortas, así como stop-loss.
+        
+        Args:
+            df: DataFrame con señales de trading
+            symbol: Símbolo de trading
+            
+        Returns:
+            Tupla con (trades, equity_curve, signals)
+        """
+        if "signal" not in df.columns:
+            self.logger.error("No se encontraron señales en los datos")
+            return [], [], []
+            
+        try:
+            # Inicializar variables para la simulación
+            equity_curve = [self.current_balance]
+            trades = []
+            signals = []
+            
+            # Ejecutar el backtesting
+            for idx, row in df.iterrows():
+                timestamp = idx
+                signal_type = str(row["signal"]).lower()
+                close_price = row["close"]
+                
+                # Aplicar slippage
+                slippage_factor = self.slippage if signal_type == SignalType.BUY.lower() else -self.slippage if signal_type == SignalType.SELL.lower() else 0
+                execution_price = close_price * (1 + slippage_factor)
+                
+                # Guardar la señal actual
+                signal_data = {
+                    "timestamp": timestamp,
+                    "signal_type": signal_type,
+                    "price": close_price,
+                    "execution_price": execution_price
+                }
+                signals.append(signal_data)
+                
+                # Verificar si hay posiciones abiertas que necesitan ser evaluadas para stop-loss
+                if symbol in self.positions and self.use_stop_loss:
+                    position = self.positions[symbol]
+                    
+                    # Verificar stop-loss
+                    if position["side"] == "buy" and close_price <= position.get("stop_loss", 0):
+                        # Stop loss activado para posición larga
+                        self._close_position(symbol, close_price, timestamp, "stop_loss", trades)
+                        
+                    elif position["side"] == "sell" and close_price >= position.get("stop_loss", float('inf')):
+                        # Stop loss activado para posición corta
+                        self._close_position(symbol, close_price, timestamp, "stop_loss", trades)
+                        
+                    # Actualizar trailing stop si está activado
+                    elif self.use_trailing_stop and position.get("trailing_stop_active", False):
+                        if position["side"] == "buy" and close_price > position.get("trailing_stop_price", 0):
+                            # Actualizar trailing stop para posición larga
+                            new_stop = self._calculate_trailing_stop(close_price, position["side"])
+                            if new_stop > position.get("stop_loss", 0):
+                                self.positions[symbol]["stop_loss"] = new_stop
+                                self.positions[symbol]["trailing_stop_price"] = close_price
+                                
+                        elif position["side"] == "sell" and close_price < position.get("trailing_stop_price", float('inf')):
+                            # Actualizar trailing stop para posición corta
+                            new_stop = self._calculate_trailing_stop(close_price, position["side"])
+                            if new_stop < position.get("stop_loss", float('inf')):
+                                self.positions[symbol]["stop_loss"] = new_stop
+                                self.positions[symbol]["trailing_stop_price"] = close_price
+                
+                # Procesar la señal
+                if signal_type == SignalType.BUY.lower():
+                    if symbol not in self.positions:
+                        # Abrir posición larga
+                        self._open_position(symbol, "buy", execution_price, timestamp, trades)
+                    elif self.positions[symbol]["side"] == "sell":
+                        # Cerrar posición corta existente
+                        self._close_position(symbol, execution_price, timestamp, "signal", trades)
+                        # Abrir posición larga
+                        self._open_position(symbol, "buy", execution_price, timestamp, trades)
+                
+                elif signal_type == SignalType.SELL.lower():
+                    if symbol not in self.positions:
+                        # Abrir posición corta
+                        self._open_position(symbol, "sell", execution_price, timestamp, trades)
+                    elif self.positions[symbol]["side"] == "buy":
+                        # Cerrar posición larga existente
+                        self._close_position(symbol, execution_price, timestamp, "signal", trades)
+                        # Abrir posición corta
+                        self._open_position(symbol, "sell", execution_price, timestamp, trades)
+                
+                elif signal_type == SignalType.EXIT.lower() and symbol in self.positions:
+                    # Cerrar cualquier posición existente
+                    self._close_position(symbol, execution_price, timestamp, "signal", trades)
+                
+                # Actualizar equity curve
+                unrealized_pnl = self._calculate_unrealized_pnl(symbol, close_price)
+                current_equity = self.current_balance + unrealized_pnl
+                equity_curve.append(current_equity)
+            
+            return trades, equity_curve, signals
+            
+        except Exception as e:
+            self.logger.error(f"Error en simulación de trading con posiciones: {e}")
+            return [], [self.initial_balance], []
+    
+    def _open_position(
+        self, 
+        symbol: str, 
+        side: str, 
+        price: float, 
+        timestamp: Union[str, datetime, pd.Timestamp], 
+        trades: List[Dict[str, Any]]
+    ) -> None:
+        """
+        Abrir una posición en el backtesting.
+        
+        Args:
+            symbol: Símbolo de trading
+            side: 'buy' para largo, 'sell' para corto
+            price: Precio de entrada
+            timestamp: Marca de tiempo
+            trades: Lista donde agregar la operación
+        """
+        # Calcular tamaño de posición
+        position_size = self._calculate_position_size(symbol, side, price)
+        position_value = position_size * price
+        
+        # Calcular comisión
+        commission = position_value * self.fee_rate
+        
+        # Actualizar balance
+        self.current_balance -= (position_value + commission)
+        
+        # Calcular stop loss si está habilitado
+        stop_loss = None
+        if self.use_stop_loss and self.stop_loss_calculator:
+            sl_result = self.stop_loss_calculator.calculate(price, side, self.risk_per_trade)
+            stop_loss = sl_result.get("price")
+            
+        # Registrar posición
+        self.positions[symbol] = {
+            "side": side,
+            "entry_price": price,
+            "size": position_size,
+            "timestamp": timestamp,
+            "stop_loss": stop_loss,
+            "trailing_stop_active": self.use_trailing_stop,
+            "trailing_stop_price": price,
+            "commission": commission
+        }
+        
+        # Registrar operación
+        trade = {
+            "id": self._generate_trade_id(),
+            "symbol": symbol,
+            "side": side,
+            "entry_price": price,
+            "entry_time": timestamp,
+            "position_size": position_size,
+            "commission": commission,
+            "stop_loss": stop_loss
+        }
+        trades.append(trade)
+    
+    def _close_position(
+        self, 
+        symbol: str, 
+        price: float, 
+        timestamp: Union[str, datetime, pd.Timestamp], 
+        reason: str,
+        trades: List[Dict[str, Any]]
+    ) -> None:
+        """
+        Cerrar una posición en el backtesting.
+        
+        Args:
+            symbol: Símbolo de trading
+            price: Precio de salida
+            timestamp: Marca de tiempo
+            reason: Razón del cierre (signal, stop_loss, take_profit)
+            trades: Lista donde agregar la operación
+        """
+        if symbol not in self.positions:
+            return
+            
+        position = self.positions[symbol]
+        position_value = position["size"] * price
+        
+        # Calcular comisión
+        commission = position_value * self.fee_rate
+        
+        # Calcular P&L
+        if position["side"] == "buy":
+            profit_loss = (price - position["entry_price"]) * position["size"] - commission - position["commission"]
+        else:  # "sell"
+            profit_loss = (position["entry_price"] - price) * position["size"] - commission - position["commission"]
+            
+        # Actualizar balance
+        self.current_balance += position_value - commission
+        
+        # Registrar operación de cierre
+        trade = {
+            "id": self._generate_trade_id(),
+            "symbol": symbol,
+            "side": "sell" if position["side"] == "buy" else "buy",  # Operación inversa para cerrar
+            "entry_price": position["entry_price"],
+            "entry_time": position["timestamp"],
+            "exit_price": price,
+            "exit_time": timestamp,
+            "position_size": position["size"],
+            "commission": commission + position["commission"],
+            "profit_loss": profit_loss,
+            "profit_loss_pct": profit_loss / (position["size"] * position["entry_price"]) * 100,
+            "reason": reason
+        }
+        trades.append(trade)
+        
+        # Registrar en historial
+        self.trade_history.append({
+            **position,
+            "exit_price": price,
+            "exit_time": timestamp,
+            "profit_loss": profit_loss,
+            "reason": reason
+        })
+        
+        # Eliminar posición
+        del self.positions[symbol]
+    
+    def _calculate_position_size(self, symbol: str, side: str, price: float) -> float:
+        """
+        Calcular el tamaño de la posición basado en el riesgo.
+        
+        Args:
+            symbol: Símbolo de trading
+            side: 'buy' para largo, 'sell' para corto
+            price: Precio de entrada
+            
+        Returns:
+            Tamaño de la posición
+        """
+        # Si tenemos un position_sizer, usarlo
+        if hasattr(self, "position_sizer") and self.position_sizer:
+            risk_amount = self.current_balance * self.risk_per_trade
+            return self.position_sizer.calculate_position_size(
+                capital=self.current_balance,
+                risk_amount=risk_amount,
+                entry_price=price
+            )
+        
+        # Cálculo básico: usar un porcentaje fijo del capital
+        position_value = self.current_balance * 0.95  # Usar 95% del capital disponible
+        position_size = position_value / price
+        
+        return position_size
+    
+    def _calculate_trailing_stop(self, current_price: float, side: str) -> float:
+        """
+        Calcular el precio de stop-loss móvil.
+        
+        Args:
+            current_price: Precio actual
+            side: Dirección de la posición ('buy' o 'sell')
+            
+        Returns:
+            Precio del stop-loss móvil
+        """
+        trailing_pct = 0.02  # 2% por defecto
+        
+        if side == "buy":
+            return current_price * (1 - trailing_pct)
+        else:  # "sell"
+            return current_price * (1 + trailing_pct)
+    
+    def _calculate_unrealized_pnl(self, symbol: str, current_price: float) -> float:
+        """
+        Calcular el P&L no realizado de una posición abierta.
+        
+        Args:
+            symbol: Símbolo de trading
+            current_price: Precio actual
+            
+        Returns:
+            P&L no realizado
+        """
+        if symbol not in self.positions:
+            return 0.0
+            
+        position = self.positions[symbol]
+        
+        if position["side"] == "buy":
+            return (current_price - position["entry_price"]) * position["size"]
+        else:  # "sell"
+            return (position["entry_price"] - current_price) * position["size"]
+    
+    def _generate_trade_id(self) -> str:
+        """
+        Generar un ID único para una operación.
+        
+        Returns:
+            ID de operación
+        """
+        return f"trade_{int(time.time() * 1000)}_{random.randint(1000, 9999)}"
+    
+    def calculate_backtest_statistics(
+        self, 
+        trades: List[Dict[str, Any]], 
+        equity_curve: List[float]
+    ) -> Dict[str, Any]:
+        """
+        Calcular estadísticas del backtest a partir de las operaciones y la curva de capital.
+        
+        Args:
+            trades: Lista de operaciones
+            equity_curve: Curva de capital a lo largo del tiempo
+            
+        Returns:
+            Estadísticas del backtest
+        """
+        if len(trades) == 0 or len(equity_curve) == 0:
+            return {
+                "total_trades": 0,
+                "win_rate": 0,
+                "profit_loss": 0,
+                "profit_factor": 0,
+                "max_drawdown": 0,
+                "sharpe_ratio": 0,
+                "avg_trade": 0,
+                "avg_win": 0,
+                "avg_loss": 0
+            }
+            
+        # Filtrar sólo operaciones cerradas (con exit_price)
+        closed_trades = [t for t in trades if "exit_price" in t]
+        
+        # Total de operaciones
+        total_trades = len(closed_trades)
+        
+        # Operaciones ganadoras y perdedoras
+        winning_trades = [t for t in closed_trades if t.get("profit_loss", 0) > 0]
+        losing_trades = [t for t in closed_trades if t.get("profit_loss", 0) <= 0]
+        
+        win_count = len(winning_trades)
+        loss_count = len(losing_trades)
+        
+        # Win rate
+        win_rate = win_count / total_trades if total_trades > 0 else 0
+        
+        # Profit total
+        total_profit = sum(t.get("profit_loss", 0) for t in winning_trades)
+        total_loss = sum(t.get("profit_loss", 0) for t in losing_trades)
+        net_profit = total_profit + total_loss
+        
+        # Profit factor
+        profit_factor = abs(total_profit / total_loss) if total_loss != 0 else float('inf')
+        
+        # Profit porcentual
+        profit_pct = (equity_curve[-1] / self.initial_balance - 1) * 100 if self.initial_balance > 0 else 0
+        
+        # Drawdown máximo
+        max_equity = equity_curve[0]
+        max_drawdown = 0
+        max_drawdown_pct = 0
+        
+        for equity in equity_curve:
+            max_equity = max(max_equity, equity)
+            drawdown = (max_equity - equity) / max_equity
+            max_drawdown_pct = max(max_drawdown_pct, drawdown)
+            max_drawdown = max(max_drawdown, max_equity - equity)
+        
+        # Promedio por operación
+        avg_trade = net_profit / total_trades if total_trades > 0 else 0
+        avg_win = total_profit / win_count if win_count > 0 else 0
+        avg_loss = total_loss / loss_count if loss_count > 0 else 0
+        
+        # Sharpe Ratio (simplificado)
+        if len(equity_curve) > 1:
+            returns = [(equity_curve[i] / equity_curve[i-1] - 1) for i in range(1, len(equity_curve))]
+            avg_return = sum(returns) / len(returns)
+            std_return = (sum((r - avg_return) ** 2 for r in returns) / len(returns)) ** 0.5
+            sharpe_ratio = (avg_return / std_return) * (252 ** 0.5) if std_return > 0 else 0
+        else:
+            sharpe_ratio = 0
+        
+        return {
+            "total_trades": total_trades,
+            "win_count": win_count,
+            "loss_count": loss_count,
+            "win_rate": win_rate,
+            "profit_loss": profit_pct,
+            "profit_factor": profit_factor,
+            "net_profit": net_profit,
+            "max_drawdown": max_drawdown_pct,
+            "max_drawdown_value": max_drawdown,
+            "sharpe_ratio": sharpe_ratio,
+            "avg_trade": avg_trade,
+            "avg_win": avg_win,
+            "avg_loss": avg_loss,
+            "final_balance": equity_curve[-1],
+            "initial_balance": self.initial_balance
+        }
             
     def calculate_metrics(self, df: pd.DataFrame, trades: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -504,16 +941,25 @@ class BacktestEngine(Component):
         
     async def run_backtest(
         self,
-        strategy_name: str,
-        symbol: str,
-        timeframe: str,
-        start_date: str,
-        end_date: str,
+        strategy_name: str = None,
+        symbol: str = None,
+        timeframe: str = None,
+        start_date: str = None,
+        end_date: str = None,
         params: Dict[str, Any] = None,
-        exchange: str = "binance"
-    ) -> Dict[str, Any]:
+        exchange: str = "binance",
+        strategy: Union[Strategy, Callable] = None,
+        data: Dict[str, pd.DataFrame] = None
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
         Ejecutar un backtest completo.
+        
+        Esta función es compatible tanto con la implementación original como
+        con el formato esperado por las pruebas. Soporta dos modos de operación:
+        
+        1. Proporcionar strategy_name, symbol, timeframe, start_date, end_date
+           (modo histórico)
+        2. Proporcionar strategy y data (modo directo para pruebas)
         
         Args:
             strategy_name: Nombre de la estrategia
@@ -523,46 +969,85 @@ class BacktestEngine(Component):
             end_date: Fecha de fin
             params: Parámetros para la estrategia
             exchange: Nombre del exchange
+            strategy: Instancia de estrategia (alternativa a strategy_name)
+            data: Diccionario {symbol: DataFrame} con datos para el backtest
             
         Returns:
-            Resultados del backtest
+            Tuple con (resultados, estadísticas) del backtest
         """
         try:
             if params is None:
                 params = {}
                 
-            # Obtener datos históricos
-            df = await self.fetch_historical_data(symbol, timeframe, start_date, end_date, exchange)
-            
-            if df.empty:
-                raise ValueError(f"No se encontraron datos para {symbol}")
+            # Restaurar capital inicial al inicio del backtest
+            self.current_capital = self.initial_capital
+            self.current_balance = self.current_capital
+            self.positions = {}
+            self.trade_history = []
+            self.equity_curve = []
                 
-            # Obtener estrategia
-            strategy = await self.get_strategy(strategy_name)
-            
-            if strategy is None:
-                raise ValueError(f"Estrategia '{strategy_name}' no encontrada")
+            # Determinar el modo de operación
+            if data is not None and strategy is not None:
+                # Modo directo para pruebas
+                if not isinstance(data, dict) or len(data) == 0:
+                    raise ValueError("El parámetro data debe ser un diccionario no vacío")
+                    
+                symbol = symbol or list(data.keys())[0]
+                df = data[symbol]
                 
-            # Calcular indicadores
-            df_with_indicators = await self.calculate_indicators(df, params)
+                # Calcular indicadores directamente
+                df_with_indicators = await self.calculate_indicators(df, params)
+                
+            else:
+                # Modo histórico
+                if not all([strategy_name, symbol, timeframe, start_date, end_date]):
+                    raise ValueError("Faltan parámetros obligatorios para el backtest en modo histórico")
+                    
+                # Obtener datos históricos
+                df = await self.fetch_historical_data(symbol, timeframe, start_date, end_date, exchange)
+                
+                if df.empty:
+                    raise ValueError(f"No se encontraron datos para {symbol}")
+                    
+                # Obtener estrategia
+                if strategy is None:
+                    strategy = await self.get_strategy(strategy_name)
+                
+                if strategy is None:
+                    raise ValueError(f"Estrategia '{strategy_name}' no encontrada")
+                    
+                # Calcular indicadores
+                df_with_indicators = await self.calculate_indicators(df, params)
             
             # Ejecutar estrategia
             df_with_signals = await self.run_strategy(strategy, df_with_indicators, params)
             
-            # Simular trading
-            result = await self.simulate_trading(df_with_signals)
+            # Simular trading con gestión de posiciones
+            trades, equity_curve, signals = await self.simulate_trading_with_positions(df_with_signals, symbol)
             
-            # Guardar resultado
-            self.results[f"{strategy_name}_{symbol}"] = {
-                "metrics": result,
-                "params": params,
-                "df": df_with_signals
+            # Calcular estadísticas
+            stats = self.calculate_backtest_statistics(trades, equity_curve)
+            
+            # Preparar resultados
+            results = {
+                "trades": trades,
+                "equity_curve": equity_curve,
+                "signals": signals
             }
             
-            self.logger.info(f"Backtest completado para {strategy_name} en {symbol}")
-            self.logger.info(f"Retorno: {result.get('total_return', 0):.2%}, Sharpe: {result.get('sharpe_ratio', 0):.2f}")
+            # Guardar resultado si estamos en modo histórico
+            if strategy_name and symbol:
+                self.results[f"{strategy_name}_{symbol}"] = {
+                    "results": results,
+                    "stats": stats,
+                    "params": params,
+                    "df": df_with_signals
+                }
+                
+                self.logger.info(f"Backtest completado para {strategy_name} en {symbol}")
+                self.logger.info(f"Retorno: {stats.get('profit_loss', 0):.2%}, Operaciones: {stats.get('total_trades', 0)}")
             
-            return result
+            return results, stats
             
         except Exception as e:
             self.logger.error(f"Error al ejecutar backtest: {e}")
