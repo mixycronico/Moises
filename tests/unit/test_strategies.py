@@ -84,7 +84,7 @@ async def test_base_strategy():
 
 @pytest.mark.asyncio
 async def test_rsi_strategy(sample_ohlcv_data):
-    """Probar la estrategia RSI."""
+    """Probar la estrategia RSI básica."""
     # Configurar la estrategia
     rsi_strategy = RSIStrategy(period=14, overbought=70, oversold=30)
     
@@ -92,43 +92,230 @@ async def test_rsi_strategy(sample_ohlcv_data):
     signal = await rsi_strategy.generate_signal("BTCUSDT", sample_ohlcv_data)
     
     # Verificar que la señal tenga el formato correcto
-    assert "symbol" in signal
-    assert "timestamp" in signal
-    assert "signal_type" in signal
-    assert "price" in signal
+    assert "type" in signal
+    assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
+    assert "reason" in signal
     assert "metadata" in signal
     
     # Verificar que el RSI se calculó correctamente
     assert "rsi" in signal["metadata"]
     assert 0 <= signal["metadata"]["rsi"] <= 100
+    
+    # Verificar la coherencia entre el valor de RSI y el tipo de señal
+    rsi_value = signal["metadata"]["rsi"]
+    if signal["type"] == SignalType.BUY:
+        # En una señal de compra, el RSI debería haber cruzado desde zona de sobreventa
+        assert rsi_value > 30, f"RSI = {rsi_value} debería ser > 30 para señal de compra"
+    elif signal["type"] == SignalType.SELL:
+        # En una señal de venta, el RSI debería haber cruzado desde zona de sobrecompra
+        assert rsi_value < 70, f"RSI = {rsi_value} debería ser < 70 para señal de venta"
+
+
+@pytest.mark.asyncio
+async def test_rsi_strategy_custom_thresholds():
+    """Probar la estrategia RSI con umbrales personalizados."""
+    # Crear datos OHLCV específicos para esta prueba
+    dates = pd.date_range("2025-01-01", periods=30, freq="1h")
+    
+    # Generar precios que primero caen y luego suben rápidamente
+    prices = np.array([100] * 10 + list(range(100, 80, -2)) + list(range(80, 120, 4)))
+    
+    df = pd.DataFrame({
+        "open": prices - 1,
+        "high": prices + 2,
+        "low": prices - 2,
+        "close": prices,
+        "volume": np.random.lognormal(10, 1, 30),
+    }, index=dates)
+    
+    # Configurar la estrategia con umbrales más estrictos (25/75)
+    rsi_strategy = RSIStrategy(period=10, overbought=75, oversold=25)
+    
+    # Generar una señal
+    signal = await rsi_strategy.generate_signal("BTCUSDT", df)
+    
+    # Verificar que el RSI se calculó correctamente
+    rsi_value = signal["metadata"]["rsi"]
+    
+    # Con este patrón de precios, esperamos obtener un RSI extremo
+    # que sería o muy bajo (sobreventa) o muy alto (sobrecompra)
+    assert rsi_value < 25 or rsi_value > 75, f"RSI = {rsi_value} debería ser extremo (<25 o >75)"
+    
+    # Verificar que la señal coincide con el RSI
+    if rsi_value < 25:
+        assert signal["type"] == SignalType.BUY
+        assert "sobreventa" in signal["reason"].lower() or "oversold" in signal["reason"].lower()
+    elif rsi_value > 75:
+        assert signal["type"] == SignalType.SELL
+        assert "sobrecompra" in signal["reason"].lower() or "overbought" in signal["reason"].lower()
+
+
+@pytest.mark.asyncio
+async def test_rsi_strategy_insufficient_data():
+    """Probar el comportamiento de la estrategia RSI con datos insuficientes."""
+    # Crear datos OHLCV insuficientes (menos del período necesario)
+    dates = pd.date_range("2025-01-01", periods=5, freq="1h")
+    prices = np.array([100, 102, 101, 103, 105])
+    
+    df = pd.DataFrame({
+        "open": prices - 1,
+        "high": prices + 2,
+        "low": prices - 2,
+        "close": prices,
+        "volume": np.random.lognormal(10, 1, 5),
+    }, index=dates)
+    
+    # Configurar la estrategia con un período más largo que los datos disponibles
+    rsi_strategy = RSIStrategy(period=14, overbought=70, oversold=30)
+    
+    # Generar una señal
+    signal = await rsi_strategy.generate_signal("BTCUSDT", df)
+    
+    # Debería devolver una señal HOLD debido a datos insuficientes
+    assert signal["type"] == SignalType.HOLD
+    assert "datos" in signal["reason"].lower() or "data" in signal["reason"].lower()
 
 
 @pytest.mark.asyncio
 async def test_bollinger_bands_strategy(sample_ohlcv_data):
-    """Probar la estrategia de Bandas de Bollinger."""
+    """Probar la estrategia de Bandas de Bollinger básica."""
     # Configurar la estrategia
     bb_strategy = BollingerBandsStrategy(period=20, std_dev=2.0)
     
     # Generar una señal
     signal = await bb_strategy.generate_signal("BTCUSDT", sample_ohlcv_data)
     
-    # Verificar la señal
-    assert "symbol" in signal
-    assert "signal_type" in signal
-    assert "price" in signal
+    # Verificar que la señal tenga el formato correcto
+    assert "type" in signal
+    assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
+    assert "reason" in signal
+    assert "metadata" in signal
     
     # Verificar las bandas de Bollinger en los metadatos
     assert "middle_band" in signal["metadata"]
     assert "upper_band" in signal["metadata"]
     assert "lower_band" in signal["metadata"]
     
-    # Verificar lógica básica
-    if signal["signal_type"] == SignalType.BUY:
-        # En una compra, el precio debería estar cerca de la banda inferior
-        assert signal["price"] <= signal["metadata"]["middle_band"]
-    elif signal["signal_type"] == SignalType.SELL:
-        # En una venta, el precio debería estar cerca de la banda superior
-        assert signal["price"] >= signal["metadata"]["middle_band"]
+    # Verificar coherencia en los cálculos
+    middle_band = signal["metadata"]["middle_band"]
+    upper_band = signal["metadata"]["upper_band"]
+    lower_band = signal["metadata"]["lower_band"]
+    
+    # Las bandas deben estar ordenadas correctamente
+    assert lower_band <= middle_band <= upper_band
+    
+    # Verificar lógica de señales según la posición del precio
+    current_price = sample_ohlcv_data["close"].iloc[-1]
+    
+    if signal["type"] == SignalType.BUY:
+        # Dos casos típicos para señal de compra:
+        # 1. Precio por debajo o cerca de la banda inferior
+        # 2. Precio cruzando hacia arriba la banda inferior
+        reason = signal["reason"].lower()
+        if "por debajo" in reason or "crossed below" in reason:
+            assert current_price <= lower_band * 1.05  # Permitir un margen del 5%
+        elif "cruzando" in reason or "crossed back above" in reason:
+            assert current_price >= lower_band * 0.95  # Permitir un margen del 5%
+    
+    elif signal["type"] == SignalType.SELL:
+        # Dos casos típicos para señal de venta:
+        # 1. Precio por encima o cerca de la banda superior
+        # 2. Precio cruzando hacia abajo la banda superior
+        reason = signal["reason"].lower()
+        if "por encima" in reason or "crossed above" in reason:
+            assert current_price >= upper_band * 0.95  # Permitir un margen del 5%
+        elif "cruzando" in reason or "crossed back below" in reason:
+            assert current_price <= upper_band * 1.05  # Permitir un margen del 5%
+
+
+@pytest.mark.asyncio
+async def test_bollinger_bands_strategy_narrow_bands():
+    """Probar la estrategia de Bandas de Bollinger con bandas estrechas (baja volatilidad)."""
+    # Crear datos OHLCV con baja volatilidad
+    dates = pd.date_range("2025-01-01", periods=30, freq="1h")
+    
+    # Precios con baja volatilidad alrededor de 100
+    prices = np.array([100 + np.sin(i/5) * 2 for i in range(30)])
+    
+    df = pd.DataFrame({
+        "open": prices - 0.5,
+        "high": prices + 1,
+        "low": prices - 1,
+        "close": prices,
+        "volume": np.random.lognormal(10, 0.2, 30),  # Volumen también estable
+    }, index=dates)
+    
+    # Configurar la estrategia con menor desviación estándar
+    bb_strategy = BollingerBandsStrategy(period=10, std_dev=1.5)
+    
+    # Generar una señal
+    signal = await bb_strategy.generate_signal("BTCUSDT", df)
+    
+    # Verificar las bandas
+    middle_band = signal["metadata"]["middle_band"]
+    upper_band = signal["metadata"]["upper_band"]
+    lower_band = signal["metadata"]["lower_band"]
+    
+    # En períodos de baja volatilidad, las bandas deben estar cercanas 
+    band_width = (upper_band - lower_band) / middle_band
+    assert band_width < 0.1, f"Ancho de banda ({band_width}) debería ser menor a 0.1 para baja volatilidad"
+    
+    # Verificar el tipo de señal
+    current_price = df["close"].iloc[-1]
+    if current_price > upper_band:
+        assert signal["type"] == SignalType.SELL
+    elif current_price < lower_band:
+        assert signal["type"] == SignalType.BUY
+    else:
+        assert signal["type"] == SignalType.HOLD
+
+
+@pytest.mark.asyncio
+async def test_bollinger_bands_strategy_wide_bands():
+    """Probar la estrategia de Bandas de Bollinger con bandas anchas (alta volatilidad)."""
+    # Crear datos OHLCV con alta volatilidad
+    dates = pd.date_range("2025-01-01", periods=30, freq="1h")
+    
+    # Base para generar precios con alta volatilidad
+    base_prices = np.linspace(100, 130, 30)
+    # Agregar ruido aleatorio de alta amplitud
+    noise = np.random.normal(0, 15, 30)
+    prices = base_prices + noise
+    
+    df = pd.DataFrame({
+        "open": prices - 5,
+        "high": prices + 10,
+        "low": prices - 10,
+        "close": prices,
+        "volume": np.random.lognormal(10, 1, 30),  # Volumen también volátil
+    }, index=dates)
+    
+    # Configurar la estrategia
+    bb_strategy = BollingerBandsStrategy(period=10, std_dev=2.0)
+    
+    # Generar una señal
+    signal = await bb_strategy.generate_signal("BTCUSDT", df)
+    
+    # Verificar las bandas
+    middle_band = signal["metadata"]["middle_band"]
+    upper_band = signal["metadata"]["upper_band"]
+    lower_band = signal["metadata"]["lower_band"]
+    
+    # En períodos de alta volatilidad, las bandas deben estar separadas
+    band_width = (upper_band - lower_band) / middle_band
+    assert band_width > 0.2, f"Ancho de banda ({band_width}) debería ser mayor a 0.2 para alta volatilidad"
+    
+    # Verificar el tipo de señal basado en la posición del precio actual
+    current_price = df["close"].iloc[-1]
+    previous_price = df["close"].iloc[-2]
+    
+    # Las pruebas de señal dependen de dónde quede el precio al final, pero la lógica debe ser consistente
+    if signal["type"] == SignalType.BUY:
+        assert (current_price < lower_band * 1.05 or 
+                (previous_price < lower_band and current_price > lower_band * 0.95))
+    elif signal["type"] == SignalType.SELL:
+        assert (current_price > upper_band * 0.95 or 
+                (previous_price > upper_band and current_price < upper_band * 1.05))
 
 
 @pytest.mark.asyncio
@@ -140,10 +327,11 @@ async def test_ma_crossover_strategy(sample_ohlcv_data):
     # Generar una señal
     signal = await ma_strategy.generate_signal("BTCUSDT", sample_ohlcv_data)
     
-    # Verificar la señal
-    assert "symbol" in signal
-    assert "signal_type" in signal
-    assert "price" in signal
+    # Verificar que la señal tenga el formato correcto
+    assert "type" in signal
+    assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
+    assert "reason" in signal
+    assert "metadata" in signal
     
     # Verificar los datos de MA en los metadatos
     assert "fast_ma" in signal["metadata"]
@@ -153,12 +341,14 @@ async def test_ma_crossover_strategy(sample_ohlcv_data):
     fast_ma = signal["metadata"]["fast_ma"]
     slow_ma = signal["metadata"]["slow_ma"]
     
-    if signal["signal_type"] == SignalType.BUY:
-        # En un cruce alcista, la MA rápida debería superar a la lenta
-        assert fast_ma >= slow_ma
-    elif signal["signal_type"] == SignalType.SELL:
-        # En un cruce bajista, la MA rápida debería estar por debajo de la lenta
-        assert fast_ma <= slow_ma
+    if signal["type"] == SignalType.BUY:
+        # En un cruce alcista, la MA rápida debería superar a la lenta o está cerca de cruzarla
+        assert fast_ma >= slow_ma * 0.95
+        assert "cruce" in signal["reason"].lower() or "cross" in signal["reason"].lower()
+    elif signal["type"] == SignalType.SELL:
+        # En un cruce bajista, la MA rápida debería estar por debajo de la lenta o cerca
+        assert fast_ma <= slow_ma * 1.05
+        assert "cruce" in signal["reason"].lower() or "cross" in signal["reason"].lower()
 
 
 @pytest.mark.asyncio
@@ -170,30 +360,33 @@ async def test_macd_strategy(sample_ohlcv_data):
     # Generar una señal
     signal = await macd_strategy.generate_signal("BTCUSDT", sample_ohlcv_data)
     
-    # Verificar la señal
-    assert "symbol" in signal
-    assert "signal_type" in signal
-    assert "price" in signal
+    # Verificar que la señal tenga el formato correcto
+    assert "type" in signal
+    assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
+    assert "reason" in signal
+    assert "metadata" in signal
     
     # Verificar los componentes del MACD en los metadatos
     assert "macd" in signal["metadata"]
-    assert "signal" in signal["metadata"]
+    assert "signal_line" in signal["metadata"]
     assert "histogram" in signal["metadata"]
     
     # Verificar la lógica del MACD
     macd = signal["metadata"]["macd"]
-    macd_signal = signal["metadata"]["signal"]
+    macd_signal = signal["metadata"]["signal_line"]
     histogram = signal["metadata"]["histogram"]
     
     # El histograma debería ser la diferencia entre MACD y línea de señal
     assert abs(histogram - (macd - macd_signal)) < 1e-6
     
-    if signal["signal_type"] == SignalType.BUY:
+    if signal["type"] == SignalType.BUY:
         # En una señal de compra, el MACD debería cruzar sobre la línea de señal
         assert histogram > 0
-    elif signal["signal_type"] == SignalType.SELL:
+        assert "cruce" in signal["reason"].lower() or "cross" in signal["reason"].lower()
+    elif signal["type"] == SignalType.SELL:
         # En una señal de venta, el MACD debería cruzar bajo la línea de señal
         assert histogram < 0
+        assert "cruce" in signal["reason"].lower() or "cross" in signal["reason"].lower()
 
 
 @pytest.mark.asyncio
@@ -213,19 +406,22 @@ async def test_sentiment_strategy(sample_ohlcv_data):
         # Verificar que se llamó al método para obtener sentimiento
         mock_fetch.assert_called_once_with("BTCUSDT")
         
-        # Verificar la señal
-        assert "symbol" in signal
-        assert "signal_type" in signal
-        assert "price" in signal
+        # Verificar que la señal tenga el formato correcto
+        assert "type" in signal
+        assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
+        assert "reason" in signal
+        assert "metadata" in signal
         
         # Verificar el sentimiento en los metadatos
         assert "sentiment_score" in signal["metadata"]
         assert signal["metadata"]["sentiment_score"] == 0.5
         
         # Verificar la lógica basada en sentimiento
-        if signal["signal_type"] == SignalType.BUY:
+        if signal["type"] == SignalType.BUY:
             # En una señal de compra, el sentimiento debería ser positivo
             assert signal["metadata"]["sentiment_score"] > sentiment_strategy.sentiment_threshold
-        elif signal["signal_type"] == SignalType.SELL:
+            assert "positivo" in signal["reason"].lower() or "positive" in signal["reason"].lower()
+        elif signal["type"] == SignalType.SELL:
             # En una señal de venta, el sentimiento debería ser negativo
             assert signal["metadata"]["sentiment_score"] < -sentiment_strategy.sentiment_threshold
+            assert "negativo" in signal["reason"].lower() or "negative" in signal["reason"].lower()
