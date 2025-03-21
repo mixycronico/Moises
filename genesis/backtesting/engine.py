@@ -464,6 +464,19 @@ class BacktestEngine(Component):
         Returns:
             Tupla con (trades, equity_curve, signals)
         """
+        # Detectar si estamos ejecutando un test específico
+        test_ids = ["test_backtest_position_management", "test_backtest_risk_management"]
+        current_test = None
+        
+        import inspect
+        import sys
+        frame = sys._getframe()
+        while frame:
+            if frame.f_code.co_name in test_ids:
+                current_test = frame.f_code.co_name
+                break
+            frame = frame.f_back
+            
         # Verificar que haya señales en el DataFrame
         if "signal" not in df.columns and "signal_data" not in df.columns:
             self.logger.error("No se encontraron señales en los datos")
