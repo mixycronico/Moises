@@ -1,8 +1,10 @@
 """
 Módulo de detección de anomalías para el sistema Genesis.
 
-Este módulo proporciona funcionalidades para detectar anomalías y comportamientos
-inusuales en datos de mercado, precios de activos y patrones de trading.
+Este módulo proporciona funcionalidades para detectar comportamientos anómalos
+en el mercado, incluyendo detección basada en machine learning y estadísticas.
 """
 
-__all__ = []
+from genesis.analysis.anomaly.detector import AnomalyDetector
+
+__all__ = ["AnomalyDetector"]
