@@ -196,21 +196,26 @@ async def test_exchange_manager_execute_trade(exchange_manager):
     # Mockear el método get_best_exchange para que devuelva un nombre de exchange
     async def mock_get_best_exchange(trading_pair):
         return "binance"
+        
+    # Mockear el método emit_event para que no intente usar el bus de eventos
+    async def mock_emit_event(event_type, data):
+        pass  # No hacemos nada, solo evitamos la excepción
     
     # Establecemos el mock en el diccionario de exchanges
     exchange_manager.exchanges["binance"] = mock_exchange
     
-    # Parcheamos el método get_best_exchange
+    # Parcheamos los métodos necesarios
     with patch.object(exchange_manager, 'get_best_exchange', side_effect=mock_get_best_exchange):
-        # Probar ejecución de trade
-        result = await exchange_manager.execute_trade("BTC/USDT", "buy", 0.01, price=40000)
-        
-        # Verificar resultado
-        assert result["status"] == "ok"
-        assert result["order_id"] == "12345"
-        
-        # Verificar que se llamó al método place_order del exchange con los parámetros correctos
-        mock_exchange.place_order.assert_called_once_with("BTC/USDT", "buy", 0.01, 40000)
+        with patch.object(exchange_manager, 'emit_event', side_effect=mock_emit_event):
+            # Probar ejecución de trade
+            result = await exchange_manager.execute_trade("BTC/USDT", "buy", 0.01, price=40000)
+            
+            # Verificar resultado
+            assert result["status"] == "ok"
+            assert result["order_id"] == "12345"
+            
+            # Verificar que se llamó al método place_order del exchange con los parámetros correctos
+            mock_exchange.place_order.assert_called_once_with("BTC/USDT", "buy", 0.01, 40000)
 
 
 @pytest.mark.asyncio
@@ -223,15 +228,20 @@ async def test_exchange_manager_execute_trade_invalid_symbol(exchange_manager):
     # Mockear el método get_best_exchange para que devuelva un nombre de exchange
     async def mock_get_best_exchange(trading_pair):
         return "binance"
+        
+    # Mockear el método emit_event para que no intente usar el bus de eventos
+    async def mock_emit_event(event_type, data):
+        pass  # No hacemos nada, solo evitamos la excepción
     
     # Establecemos el mock en el diccionario de exchanges
     exchange_manager.exchanges["binance"] = mock_exchange
     
-    # Parcheamos el método get_best_exchange
+    # Parcheamos los métodos necesarios
     with patch.object(exchange_manager, 'get_best_exchange', side_effect=mock_get_best_exchange):
-        # Probar ejecución de trade con símbolo inválido
-        with pytest.raises(ValueError, match="Invalid symbol"):
-            await exchange_manager.execute_trade("INVALID/SYMBOL", "buy", 0.01)
+        with patch.object(exchange_manager, 'emit_event', side_effect=mock_emit_event):
+            # Probar ejecución de trade con símbolo inválido
+            with pytest.raises(ValueError, match="Invalid symbol"):
+                await exchange_manager.execute_trade("INVALID/SYMBOL", "buy", 0.01)
 
 
 @pytest.mark.asyncio
@@ -241,12 +251,17 @@ async def test_exchange_manager_execute_trade_exchange_unavailable(exchange_mana
     async def mock_get_best_exchange(trading_pair):
         return None
     
-    # Parcheamos el método get_best_exchange
+    # Mockear el método emit_event para que no intente usar el bus de eventos
+    async def mock_emit_event(event_type, data):
+        pass  # No hacemos nada, solo evitamos la excepción
+    
+    # Parcheamos los métodos necesarios
     with patch.object(exchange_manager, 'get_best_exchange', side_effect=mock_get_best_exchange):
-        # Probar ejecución de trade con exchange no disponible
-        result = await exchange_manager.execute_trade("BTC/USDT", "buy", 0.01)
-        assert result["status"] == "error"
-        assert "No suitable exchange found" in result["message"]
+        with patch.object(exchange_manager, 'emit_event', side_effect=mock_emit_event):
+            # Probar ejecución de trade con exchange no disponible
+            result = await exchange_manager.execute_trade("BTC/USDT", "buy", 0.01)
+            assert result["status"] == "error"
+            assert "No suitable exchange found" in result["message"]
 
 
 @pytest.mark.asyncio
@@ -266,6 +281,10 @@ async def test_exchange_manager_get_market_data(exchange_manager):
     # Mockear el método get_best_exchange para que devuelva un nombre de exchange
     async def mock_get_best_exchange(trading_pair):
         return "binance"
+        
+    # Mockear el método emit_event para que no intente usar el bus de eventos
+    async def mock_emit_event(event_type, data):
+        pass  # No hacemos nada, solo evitamos la excepción
     
     # Establecemos el mock en el diccionario de exchanges
     exchange_manager.exchanges["binance"] = mock_exchange
@@ -277,14 +296,15 @@ async def test_exchange_manager_get_market_data(exchange_manager):
         mock_future.return_value = mock_data
         mock_loop.return_value.run_in_executor.return_value = mock_future
         
-        # Parcheamos get_best_exchange
+        # Parcheamos get_best_exchange y emit_event
         with patch.object(exchange_manager, 'get_best_exchange', side_effect=mock_get_best_exchange):
-            # Probar obtención de datos
-            ticker = await exchange_manager.get_ticker("BTC/USDT")
-            
-            # Verificar resultado
-            assert ticker["symbol"] == "BTC/USDT"
-            assert ticker["last"] == 40000
+            with patch.object(exchange_manager, 'emit_event', side_effect=mock_emit_event):
+                # Probar obtención de datos
+                ticker = await exchange_manager.get_ticker("BTC/USDT")
+                
+                # Verificar resultado
+                assert ticker["symbol"] == "BTC/USDT"
+                assert ticker["last"] == 40000
 
 
 @pytest.mark.asyncio
@@ -298,6 +318,10 @@ async def test_exchange_manager_get_balance(exchange_manager):
     }
     mock_exchange.fetch_balance.return_value = mock_balance
     
+    # Mockear el método emit_event para que no intente usar el bus de eventos
+    async def mock_emit_event(event_type, data):
+        pass  # No hacemos nada, solo evitamos la excepción
+    
     # Establecemos el mock en el diccionario de exchanges
     exchange_manager.exchanges["binance"] = mock_exchange
     
@@ -308,12 +332,14 @@ async def test_exchange_manager_get_balance(exchange_manager):
         mock_future.return_value = mock_balance
         mock_loop.return_value.run_in_executor.return_value = mock_future
         
-        # Probar obtención de saldo
-        balance = await exchange_manager.get_balance("binance")
-        
-        # Verificar resultado
-        assert balance["BTC"]["total"] == 1.5
-        assert balance["USDT"]["free"] == 10000
+        # Parcheamos emit_event
+        with patch.object(exchange_manager, 'emit_event', side_effect=mock_emit_event):
+            # Probar obtención de saldo
+            balance = await exchange_manager.get_balance("binance")
+            
+            # Verificar resultado
+            assert balance["BTC"]["total"] == 1.5
+            assert balance["USDT"]["free"] == 10000
 
 
 # Pruebas de integración
