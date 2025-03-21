@@ -304,6 +304,77 @@ class MarketDataManager(Component):
             self.logger.error(f"Error calculando volatilidad para {symbol} en {exchange_name}: {e}")
             return 0.0
             
+    async def get_historical_data(
+        self,
+        symbol: str,
+        timeframe: str = "1h",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        exchange: str = "binance"
+    ) -> pd.DataFrame:
+        """
+        Obtener datos históricos para un símbolo.
+        
+        Args:
+            symbol: Símbolo del par de trading
+            timeframe: Intervalo de tiempo (1m, 5m, 1h, etc.)
+            start_date: Fecha de inicio (formato ISO)
+            end_date: Fecha de fin (formato ISO)
+            exchange: Nombre del exchange
+            
+        Returns:
+            DataFrame con los datos históricos
+        """
+        self.logger.info(f"Obteniendo datos históricos para {symbol} ({timeframe}) desde {start_date} hasta {end_date}")
+        
+        try:
+            # Obtener el cliente de API correspondiente
+            if exchange in self.api_clients:
+                client = self.api_clients[exchange]
+            else:
+                self.logger.error(f"Exchange {exchange} no configurado")
+                return pd.DataFrame()
+            
+            # Convertir fechas a timestamp si se proporcionan
+            if start_date:
+                if isinstance(start_date, str):
+                    start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                start_timestamp = int(start_date.timestamp() * 1000)
+            else:
+                # Por defecto, 30 días atrás
+                start_timestamp = int((datetime.now().timestamp() - 30 * 24 * 3600) * 1000)
+                
+            if end_date:
+                if isinstance(end_date, str):
+                    end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                end_timestamp = int(end_date.timestamp() * 1000)
+            else:
+                end_timestamp = int(datetime.now().timestamp() * 1000)
+            
+            # Obtener datos históricos del exchange
+            historical_data = await client.fetch_ohlcv(symbol, timeframe, start_timestamp, end_timestamp)
+            
+            if not historical_data:
+                self.logger.warning(f"No se encontraron datos históricos para {symbol}")
+                return pd.DataFrame()
+            
+            # Convertir a DataFrame
+            df = pd.DataFrame(historical_data, columns=[
+                "timestamp", "open", "high", "low", "close", "volume"
+            ])
+            
+            # Convertir timestamp a datetime
+            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+            
+            # Establecer timestamp como índice
+            df.set_index("timestamp", inplace=True)
+            
+            return df
+            
+        except Exception as e:
+            self.logger.error(f"Error obteniendo datos históricos para {symbol}: {e}")
+            return pd.DataFrame()
+            
     async def get_all_prices(self) -> Dict[str, Dict[str, float]]:
         """
         Obtener precios actuales de todos los símbolos en seguimiento.
