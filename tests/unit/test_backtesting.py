@@ -249,7 +249,7 @@ async def test_backtest_risk_management(backtest_engine, sample_ohlcv_data):
     entry_price = 40000
     
     # Abrir posición con stop loss
-    backtest_engine._open_position(symbol, "buy", entry_price, timestamp, trades)
+    backtest_engine._open_position(symbol=symbol, side="buy", price=entry_price, timestamp=timestamp, trades=trades)
     
     # Verificar que se llamó al calculador de stop loss
     assert mock_stop_loss.calculate.called
@@ -271,7 +271,7 @@ async def test_backtest_risk_management(backtest_engine, sample_ohlcv_data):
         
         # Cerrar la posición por stop loss
         if position["side"] == "buy" and stop_loss_price <= position["stop_loss"]:
-            backtest_engine._close_position(symbol, stop_loss_price, timestamp_exit, "stop_loss", trades)
+            backtest_engine._close_position(symbol=symbol, price=stop_loss_price, timestamp=timestamp_exit, reason="stop_loss", trades=trades)
             
             # Verificar que la posición se cerró
             assert symbol not in backtest_engine.positions
