@@ -281,6 +281,7 @@ class BacktestEngine(Component):
             if isinstance(strategy, Strategy):
                 signals = []
                 signal_types = []
+                signal_data_list = []
                 
                 # Símbolo predeterminado para backtesting
                 symbol = "BTC/USDT"
@@ -303,34 +304,54 @@ class BacktestEngine(Component):
                     try:
                         signal_data = await strategy.generate_signal(symbol, history_df)
                         
-                        # Para test_backtesting, puede devolver un diccionario con signal_type
-                        if isinstance(signal_data, dict) and "signal_type" in signal_data:
-                            signal_type = str(signal_data["signal_type"]).lower()
-                            signal_types.append(signal_type)
-                            signals.append(signal_data)
-                        # Formato normal, devuelve un dict con "signal"
-                        elif isinstance(signal_data, dict) and "signal" in signal_data:
-                            signal_type = str(signal_data.get("signal", SignalType.HOLD)).lower()
-                            signal_types.append(signal_type)
-                            signals.append(signal_data)
-                        # Fallback a HOLD si el formato no es reconocido
+                        # Detectar el tipo de señal
+                        if isinstance(signal_data, dict):
+                            # Caso 1: Señal de prueba con signal_type (para tests)
+                            if "signal_type" in signal_data:
+                                signal_type = str(signal_data["signal_type"]).lower()
+                                signal_types.append(signal_type)
+                                signal_data_list.append(signal_data)
+                            # Caso 2: Señal normal con signal (para el motor)
+                            elif "signal" in signal_data:
+                                signal_type = str(signal_data.get("signal", SignalType.HOLD)).lower()
+                                signal_types.append(signal_type)
+                                signal_data_list.append(signal_data)
+                            # Caso 3: Otro formato de señal
+                            else:
+                                signal_type = SignalType.HOLD.lower()
+                                signal_types.append(signal_type)
+                                signal_data_list.append({
+                                    "signal": SignalType.HOLD, 
+                                    "timestamp": idx,
+                                    **signal_data  # Conservar los datos originales
+                                })
+                        # Fallback a HOLD para casos no contemplados
                         else:
-                            signal_types.append(SignalType.HOLD.lower())
-                            signals.append({"signal": SignalType.HOLD, "timestamp": idx})
+                            signal_type = SignalType.HOLD.lower()
+                            signal_types.append(signal_type)
+                            signal_data_list.append({
+                                "signal": SignalType.HOLD, 
+                                "timestamp": idx
+                            })
                     except Exception as e:
                         self.logger.error(f"Error al generar señal para {idx}: {e}")
                         signal_types.append(SignalType.HOLD.lower())
-                        signals.append({"signal": SignalType.HOLD, "timestamp": idx})
+                        signal_data_list.append({
+                            "signal": SignalType.HOLD, 
+                            "timestamp": idx
+                        })
                 
                 # Guardar las señales originales
                 df["signal"] = signal_types
-                df["signal_data"] = signals
+                df["signal_data"] = signal_data_list
                 return df
                 
             raise ValueError("La estrategia proporcionada no es válida")
             
         except Exception as e:
             self.logger.error(f"Error al ejecutar estrategia: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             df["signal"] = SignalType.HOLD.lower()
             return df
             
