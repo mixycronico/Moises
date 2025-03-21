@@ -28,6 +28,17 @@ class Strategy(Component):
         """
         super().__init__(name)
         self.positions: Dict[str, Dict[str, Any]] = {}
+        self.running = False
+        
+    async def start(self) -> None:
+        """Start the strategy."""
+        self.logger.info(f"Starting strategy: {self.name}")
+        self.running = True
+        
+    async def stop(self) -> None:
+        """Stop the strategy."""
+        self.logger.info(f"Stopping strategy: {self.name}")
+        self.running = False
     
     @abc.abstractmethod
     async def generate_signal(self, symbol: str, data: pd.DataFrame) -> Dict[str, Any]:

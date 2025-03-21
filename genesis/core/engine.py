@@ -9,6 +9,7 @@ entry point for system operation.
 import asyncio
 import signal
 import logging
+import time
 from typing import Dict, List, Optional, Any, Type
 
 from genesis.config.settings import settings
@@ -25,13 +26,20 @@ class Engine:
     lifecycle, and provides the main entry point for system operation.
     """
     
-    def __init__(self):
-        """Initialize the engine."""
-        self.logger = setup_logging('engine', level=settings.get('log_level', 'INFO'))
+    def __init__(self, name: str = "engine"):
+        """
+        Initialize the engine.
+        
+        Args:
+            name: Name of the engine instance
+        """
+        self.name = name
+        self.logger = setup_logging(name, level=settings.get('log_level', 'INFO'))
         self.event_bus = EventBus()
         self.components: Dict[str, Component] = {}
         self.running = False
         self._shutdown_event = asyncio.Event()
+        self.started_at = None
     
     def register_component(self, component: Component) -> None:
         """
@@ -67,8 +75,9 @@ class Engine:
         
         self.logger.info("Starting Genesis engine")
         
-        # Setup signal handlers
-        self._setup_signal_handlers()
+        # Setup signal handlers with shutdown timeout
+        shutdown_timeout = float(settings.get('shutdown_timeout', 10.0))
+        self._setup_signal_handlers(shutdown_timeout=shutdown_timeout)
         
         # Start event bus first
         await self.event_bus.start()
@@ -83,6 +92,7 @@ class Engine:
                 # Continue with other components
         
         self.running = True
+        self.started_at = time.time()
         self.logger.info("Genesis engine started")
         
         # Emit system started event
@@ -92,8 +102,13 @@ class Engine:
             "engine"
         )
     
-    async def stop(self) -> None:
-        """Stop the engine and all registered components."""
+    async def stop(self, timeout: Optional[float] = None) -> None:
+        """
+        Stop the engine and all registered components.
+        
+        Args:
+            timeout: Maximum time (in seconds) to wait for components to stop
+        """
         if not self.running:
             self.logger.warning("Engine not running")
             return
@@ -105,7 +120,13 @@ class Engine:
         for name in reversed(component_names):
             try:
                 self.logger.info(f"Stopping component: {name}")
-                await self.components[name].stop()
+                if timeout:
+                    try:
+                        await asyncio.wait_for(self.components[name].stop(), timeout)
+                    except asyncio.TimeoutError:
+                        self.logger.warning(f"Stopping component {name} timed out after {timeout} seconds")
+                else:
+                    await self.components[name].stop()
             except Exception as e:
                 self.logger.error(f"Error stopping component {name}: {e}")
         
@@ -115,25 +136,31 @@ class Engine:
         self.running = False
         self.logger.info("Genesis engine stopped")
     
-    def _setup_signal_handlers(self) -> None:
-        """Set up signal handlers for graceful shutdown."""
+    def _setup_signal_handlers(self, shutdown_timeout: float = 10.0) -> None:
+        """
+        Set up signal handlers for graceful shutdown.
+        
+        Args:
+            shutdown_timeout: Maximum time to wait for components to shut down
+        """
         loop = asyncio.get_event_loop()
         
         for sig in (signal.SIGINT, signal.SIGTERM):
             loop.add_signal_handler(
                 sig,
-                lambda sig=sig: asyncio.create_task(self._shutdown(sig))
+                lambda sig=sig, timeout=shutdown_timeout: asyncio.create_task(self._shutdown(sig, timeout))
             )
     
-    async def _shutdown(self, sig: signal.Signals) -> None:
+    async def _shutdown(self, sig: signal.Signals, timeout: float = 10.0) -> None:
         """
         Handle shutdown signal.
         
         Args:
             sig: Signal that triggered the shutdown
+            timeout: Maximum time to wait for components to shut down
         """
         self.logger.info(f"Received exit signal {sig.name}")
-        await self.stop()
+        await self.stop(timeout=timeout)
         self._shutdown_event.set()
     
     async def run_forever(self) -> None:
