@@ -6,6 +6,7 @@ seguridad y gestión de exchanges.
 """
 
 import pytest
+import asyncio
 import logging
 from unittest.mock import Mock, patch
 
@@ -276,7 +277,10 @@ async def test_exchange_manager_get_market_data(exchange_manager):
         "ask": 40010,
         "volume": 100
     }
-    mock_exchange.fetch_ticker.return_value = mock_data
+
+    # Configurar el mock para devolver mock_data al ser llamado con fetch_ticker
+    # Esta vez usamos __call__ para simular que es callable directamente
+    mock_exchange.fetch_ticker = lambda symbol: mock_data
     
     # Mockear el método get_best_exchange para que devuelva un nombre de exchange
     async def mock_get_best_exchange(trading_pair):
@@ -289,12 +293,14 @@ async def test_exchange_manager_get_market_data(exchange_manager):
     # Establecemos el mock en el diccionario de exchanges
     exchange_manager.exchanges["binance"] = mock_exchange
     
+    # Configuramos un future asincrono para el loop.run_in_executor
+    future = asyncio.Future()
+    future.set_result(mock_data)
+    
     # Usamos run_in_executor para convertir la llamada síncrona a asíncrona
     # Reemplazamos esto con un mock
     with patch('asyncio.get_event_loop') as mock_loop:
-        mock_future = Mock()
-        mock_future.return_value = mock_data
-        mock_loop.return_value.run_in_executor.return_value = mock_future
+        mock_loop.return_value.run_in_executor.return_value = future
         
         # Parcheamos get_best_exchange y emit_event
         with patch.object(exchange_manager, 'get_best_exchange', side_effect=mock_get_best_exchange):
@@ -305,6 +311,9 @@ async def test_exchange_manager_get_market_data(exchange_manager):
                 # Verificar resultado
                 assert ticker["symbol"] == "BTC/USDT"
                 assert ticker["last"] == 40000
+                
+                # No podemos verificar la llamada directamente porque estamos
+                # usando una lambda en lugar de un Mock
 
 
 @pytest.mark.asyncio
@@ -316,7 +325,10 @@ async def test_exchange_manager_get_balance(exchange_manager):
         "BTC": {"free": 1.0, "used": 0.5, "total": 1.5},
         "USDT": {"free": 10000, "used": 5000, "total": 15000}
     }
-    mock_exchange.fetch_balance.return_value = mock_balance
+    
+    # Configurar el mock para devolver mock_balance sin argumentos
+    # Esta vez usamos un callable simple en lugar de Mock
+    mock_exchange.fetch_balance = lambda: mock_balance
     
     # Mockear el método emit_event para que no intente usar el bus de eventos
     async def mock_emit_event(event_type, data):
@@ -325,12 +337,14 @@ async def test_exchange_manager_get_balance(exchange_manager):
     # Establecemos el mock en el diccionario de exchanges
     exchange_manager.exchanges["binance"] = mock_exchange
     
+    # Configuramos un future asincrono para el loop.run_in_executor
+    future = asyncio.Future()
+    future.set_result(mock_balance)
+    
     # Usamos run_in_executor para convertir la llamada síncrona a asíncrona
     # Reemplazamos esto con un mock
     with patch('asyncio.get_event_loop') as mock_loop:
-        mock_future = Mock()
-        mock_future.return_value = mock_balance
-        mock_loop.return_value.run_in_executor.return_value = mock_future
+        mock_loop.return_value.run_in_executor.return_value = future
         
         # Parcheamos emit_event
         with patch.object(exchange_manager, 'emit_event', side_effect=mock_emit_event):
@@ -340,6 +354,9 @@ async def test_exchange_manager_get_balance(exchange_manager):
             # Verificar resultado
             assert balance["BTC"]["total"] == 1.5
             assert balance["USDT"]["free"] == 10000
+            
+            # No podemos verificar la llamada directamente porque estamos
+            # usando una lambda en lugar de un Mock
 
 
 # Pruebas de integración
