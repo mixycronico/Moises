@@ -1,0 +1,300 @@
+"""
+Tests intermedios para el motor principal (core.engine).
+
+Este módulo prueba funcionalidades de nivel intermedio del motor principal,
+incluyendo la comunicación entre componentes y manejo de eventos.
+"""
+
+import pytest
+import asyncio
+import logging
+from unittest.mock import Mock, patch, AsyncMock
+
+from genesis.core.engine import Engine
+from genesis.core.component import Component
+from genesis.core.event_bus import EventBus
+
+
+class TestEventHandlerComponent(Component):
+    """Componente de prueba para probar el manejo de eventos."""
+    
+    def __init__(self, name):
+        """Inicializar componente con registro de eventos recibidos."""
+        super().__init__(name)
+        self.received_events = []
+        
+    async def start(self):
+        """Iniciar el componente."""
+        return True
+        
+    async def stop(self):
+        """Detener el componente."""
+        return True
+        
+    async def handle_event(self, event_type, data, source):
+        """Registrar eventos recibidos para verificación."""
+        self.received_events.append({
+            "type": event_type,
+            "data": data,
+            "source": source
+        })
+        
+        if event_type == "echo_request":
+            # Echo back to sender
+            return {"echo": data, "original_source": source}
+        
+        return None
+
+
+@pytest.fixture
+def event_bus():
+    """Proporcionar un bus de eventos para pruebas."""
+    return EventBus()
+
+
+@pytest.fixture
+def engine(event_bus):
+    """Proporcionar un motor con dos componentes para pruebas."""
+    engine = Engine(event_bus=event_bus)
+    
+    # Crear componentes de prueba que registran eventos recibidos
+    component1 = TestEventHandlerComponent("component1")
+    component2 = TestEventHandlerComponent("component2")
+    
+    # Registrar componentes en el motor
+    engine.register_component(component1)
+    engine.register_component(component2)
+    
+    return engine
+
+
+@pytest.mark.asyncio
+async def test_event_propagation_to_all_components(engine):
+    """Verificar que los eventos se propagan a todos los componentes registrados."""
+    # Iniciar el motor
+    await engine.start()
+    
+    # Emitir un evento desde fuera del sistema
+    event_type = "test_event"
+    event_data = {"message": "Hello, components!"}
+    
+    await engine.event_bus.emit(event_type, event_data, "external")
+    
+    # Verificar que todos los componentes recibieron el evento
+    for component in engine.components.values():
+        assert len(component.received_events) == 1
+        assert component.received_events[0]["type"] == event_type
+        assert component.received_events[0]["data"] == event_data
+        assert component.received_events[0]["source"] == "external"
+
+    # Detener el motor
+    await engine.stop()
+
+
+@pytest.mark.asyncio
+async def test_component_to_component_communication(engine):
+    """Verificar la comunicación directa entre componentes a través del bus de eventos."""
+    # Iniciar el motor
+    await engine.start()
+    
+    component1 = engine.components["component1"]
+    component2 = engine.components["component2"]
+    
+    # Emitir evento desde component1 a component2
+    event_type = "component_message"
+    event_data = {"message": "Hello from component1"}
+    
+    await engine.event_bus.emit(event_type, event_data, "component1")
+    
+    # Verificar que component2 recibió el evento
+    assert len(component2.received_events) == 1
+    assert component2.received_events[0]["type"] == event_type
+    assert component2.received_events[0]["data"] == event_data
+    assert component2.received_events[0]["source"] == "component1"
+    
+    # Verificar que component1 no recibió su propio evento
+    assert not any(event["source"] == "component1" for event in component1.received_events)
+
+    # Detener el motor
+    await engine.stop()
+
+
+@pytest.mark.asyncio
+async def test_engine_handles_component_errors_gracefully(engine):
+    """Verificar que el motor maneja errores en componentes sin fallar completamente."""
+    # Añadir un componente que falla al iniciar
+    failing_component = Mock(spec=Component)
+    failing_component.name = "failing_component"
+    failing_component.start = AsyncMock(side_effect=Exception("Component failed to start"))
+    failing_component.stop = AsyncMock(return_value=True)
+    failing_component.handle_event = AsyncMock(return_value=None)
+    
+    engine.register_component(failing_component)
+    
+    # Iniciar el motor, debería continuar a pesar del error
+    await engine.start()
+    
+    # Verificar que los otros componentes se iniciaron correctamente
+    assert all(component.is_running for name, component in engine.components.items() 
+               if name != "failing_component")
+    
+    # Emitir un evento para verificar que el sistema sigue funcionando
+    await engine.event_bus.emit("test_event", {"message": "Still working"}, "external")
+    
+    # Verificar que los componentes funcionales recibieron el evento
+    for name, component in engine.components.items():
+        if name != "failing_component":
+            assert len(component.received_events) == 1
+    
+    # Detener el motor
+    await engine.stop()
+
+
+@pytest.mark.asyncio
+async def test_event_fan_out_and_fan_in(engine):
+    """Verificar el patrón de distribución y recolección de eventos (fan-out/fan-in)."""
+    # Iniciar el motor
+    await engine.start()
+    
+    # Añadir un componente que actúa como coordinador
+    coordinator = TestEventHandlerComponent("coordinator")
+    engine.register_component(coordinator)
+    
+    # Emitir un evento de tipo "task_request" que debería ser procesado por todos los componentes
+    task_data = {"task": "process_data", "items": [1, 2, 3, 4, 5]}
+    
+    # Simular respuestas de los componentes
+    component1 = engine.components["component1"]
+    component2 = engine.components["component2"]
+    
+    # Mockear handle_event para que devuelva una respuesta
+    original_handle_event = component1.handle_event
+    async def component1_handler(event_type, data, source):
+        if event_type == "task_request":
+            # Procesar la primera mitad de los items
+            processed = [item * 2 for item in data["items"][:3]]
+            return {"processed": processed, "component": "component1"}
+        return await original_handle_event(event_type, data, source)
+    component1.handle_event = component1_handler
+    
+    original_handle_event2 = component2.handle_event
+    async def component2_handler(event_type, data, source):
+        if event_type == "task_request":
+            # Procesar la segunda mitad de los items
+            processed = [item * 3 for item in data["items"][3:]]
+            return {"processed": processed, "component": "component2"}
+        return await original_handle_event2(event_type, data, source)
+    component2.handle_event = component2_handler
+    
+    # Emitir el evento desde el coordinador
+    responses = await engine.event_bus.emit_with_response("task_request", task_data, "coordinator")
+    
+    # Verificar que recibimos respuestas de ambos componentes
+    assert len(responses) == 2
+    
+    # Verificar el contenido de las respuestas
+    component1_response = next((r for r in responses if r["component"] == "component1"), None)
+    component2_response = next((r for r in responses if r["component"] == "component2"), None)
+    
+    assert component1_response is not None
+    assert component2_response is not None
+    assert component1_response["processed"] == [2, 4, 6]  # [1, 2, 3] * 2
+    assert component2_response["processed"] == [12, 15]   # [4, 5] * 3
+    
+    # Detener el motor
+    await engine.stop()
+
+
+@pytest.mark.asyncio
+async def test_component_lifecycle_events(engine):
+    """Verificar que se emiten eventos durante el ciclo de vida de los componentes."""
+    # Configurar listener para eventos de ciclo de vida
+    lifecycle_events = []
+    
+    async def lifecycle_listener(event_type, data, source):
+        if event_type.startswith("component_"):
+            lifecycle_events.append((event_type, data["component"], source))
+    
+    engine.event_bus.add_listener("component_started", lifecycle_listener)
+    engine.event_bus.add_listener("component_stopped", lifecycle_listener)
+    
+    # Iniciar el motor - debería emitir eventos de inicio
+    await engine.start()
+    
+    # Verificar eventos de inicio
+    assert any(event[0] == "component_started" and event[1] == "component1" for event in lifecycle_events)
+    assert any(event[0] == "component_started" and event[1] == "component2" for event in lifecycle_events)
+    
+    # Detener el motor - debería emitir eventos de parada
+    await engine.stop()
+    
+    # Verificar eventos de parada
+    assert any(event[0] == "component_stopped" and event[1] == "component1" for event in lifecycle_events)
+    assert any(event[0] == "component_stopped" and event[1] == "component2" for event in lifecycle_events)
+
+
+@pytest.mark.asyncio
+async def test_dynamic_component_registration(engine):
+    """Verificar que se pueden registrar y eliminar componentes dinámicamente."""
+    # Iniciar el motor
+    await engine.start()
+    
+    # Crear un nuevo componente
+    new_component = TestEventHandlerComponent("dynamic_component")
+    
+    # Registrar dinámicamente
+    engine.register_component(new_component)
+    await engine.start_component(new_component.name)
+    
+    # Emitir un evento y verificar que lo recibe
+    await engine.event_bus.emit("test_dynamic", {"message": "Hello"}, "external")
+    
+    # Verificar que el componente recibió el evento
+    assert len(new_component.received_events) == 1
+    assert new_component.received_events[0]["type"] == "test_dynamic"
+    
+    # Remover el componente dinámicamente
+    await engine.stop_component(new_component.name)
+    engine.remove_component(new_component.name)
+    
+    # Verificar que el componente fue eliminado
+    assert "dynamic_component" not in engine.components
+    
+    # Detener el motor
+    await engine.stop()
+
+
+@pytest.mark.asyncio
+async def test_conditional_event_propagation(engine):
+    """Verificar la propagación condicional de eventos basada en filtros."""
+    # Iniciar el motor
+    await engine.start()
+    
+    # Configurar diferentes tipos de eventos
+    market_event = {"type": "market_update", "data": {"symbol": "BTC/USDT", "price": 40000}}
+    trade_event = {"type": "trade_executed", "data": {"symbol": "ETH/USDT", "quantity": 1.5}}
+    system_event = {"type": "system_status", "data": {"status": "healthy"}}
+    
+    # Añadir un listener que solo escucha eventos de mercado
+    market_listener = Mock()
+    await engine.event_bus.add_listener("market_update", market_listener)
+    
+    # Añadir un listener que escucha todo
+    all_listener = Mock()
+    await engine.event_bus.add_listener("*", all_listener)
+    
+    # Emitir eventos
+    await engine.event_bus.emit("market_update", market_event["data"], "external")
+    await engine.event_bus.emit("trade_executed", trade_event["data"], "external")
+    await engine.event_bus.emit("system_status", system_event["data"], "external")
+    
+    # Verificar que el market_listener solo recibió eventos de mercado
+    assert market_listener.call_count == 1
+    market_listener.assert_called_with("market_update", market_event["data"], "external")
+    
+    # Verificar que all_listener recibió todos los eventos
+    assert all_listener.call_count == 3
+    
+    # Detener el motor
+    await engine.stop()
+"""
