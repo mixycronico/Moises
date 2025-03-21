@@ -201,17 +201,21 @@ async def test_backtest_position_management(backtest_engine, sample_ohlcv_data):
     
     # Registramos una operación de forma manual para verificar la funcionalidad básica
     trades = []
-    backtest_engine._open_position(symbol, "buy", 40000, df.index[0], trades)
+    entry_price = 40000
+    
+    # Abrir posición
+    backtest_engine._open_position(symbol=symbol, side="buy", price=entry_price, timestamp=df.index[0], trades=trades)
     assert len(trades) == 1
     assert trades[0]["side"] == "buy"
-    assert trades[0]["price"] == 40000
+    assert trades[0]["entry_price"] == entry_price
     
     # Registramos cierre de posición
+    exit_price = 41000
     if symbol in backtest_engine.positions:
-        backtest_engine._close_position(symbol, 41000, df.index[2], "signal", trades)
+        backtest_engine._close_position(symbol=symbol, price=exit_price, timestamp=df.index[2], reason="signal", trades=trades)
         assert len(trades) == 2
         assert trades[1]["side"] == "sell"
-        assert trades[1]["price"] == 41000
+        assert trades[1]["exit_price"] == exit_price
 
 
 @pytest.mark.asyncio
