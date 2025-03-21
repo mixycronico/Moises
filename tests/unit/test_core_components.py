@@ -144,22 +144,29 @@ def test_exchange_manager_initialization(exchange_manager):
     assert exchange_manager.selector is not None
 
 
-def test_exchange_manager_get_best_exchange(exchange_manager):
+@pytest.mark.asyncio
+async def test_exchange_manager_get_best_exchange(exchange_manager):
     """Prueba la selección del mejor exchange."""
-    # Mockear el selector de exchanges
+    # Mockear el selector de exchanges con una coroutine como return_value
     mock_selector = Mock()
-    mock_selector.get_best_exchange.return_value = "binance"
+    
+    # Crear una coroutine que devuelva "binance"
+    async def mock_get_best_exchange(trading_pair):
+        return "binance"
+    
+    mock_selector.get_best_exchange = Mock(side_effect=mock_get_best_exchange)
     exchange_manager.selector = mock_selector
     
     # Probar selección de mejor exchange
-    best_exchange = exchange_manager.get_best_exchange("BTC/USDT")
+    best_exchange = await exchange_manager.get_best_exchange("BTC/USDT")
     assert best_exchange == "binance"
     
     # Verificar que se llamó al selector con los parámetros correctos
     mock_selector.get_best_exchange.assert_called_once_with("BTC/USDT")
 
 
-def test_exchange_manager_get_best_exchange_no_exchanges():
+@pytest.mark.asyncio
+async def test_exchange_manager_get_best_exchange_no_exchanges():
     """Prueba el comportamiento cuando no hay exchanges disponibles."""
     # Crear un exchange_manager con una configuración mínima
     exchange_manager = ExchangeManager(exchange_configs={})
@@ -167,11 +174,16 @@ def test_exchange_manager_get_best_exchange_no_exchanges():
     
     # También necesitamos mockear el selector
     mock_selector = Mock()
-    mock_selector.get_best_exchange.side_effect = ValueError("No exchanges available")
+    
+    # Crear una coroutine que lance una excepción
+    async def mock_get_best_exchange(trading_pair):
+        raise ValueError("No exchanges available")
+        
+    mock_selector.get_best_exchange = Mock(side_effect=mock_get_best_exchange)
     exchange_manager.selector = mock_selector
     
     with pytest.raises(ValueError, match="No exchanges available"):
-        exchange_manager.get_best_exchange("BTC/USDT")
+        await exchange_manager.get_best_exchange("BTC/USDT")
 
 
 def test_exchange_manager_execute_trade(exchange_manager):
