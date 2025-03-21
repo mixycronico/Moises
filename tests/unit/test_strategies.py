@@ -64,6 +64,7 @@ def sample_ohlcv_data():
 @pytest.mark.asyncio
 async def test_base_strategy():
     """Probar la funcionalidad básica de Strategy."""
+    # El mockeo del logger ahora se realiza a nivel global en conftest.py
     strategy = TestStrategy()
     event_bus = MagicMock()
     strategy.event_bus = event_bus
@@ -97,12 +98,12 @@ async def test_rsi_strategy(sample_ohlcv_data):
     assert "reason" in signal
     assert "metadata" in signal
     
-    # Verificar que el RSI se calculó correctamente
-    assert "rsi" in signal["metadata"]
-    assert 0 <= signal["metadata"]["rsi"] <= 100
+    # Verificar que el RSI está en el diccionario principal
+    assert "rsi" in signal
+    assert 0 <= signal["rsi"] <= 100
     
-    # Verificar la coherencia entre el valor de RSI y el tipo de señal
-    rsi_value = signal["metadata"]["rsi"]
+    # Obtener el valor de RSI
+    rsi_value = signal["rsi"]
     if signal["type"] == SignalType.BUY:
         # En una señal de compra, el RSI debería haber cruzado desde zona de sobreventa
         assert rsi_value > 30, f"RSI = {rsi_value} debería ser > 30 para señal de compra"
@@ -135,7 +136,7 @@ async def test_rsi_strategy_custom_thresholds():
     signal = await rsi_strategy.generate_signal("BTCUSDT", df)
     
     # Verificar que el RSI se calculó correctamente
-    rsi_value = signal["metadata"]["rsi"]
+    rsi_value = signal["rsi"]
     
     # Con este patrón de precios, esperamos obtener un RSI extremo
     # que sería o muy bajo (sobreventa) o muy alto (sobrecompra)

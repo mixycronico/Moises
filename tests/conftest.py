@@ -8,9 +8,31 @@ entre diferentes módulos de prueba.
 import os
 import pytest
 import logging
+from unittest.mock import MagicMock, patch
 
 
-# Configurar logging para pruebas
+# Mockear el setup_logging para evitar problemas de inicialización del logger
+@pytest.fixture(autouse=True)
+def mock_logger():
+    """
+    Mockear la función setup_logging y los loggers utilizados en las pruebas.
+    
+    Esto evita problemas de inicialización en las pruebas que utilizan componentes
+    que intentan configurar el logger internamente.
+    """
+    mock_logger = MagicMock()
+    
+    # Añadir métodos comunes de logger para que las pruebas funcionen
+    mock_logger.info = MagicMock()
+    mock_logger.error = MagicMock()
+    mock_logger.warning = MagicMock()
+    mock_logger.debug = MagicMock()
+    
+    with patch('genesis.utils.logger.setup_logging', return_value=mock_logger):
+        yield mock_logger
+
+
+# Configurar logging básico para pruebas
 @pytest.fixture(autouse=True)
 def configure_logging():
     """Configurar logging para todas las pruebas."""
