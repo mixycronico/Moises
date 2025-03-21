@@ -1,87 +1,125 @@
 """
-Position sizing module.
+Calculador de tamaño de posición.
 
-This module calculates appropriate position sizes based on risk parameters,
-account balance, and market conditions.
+Este módulo proporciona cálculos para determinar el tamaño óptimo de una posición
+basado en el balance de la cuenta, la tolerancia al riesgo, y las características
+del mercado.
 """
 
+import logging
 from typing import Dict, Any, Optional
-from genesis.config.settings import settings
-
 
 class PositionSizer:
     """
-    Position sizer to calculate appropriate trade sizes.
+    Calcula el tamaño óptimo de posición basado en parámetros de riesgo.
     
-    Determines position sizes based on account balance, risk tolerance,
-    and signal strength.
+    Esta clase implementa varios métodos para calcular el tamaño de posición,
+    incluyendo un enfoque basado en el riesgo porcentual por operación.
     """
     
     def __init__(self):
-        """Initialize the position sizer."""
-        self.min_trade_size = 10.0  # Minimum trade size in quote currency
-        self.default_risk = settings.get('risk.max_risk_per_trade', 0.02)  # 2%
+        """Inicializar el calculador de tamaño de posición."""
+        self._logger = logging.getLogger(__name__)
+        self._risk_percentage = 1.0  # 1% de riesgo por defecto
+        self._account_balance = 0.0
+        self._max_position_size = 0.0  # Límite máximo para el tamaño de posición
     
-    def calculate(
-        self, 
-        portfolio_value: float,
-        risk_percent: Optional[float] = None,
-        signal_strength: float = 1.0,
-        max_size: Optional[float] = None
-    ) -> float:
+    def set_risk_percentage(self, percentage: float) -> None:
         """
-        Calculate position size based on risk parameters.
+        Establecer el porcentaje de riesgo por operación.
         
         Args:
-            portfolio_value: Total portfolio value in quote currency
-            risk_percent: Percentage of portfolio to risk (0.01 = 1%)
-            signal_strength: Strength of the trading signal (0.0 to 1.0)
-            max_size: Maximum position size in quote currency
+            percentage: Porcentaje de capital a arriesgar por operación (0-100)
+            
+        Raises:
+            ValueError: Si el porcentaje está fuera del rango válido
+        """
+        if percentage < 0 or percentage > 100:
+            raise ValueError("Risk percentage must be between 0 and 100")
+            
+        self._risk_percentage = percentage
+        self._logger.info(f"Risk percentage set to {percentage}%")
+    
+    def set_account_balance(self, balance: float) -> None:
+        """
+        Establecer el balance de la cuenta.
+        
+        Args:
+            balance: Balance actual de la cuenta en USD
+            
+        Raises:
+            ValueError: Si el balance es negativo
+        """
+        if balance < 0:
+            raise ValueError("Account balance cannot be negative")
+            
+        self._account_balance = balance
+        self._logger.info(f"Account balance set to ${balance}")
+    
+    def set_max_position_size(self, max_size: float) -> None:
+        """
+        Establecer el tamaño máximo de posición.
+        
+        Args:
+            max_size: Tamaño máximo de posición en USD
+            
+        Raises:
+            ValueError: Si el tamaño máximo es negativo
+        """
+        if max_size < 0:
+            raise ValueError("Max position size cannot be negative")
+            
+        self._max_position_size = max_size
+        self._logger.info(f"Max position size set to ${max_size}")
+    
+    def calculate_position_size(
+        self, 
+        entry_price: float, 
+        symbol: str, 
+        stop_loss_percentage: Optional[float] = None
+    ) -> float:
+        """
+        Calcular el tamaño óptimo de posición en USD.
+        
+        Args:
+            entry_price: Precio de entrada
+            symbol: Símbolo de trading
+            stop_loss_percentage: Distancia al stop-loss en porcentaje
             
         Returns:
-            Position size in quote currency
+            Tamaño de la posición en USD
         """
-        if risk_percent is None:
-            risk_percent = self.default_risk
+        if stop_loss_percentage is None:
+            # Si no se proporciona un porcentaje de stop-loss, usamos un valor por defecto
+            stop_loss_percentage = 5  # 5% de distancia al stop-loss por defecto
         
-        # Base position size as a percentage of portfolio
-        position_size = portfolio_value * risk_percent * signal_strength
+        # Calcular el riesgo en USD
+        risk_amount = (self._account_balance * self._risk_percentage) / 100
         
-        # Apply maximum size limit if specified
-        if max_size is not None and position_size > max_size:
-            position_size = max_size
+        # Calcular el tamaño de posición basado en el stop-loss
+        position_size = risk_amount / (stop_loss_percentage / 100)
         
-        # Apply minimum size limit
-        if position_size < self.min_trade_size:
-            position_size = self.min_trade_size
-        
-        # Ensure it doesn't exceed portfolio value
-        if position_size > portfolio_value:
-            position_size = portfolio_value
-        
+        # Limitar el tamaño de posición si es necesario
+        if self._max_position_size > 0 and position_size > self._max_position_size:
+            position_size = self._max_position_size
+            self._logger.warning(f"Position size capped at ${position_size} due to max limit")
+            
+        self._logger.info(f"Calculated position size for {symbol}: ${position_size}")
         return position_size
     
-    def calculate_units(
-        self,
-        position_size: float,
-        current_price: float,
-        min_quantity: Optional[float] = None
-    ) -> float:
+    def calculate_units(self, position_size: float, price: float) -> float:
         """
-        Calculate quantity units based on position size and price.
+        Convertir el tamaño de posición de USD a unidades del activo.
         
         Args:
-            position_size: Position size in quote currency
-            current_price: Current asset price
-            min_quantity: Minimum quantity allowed by the exchange
+            position_size: Tamaño de posición en USD
+            price: Precio actual del activo
             
         Returns:
-            Quantity in base currency units
+            Cantidad de unidades del activo
         """
-        quantity = position_size / current_price
-        
-        # Apply minimum quantity if provided
-        if min_quantity is not None and quantity < min_quantity:
-            quantity = min_quantity
-        
-        return quantity
+        if price <= 0:
+            raise ValueError("Price must be positive")
+            
+        units = position_size / price
+        return units
