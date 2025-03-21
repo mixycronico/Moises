@@ -29,12 +29,39 @@ class APIClient:
 
         try:
             exchange_class = getattr(ccxt, exchange_name)
-            self.client = exchange_class({
+            
+            # Configuración básica
+            exchange_config = {
                 'apiKey': self.api_key,
                 'secret': self.api_secret,
                 'enableRateLimit': True,
                 'timeout': 10000
-            })
+            }
+            
+            # Añadir configuración específica para testnet si está disponible
+            if config.get("testnet", False):
+                if exchange_name == 'binance':
+                    exchange_config['options'] = {'defaultType': 'future'}
+                    exchange_config['urls'] = {
+                        'api': {
+                            'public': 'https://testnet.binancefuture.com/fapi/v1',
+                            'private': 'https://testnet.binancefuture.com/fapi/v1',
+                            'fapiPublic': 'https://testnet.binancefuture.com/fapi/v1',
+                            'fapiPrivate': 'https://testnet.binancefuture.com/fapi/v1'
+                        },
+                        'test': {
+                            'public': 'https://testnet.binancefuture.com/fapi/v1',
+                            'private': 'https://testnet.binancefuture.com/fapi/v1'
+                        }
+                    }
+                    logging.info(f"[{self.name}] Configurado para usar Binance Testnet")
+                elif exchange_name == 'kucoin':
+                    exchange_config['urls'] = {'api': 'https://openapi-sandbox.kucoin.com'}
+                    logging.info(f"[{self.name}] Configurado para usar KuCoin Sandbox")
+                else:
+                    logging.warning(f"[{self.name}] Testnet no disponible para {exchange_name}")
+            
+            self.client = exchange_class(exchange_config)
             logging.info(f"[{self.name}] Cliente inicializado con éxito.")
         except Exception as e:
             logging.error(f"[{self.name}] Error al iniciar cliente CCXT: {e}")
@@ -149,3 +176,45 @@ class APIClient:
         except Exception as e:
             logging.warning(f"[{self.name}] Error al obtener tasa {from_asset}/{to_asset}: {e}")
             return 0
+            
+    def fetch_historical_data(self, symbol, timeframe='1h', limit=500, since=None):
+        """
+        Obtener datos históricos del exchange.
+        
+        Args:
+            symbol: Par de trading (ej: 'BTC/USDT')
+            timeframe: Marco temporal ('1m', '5m', '15m', '1h', '4h', '1d', etc.)
+            limit: Cantidad máxima de velas a obtener
+            since: Timestamp desde donde obtener datos (opcional)
+            
+        Returns:
+            Lista de velas OHLCV o None si hay error
+        """
+        try:
+            # Asegurarse de que el símbolo sea válido para el exchange
+            if '/' not in symbol:
+                symbol = f"{symbol}/USDT"  # Añadir USDT por defecto si no se especifica
+                
+            logging.info(f"[{self.name}] Obteniendo datos históricos para {symbol}, timeframe {timeframe}")
+            
+            # Obtener datos históricos
+            ohlcv_data = self.client.fetch_ohlcv(symbol, timeframe, limit=limit, since=since)
+            
+            # Convertir a formato adecuado para el sistema
+            formatted_data = []
+            for candle in ohlcv_data:
+                timestamp, open_price, high, low, close, volume = candle
+                formatted_data.append({
+                    'timestamp': timestamp,
+                    'open': open_price,
+                    'high': high,
+                    'low': low,
+                    'close': close,
+                    'volume': volume
+                })
+                
+            logging.info(f"[{self.name}] Obtenidos {len(formatted_data)} registros históricos")
+            return formatted_data
+        except Exception as e:
+            logging.error(f"[{self.name}] Error al obtener datos históricos: {e}")
+            return None
