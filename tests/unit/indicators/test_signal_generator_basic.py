@@ -92,6 +92,11 @@ class TestSignalGeneratorBasic(unittest.TestCase):
     
     def test_macd_signal_bullish(self):
         """Verificar que se genera señal de compra en cruce alcista de MACD."""
+        # Usar períodos más pequeños para evitar error de datos insuficientes
+        fast_period = 3
+        slow_period = 5
+        signal_period = 2
+        
         # Mock de macd para simular un cruce alcista
         with patch.object(self.indicators, 'macd') as mock_macd:
             # Simulamos un cruce alcista donde:
@@ -101,19 +106,26 @@ class TestSignalGeneratorBasic(unittest.TestCase):
             signal_line = np.array([np.nan] * (len(self.sample_data) - 2) + [-0.1, 0.0])
             histogram = macd_line - signal_line
             
+            # Solo mockear cuando se llame con nuestros períodos específicos
             mock_macd.return_value = (macd_line, signal_line, histogram)
             
-            # Verificamos los valores que devuelve el mock
-            print(f"Penúltimo MACD: {macd_line[-2]}, Señal: {signal_line[-2]}")
-            print(f"Último MACD: {macd_line[-1]}, Señal: {signal_line[-1]}")
-            
-            result = self.signal_generator.macd_signal(self.sample_data)
-            print(f"Resultado: {result}")
+            # Ejecutar con períodos reducidos
+            result = self.signal_generator.macd_signal(
+                self.sample_data, 
+                fast_period=fast_period, 
+                slow_period=slow_period, 
+                signal_period=signal_period
+            )
             
             self.assertEqual(result["signal"], self.signal_generator.SIGNAL_BUY)
     
     def test_macd_signal_bearish(self):
         """Verificar que se genera señal de venta en cruce bajista de MACD."""
+        # Usar períodos más pequeños para evitar error de datos insuficientes
+        fast_period = 3
+        slow_period = 5
+        signal_period = 2
+        
         # Mock de macd para simular un cruce bajista
         with patch.object(self.indicators, 'macd') as mock_macd:
             # Simulamos un cruce bajista donde:
@@ -125,17 +137,23 @@ class TestSignalGeneratorBasic(unittest.TestCase):
             
             mock_macd.return_value = (macd_line, signal_line, histogram)
             
-            # Verificamos los valores que devuelve el mock
-            print(f"Penúltimo MACD: {macd_line[-2]}, Señal: {signal_line[-2]}")
-            print(f"Último MACD: {macd_line[-1]}, Señal: {signal_line[-1]}")
-            
-            result = self.signal_generator.macd_signal(self.sample_data)
-            print(f"Resultado: {result}")
+            # Ejecutar con períodos reducidos
+            result = self.signal_generator.macd_signal(
+                self.sample_data, 
+                fast_period=fast_period, 
+                slow_period=slow_period, 
+                signal_period=signal_period
+            )
             
             self.assertEqual(result["signal"], self.signal_generator.SIGNAL_SELL)
     
     def test_macd_signal_neutral(self):
         """Verificar que se genera señal neutral cuando no hay cruce de MACD."""
+        # Usar períodos más pequeños para evitar error de datos insuficientes
+        fast_period = 3
+        slow_period = 5
+        signal_period = 2
+        
         # Mock de macd para simular un no-cruce
         with patch.object(self.indicators, 'macd') as mock_macd:
             mock_macd.return_value = (
@@ -144,8 +162,15 @@ class TestSignalGeneratorBasic(unittest.TestCase):
                 np.array([np.nan] * (len(self.sample_data) - 2) + [0.1, 0.2])   # Histograma
             )
             
-            signal = self.signal_generator.macd_signal(self.sample_data)
-            self.assertEqual(signal["signal"], self.signal_generator.SIGNAL_HOLD)
+            # Ejecutar con períodos reducidos
+            result = self.signal_generator.macd_signal(
+                self.sample_data, 
+                fast_period=fast_period, 
+                slow_period=slow_period, 
+                signal_period=signal_period
+            )
+            
+            self.assertEqual(result["signal"], self.signal_generator.SIGNAL_HOLD)
     
     def test_bollinger_bands_signal_buy(self):
         """Verificar que se genera señal de compra cuando el precio toca la banda inferior."""
