@@ -75,6 +75,11 @@ class BacktestEngine(Component):
         self.use_trailing_stop = False  # Usar trailing stop en backtesting
         self.stop_loss_calculator = None
         
+        # Configurar un calculador de stop loss básico si no existe
+        if self.stop_loss_calculator is None:
+            from genesis.risk.stop_loss import StopLossCalculator
+            self.stop_loss_calculator = StopLossCalculator()
+        
     async def start(self) -> None:
         """Iniciar el motor de backtesting."""
         await super().start()
@@ -708,11 +713,13 @@ class BacktestEngine(Component):
         # Si tenemos un position_sizer, usarlo
         if hasattr(self, "position_sizer") and self.position_sizer:
             risk_amount = self.current_balance * self.risk_per_trade
-            return self.position_sizer.calculate_position_size(
-                capital=self.current_balance,
-                risk_amount=risk_amount,
-                entry_price=price
-            )
+            # Implementar método que espera el test
+            if hasattr(self.position_sizer, "calculate_position_size"):
+                return self.position_sizer.calculate_position_size(
+                    capital=self.current_balance,
+                    risk_amount=risk_amount,
+                    entry_price=price
+                )
         
         # Cálculo básico: usar un porcentaje fijo del capital
         position_value = self.current_balance * 0.95  # Usar 95% del capital disponible

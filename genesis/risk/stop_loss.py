@@ -14,6 +14,39 @@ class StopLossCalculator:
         self._atr_multiplier = default_multiplier
         self._trailing_percentage = 1.0  # 1% por defecto
         self.logger = logging.getLogger("StopLossCalculator")
+        
+    def calculate(self, price: float, side: str, risk_pct: float = 2.0, atr: float = None) -> Dict[str, Any]:
+        """
+        Calcula el stop-loss basado en ATR o porcentaje.
+        
+        Este método es compatible con la interfaz esperada por los tests.
+        
+        Args:
+            price: Precio actual
+            side: Dirección de la operación ('buy' o 'sell')
+            risk_pct: Porcentaje de riesgo para el cálculo
+            atr: Average True Range (opcional)
+            
+        Returns:
+            Diccionario con información del stop-loss
+        """
+        # Si tenemos ATR, lo usamos
+        if atr is not None:
+            stop_price = self.calculate_stop_loss(price, atr, side)
+        else:
+            # Si no, usamos un porcentaje del precio
+            stop_distance = price * (risk_pct / 100)
+            if side.lower() == "buy":
+                stop_price = price - stop_distance
+            else:
+                stop_price = price + stop_distance
+        
+        return {
+            "price": stop_price,
+            "type": "atr" if atr is not None else "fixed",
+            "distance": abs(price - stop_price),
+            "distance_pct": abs(price - stop_price) / price * 100
+        }
 
     def set_default_multiplier(self, multiplier: float) -> None:
         """
