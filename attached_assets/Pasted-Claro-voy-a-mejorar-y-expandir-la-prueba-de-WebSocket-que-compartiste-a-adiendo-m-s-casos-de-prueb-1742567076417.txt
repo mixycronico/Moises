@@ -1,0 +1,229 @@
+Claro, voy a mejorar y expandir la prueba de WebSocket que compartiste, añadiendo más casos de prueba, mejorando la robustez, manejando casos límite y organizando el código para que sea más claro y reutilizable. También incluiré pruebas para errores, desconexiones y concurrencia, además de optimizar la configuración del servidor y los clientes.
+
+Aquí está la versión mejorada:
+
+---
+
+### Código Mejorado: `server.py` y `test_websocket.py`
+
+Primero, ajusto ligeramente `server.py` para que sea más modular y fácil de probar, separando la lógica del servidor y permitiendo su reutilización en las pruebas:
+
+```python
+# server.py
+import asyncio
+import websockets
+
+connected_clients = set()
+
+async def handler(websocket, path):
+    """Maneja conexiones WebSocket y reenvía mensajes a otros clientes."""
+    connected_clients.add(websocket)
+    try:
+        async for message in websocket:
+            for client in connected_clients:
+                if client != websocket:
+                    await client.send(message)
+    except websockets.ConnectionClosed:
+        pass  # Silenciamos la excepción para pruebas más limpias
+    finally:
+        connected_clients.remove(websocket)
+
+async def start_server(port=12345):
+    """Inicia el servidor WebSocket en el puerto especificado."""
+    server = await websockets.serve(handler, "localhost", port)
+    return server
+
+async def main():
+    """Función principal para ejecutar el servidor."""
+    server = await start_server()
+    await server.wait_closed()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+Y ahora, el archivo de pruebas mejorado:
+
+```python
+# test_websocket.py
+import pytest
+import asyncio
+import websockets
+from server import start_server, handler
+
+# Configuración básica
+WEBSOCKET_URI = "ws://localhost:12345"
+
+# Fixture para el servidor WebSocket
+@pytest.fixture
+async def websocket_server():
+    """Fixture que inicia y detiene el servidor WebSocket para pruebas."""
+    server = await start_server(port=12345)
+    yield server
+    server.close()
+    await server.wait_closed()
+
+# Pruebas básicas
+@pytest.mark.asyncio
+async def test_websocket_message_relay(websocket_server):
+    """Prueba que los mensajes enviados se reenvíen correctamente entre clientes."""
+    async with websockets.connect(WEBSOCKET_URI) as ws1:
+        async with websockets.connect(WEBSOCKET_URI) as ws2:
+            message_to_send = "Hello, WebSocket!"
+            await ws1.send(message_to_send)
+            received_message = await asyncio.wait_for(ws2.recv(), timeout=1.0)
+            assert received_message == message_to_send
+
+@pytest.mark.asyncio
+async def test_websocket_multiple_clients(websocket_server):
+    """Prueba que un mensaje se reenvíe a múltiples clientes conectados."""
+    async with websockets.connect(WEBSOCKET_URI) as ws1:
+        async with websockets.connect(WEBSOCKET_URI) as ws2:
+            async with websockets.connect(WEBSOCKET_URI) as ws3:
+                message_to_send = "Broadcast test"
+                await ws1.send(message_to_send)
+                
+                # Ambos ws2 y ws3 deben recibir el mensaje
+                received_ws2 = await asyncio.wait_for(ws2.recv(), timeout=1.0)
+                received_ws3 = await asyncio.wait_for(ws3.recv(), timeout=1.0)
+                assert received_ws2 == message_to_send
+                assert received_ws3 == message_to_send
+
+# Pruebas de manejo de errores y casos límite
+@pytest.mark.asyncio
+async def test_websocket_client_disconnect(websocket_server):
+    """Prueba que el servidor maneje correctamente la desconexión de un cliente."""
+    async with websockets.connect(WEBSOCKET_URI) as ws1:
+        async with websockets.connect(WEBSOCKET_URI) as ws2:
+            message_to_send = "Message before disconnect"
+            await ws1.send(message_to_send)
+            await asyncio.wait_for(ws2.recv(), timeout=1.0)  # ws2 recibe el mensaje
+            
+            # Desconectamos ws1
+            await ws1.close()
+            await asyncio.sleep(0.1)  # Breve espera para que el servidor procese
+            
+            # Enviamos desde ws2, ws1 no debería causar problemas
+            new_message = "Message after disconnect"
+            await ws2.send(new_message)
+            # No hay más clientes para recibir, pero el servidor no debería fallar
+
+@pytest.mark.asyncio
+async def test_websocket_empty_message(websocket_server):
+    """Prueba el manejo de un mensaje vacío."""
+    async with websockets.connect(WEBSOCKET_URI) as ws1:
+        async with websockets.connect(WEBSOCKET_URI) as ws2:
+            await ws1.send("")
+            received_message = await asyncio.wait_for(ws2.recv(), timeout=1.0)
+            assert received_message == ""  # El servidor debería reenviar mensajes vacíos
+
+@pytest.mark.asyncio
+async def test_websocket_server_not_running():
+    """Prueba la conexión cuando el servidor no está activo."""
+    # No usamos el fixture websocket_server para simular servidor apagado
+    with pytest.raises(ConnectionRefusedError):
+        async with websockets.connect(WEBSOCKET_URI) as ws:
+            await ws.send("Test")
+
+# Pruebas de concurrencia
+@pytest.mark.asyncio
+async def test_websocket_concurrent_messages(websocket_server):
+    """Prueba el envío concurrente de mensajes desde múltiples clientes."""
+    async def send_messages(ws, messages):
+        for msg in messages:
+            await ws.send(msg)
+            await asyncio.sleep(0.01)  # Simula pequeña latencia
+
+    async with websockets.connect(WEBSOCKET_URI) as ws1:
+        async with websockets.connect(WEBSOCKET_URI) as ws2:
+            messages_ws1 = ["Msg1 from ws1", "Msg2 from ws1"]
+            messages_ws2 = ["Msg1 from ws2", "Msg2 from ws2"]
+            
+            # Enviamos mensajes concurrentemente
+            await asyncio.gather(
+                send_messages(ws1, messages_ws1),
+                send_messages(ws2, messages_ws2)
+            )
+            
+            # Recolectamos mensajes recibidos por ws2 (desde ws1)
+            received_ws2 = []
+            for _ in range(len(messages_ws1)):
+                received_ws2.append(await asyncio.wait_for(ws2.recv(), timeout=1.0))
+            
+            # Recolectamos mensajes recibidos por ws1 (desde ws2)
+            received_ws1 = []
+            for _ in range(len(messages_ws2)):
+                received_ws1.append(await asyncio.wait_for(ws1.recv(), timeout=1.0))
+            
+            assert sorted(received_ws2) == sorted(messages_ws1)
+            assert sorted(received_ws1) == sorted(messages_ws2)
+
+# Ejecutar las pruebas
+if __name__ == "__main__":
+    pytest.main(["-v"])
+```
+
+---
+
+### Mejoras Implementadas
+
+1. **Organización del Código**:
+   - **`server.py`**: Separé `start_server` de `main` para facilitar las pruebas y manejé excepciones en `handler` de forma más limpia con un bloque `finally`.
+   - **`test_websocket.py`**: Usé una fixture para el servidor y definí una constante `WEBSOCKET_URI`.
+
+2. **Más Casos de Prueba**:
+   - **`test_websocket_message_relay`**: Prueba básica de reenvío entre dos clientes.
+   - **`test_websocket_multiple_clients`**: Verifica reenvío a múltiples clientes (3 en este caso).
+   - **`test_websocket_client_disconnect`**: Prueba la desconexión de un cliente y estabilidad del servidor.
+   - **`test_websocket_empty_message`**: Maneja mensajes vacíos.
+   - **`test_websocket_server_not_running`**: Verifica fallo de conexión sin servidor.
+   - **`test_websocket_concurrent_messages`**: Prueba concurrencia con múltiples mensajes simultáneos.
+
+3. **Robustez**:
+   - Uso de `asyncio.wait_for` con timeouts para evitar que las pruebas cuelguen si el servidor falla.
+   - Manejo explícito de excepciones como `ConnectionRefusedError`.
+   - Verificación de mensajes en pruebas concurrentes usando listas ordenadas para evitar falsos negativos por orden de llegada.
+
+4. **Manejo de Errores**:
+   - Pruebas para desconexiones y servidor no iniciado.
+   - Silenciamiento de `ConnectionClosed` en `handler` para pruebas más limpias (puedes ajustarlo si necesitas logs).
+
+5. **Legibilidad**:
+   - Nombres de pruebas descriptivos y comentarios explicativos.
+   - Separación clara entre pruebas básicas, de errores y de concurrencia.
+
+---
+
+### Requisitos
+1. Instala las dependencias:
+   ```bash
+   pip install pytest pytest-asyncio websockets
+   ```
+2. Asegúrate de que `pytest.ini` (o el archivo de prueba) tenga:
+   ```ini
+   [pytest]
+   asyncio_mode = auto
+   ```
+
+---
+
+### Ejecución
+Para correr las pruebas:
+```bash
+pytest test_websocket.py -v
+```
+
+---
+
+### Suposiciones
+- El servidor reenvía mensajes a todos los clientes excepto al remitente.
+- No hay autenticación ni mensajes de control específicos (si los hay, puedo añadir pruebas).
+
+---
+
+### Posibles Extensiones
+- **Autenticación**: Si el servidor requiere un mensaje inicial de autenticación, puedo simularlo.
+- **Mensajes JSON**: Si los mensajes son estructurados (por ejemplo, `{"type": "chat", "data": "Hello"}`), puedo incluir validación.
+- **Carga pesada**: Simular 100 clientes o mensajes masivos para probar rendimiento.
+
+¿Qué te parece? ¿Hay algo específico que quieras que añada o ajuste según tu implementación real del servidor WebSocket? Por ejemplo, ¿maneja mensajes especiales o tiene límites de clientes?

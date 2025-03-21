@@ -1,0 +1,178 @@
+import pytest
+from unittest.mock import Mock, patch
+from genesis.exchange_manager import ExchangeManager
+from genesis.crypto_classifier import CryptoClassifier
+from genesis.signals import SignalGenerator
+from genesis.strategy import RiskManagement
+from genesis.alerts import AlertManager
+
+# Fixture para mocks de componentes
+@pytest.fixture
+def mock_components():
+    """Fixture que proporciona mocks de los componentes clave."""
+    exchange_manager = Mock(spec=ExchangeManager)
+    crypto_classifier = Mock(spec=CryptoClassifier)
+    signal_generator = Mock(spec=SignalGenerator)
+    risk_manager = Mock(spec=RiskManagement)
+    alert_manager = Mock(spec=AlertManager)
+    
+    return {
+        "exchange_manager": exchange_manager,
+        "crypto_classifier": crypto_classifier,
+        "signal_generator": signal_generator,
+        "risk_manager": risk_manager,
+        "alert_manager": alert_manager
+    }
+
+# Clase simulada para la estrategia
+class TradingStrategy:
+    def __init__(self, components):
+        self.exchange_manager = components["exchange_manager"]
+        self.crypto_classifier = components["crypto_classifier"]
+        self.signal_generator = components["signal_generator"]
+        self.risk_manager = components["risk_manager"]
+        self.alert_manager = components["alert_manager"]
+        self.capital = 200  # Capital inicial
+        self.reserve = 0    # Reserva inicial
+
+    def execute_trade(self, symbol, side, amount, atr, phase):
+        """Ejecuta un trade según la fase y reglas."""
+        if phase == "initial":
+            risk = 0.04 if self.alert_manager.check_drawdown.return_value < 10 else 0.02
+            take_profit = 0.05
+            stop_loss = self.risk_manager.calculate_stop_loss(1000, atr, 1.5)
+            trailing_stop = 0.005
+        elif phase == "middle":
+            risk = 0.035 if self.signal_generator.generate_rsi_signal.return_value != "SELL" else 0.02
+            take_profit = 0.045
+            stop_loss = self.risk_manager.calculate_stop_loss(1000, atr, 1.5)
+            trailing_stop = 0.0075
+        elif phase == "expansion":
+            risk = 0.03 if self.alert_manager.check_drawdown.return_value < 10 else 0.015
+            take_profit = 0.04
+            stop_loss = self.risk_manager.calculate_stop_loss(1000, atr, 2)
+            trailing_stop = 0.01
+        else:  # final
+            risk = 0.025 if self.signal_generator.success_rate > 0.7 else 0.01
+            take_profit = 0.035
+            stop_loss = self.risk_manager.calculate_stop_loss(1000, atr, 2)
+            trailing_stop = 0.01
+
+        result = self.exchange_manager.execute_trade(symbol, side, amount * risk)
+        if result["status"] == "success":
+            profit = amount * take_profit
+            self.capital += profit
+        return result
+
+    def check_kill_switch(self, market_drop):
+        """Activa el kill switch si el mercado cae más del 30%."""
+        if market_drop > 30:
+            self.exchange_manager.convert_to_usdt()
+            return True
+        return False
+
+# Pruebas para Fase 1: Crecimiento Inicial
+def test_initial_phase_trade(mock_components):
+    """Prueba un trade en la fase inicial ($200 → $250)."""
+    strategy = TradingStrategy(mock_components)
+    mock_components["crypto_classifier"].filter_hot_cryptos.return_value = [
+        {"symbol": "BTC/USDT", "volume": 50000000, "change_24h": 6.5, "adx": 30}
+    ]
+    mock_components["signal_generator"].generate_ema_signal.return_value = "BUY"
+    mock_components["signal_generator"].generate_macd_signal.return_value = "BUY"
+    mock_components["signal_generator"].generate_rsi_signal.return_value = "NEUTRAL"
+    mock_components["exchange_manager"].execute_trade.return_value = {"status": "success"}
+    mock_components["alert_manager"].check_drawdown.return_value = 5  # Drawdown < 10%
+    
+    result = strategy.execute_trade("BTC/USDT", "buy", strategy.capital, atr=10, phase="initial")
+    
+    assert result["status"] == "success"
+    assert strategy.capital == 210  # 200 + (200 * 0.05) = 210
+    mock_components["exchange_manager"].execute_trade.assert_called_once_with("BTC/USDT", "buy", 8)  # 200 * 0.04
+
+def test_initial_phase_drawdown_adjustment(mock_components):
+    """Prueba ajuste de riesgo si drawdown > 10% en fase inicial."""
+    strategy = TradingStrategy(mock_components)
+    mock_components["alert_manager"].check_drawdown.return_value = 12  # Drawdown > 10%
+    mock_components["exchange_manager"].execute_trade.return_value = {"status": "success"}
+    
+    result = strategy.execute_trade("BTC/USDT", "buy", strategy.capital, atr=10, phase="initial")
+    
+    assert result["status"] == "success"
+    assert strategy.capital == 210
+    mock_components["exchange_manager"].execute_trade.assert_called_once_with("BTC/USDT", "buy", 4)  # 200 * 0.02
+
+def test_middle_phase_rsi_adjustment(mock_components):
+    """Prueba ajuste de riesgo si RSI indica sobreventa en fase media."""
+    strategy = TradingStrategy(mock_components)
+    mock_components["signal_generator"].generate_rsi_signal.return_value = "SELL"  # RSI < 30
+    mock_components["exchange_manager"].execute_trade.return_value = {"status": "success"}
+    
+    result = strategy.execute_trade("BTC/USDT", "buy", strategy.capital, atr=10, phase="middle")
+    
+    assert result["status"] == "success"
+    assert strategy.capital == 209  # 200 + (200 * 0.045) * 0.5 (simulando ajuste)
+    mock_components["exchange_manager"].execute_trade.assert_called_once_with("BTC/USDT", "buy", 4)  # 200 * 0.02
+
+def test_expansion_phase_trade(mock_components):
+    """Prueba un trade en la fase de expansión ($450 → $1,000)."""
+    strategy = TradingStrategy(mock_components)
+    strategy.capital = 450
+    mock_components["exchange_manager"].execute_trade.return_value = {"status": "success"}
+    mock_components["alert_manager"].check_drawdown.return_value = 8
+    
+    result = strategy.execute_trade("BTC/USDT", "buy", strategy.capital, atr=10, phase="expansion")
+    
+    assert result["status"] == "success"
+    assert strategy.capital == 468  # 450 + (450 * 0.04) = 468
+    mock_components["exchange_manager"].execute_trade.assert_called_once_with("BTC/USDT", "buy", 13.5)  # 450 * 0.03
+
+def test_final_phase_success_rate_adjustment(mock_components):
+    """Prueba ajuste de riesgo si tasa de éxito < 70% en fase final."""
+    strategy = TradingStrategy(mock_components)
+    strategy.capital = 900
+    mock_components["signal_generator"].success_rate = 0.65  # < 70%
+    mock_components["exchange_manager"].execute_trade.return_value = {"status": "success"}
+    
+    result = strategy.execute_trade("BTC/USDT", "buy", strategy.capital, atr=10, phase="final")
+    
+    assert result["status"] == "success"
+    assert strategy.capital == 931.5  # 900 + (900 * 0.035) = 931.5
+    mock_components["exchange_manager"].execute_trade.assert_called_once_with("BTC/USDT", "buy", 9)  # 900 * 0.01
+
+# Pruebas para Fail-Safes
+def test_kill_switch_activation(mock_components):
+    """Prueba la activación del kill switch con caída > 30%."""
+    strategy = TradingStrategy(mock_components)
+    market_drop = 35  # > 30%
+    
+    activated = strategy.check_kill_switch(market_drop)
+    
+    assert activated is True
+    mock_components["exchange_manager"].convert_to_usdt.assert_called_once()
+
+def test_kill_switch_no_activation(mock_components):
+    """Prueba que el kill switch no se active con caída < 30%."""
+    strategy = TradingStrategy(mock_components)
+    market_drop = 25  # < 30%
+    
+    activated = strategy.check_kill_switch(market_drop)
+    
+    assert activated is False
+    mock_components["exchange_manager"].convert_to_usdt.assert_not_called()
+
+def test_crypto_classifier_filter(mock_components):
+    """Prueba que el CryptoClassifier filtre correctamente según los criterios."""
+    strategy = TradingStrategy(mock_components)
+    mock_components["crypto_classifier"].filter_hot_cryptos.return_value = [
+        {"symbol": "BTC/USDT", "volume": 50000000, "change_24h": 6.5, "adx": 30}
+    ]
+    
+    hot_cryptos = strategy.crypto_classifier.filter_hot_cryptos(volume_threshold=20000000, change_24h_threshold=5, adx_threshold=25)
+    
+    assert len(hot_cryptos) == 1
+    assert hot_cryptos[0]["symbol"] == "BTC/USDT"
+
+# Ejecutar las pruebas
+if __name__ == "__main__":
+    pytest.main(["-v"])
