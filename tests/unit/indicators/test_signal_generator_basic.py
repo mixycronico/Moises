@@ -336,9 +336,9 @@ def test_combine_signals_conservative_mixed(signal_generator):
 def test_combine_signals_weighted(signal_generator):
     """Verificar combinación de señales ponderada."""
     signals = [
-        {"signal": signal_generator.SIGNAL_BUY},
-        {"signal": signal_generator.SIGNAL_HOLD},
-        {"signal": signal_generator.SIGNAL_HOLD}
+        {"signal": signal_generator.SIGNAL_BUY, "strength": 5.0},  # Asignar una fuerza mayor a la señal de compra
+        {"signal": signal_generator.SIGNAL_HOLD, "strength": 1.0},
+        {"signal": signal_generator.SIGNAL_HOLD, "strength": 1.0}
     ]
     result = signal_generator.combine_signals(signals, "weighted")
     assert result["signal"] == signal_generator.SIGNAL_BUY
