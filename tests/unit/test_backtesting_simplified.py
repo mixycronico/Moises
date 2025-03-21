@@ -99,4 +99,3 @@ async def test_backtest_risk_management_simplified(backtest_engine):
     assert backtest_engine.stop_loss_calculator is not None
     
     print("✅ Test simplificado de gestión de riesgos completado")
-"""

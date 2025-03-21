@@ -102,8 +102,112 @@ class StopLossCalculator:
             
         self.logger.info(f"Stop-loss calculado: {stop_price} (entry: {entry_price}, ATR: {atr})")
         return stop_price
+    
+    def calculate_atr_stop_loss(self, entry_price: float, atr: float, multiplier: float, is_long: bool = True) -> float:
+        """
+        Calcula el stop-loss basado en ATR.
+        
+        Args:
+            entry_price: Precio de entrada
+            atr: Average True Range
+            multiplier: Multiplicador de ATR
+            is_long: Si la posición es larga (True) o corta (False)
+            
+        Returns:
+            Precio de stop-loss
+        """
+        if atr < 0 or multiplier < 0:
+            raise ValueError("ATR and multiplier must be non-negative")
+        
+        if atr == 0 or multiplier == 0:
+            return entry_price
+            
+        stop_distance = atr * multiplier
+        
+        if is_long:
+            # Para posiciones largas, el stop está por debajo
+            stop_price = entry_price - stop_distance
+        else:
+            # Para posiciones cortas, el stop está por encima
+            stop_price = entry_price + stop_distance
+            
+        return stop_price
         
     def calculate_trailing_stop(self, 
+                                current_price: float,
+                                entry_price: float,
+                                is_long: bool,
+                                activation_pct: float = 0,
+                                atr_value: Optional[float] = None,
+                                stop_pct: Optional[float] = None,
+                                atr_multiplier: Optional[float] = None,
+                                previous_stop: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Calcula el trailing stop basado en el precio actual.
+        
+        Args:
+            current_price: Precio actual
+            entry_price: Precio de entrada
+            is_long: Si la posición es larga (True) o corta (False)
+            activation_pct: Porcentaje de ganancia para activar el trailing stop
+            atr_value: Valor ATR (opcional)
+            stop_pct: Porcentaje para el trailing stop (opcional)
+            atr_multiplier: Multiplicador de ATR (opcional)
+            previous_stop: Precio de stop previo (opcional)
+            
+        Returns:
+            Dict con precio de trailing stop y si está activado
+        """
+        # Validaciones
+        if current_price <= 0:
+            raise ValueError("Price must be positive")
+            
+        if stop_pct is not None and stop_pct < 0:
+            raise ValueError("Trailing stop percentage must be non-negative")
+        
+        # Comprobar si se activa el trailing stop
+        is_activated = False
+        # Calculamos el cambio porcentual: ((precio_actual / precio_entrada) - 1)
+        # Si activation_pct está en porcentaje (ej: 2.0), convertimos a decimal
+        price_change_pct = (current_price / entry_price) - 1
+        activation_decimal = activation_pct / 100 if activation_pct > 1 else activation_pct
+        
+        if is_long:
+            is_activated = price_change_pct >= activation_decimal
+        else:
+            is_activated = price_change_pct <= -activation_decimal
+        
+        # Calcular el precio del stop
+        if atr_value is not None and atr_multiplier is not None:
+            # Usar ATR para calcular el stop
+            if is_long:
+                stop_price = current_price - (atr_value * atr_multiplier)
+            else:
+                stop_price = current_price + (atr_value * atr_multiplier)
+        else:
+            # Usar porcentaje para calcular el stop
+            stop_pct = stop_pct if stop_pct is not None else 0
+            if is_long:
+                stop_price = current_price * (1 - stop_pct)
+            else:
+                stop_price = current_price * (1 + stop_pct)
+        
+        # Si no está activado, devolver el precio de entrada
+        result = {
+            "price": stop_price if is_activated else entry_price,
+            "activated": is_activated
+        }
+        
+        # Para trailing stops activos, mantener el mejor stop
+        if is_activated and previous_stop is not None:
+            if is_long and previous_stop > result["price"]:
+                result["price"] = previous_stop
+            elif not is_long and previous_stop < result["price"]:
+                result["price"] = previous_stop
+                
+        return result
+        
+    def _calculate_trailing_stop_old(self, 
                                 entry_price: Optional[float] = None, 
                                 current_price: Optional[float] = None, 
                                 side: Optional[str] = None, 
