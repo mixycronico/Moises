@@ -19,6 +19,7 @@ from werkzeug.security import check_password_hash
 
 from genesis.core.base import Component
 from genesis.utils.logger import setup_logging
+from genesis.utils.log_manager import query_logs, get_log_stats
 from genesis.security.manager import SecurityUtils
 
 
@@ -759,68 +760,55 @@ def get_strategies_report():
 @require_auth_token
 def get_logs():
     """Obtener logs del sistema."""
-    # Parámetros
-    level = request.args.get('level', 'info')  # debug, info, warning, error, critical
-    component = request.args.get('component')
-    limit = min(int(request.args.get('limit', 50)), 200)  # Limitar a máximo 200
-    
-    # Aquí se obtendrían los logs desde el LogManager
-    # Esta implementación es simplificada
-    
-    # Datos de ejemplo
-    now = datetime.now()
-    logs = []
-    
-    levels = ['debug', 'info', 'warning', 'error', 'critical']
-    components = ['system', 'market_data', 'strategy', 'risk_manager', 'api']
-    
-    for i in range(limit):
-        timestamp = now - timedelta(minutes=i*10)
-        log_level = levels[i % len(levels)]
-        log_component = components[i % len(components)]
+    try:
+        # Parámetros
+        level = request.args.get('level')  # debug, info, warning, error, critical
+        component = request.args.get('component')
+        search_text = request.args.get('search')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        limit = min(int(request.args.get('limit', 100)), 500)  # Limitar a máximo 500
+        offset = int(request.args.get('offset', 0))
         
-        # Filtrar por nivel
-        if level == 'debug':
-            pass  # mostrar todos
-        elif level == 'info' and log_level == 'debug':
-            continue
-        elif level == 'warning' and log_level in ['debug', 'info']:
-            continue
-        elif level == 'error' and log_level in ['debug', 'info', 'warning']:
-            continue
-        elif level == 'critical' and log_level != 'critical':
-            continue
+        # Consultar logs usando el log_manager
+        logs = query_logs(
+            start_date=start_date,
+            end_date=end_date,
+            level=level,
+            component=component,
+            search_text=search_text,
+            limit=limit,
+            offset=offset
+        )
         
-        # Filtrar por componente
-        if component and log_component != component:
-            continue
+        # Obtener estadísticas básicas si se solicitan
+        include_stats = request.args.get('stats', 'false').lower() == 'true'
+        stats = None
+        if include_stats:
+            stats = get_log_stats(start_date, end_date)
         
-        logs.append({
-            'timestamp': timestamp.isoformat(),
-            'level': log_level,
-            'component': log_component,
-            'message': f'Log message {i} for {log_component}',
-            'details': {
-                'request_id': str(uuid.uuid4()),
-                'user': 'system',
-                'source_ip': '127.0.0.1'
+        return jsonify({
+            'success': True,
+            'data': {
+                'logs': logs,
+                'count': len(logs),
+                'filter': {
+                    'level': level,
+                    'component': component,
+                    'search': search_text,
+                    'start_date': start_date,
+                    'end_date': end_date
+                },
+                'stats': stats
             }
         })
-    
-    # Ordenar cronológicamente (más reciente primero)
-    logs.reverse()
-    
-    return jsonify({
-        'success': True,
-        'data': {
-            'logs': logs,
-            'count': len(logs),
-            'filter': {
-                'level': level,
-                'component': component
-            }
-        }
-    })
+    except Exception as e:
+        logger.error(f"Error al obtener logs: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Error al obtener logs',
+            'message': str(e)
+        }), 500
 
 
 @api_bp.route('/alerts', methods=['GET'])
@@ -889,6 +877,31 @@ def acknowledge_alert(alert_id):
             'status': 'acknowledged'
         }
     })
+
+
+@api_bp.route('/logs/stats', methods=['GET'])
+@require_auth_token
+def get_log_statistics():
+    """Obtener estadísticas de logs del sistema."""
+    try:
+        # Parámetros opcionales
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # Obtener estadísticas
+        stats = get_log_stats(start_date, end_date)
+        
+        return jsonify({
+            'success': True,
+            'data': stats
+        })
+    except Exception as e:
+        logger.error(f"Error al obtener estadísticas de logs: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Error al obtener estadísticas de logs',
+            'message': str(e)
+        }), 500
 
 
 # Manejadores de errores
