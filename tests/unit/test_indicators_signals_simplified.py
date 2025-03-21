@@ -23,9 +23,11 @@ def indicators():
 
 
 @pytest.fixture
-def signal_generator(indicators):
-    """Fixture que proporciona una instancia de SignalGenerator con indicadores."""
-    return SignalGenerator(indicators)
+def signal_generator():
+    """Fixture que proporciona una instancia de SignalGenerator con indicadores mockeados."""
+    # Creamos un mock de TechnicalIndicators en lugar de usar el real
+    mock_indicators = Mock(spec=TechnicalIndicators)
+    return SignalGenerator(mock_indicators)
 
 
 @pytest.fixture
@@ -56,8 +58,9 @@ def sample_ohlcv_data():
 
 
 # Test para ATR simplificado con mocking
-def test_calculate_atr_simplified(indicators):
+def test_calculate_atr_simplified():
     """Prueba simplificada del cálculo de ATR (Average True Range)."""
+    indicators = TechnicalIndicators()
     high = np.array([110, 120, 130, 140, 150])
     low = np.array([90, 95, 100, 105, 110])
     close = np.array([100, 110, 120, 130, 140])
@@ -76,16 +79,22 @@ def test_signal_generator_ema_crossover_buy_simplified(signal_generator):
     """Prueba simplificada de señal de cruce de EMA alcista."""
     prices = np.array([100, 110, 120, 130, 140])
     
-    # Mockear la función calculate_ema para devolver valores específicos
-    # EMA corta cruza por encima de la EMA larga
-    with patch.object(signal_generator.indicators, 'calculate_ema') as mock_ema:
-        mock_ema.side_effect = [
-            np.array([np.nan, np.nan, 115, 125, 138]),  # EMA corta
-            np.array([np.nan, np.nan, 110, 120, 130])   # EMA larga
-        ]
-        
-        signal = signal_generator.generate_ema_signal(prices, short_period=2, long_period=4)
+    # Configurar el mock para el cruce alcista de EMA
+    ema_short = np.array([np.nan, np.nan, 115, 125, 138])  # EMA corta
+    ema_long = np.array([np.nan, np.nan, 110, 120, 130])   # EMA larga
     
+    # Mockear el cálculo de EMA para devolver valores controlados
+    signal_generator.indicators.calculate_ema.side_effect = [ema_short, ema_long]
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
+    
+    # Verificar que se llamó a calculate_ema con los parámetros correctos
+    assert signal_generator.indicators.calculate_ema.call_count == 2
+    signal_generator.indicators.calculate_ema.assert_any_call(prices, 9)
+    signal_generator.indicators.calculate_ema.assert_any_call(prices, 21)
+    
+    # Verificar el resultado esperado
     assert signal == "BUY"
 
 
@@ -93,16 +102,22 @@ def test_signal_generator_ema_crossover_sell_simplified(signal_generator):
     """Prueba simplificada de señal de cruce de EMA bajista."""
     prices = np.array([140, 130, 120, 110, 100])
     
-    # Mockear la función calculate_ema para devolver valores específicos
-    # EMA corta cruza por debajo de la EMA larga
-    with patch.object(signal_generator.indicators, 'calculate_ema') as mock_ema:
-        mock_ema.side_effect = [
-            np.array([np.nan, np.nan, 125, 115, 95]),   # EMA corta
-            np.array([np.nan, np.nan, 130, 120, 110])   # EMA larga
-        ]
-        
-        signal = signal_generator.generate_ema_signal(prices, short_period=2, long_period=4)
+    # Configurar el mock para el cruce bajista de EMA
+    ema_short = np.array([np.nan, np.nan, 125, 115, 95])   # EMA corta
+    ema_long = np.array([np.nan, np.nan, 130, 120, 110])   # EMA larga
     
+    # Mockear el cálculo de EMA para devolver valores controlados
+    signal_generator.indicators.calculate_ema.side_effect = [ema_short, ema_long]
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
+    
+    # Verificar que se llamó a calculate_ema con los parámetros correctos
+    assert signal_generator.indicators.calculate_ema.call_count == 2
+    signal_generator.indicators.calculate_ema.assert_any_call(prices, 9)
+    signal_generator.indicators.calculate_ema.assert_any_call(prices, 21)
+    
+    # Verificar el resultado esperado
     assert signal == "SELL"
 
 
@@ -110,16 +125,22 @@ def test_signal_generator_ema_no_crossover_simplified(signal_generator):
     """Prueba simplificada de no señal por ausencia de cruce de EMA."""
     prices = np.array([100, 110, 120, 130, 140])
     
-    # Mockear la función calculate_ema para devolver valores específicos
-    # EMA corta siempre por encima de la EMA larga (sin cruce)
-    with patch.object(signal_generator.indicators, 'calculate_ema') as mock_ema:
-        mock_ema.side_effect = [
-            np.array([np.nan, np.nan, 115, 125, 135]),  # EMA corta
-            np.array([np.nan, np.nan, 110, 120, 130])   # EMA larga
-        ]
-        
-        signal = signal_generator.generate_ema_signal(prices, short_period=2, long_period=4)
+    # Configurar el mock para el no cruce de EMA (sin señal)
+    ema_short = np.array([np.nan, np.nan, 115, 125, 135])  # EMA corta siempre por encima
+    ema_long = np.array([np.nan, np.nan, 110, 120, 130])   # EMA larga siempre por debajo
     
+    # Mockear el cálculo de EMA para devolver valores controlados
+    signal_generator.indicators.calculate_ema.side_effect = [ema_short, ema_long]
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_ema_signal(prices, short_period=9, long_period=21)
+    
+    # Verificar que se llamó a calculate_ema con los parámetros correctos
+    assert signal_generator.indicators.calculate_ema.call_count == 2
+    signal_generator.indicators.calculate_ema.assert_any_call(prices, 9)
+    signal_generator.indicators.calculate_ema.assert_any_call(prices, 21)
+    
+    # Verificar el resultado esperado - no hay cruce, por lo que debe ser NEUTRAL/HOLD
     assert signal == signal_generator.NEUTRAL
 
 
@@ -128,12 +149,19 @@ def test_signal_generator_rsi_overbought_simplified(signal_generator):
     """Prueba simplificada de RSI en zona de sobrecompra."""
     prices = np.array([100, 110, 120, 130, 140])
     
-    # Mockear la función calculate_rsi para devolver un valor de sobrecompra
-    with patch.object(signal_generator.indicators, 'calculate_rsi') as mock_rsi:
-        mock_rsi.return_value = np.array([np.nan, np.nan, np.nan, 65, 75])  # Último valor > 70 (sobrecompra)
-        
-        signal = signal_generator.generate_rsi_signal(prices)
+    # Configurar el mock para RSI en zona de sobrecompra
+    rsi_values = np.array([np.nan, np.nan, np.nan, 65, 75])  # Último valor > 70 (sobrecompra)
     
+    # Mockear el cálculo de RSI para devolver valores controlados
+    signal_generator.indicators.calculate_rsi.return_value = rsi_values
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_rsi_signal(prices)
+    
+    # Verificar que se llamó a calculate_rsi con los parámetros correctos
+    signal_generator.indicators.calculate_rsi.assert_called_once_with(prices, 14)
+    
+    # Verificar el resultado esperado
     assert signal == "SELL"
 
 
@@ -141,12 +169,19 @@ def test_signal_generator_rsi_oversold_simplified(signal_generator):
     """Prueba simplificada de RSI en zona de sobreventa."""
     prices = np.array([140, 130, 120, 110, 100])
     
-    # Mockear la función calculate_rsi para devolver un valor de sobreventa
-    with patch.object(signal_generator.indicators, 'calculate_rsi') as mock_rsi:
-        mock_rsi.return_value = np.array([np.nan, np.nan, np.nan, 35, 25])  # Último valor < 30 (sobreventa)
-        
-        signal = signal_generator.generate_rsi_signal(prices)
+    # Configurar el mock para RSI en zona de sobreventa
+    rsi_values = np.array([np.nan, np.nan, np.nan, 35, 25])  # Último valor < 30 (sobreventa)
     
+    # Mockear el cálculo de RSI para devolver valores controlados
+    signal_generator.indicators.calculate_rsi.return_value = rsi_values
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_rsi_signal(prices)
+    
+    # Verificar que se llamó a calculate_rsi con los parámetros correctos
+    signal_generator.indicators.calculate_rsi.assert_called_once_with(prices, 14)
+    
+    # Verificar el resultado esperado
     assert signal == "BUY"
 
 
@@ -154,12 +189,19 @@ def test_signal_generator_rsi_neutral_simplified(signal_generator):
     """Prueba simplificada de RSI en zona neutral."""
     prices = np.array([100, 110, 120, 130, 140])
     
-    # Mockear la función calculate_rsi para devolver un valor neutral
-    with patch.object(signal_generator.indicators, 'calculate_rsi') as mock_rsi:
-        mock_rsi.return_value = np.array([np.nan, np.nan, np.nan, 45, 50])  # 30 < Último valor < 70 (neutral)
-        
-        signal = signal_generator.generate_rsi_signal(prices)
+    # Configurar el mock para RSI en zona neutral
+    rsi_values = np.array([np.nan, np.nan, np.nan, 45, 50])  # 30 < Último valor < 70 (neutral)
     
+    # Mockear el cálculo de RSI para devolver valores controlados
+    signal_generator.indicators.calculate_rsi.return_value = rsi_values
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_rsi_signal(prices)
+    
+    # Verificar que se llamó a calculate_rsi con los parámetros correctos
+    signal_generator.indicators.calculate_rsi.assert_called_once_with(prices, 14)
+    
+    # Verificar el resultado esperado
     assert signal == signal_generator.NEUTRAL
 
 
@@ -168,16 +210,26 @@ def test_signal_generator_macd_bullish_simplified(signal_generator):
     """Prueba simplificada de MACD con señal alcista."""
     prices = np.array([100, 110, 120, 130, 140])
     
-    # Mockear la función calculate_macd para devolver un cruce alcista
-    with patch.object(signal_generator.indicators, 'calculate_macd') as mock_macd:
-        mock_macd.return_value = (
-            np.array([np.nan, np.nan, 5, 6, 8]),       # Línea MACD
-            np.array([np.nan, np.nan, 6, 7, 6]),       # Línea de señal (MACD cruza por encima)
-            np.array([np.nan, np.nan, -1, -1, 2])      # Histograma
-        )
-        
-        signal = signal_generator.generate_macd_signal(prices)
+    # Configurar el mock para un MACD con cruce alcista
+    macd_line = np.array([np.nan, np.nan, 5, 6, 8])       # Línea MACD
+    signal_line = np.array([np.nan, np.nan, 6, 7, 6])     # Línea de señal (MACD cruza por encima)
+    histogram = np.array([np.nan, np.nan, -1, -1, 2])     # Histograma (positivo al final)
     
+    # Mockear el cálculo de MACD para devolver valores controlados
+    signal_generator.indicators.calculate_macd.return_value = (macd_line, signal_line, histogram)
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_macd_signal(prices)
+    
+    # Verificar que se llamó a calculate_macd con los parámetros correctos
+    signal_generator.indicators.calculate_macd.assert_called_once_with(
+        prices, 
+        fast_period=12, 
+        slow_period=26, 
+        signal_period=9
+    )
+    
+    # Verificar el resultado esperado
     assert signal == "BUY"
 
 
@@ -185,16 +237,26 @@ def test_signal_generator_macd_bearish_simplified(signal_generator):
     """Prueba simplificada de MACD con señal bajista."""
     prices = np.array([140, 130, 120, 110, 100])
     
-    # Mockear la función calculate_macd para devolver un cruce bajista
-    with patch.object(signal_generator.indicators, 'calculate_macd') as mock_macd:
-        mock_macd.return_value = (
-            np.array([np.nan, np.nan, 5, 4, 2]),       # Línea MACD
-            np.array([np.nan, np.nan, 4, 3, 5]),       # Línea de señal (MACD cruza por debajo)
-            np.array([np.nan, np.nan, 1, 1, -3])       # Histograma
-        )
-        
-        signal = signal_generator.generate_macd_signal(prices)
+    # Configurar el mock para un MACD con cruce bajista
+    macd_line = np.array([np.nan, np.nan, 5, 4, 2])      # Línea MACD
+    signal_line = np.array([np.nan, np.nan, 4, 3, 5])    # Línea de señal (MACD cruza por debajo)
+    histogram = np.array([np.nan, np.nan, 1, 1, -3])     # Histograma (negativo al final)
     
+    # Mockear el cálculo de MACD para devolver valores controlados
+    signal_generator.indicators.calculate_macd.return_value = (macd_line, signal_line, histogram)
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_macd_signal(prices)
+    
+    # Verificar que se llamó a calculate_macd con los parámetros correctos
+    signal_generator.indicators.calculate_macd.assert_called_once_with(
+        prices, 
+        fast_period=12, 
+        slow_period=26, 
+        signal_period=9
+    )
+    
+    # Verificar el resultado esperado
     assert signal == "SELL"
 
 
@@ -202,16 +264,26 @@ def test_signal_generator_macd_neutral_simplified(signal_generator):
     """Prueba simplificada de MACD sin señal clara."""
     prices = np.array([100, 110, 120, 130, 140])
     
-    # Mockear la función calculate_macd para devolver valores sin cruce
-    with patch.object(signal_generator.indicators, 'calculate_macd') as mock_macd:
-        mock_macd.return_value = (
-            np.array([np.nan, np.nan, 5, 6, 7]),       # Línea MACD
-            np.array([np.nan, np.nan, 3, 4, 5]),       # Línea de señal (sin cruce)
-            np.array([np.nan, np.nan, 2, 2, 2])        # Histograma
-        )
-        
-        signal = signal_generator.generate_macd_signal(prices)
+    # Configurar el mock para un MACD sin cruce (señal neutral)
+    macd_line = np.array([np.nan, np.nan, 5, 6, 7])      # Línea MACD
+    signal_line = np.array([np.nan, np.nan, 3, 4, 5])    # Línea de señal (siempre por debajo, sin cruce)
+    histogram = np.array([np.nan, np.nan, 2, 2, 2])      # Histograma (sin cambio significativo)
     
+    # Mockear el cálculo de MACD para devolver valores controlados
+    signal_generator.indicators.calculate_macd.return_value = (macd_line, signal_line, histogram)
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_macd_signal(prices)
+    
+    # Verificar que se llamó a calculate_macd con los parámetros correctos
+    signal_generator.indicators.calculate_macd.assert_called_once_with(
+        prices, 
+        fast_period=12, 
+        slow_period=26, 
+        signal_period=9
+    )
+    
+    # Verificar el resultado esperado
     assert signal == signal_generator.NEUTRAL
 
 
@@ -220,16 +292,25 @@ def test_signal_generator_bollinger_bands_buy_simplified(signal_generator):
     """Prueba simplificada de precio cerca de la banda inferior (señal de compra)."""
     prices = np.array([100, 110, 120, 130, 110])  # Último precio cae
     
-    # Mockear la función calculate_bollinger_bands
-    with patch.object(signal_generator.indicators, 'calculate_bollinger_bands') as mock_bb:
-        mock_bb.return_value = (
-            np.array([np.nan, np.nan, 135, 145, 145]),  # Banda superior
-            np.array([np.nan, np.nan, 120, 130, 130]),  # Banda media
-            np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior (precio = 110 está cerca)
-        )
-        
-        signal = signal_generator.generate_bollinger_bands_signal(prices)
+    # Configurar el mock para Bollinger Bands con precio cerca de la banda inferior
+    upper_band = np.array([np.nan, np.nan, 135, 145, 145])  # Banda superior
+    middle_band = np.array([np.nan, np.nan, 120, 130, 130])  # Banda media
+    lower_band = np.array([np.nan, np.nan, 105, 115, 115])   # Banda inferior (precio = 110 está cerca)
     
+    # Mockear el cálculo de Bollinger Bands para devolver valores controlados
+    signal_generator.indicators.calculate_bollinger_bands.return_value = (upper_band, middle_band, lower_band)
+    
+    # Ejecutar la función bajo prueba
+    signal = signal_generator.generate_bollinger_bands_signal(prices)
+    
+    # Verificar que se llamó a calculate_bollinger_bands con los parámetros correctos
+    signal_generator.indicators.calculate_bollinger_bands.assert_called_once_with(
+        prices, 
+        window=20, 
+        num_std_dev=2
+    )
+    
+    # Verificar el resultado esperado
     assert signal == "BUY"
 
 
