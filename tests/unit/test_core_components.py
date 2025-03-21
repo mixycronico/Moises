@@ -186,36 +186,52 @@ async def test_exchange_manager_get_best_exchange_no_exchanges():
         await exchange_manager.get_best_exchange("BTC/USDT")
 
 
-def test_exchange_manager_execute_trade(exchange_manager):
+@pytest.mark.asyncio
+async def test_exchange_manager_execute_trade(exchange_manager):
     """Prueba la ejecución de una operación en el mejor exchange."""
     # Crear un mock para el exchange
     mock_exchange = Mock()
-    mock_exchange.execute_trade.return_value = {"status": "success", "order_id": "12345"}
+    mock_exchange.place_order.return_value = {"status": "ok", "order_id": "12345"}
     
-    # Mockear el método get_exchange para que devuelva nuestro mock
-    with patch.object(ExchangeManager, 'get_exchange', return_value=mock_exchange):
+    # Mockear el método get_best_exchange para que devuelva un nombre de exchange
+    async def mock_get_best_exchange(trading_pair):
+        return "binance"
+    
+    # Establecemos el mock en el diccionario de exchanges
+    exchange_manager.exchanges["binance"] = mock_exchange
+    
+    # Parcheamos el método get_best_exchange
+    with patch.object(exchange_manager, 'get_best_exchange', side_effect=mock_get_best_exchange):
         # Probar ejecución de trade
-        result = exchange_manager.execute_trade("BTC/USDT", "buy", 0.01, price=40000)
+        result = await exchange_manager.execute_trade("BTC/USDT", "buy", 0.01, price=40000)
         
         # Verificar resultado
-        assert result["status"] == "success"
+        assert result["status"] == "ok"
         assert result["order_id"] == "12345"
         
-        # Verificar que se llamó al método execute_trade del exchange con los parámetros correctos
-        mock_exchange.execute_trade.assert_called_once_with("BTC/USDT", "buy", 0.01, price=40000)
+        # Verificar que se llamó al método place_order del exchange con los parámetros correctos
+        mock_exchange.place_order.assert_called_once_with("BTC/USDT", "buy", 0.01, 40000)
 
 
-def test_exchange_manager_execute_trade_invalid_symbol(exchange_manager):
+@pytest.mark.asyncio
+async def test_exchange_manager_execute_trade_invalid_symbol(exchange_manager):
     """Prueba el manejo de símbolos inválidos."""
     # Crear un mock para el exchange que falla con símbolos inválidos
     mock_exchange = Mock()
-    mock_exchange.execute_trade.side_effect = ValueError("Invalid symbol")
+    mock_exchange.place_order.side_effect = ValueError("Invalid symbol")
     
-    # Mockear el método get_exchange para que devuelva nuestro mock
-    with patch.object(ExchangeManager, 'get_exchange', return_value=mock_exchange):
+    # Mockear el método get_best_exchange para que devuelva un nombre de exchange
+    async def mock_get_best_exchange(trading_pair):
+        return "binance"
+    
+    # Establecemos el mock en el diccionario de exchanges
+    exchange_manager.exchanges["binance"] = mock_exchange
+    
+    # Parcheamos el método get_best_exchange
+    with patch.object(exchange_manager, 'get_best_exchange', side_effect=mock_get_best_exchange):
         # Probar ejecución de trade con símbolo inválido
         with pytest.raises(ValueError, match="Invalid symbol"):
-            exchange_manager.execute_trade("INVALID/SYMBOL", "buy", 0.01)
+            await exchange_manager.execute_trade("INVALID/SYMBOL", "buy", 0.01)
 
 
 def test_exchange_manager_execute_trade_exchange_unavailable(exchange_manager):

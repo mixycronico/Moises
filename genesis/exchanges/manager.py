@@ -211,3 +211,62 @@ class ExchangeManager(Component):
             Lista de nombres de exchanges
         """
         return list(self.exchanges.keys())
+        
+    async def get_ticker(self, trading_pair: str, exchange_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Obtener datos del ticker para un par de trading.
+        
+        Args:
+            trading_pair: Par de trading (ej: 'BTC/USDT')
+            exchange_name: Nombre del exchange (opcional, si no se especifica, se usa el mejor)
+            
+        Returns:
+            Datos del ticker
+        """
+        # Usar exchange específico o buscar el mejor
+        if not exchange_name:
+            exchange_name = await self.get_best_exchange(trading_pair)
+            
+        if not exchange_name or exchange_name not in self.exchanges:
+            self.logger.error(f"No se encontró exchange adecuado para {trading_pair}")
+            return {"status": "error", "message": "No suitable exchange found"}
+            
+        # Obtener datos del ticker
+        client = self.exchanges[exchange_name]
+        
+        # Convertir método síncrono a asíncrono
+        loop = asyncio.get_event_loop()
+        ticker = await loop.run_in_executor(None, lambda: client.fetch_ticker(trading_pair))
+        
+        return ticker
+        
+    async def get_balance(self, exchange_name: str) -> Dict[str, Dict[str, float]]:
+        """
+        Obtener balance de un exchange específico.
+        
+        Args:
+            exchange_name: Nombre del exchange
+            
+        Returns:
+            Balance del exchange
+        """
+        if exchange_name not in self.exchanges:
+            self.logger.error(f"Exchange no encontrado: {exchange_name}")
+            return {}
+            
+        client = self.exchanges[exchange_name]
+        
+        # Convertir método síncrono a asíncrono
+        loop = asyncio.get_event_loop()
+        balance = await loop.run_in_executor(None, client.fetch_balance)
+        
+        return balance
+        
+    async def get_all_balances(self) -> Dict[str, Dict[str, Dict[str, float]]]:
+        """
+        Obtener balances de todos los exchanges.
+        
+        Returns:
+            Diccionario con balances por exchange
+        """
+        return await self.get_balances()
