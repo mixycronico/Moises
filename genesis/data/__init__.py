@@ -1,9 +1,8 @@
 """
 Módulo de datos para el sistema Genesis.
 
-Este módulo proporciona funcionalidades para obtener, procesar y analizar
-datos del mercado, incluyendo precios históricos, indicadores técnicos,
-y patrones de precio.
+Este módulo proporciona funcionalidades para la obtención, procesamiento
+y análisis de datos de mercado para el sistema de trading.
 """
 
 from genesis.data.market_data import MarketDataManager

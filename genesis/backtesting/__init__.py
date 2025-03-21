@@ -1,9 +1,8 @@
 """
 Módulo de backtesting para el sistema Genesis.
 
-Este módulo proporciona herramientas para realizar backtesting
-de estrategias de trading, incluyendo simulación de operaciones,
-optimización de parámetros y análisis de resultados.
+Este módulo proporciona herramientas para realizar pruebas retrospectivas
+de estrategias de trading usando datos históricos.
 """
 
 from genesis.backtesting.engine import BacktestEngine
