@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Mensual de Trading - {{ start_date }} a {{ end_date }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .summary-box {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .chart {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .chart img {
+            max-width: 100%;
+            height: auto;
+        }
+        .positive {
+            color: green;
+        }
+        .negative {
+            color: red;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        /* Estilos específicos para la sección de logs */
+        .log-section {
+            background-color: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 30px;
+        }
+        .log-summary {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .log-stat {
+            flex: 1;
+            min-width: 120px;
+            text-align: center;
+            padding: 10px;
+            background-color: #f0f0f0;
+            margin: 5px;
+            border-radius: a4px;
+        }
+        .log-table {
+            font-size: 0.9em;
+        }
+        .log-level-info {
+            background-color: #d1ecf1;
+        }
+        .log-level-warning {
+            background-color: #fff3cd;
+        }
+        .log-level-error {
+            background-color: #f8d7da;
+        }
+        .log-chart {
+            margin: 20px 0;
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Informe Mensual de Trading</h1>
+        <h2>{{ start_date }} a {{ end_date }}</h2>
+        
+        <div class="section">
+            <h2>Resumen del Mes</h2>
+            <div class="summary-box">
+                <table>
+                    <tr>
+                        <td><strong>Trades:</strong></td>
+                        <td>{{ summary.total_trades }}</td>
+                        <td><strong>Ganadores:</strong></td>
+                        <td>{{ summary.profitable_trades }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Perdedores:</strong></td>
+                        <td>{{ summary.loss_trades }}</td>
+                        <td><strong>Win Rate:</strong></td>
+                        <td>{{ "%.2f"|format(summary.win_rate * 100) }}%</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ganancia:</strong></td>
+                        <td class="{{ 'positive' if summary.total_profit >= 0 else 'negative' }}">
+                            ${{ "%.2f"|format(summary.total_profit) }}
+                        </td>
+                        <td><strong>Retorno:</strong></td>
+                        <td class="{{ 'positive' if portfolio.profit_loss_percent >= 0 else 'negative' }}">
+                            {{ "%.2f"|format(portfolio.profit_loss_percent * 100) }}%
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sección de métricas de riesgo -->
+        {% if risk %}
+        <div class="section">
+            <h2>Métricas de Riesgo</h2>
+            <table>
+                <tr>
+                    <th>Métrica</th>
+                    <th>Valor</th>
+                    <th>Interpretación</th>
+                </tr>
+                <tr>
+                    <td>Ratio Sharpe</td>
+                    <td>{{ "%.2f"|format(risk.sharpe_ratio) }}</td>
+                    <td>
+                        {% if risk.sharpe_ratio > 2 %}
+                            Excelente
+                        {% elif risk.sharpe_ratio > 1 %}
+                            Bueno
+                        {% elif risk.sharpe_ratio > 0.5 %}
+                            Regular
+                        {% else %}
+                            Pobre
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Ratio Sortino</td>
+                    <td>{{ "%.2f"|format(risk.sortino_ratio) }}</td>
+                    <td>
+                        {% if risk.sortino_ratio > 2.5 %}
+                            Excelente
+                        {% elif risk.sortino_ratio > 1.5 %}
+                            Bueno
+                        {% elif risk.sortino_ratio > 0.8 %}
+                            Regular
+                        {% else %}
+                            Pobre
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Máximo Drawdown</td>
+                    <td>{{ "%.2f"|format(risk.max_drawdown * 100) }}%</td>
+                    <td>
+                        {% if risk.max_drawdown < 0.05 %}
+                            Bajo
+                        {% elif risk.max_drawdown < 0.10 %}
+                            Moderado
+                        {% elif risk.max_drawdown < 0.20 %}
+                            Alto
+                        {% else %}
+                            Muy Alto
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>VaR (95%)</td>
+                    <td>{{ "%.2f"|format(risk.var_95 * 100) }}%</td>
+                    <td>Pérdida máxima esperada con 95% de confianza</td>
+                </tr>
+                <tr>
+                    <td>Volatilidad</td>
+                    <td>{{ "%.2f"|format(risk.volatility * 100) }}%</td>
+                    <td>
+                        {% if risk.volatility < 0.02 %}
+                            Baja
+                        {% elif risk.volatility < 0.05 %}
+                            Moderada
+                        {% elif risk.volatility < 0.10 %}
+                            Alta
+                        {% else %}
+                            Muy Alta
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Sección de estrategias -->
+        {% if strategies %}
+        <div class="section">
+            <h2>Rendimiento por Estrategia</h2>
+            <table>
+                <tr>
+                    <th>Estrategia</th>
+                    <th>Trades</th>
+                    <th>Win Rate</th>
+                    <th>Ganancia</th>
+                </tr>
+                {% for strategy_name, strategy_data in strategies.items() %}
+                <tr>
+                    <td>{{ strategy_name }}</td>
+                    <td>{{ strategy_data.trades }}</td>
+                    <td>{{ "%.2f"|format(strategy_data.win_rate * 100) }}%</td>
+                    <td class="{{ 'positive' if strategy_data.profit >= 0 else 'negative' }}">
+                        ${{ "%.2f"|format(strategy_data.profit) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Sección de mercados -->
+        {% if markets %}
+        <div class="section">
+            <h2>Análisis por Mercado</h2>
+            <table>
+                <tr>
+                    <th>Mercado</th>
+                    <th>Trades</th>
+                    <th>Win Rate</th>
+                    <th>Ganancia</th>
+                </tr>
+                {% for market_name, market_data in markets.items() %}
+                <tr>
+                    <td>{{ market_name }}</td>
+                    <td>{{ market_data.trades }}</td>
+                    <td>{{ "%.2f"|format(market_data.win_rate * 100) }}%</td>
+                    <td class="{{ 'positive' if market_data.profit >= 0 else 'negative' }}">
+                        ${{ "%.2f"|format(market_data.profit) }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Sección de Logs y Eventos -->
+        {% if logs %}
+        <div class="section log-section">
+            <h2>Actividad del Sistema</h2>
+            
+            <!-- Resumen de logs -->
+            <div class="log-summary">
+                <div class="log-stat">
+                    <h3>Total de Eventos</h3>
+                    <p>{{ logs.total }}</p>
+                </div>
+                {% if logs.by_level %}
+                    {% for level, count in logs.by_level.items() %}
+                    <div class="log-stat">
+                        <h3>{{ level|capitalize }}</h3>
+                        <p>{{ count }}</p>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <!-- Tendencias de logs (solo en mensuales) -->
+            {% if logs.trend_chart %}
+            <div class="chart">
+                <h3>Tendencia de Eventos por Día</h3>
+                <img src="{{ logs.trend_chart }}" alt="Tendencia de Logs" class="log-chart">
+            </div>
+            {% endif %}
+            
+            <!-- Tabla de logs recientes/importantes -->
+            {% if logs.entries %}
+            <h3>Eventos Destacados</h3>
+            <table class="log-table">
+                <tr>
+                    <th>Fecha</th>
+                    <th>Nivel</th>
+                    <th>Componente</th>
+                    <th>Mensaje</th>
+                </tr>
+                {% for log in logs.entries %}
+                <tr class="log-level-{{ log.level|lower }}">
+                    <td>{{ log.timestamp }}</td>
+                    <td>{{ log.level }}</td>
+                    <td>{{ log.component }}</td>
+                    <td>{{ log.message }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Sección de gráficos -->
+        {% if plots %}
+        <div class="section">
+            <h2>Gráficos de Análisis</h2>
+            {% for plot_name, plot_path in plots.items() %}
+                <div class="chart">
+                    <h3>{{ plot_name|replace('_', ' ')|title }}</h3>
+                    <img src="{{ plot_path }}" alt="{{ plot_name }}">
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <!-- Pie de página -->
+        <div class="footer">
+            <p>Este informe fue generado automáticamente por el Sistema Genesis el {{ now }}.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -14,6 +14,7 @@ import os
 import json
 import asyncio
 import time
+import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Union
 import logging
@@ -22,11 +23,13 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
+import jinja2
 
 from genesis.core.base import Component
 from genesis.utils.logger import setup_logging
 from genesis.utils.log_manager import query_logs, get_log_stats
 from genesis.notifications.email_notifier import email_notifier
+from genesis.utils.helpers import format_timestamp
 
 
 class ReportGenerator(Component):
@@ -50,6 +53,7 @@ class ReportGenerator(Component):
         # Configuración
         self.report_dir = "data/reports"
         self.plot_dir = f"{self.report_dir}/plots"
+        self.template_dir = os.path.join(os.path.dirname(__file__), "templates")
         
         # Crear directorios si no existen
         os.makedirs(self.report_dir, exist_ok=True)
@@ -494,33 +498,20 @@ class ReportGenerator(Component):
             # Generar gráficos
             result["plots"] = await self._generate_daily_plots(trades, strategies, date)
             
-            # Obtener logs relevantes para el día
+            # Obtener logs utilizando la integración de logs
             try:
-                # Convertir fecha a formato ISO para la consulta
-                start_date_str = date.replace(hour=0, minute=0, second=0).isoformat()
-                end_date_str = date.replace(hour=23, minute=59, second=59).isoformat()
-                
-                # Consultar logs para este período
-                logs_data = query_logs(
-                    start_date=start_date_str,
-                    end_date=end_date_str,
-                    limit=100
-                )
-                
-                # Obtener estadísticas de logs
-                log_stats = get_log_stats(start_date_str, end_date_str)
-                
-                # Actualizar la sección de logs en el resultado
-                result["logs"] = {
-                    "total": len(logs_data),
-                    "by_level": log_stats.get("by_level", {}),
-                    "by_component": log_stats.get("by_component", {}),
-                    "entries": logs_data
-                }
-                
-                self.logger.info(f"Se añadieron {len(logs_data)} registros de logs al informe diario.")
+                from genesis.reporting.log_integration import LogReportIntegration
+                log_integration = LogReportIntegration(plot_dir=self.plot_dir)
+                result["logs"] = await log_integration.collect_logs_daily(date)
+                self.logger.info(f"Se añadieron {result['logs'].get('total', 0)} registros de logs al informe diario.")
             except Exception as e:
                 self.logger.error(f"Error al obtener logs para el informe diario: {e}")
+                result["logs"] = {
+                    "total": 0,
+                    "by_level": {},
+                    "by_component": {},
+                    "entries": []
+                }
             
         except Exception as e:
             self.logger.error(f"Error al recopilar datos diarios: {e}")
@@ -560,6 +551,12 @@ class ReportGenerator(Component):
                 "ending_balance": 0.0,
                 "profit_loss": 0.0,
                 "profit_loss_percent": 0.0
+            },
+            "logs": {
+                "total": 0,
+                "by_level": {},
+                "by_component": {},
+                "entries": []
             },
             "market_correlation": 0.0,
             "plots": {}
@@ -638,6 +635,21 @@ class ReportGenerator(Component):
             # Generar gráficos
             result["plots"] = await self._generate_weekly_plots(all_trades, daily_data, strategies, start_date, end_date)
             
+            # Obtener logs utilizando la integración de logs
+            try:
+                from genesis.reporting.log_integration import LogReportIntegration
+                log_integration = LogReportIntegration(plot_dir=self.plot_dir)
+                result["logs"] = await log_integration.collect_logs_weekly(start_date, end_date)
+                self.logger.info(f"Se añadieron {result['logs'].get('total', 0)} registros de logs al informe semanal.")
+            except Exception as e:
+                self.logger.error(f"Error al obtener logs para el informe semanal: {e}")
+                result["logs"] = {
+                    "total": 0,
+                    "by_level": {},
+                    "by_component": {},
+                    "entries": []
+                }
+            
         except Exception as e:
             self.logger.error(f"Error al recopilar datos semanales: {e}")
         
@@ -683,6 +695,23 @@ class ReportGenerator(Component):
         
         # Generar gráficos mensuales (más detallados)
         result["plots"].update(await self._generate_monthly_plots(result["trades"], result["daily_summary"], result["strategies"], start_date, end_date))
+        
+        # Obtener logs ampliados para el informe mensual utilizando la integración de logs
+        try:
+            from genesis.reporting.log_integration import LogReportIntegration
+            log_integration = LogReportIntegration(plot_dir=self.plot_dir)
+            monthly_logs = await log_integration.collect_logs_monthly(start_date, end_date)
+            
+            # Actualizar la sección de logs en el resultado
+            result["logs"] = monthly_logs
+            
+            # Si se generaron gráficos de tendencias, añadirlos a los plots
+            if "trend_chart" in monthly_logs and monthly_logs["trend_chart"]:
+                result["plots"]["log_distribution"] = monthly_logs["trend_chart"]
+            
+            self.logger.info(f"Se añadieron {monthly_logs.get('total', 0)} registros de logs al informe mensual.")
+        except Exception as e:
+            self.logger.error(f"Error al obtener logs para el informe mensual: {e}")
         
         return result
     
@@ -1544,6 +1573,64 @@ class ReportGenerator(Component):
                     </table>
                 </div>
                 
+                <div class="section">
+                    <h2>Logs del Sistema</h2>
+                    <style>
+                        .log-error {{ color: #d32f2f; background-color: #ffebee; }}
+                        .log-warning {{ color: #ff6f00; background-color: #fff8e1; }}
+                        .log-info {{ color: #0277bd; background-color: #e1f5fe; }}
+                        .log-debug {{ color: #2e7d32; background-color: #e8f5e9; }}
+                        .log-entry {{ padding: 8px; margin-bottom: 5px; border-radius: 4px; }}
+                        .collapsible {{ 
+                            background-color: #f1f1f1;
+                            color: #444;
+                            cursor: pointer;
+                            padding: 10px;
+                            width: 100%;
+                            border: none;
+                            text-align: left;
+                            outline: none;
+                            font-size: 15px;
+                            border-radius: 4px;
+                        }}
+                        .active, .collapsible:hover {{ background-color: #e0e0e0; }}
+                        .content {{
+                            padding: 0 18px;
+                            max-height: 0;
+                            overflow: hidden;
+                            transition: max-height 0.2s ease-out;
+                            background-color: #f8f8f8;
+                            border-radius: 4px;
+                        }}
+                    </style>
+                    <div class="summary-box" style="width: 100%; text-align: left; margin-bottom: 10px;">
+                        <h3>Resumen de Logs</h3>
+                        <p>Total de logs: {logs.get('total', 0)}</p>
+                        <p>Por nivel: {", ".join([f"{level}: {count}" for level, count in logs.get('by_level', {}).items()])}</p>
+                        <p>Por componente: {", ".join([f"{comp}: {count}" for comp, count in logs.get('by_component', {}).items()])}</p>
+                    </div>
+                    
+                    <button class="collapsible">Ver Logs ({logs.get('total', 0)} entradas)</button>
+                    <div class="content">
+                        {"".join([f'<div class="log-entry log-{log.get("level", "info").lower()}"><strong>{log.get("timestamp", "")} [{log.get("level", "INFO")}]</strong> - {log.get("component", "system")}: {log.get("message", "")}</div>' for log in logs.get('entries', [])])}
+                    </div>
+                </div>
+                
+                <script>
+                var coll = document.getElementsByClassName("collapsible");
+                for (var i = 0; i < coll.length; i++) {{
+                    coll[i].addEventListener("click", function() {{
+                        this.classList.toggle("active");
+                        var content = this.nextElementSibling;
+                        if (content.style.maxHeight) {{
+                            content.style.maxHeight = null;
+                        }} else {{
+                            content.style.maxHeight = content.scrollHeight + "px";
+                        }}
+                    }});
+                }}
+                </script>
+                
                 <div class="footer">
                     <p>Generado por Sistema Genesis - {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
                 </div>
@@ -1764,6 +1851,64 @@ class ReportGenerator(Component):
                     </table>
                 </div>
                 
+                <div class="section">
+                    <h2>Logs del Sistema</h2>
+                    <style>
+                        .log-error {{ color: #d32f2f; background-color: #ffebee; }}
+                        .log-warning {{ color: #ff6f00; background-color: #fff8e1; }}
+                        .log-info {{ color: #0277bd; background-color: #e1f5fe; }}
+                        .log-debug {{ color: #2e7d32; background-color: #e8f5e9; }}
+                        .log-entry {{ padding: 8px; margin-bottom: 5px; border-radius: 4px; }}
+                        .collapsible {{ 
+                            background-color: #f1f1f1;
+                            color: #444;
+                            cursor: pointer;
+                            padding: 10px;
+                            width: 100%;
+                            border: none;
+                            text-align: left;
+                            outline: none;
+                            font-size: 15px;
+                            border-radius: 4px;
+                        }}
+                        .active, .collapsible:hover {{ background-color: #e0e0e0; }}
+                        .content {{
+                            padding: 0 18px;
+                            max-height: 0;
+                            overflow: hidden;
+                            transition: max-height 0.2s ease-out;
+                            background-color: #f8f8f8;
+                            border-radius: 4px;
+                        }}
+                    </style>
+                    <div class="summary-box" style="width: 100%; text-align: left; margin-bottom: 10px;">
+                        <h3>Resumen de Logs</h3>
+                        <p>Total de logs: {logs.get('total', 0)}</p>
+                        <p>Por nivel: {", ".join([f"{level}: {count}" for level, count in logs.get('by_level', {}).items()])}</p>
+                        <p>Por componente: {", ".join([f"{comp}: {count}" for comp, count in logs.get('by_component', {}).items()])}</p>
+                    </div>
+                    
+                    <button class="collapsible">Ver Logs ({logs.get('total', 0)} entradas)</button>
+                    <div class="content">
+                        {"".join([f'<div class="log-entry log-{log.get("level", "info").lower()}"><strong>{log.get("timestamp", "")} [{log.get("level", "INFO")}]</strong> - {log.get("component", "system")}: {log.get("message", "")}</div>' for log in logs.get('entries', [])])}
+                    </div>
+                </div>
+                
+                <script>
+                var coll = document.getElementsByClassName("collapsible");
+                for (var i = 0; i < coll.length; i++) {{
+                    coll[i].addEventListener("click", function() {{
+                        this.classList.toggle("active");
+                        var content = this.nextElementSibling;
+                        if (content.style.maxHeight) {{
+                            content.style.maxHeight = null;
+                        }} else {{
+                            content.style.maxHeight = content.scrollHeight + "px";
+                        }}
+                    }});
+                }}
+                </script>
+                
                 <div class="footer">
                     <p>Generado por Sistema Genesis - {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
                 </div>
@@ -1791,6 +1936,32 @@ class ReportGenerator(Component):
         
         # Reemplazar el título
         html = html.replace("<h1>Informe Semanal de Trading</h1>", "<h1>Informe Mensual de Trading</h1>")
+        
+        # Cargar la plantilla Jinja2 para el informe mensual
+        try:
+            template_path = os.path.join(os.path.dirname(__file__), "templates", "monthly_report.html")
+            
+            # Verificar si existe la plantilla
+            if os.path.exists(template_path):
+                with open(template_path, "r", encoding="utf-8") as f:
+                    template_content = f.read()
+                
+                # Configurar entorno Jinja2
+                env = jinja2.Environment()
+                template = env.from_string(template_content)
+                
+                # Añadir timestamp actual para el pie de página
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                data["now"] = current_time
+                
+                # Renderizar la plantilla con los datos
+                return template.render(**data)
+            
+            # Si llegamos aquí, no se encontró la plantilla, seguimos con el método anterior
+            self.logger.warning("No se encontró la plantilla para informe mensual. Usando método alternativo.")
+            
+        except Exception as e:
+            self.logger.error(f"Error al usar plantilla Jinja2 para informe mensual: {e}")
         
         # Añadir secciones adicionales antes del footer
         risk_html = ""
