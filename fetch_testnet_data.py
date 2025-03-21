@@ -12,7 +12,7 @@ import sys
 import logging
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any
 import pandas as pd
 
@@ -26,8 +26,10 @@ logger = logging.getLogger("fetch_testnet_data")
 # Asegurarnos que podemos importar los módulos de Genesis
 sys.path.insert(0, os.getcwd())
 
+# Ordenamos los símbolos y timeframes por prioridad
+# Primero los timeframes más importantes para el análisis a largo plazo
 SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT']  # Principales pares para trading
-TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d']  # Varios timeframes para análisis completo
+TIMEFRAMES = ['1d', '4h', '1h', '15m', '5m', '1m']  # Primero los timeframes más importantes
 DATA_DIR = './data/testnet'
 
 async def save_to_csv(symbol: str, timeframe: str, data: List[List[float]]) -> None:
@@ -210,7 +212,16 @@ async def fetch_testnet_data():
                     logger.info(f"Descargando historial completo de {symbol} - {timeframe}...")
                     
                     # Obtener datos históricos completos
-                    ohlcv = await fetch_ohlcv_data(exchange, symbol, timeframe, start_date)
+                    # Para timeframes pequeños (1m, 5m) limitamos a un período más corto 
+                    # para no saturar la API y asegurar que obtenemos primero los datos más importantes
+                    if timeframe == '1m':
+                        tf_start_date = '2023-01-01T00:00:00Z'  # Para 1m solo 2 años
+                    elif timeframe == '5m':
+                        tf_start_date = '2022-01-01T00:00:00Z'  # Para 5m solo 3 años
+                    else:
+                        tf_start_date = start_date  # Para el resto, los 5 años completos
+                        
+                    ohlcv = await fetch_ohlcv_data(exchange, symbol, timeframe, tf_start_date)
                     
                     if ohlcv and len(ohlcv) > 0:
                         logger.info(f"Descargados {len(ohlcv)} registros históricos para {symbol} - {timeframe}")
