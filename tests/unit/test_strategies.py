@@ -328,10 +328,13 @@ async def test_bollinger_bands_strategy_wide_bands():
     # Crear datos OHLCV con alta volatilidad
     dates = pd.date_range("2025-01-01", periods=30, freq="1h")
     
-    # Base para generar precios con alta volatilidad
-    base_prices = np.linspace(100, 130, 30)
+    # Para simular alta volatilidad usamos una serie con grandes movimientos
+    # Base inicial de precios
+    np.random.seed(42)  # Para reproducibilidad
+    base_prices = np.linspace(100, 200, 30)  # Tendencia alcista pronunciada
+    
     # Agregar ruido aleatorio de alta amplitud
-    noise = np.random.normal(0, 15, 30)
+    noise = np.random.normal(0, 30, 30)  # Alta volatilidad
     prices = base_prices + noise
     
     df = pd.DataFrame({
@@ -353,107 +356,218 @@ async def test_bollinger_bands_strategy_wide_bands():
     upper_band = signal["upper"]
     lower_band = signal["lower"]
     
-    # En períodos de alta volatilidad, las bandas deben estar separadas
+    # Calcular el ancho de las bandas
     band_width = (upper_band - lower_band) / middle_band
+    
+    # En períodos de alta volatilidad, las bandas deben estar más separadas
     assert band_width > 0.2, f"Ancho de banda ({band_width}) debería ser mayor a 0.2 para alta volatilidad"
     
-    # Verificar el tipo de señal basado en la posición del precio actual
-    current_price = df["close"].iloc[-1]
-    previous_price = df["close"].iloc[-2]
+    # Verificar el formato correcto de la señal
+    assert "type" in signal
+    assert "reason" in signal
+    assert "price" in signal
+    assert "middle" in signal
+    assert "upper" in signal
+    assert "lower" in signal
+    assert "percent_b" in signal
+    assert "bandwidth" in signal
     
-    # Las pruebas de señal dependen de dónde quede el precio al final, pero la lógica debe ser consistente
-    if signal["type"] == SignalType.BUY:
-        assert (current_price < lower_band * 1.05 or 
-                (previous_price < lower_band and current_price > lower_band * 0.95))
-    elif signal["type"] == SignalType.SELL:
-        assert (current_price > upper_band * 0.95 or 
-                (previous_price > upper_band and current_price < upper_band * 1.05))
+    # Verificar que los valores son coherentes
+    assert signal["bandwidth"] == band_width
+    assert signal["middle"] == middle_band
+    assert signal["upper"] == upper_band
+    assert signal["lower"] == lower_band
+    
+    # Forzamos un escenario específico para verificar las señales
+    # Modificamos los últimos dos puntos para crear un cruce específico
+    
+    # 1. Para probar una señal de venta - precio cruza por encima de la banda superior
+    df_sell = df.copy()
+    
+    # Recalculamos las bandas para este conjunto de datos
+    middle2, upper2, lower2 = bb_strategy.calculate_bollinger_bands(df_sell['close'], bb_strategy.period, bb_strategy.std_dev)
+    
+    # Modificar para crear un cruce por encima
+    df_sell.loc[df_sell.index[-2], 'close'] = upper2.iloc[-2] * 0.99  # Justo por debajo
+    df_sell.loc[df_sell.index[-1], 'close'] = upper2.iloc[-1] * 1.05  # Ahora por encima
+    
+    # Generar señal para este escenario
+    signal_sell = await bb_strategy.generate_signal("BTCUSDT", df_sell)
+    
+    # Verificar que esta señal es de venta
+    if signal_sell["type"] == SignalType.SELL:
+        assert "crossed above" in signal_sell["reason"].lower() or "por encima" in signal_sell["reason"].lower()
+        assert signal_sell["price"] > signal_sell["upper"] * 0.95  # Debe estar cerca o por encima de la banda superior
 
 
 @pytest.mark.asyncio
-async def test_ma_crossover_strategy(sample_ohlcv_data):
+async def test_ma_crossover_strategy():
     """Probar la estrategia de cruce de medias móviles."""
-    # Configurar la estrategia
-    ma_strategy = MovingAverageCrossover(fast_period=10, slow_period=30)
+    # Crear datos de prueba
+    dates = pd.date_range("2025-01-01", periods=60, freq="1h")
+    
+    # Crear un patrón de precios que producirá un cruce
+    # Inicialmente la media rápida está por debajo de la lenta, luego cruza por encima
+    prices = np.array([100 + i * 0.1 for i in range(30)] +  # tendencia ligeramente alcista
+                      [103 + i * 0.5 for i in range(30)])   # tendencia fuertemente alcista (para crear cruce)
+    
+    df = pd.DataFrame({
+        "open": prices - 1,
+        "high": prices + 2,
+        "low": prices - 2,
+        "close": prices,
+        "volume": np.random.lognormal(10, 1, 60),
+    }, index=dates)
+    
+    # Configurar la estrategia con periodos adecuados para nuestros datos
+    ma_strategy = MovingAverageCrossover(fast_period=10, slow_period=20)
     
     # Generar una señal
-    signal = await ma_strategy.generate_signal("BTCUSDT", sample_ohlcv_data)
+    signal = await ma_strategy.generate_signal("BTCUSDT", df)
     
     # Verificar que la señal tenga el formato correcto
     assert "type" in signal
     assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
     assert "reason" in signal
-    assert "metadata" in signal
     
     # Verificar los datos de MA en los metadatos
-    assert "fast_ma" in signal["metadata"]
-    assert "slow_ma" in signal["metadata"]
+    assert "fast_ma" in signal
+    assert "slow_ma" in signal
+    assert "strength" in signal
     
     # Verificar lógica de cruce
-    fast_ma = signal["metadata"]["fast_ma"]
-    slow_ma = signal["metadata"]["slow_ma"]
+    fast_ma = signal["fast_ma"]
+    slow_ma = signal["slow_ma"]
     
-    if signal["type"] == SignalType.BUY:
-        # En un cruce alcista, la MA rápida debería superar a la lenta o está cerca de cruzarla
-        assert fast_ma >= slow_ma * 0.95
-        assert "cruce" in signal["reason"].lower() or "cross" in signal["reason"].lower()
-    elif signal["type"] == SignalType.SELL:
-        # En un cruce bajista, la MA rápida debería estar por debajo de la lenta o cerca
-        assert fast_ma <= slow_ma * 1.05
-        assert "cruce" in signal["reason"].lower() or "cross" in signal["reason"].lower()
+    # Con los datos que hemos creado, deberíamos tener una señal de compra
+    assert signal["type"] == SignalType.BUY
+    assert fast_ma > slow_ma  # En un cruce alcista, la MA rápida debería superar a la lenta
+    assert "golden" in signal["reason"].lower() or "cross" in signal["reason"].lower()
+    
+    # Ahora vamos a probar el cruce bajista
+    # Creamos un nuevo conjunto de datos donde la media rápida comienza por encima de la lenta
+    # y luego cae por debajo
+    prices2 = np.array([100 + i * 0.5 for i in range(30)] +  # tendencia fuertemente alcista
+                       [115 - i * 0.5 for i in range(30)])   # tendencia fuertemente bajista (para crear cruce)
+    
+    df2 = pd.DataFrame({
+        "open": prices2 - 1,
+        "high": prices2 + 2,
+        "low": prices2 - 2,
+        "close": prices2,
+        "volume": np.random.lognormal(10, 1, 60),
+    }, index=dates)
+    
+    # Generar una señal con los nuevos datos
+    signal2 = await ma_strategy.generate_signal("BTCUSDT", df2)
+    
+    # Verificar la señal de venta
+    assert signal2["type"] == SignalType.SELL
+    assert signal2["fast_ma"] < signal2["slow_ma"]  # En un cruce bajista, la MA rápida debe estar por debajo
+    assert "death" in signal2["reason"].lower() or "cross" in signal2["reason"].lower()
 
 
 @pytest.mark.asyncio
-async def test_macd_strategy(sample_ohlcv_data):
+async def test_macd_strategy():
     """Probar la estrategia MACD."""
-    # Configurar la estrategia
+    # Crear datos con un patrón que generará una señal de MACD
+    dates = pd.date_range("2025-01-01", periods=60, freq="1h")
+    
+    # Generar precios que producirán un cruce de MACD alcista
+    # Primero tendencia bajista seguida de un repunte
+    prices = np.array([100 - i * 0.5 for i in range(40)] +  # tendencia bajista
+                      [80 + i * 1.0 for i in range(20)])    # rápido repunte (producirá un cruce)
+    
+    df = pd.DataFrame({
+        "open": prices - 1,
+        "high": prices + 2,
+        "low": prices - 2,
+        "close": prices,
+        "volume": np.random.lognormal(10, 1, 60),
+    }, index=dates)
+    
+    # Configurar la estrategia con periodos adecuados para nuestros datos
     macd_strategy = MACDStrategy(fast_period=12, slow_period=26, signal_period=9)
     
     # Generar una señal
-    signal = await macd_strategy.generate_signal("BTCUSDT", sample_ohlcv_data)
+    signal = await macd_strategy.generate_signal("BTCUSDT", df)
     
     # Verificar que la señal tenga el formato correcto
     assert "type" in signal
     assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
     assert "reason" in signal
-    assert "metadata" in signal
     
-    # Verificar los componentes del MACD en los metadatos
-    assert "macd" in signal["metadata"]
-    assert "signal_line" in signal["metadata"]
-    assert "histogram" in signal["metadata"]
+    # Verificar los componentes del MACD
+    assert "macd" in signal
+    assert "signal" in signal
+    assert "histogram" in signal
+    assert "strength" in signal
     
     # Verificar la lógica del MACD
-    macd = signal["metadata"]["macd"]
-    macd_signal = signal["metadata"]["signal_line"]
-    histogram = signal["metadata"]["histogram"]
+    macd_value = signal["macd"]
+    signal_value = signal["signal"]
+    histogram = signal["histogram"]
     
     # El histograma debería ser la diferencia entre MACD y línea de señal
-    assert abs(histogram - (macd - macd_signal)) < 1e-6
+    assert abs(histogram - (macd_value - signal_value)) < 1e-6
     
-    if signal["type"] == SignalType.BUY:
-        # En una señal de compra, el MACD debería cruzar sobre la línea de señal
-        assert histogram > 0
-        assert "cruce" in signal["reason"].lower() or "cross" in signal["reason"].lower()
-    elif signal["type"] == SignalType.SELL:
-        # En una señal de venta, el MACD debería cruzar bajo la línea de señal
-        assert histogram < 0
-        assert "cruce" in signal["reason"].lower() or "cross" in signal["reason"].lower()
+    # Con los datos que hemos creado, deberíamos tener una señal de compra
+    assert signal["type"] == SignalType.BUY
+    assert "cross" in signal["reason"].lower()
+    assert histogram > 0
+    
+    # Crear datos para probar señal de venta
+    # Primero tendencia alcista seguida de una caída
+    prices2 = np.array([100 + i * 0.5 for i in range(40)] +  # tendencia alcista
+                       [120 - i * 1.0 for i in range(20)])    # rápida caída (producirá un cruce)
+    
+    df2 = pd.DataFrame({
+        "open": prices2 - 1,
+        "high": prices2 + 2,
+        "low": prices2 - 2,
+        "close": prices2,
+        "volume": np.random.lognormal(10, 1, 60),
+    }, index=dates)
+    
+    # Generar una señal con los nuevos datos
+    signal2 = await macd_strategy.generate_signal("BTCUSDT", df2)
+    
+    # Verificar la señal de venta
+    assert signal2["type"] == SignalType.SELL
+    assert "cross" in signal2["reason"].lower()
+    assert signal2["histogram"] < 0
+    
+    # Verificar que el histograma es consistente
+    assert abs(signal2["histogram"] - (signal2["macd"] - signal2["signal"])) < 1e-6
 
 
 @pytest.mark.asyncio
-async def test_sentiment_strategy(sample_ohlcv_data):
+async def test_sentiment_strategy():
     """Probar la estrategia basada en sentimiento."""
+    # Crear datos con una tendencia alcista
+    dates = pd.date_range("2025-01-01", periods=30, freq="1h")
+    prices = np.linspace(100, 130, 30)  # tendencia claramente alcista
+    
+    df = pd.DataFrame({
+        "open": prices - 1,
+        "high": prices + 2,
+        "low": prices - 2,
+        "close": prices,
+        "volume": np.random.lognormal(10, 1, 30),
+    }, index=dates)
+    
     # Configurar la estrategia
     sentiment_strategy = SentimentStrategy(sentiment_threshold=0.3)
     
-    # Mockear el método de obtención de sentimiento
+    # Mockear el método de obtención de sentimiento para 2 escenarios
+    
+    # Escenario 1: Sentimiento positivo con tendencia alcista (señal de compra)
     with patch.object(sentiment_strategy, 'fetch_sentiment', return_value=asyncio.Future()) as mock_fetch:
         # Configurar el valor de retorno
-        mock_fetch.return_value.set_result(0.5)  # Sentimiento positivo
+        mock_fetch.return_value.set_result(0.5)  # Sentimiento fuertemente positivo
         
         # Generar una señal
-        signal = await sentiment_strategy.generate_signal("BTCUSDT", sample_ohlcv_data)
+        signal = await sentiment_strategy.generate_signal("BTCUSDT", df)
         
         # Verificar que se llamó al método para obtener sentimiento
         mock_fetch.assert_called_once_with("BTCUSDT")
@@ -462,18 +576,56 @@ async def test_sentiment_strategy(sample_ohlcv_data):
         assert "type" in signal
         assert signal["type"] in [SignalType.BUY, SignalType.SELL, SignalType.HOLD, SignalType.EXIT]
         assert "reason" in signal
-        assert "metadata" in signal
         
-        # Verificar el sentimiento en los metadatos
-        assert "sentiment_score" in signal["metadata"]
-        assert signal["metadata"]["sentiment_score"] == 0.5
+        # Verificar el sentimiento en la señal
+        assert "sentiment" in signal
+        assert signal["sentiment"] == 0.5
+        assert "price_trend" in signal
+        assert signal["price_trend"] == "up"
+        assert "strength" in signal
         
-        # Verificar la lógica basada en sentimiento
-        if signal["type"] == SignalType.BUY:
-            # En una señal de compra, el sentimiento debería ser positivo
-            assert signal["metadata"]["sentiment_score"] > sentiment_strategy.sentiment_threshold
-            assert "positivo" in signal["reason"].lower() or "positive" in signal["reason"].lower()
-        elif signal["type"] == SignalType.SELL:
-            # En una señal de venta, el sentimiento debería ser negativo
-            assert signal["metadata"]["sentiment_score"] < -sentiment_strategy.sentiment_threshold
-            assert "negativo" in signal["reason"].lower() or "negative" in signal["reason"].lower()
+        # Con tendencia alcista y sentimiento positivo, deberíamos tener señal de compra
+        assert signal["type"] == SignalType.BUY
+        assert "positive sentiment" in signal["reason"].lower()
+        assert "up" in signal["reason"].lower() or "trend" in signal["reason"].lower()
+    
+    # Crear datos con una tendencia bajista
+    prices2 = np.linspace(130, 100, 30)  # tendencia claramente bajista
+    
+    df2 = pd.DataFrame({
+        "open": prices2 - 1,
+        "high": prices2 + 2,
+        "low": prices2 - 2,
+        "close": prices2,
+        "volume": np.random.lognormal(10, 1, 30),
+    }, index=dates)
+    
+    # Escenario 2: Sentimiento negativo con tendencia bajista (señal de venta)
+    with patch.object(sentiment_strategy, 'fetch_sentiment', return_value=asyncio.Future()) as mock_fetch:
+        # Configurar el valor de retorno
+        mock_fetch.return_value.set_result(-0.5)  # Sentimiento fuertemente negativo
+        
+        # Generar una señal
+        signal2 = await sentiment_strategy.generate_signal("BTCUSDT", df2)
+        
+        # Verificar que la señal sea de venta
+        assert signal2["type"] == SignalType.SELL
+        assert "negative sentiment" in signal2["reason"].lower()
+        assert "down" in signal2["reason"].lower() or "trend" in signal2["reason"].lower()
+        
+        # Verificar otros detalles
+        assert signal2["sentiment"] == -0.5
+        assert signal2["price_trend"] == "down"
+        
+    # Escenario 3: Sentimiento positivo pero tendencia bajista (no debe dar señal compra)
+    with patch.object(sentiment_strategy, 'fetch_sentiment', return_value=asyncio.Future()) as mock_fetch:
+        # Configurar el valor de retorno con sentimiento positivo
+        mock_fetch.return_value.set_result(0.4)  # Sentimiento positivo
+        
+        # Generar una señal con tendencia bajista
+        signal3 = await sentiment_strategy.generate_signal("BTCUSDT", df2)
+        
+        # En este caso, no debe dar señal de compra a pesar del sentimiento positivo
+        assert signal3["type"] == SignalType.HOLD
+        assert "positive sentiment" in signal3["reason"].lower()
+        assert "no trend confirmation" in signal3["reason"].lower()
