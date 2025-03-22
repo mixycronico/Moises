@@ -391,8 +391,11 @@ class DynamicExpansionEngine:
                         # Pasar datos completos
                         full_data = dict(event_data or {})
                         full_data['_full_mode'] = True
+                        # Asegurar que los parámetros nunca sean None
+                        event_type_safe = event_type or ""
+                        event_source_safe = event_source or ""
                         task = asyncio.create_task(
-                            component.handle_event(event_type, full_data, event_source)
+                            component.handle_event(event_type_safe, full_data, event_source_safe)
                         )
                     
                     # Guardar metadata en diccionario usando id de la tarea como clave
@@ -427,8 +430,12 @@ class DynamicExpansionEngine:
                     elif operation == 'stop':
                         task = asyncio.create_task(component.stop())
                     elif operation == 'handle_event':
+                        # Asegurar que los parámetros nunca sean None
+                        event_type_safe = event_type or ""
+                        event_data_safe = event_data or {}
+                        event_source_safe = event_source or ""
                         task = asyncio.create_task(
-                            component.handle_event(event_type, event_data, event_source)
+                            component.handle_event(event_type_safe, event_data_safe, event_source_safe)
                         )
                     
                     # Guardar metadata en diccionario usando id de la tarea como clave
