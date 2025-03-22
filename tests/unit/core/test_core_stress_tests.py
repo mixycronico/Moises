@@ -30,7 +30,7 @@ pytestmark = pytest.mark.asyncio
 # Importamos las clases necesarias para las pruebas
 from genesis.core.component import Component
 from genesis.core.engine_dynamic_blocks import DynamicExpansionEngine
-from genesis.core.engine_priority_blocks import EnginePriorityBlocks
+from genesis.core.engine_priority_blocks import PriorityBlockEngine
 
 
 class SlowComponent(Component):

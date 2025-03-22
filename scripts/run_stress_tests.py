@@ -55,7 +55,7 @@ try:
     )
     # Importar los tipos de motor
     from genesis.core.engine_non_blocking import EngineNonBlocking
-    from genesis.core.engine_priority_blocks import EnginePriorityBlocks
+    from genesis.core.engine_priority_blocks import PriorityBlockEngine
     from genesis.core.engine_dynamic_blocks import DynamicExpansionEngine
 except ImportError as e:
     logger.error(f"Error al importar las pruebas: {e}")
@@ -127,7 +127,7 @@ async def run_all_tests(args):
     
     # Prueba de prioridades bajo presión
     if args.all or args.priority:
-        engine = EnginePriorityBlocks()
+        engine = PriorityBlockEngine()
         test_queue.append((test_priority_under_pressure, engine, "Prioridades bajo presión"))
     
     # Prueba de expansión dinámica
