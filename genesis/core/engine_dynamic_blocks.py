@@ -902,16 +902,19 @@ class DynamicExpansionEngine:
             if expansion_blocks:
                 expansion_blocks = [expansion_blocks[0]]  # Solo el primer bloque de expansión
             
+            # Asegurar que los parámetros nunca sean None
+            evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, source)
+            
             # Procesar bloques seguros primero (secuencialmente) si son pocos
             if len(safe_blocks) <= 2:
                 for block in safe_blocks:
-                    await self._process_block(block, 'handle_event', event_type, event_data, source)
+                    await self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
             else:
                 # Si hay muchos bloques seguros, procesar en paralelo
                 safe_tasks = []
                 for block in safe_blocks:
                     task = asyncio.create_task(
-                        self._process_block(block, 'handle_event', event_type, event_data, source)
+                        self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
                     )
                     safe_tasks.append(task)
                 
@@ -920,7 +923,7 @@ class DynamicExpansionEngine:
             
             # Luego procesar bloques de expansión seleccionados
             for block in expansion_blocks:
-                await self._process_block(block, 'handle_event', event_type, event_data, source)
+                await self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
         
         # Actualizar estadísticas después de procesar el evento
         if self.auto_scaling:

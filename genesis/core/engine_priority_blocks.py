@@ -17,6 +17,25 @@ from genesis.core.component import Component
 # Configurar logging
 logger = logging.getLogger(__name__)
 
+# Función auxiliar para garantizar que los parámetros nunca sean None
+def safe_handle_event_params(event_type, event_data, source):
+    """
+    Asegura que los parámetros para handle_event nunca sean None.
+    
+    Args:
+        event_type: Tipo de evento o None
+        event_data: Datos del evento o None
+        source: Fuente del evento o None
+        
+    Returns:
+        Tuple con valores seguros (nunca None)
+    """
+    return (
+        event_type or "",
+        event_data or {},
+        source or ""
+    )
+
 class EventPriority:
     """Niveles de prioridad para eventos."""
     CRITICAL = 0   # Inmediato (stop-loss, límites de riesgo)
@@ -207,8 +226,10 @@ class PriorityBlockEngine:
                     elif operation == 'stop':
                         await asyncio.wait_for(component.stop(), timeout=self.timeout)
                     elif operation == 'handle_event':
+                        # Asegurar que los parámetros nunca sean None
+                        evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, event_source)
                         await asyncio.wait_for(
-                            component.handle_event(event_type, event_data, event_source),
+                            component.handle_event(evt_type, evt_data, evt_source),
                             timeout=self.timeout
                         )
                     logger.info(f"Componente SEGURO {name} procesado exitosamente ({operation})")
@@ -227,21 +248,26 @@ class PriorityBlockEngine:
                 task_metadata = {}
                 
                 for name, component in block.components:
+                    task = None
                     if operation == 'start':
                         task = asyncio.create_task(component.start())
                     elif operation == 'stop':
                         task = asyncio.create_task(component.stop())
                     elif operation == 'handle_event':
+                        # Asegurar que los parámetros nunca sean None
+                        evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, event_source)
                         task = asyncio.create_task(
-                            component.handle_event(event_type, event_data, event_source)
+                            component.handle_event(evt_type, evt_data, evt_source)
                         )
                     
-                    # Guardar metadata en diccionario usando id de la tarea como clave
-                    task_metadata[id(task)] = {
-                        'component_name': name,
-                        'operation': operation
-                    }
-                    tasks.append(task)
+                    # Solo agregar la tarea si se creó correctamente
+                    if task is not None:
+                        # Guardar metadata en diccionario usando id de la tarea como clave
+                        task_metadata[id(task)] = {
+                            'component_name': name,
+                            'operation': operation
+                        }
+                        tasks.append(task)
                 
                 # Esperar a que todas las tareas completen con timeout
                 try:
