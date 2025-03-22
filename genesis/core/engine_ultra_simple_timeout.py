@@ -2,7 +2,9 @@
 Motor ultra simple con timeouts.
 
 Este módulo implementa un motor extremadamente simplificado
-con capacidad de manejar timeouts.
+con capacidad de manejar timeouts de forma segura.
+
+Versión corregida que evita posibles bloqueos.
 """
 
 import asyncio
@@ -13,7 +15,6 @@ from typing import Dict, List, Any, Optional
 from genesis.core.component import Component
 
 # Configurar logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class UltraSimpleTimeoutEngine:
@@ -21,12 +22,12 @@ class UltraSimpleTimeoutEngine:
     Motor asíncrono ultra simplificado con timeouts.
     
     Esta implementación combina la simplicidad probada
-    con capacidad de manejar timeouts.
+    con capacidad de manejar timeouts de forma segura.
     """
     
     def __init__(self, 
-                component_timeout: float = 1.0,
-                event_timeout: float = 1.0):
+                component_timeout: float = 0.5,
+                event_timeout: float = 0.5):
         """
         Inicializar motor ultra simple con timeouts.
         
@@ -67,15 +68,15 @@ class UltraSimpleTimeoutEngine:
         # Iniciar componentes secuencialmente con timeout
         for name, component in self._components.items():
             try:
-                await asyncio.wait_for(
-                    component.start(),
-                    timeout=self._component_timeout
-                )
-                self._successes += 1
-                logger.info(f"Componente {name} iniciado")
-            except asyncio.TimeoutError:
-                self._timeouts += 1
-                logger.warning(f"Timeout al iniciar componente {name}")
+                # Crear tarea con timeout
+                task = asyncio.create_task(component.start())
+                try:
+                    await asyncio.wait_for(task, timeout=self._component_timeout)
+                    self._successes += 1
+                    logger.info(f"Componente {name} iniciado")
+                except asyncio.TimeoutError:
+                    self._timeouts += 1
+                    logger.warning(f"Timeout al iniciar componente {name} - continuando")
             except Exception as e:
                 logger.error(f"Error al iniciar componente {name}: {str(e)}")
         
@@ -93,15 +94,15 @@ class UltraSimpleTimeoutEngine:
         # Detener componentes secuencialmente con timeout
         for name, component in self._components.items():
             try:
-                await asyncio.wait_for(
-                    component.stop(),
-                    timeout=self._component_timeout
-                )
-                self._successes += 1
-                logger.info(f"Componente {name} detenido")
-            except asyncio.TimeoutError:
-                self._timeouts += 1
-                logger.warning(f"Timeout al detener componente {name}")
+                # Crear tarea con timeout
+                task = asyncio.create_task(component.stop())
+                try:
+                    await asyncio.wait_for(task, timeout=self._component_timeout)
+                    self._successes += 1
+                    logger.info(f"Componente {name} detenido")
+                except asyncio.TimeoutError:
+                    self._timeouts += 1
+                    logger.warning(f"Timeout al detener componente {name} - continuando")
             except Exception as e:
                 logger.error(f"Error al detener componente {name}: {str(e)}")
         
@@ -128,42 +129,23 @@ class UltraSimpleTimeoutEngine:
         logger.info(f"Emitiendo evento {event_type} desde {source}")
         event_data = data or {}
         
-        try:
-            # Función asíncrona interna para poder usar timeout global
-            async def _send_to_all_components():
-                # Enviar evento a cada componente secuencialmente
-                for name, component in self._components.items():
-                    try:
-                        # Timeout individual para cada componente
-                        await asyncio.wait_for(
-                            component.handle_event(event_type, event_data, source),
-                            timeout=self._component_timeout
-                        )
-                        self._successes += 1
-                        logger.debug(f"Componente {name} procesó evento {event_type}")
-                    except asyncio.TimeoutError:
-                        self._timeouts += 1
-                        logger.warning(f"Timeout al procesar evento {event_type} en componente {name}")
-                    except Exception as e:
-                        logger.error(f"Error al procesar evento {event_type} en componente {name}: {str(e)}")
-                
-            # Aplicar timeout global a la emisión completa
-            await asyncio.wait_for(
-                _send_to_all_components(),
-                timeout=self._event_timeout
-            )
-            
-            logger.info(f"Evento {event_type} emitido exitosamente")
-            return True
-            
-        except asyncio.TimeoutError:
-            self._timeouts += 1
-            logger.warning(f"Timeout global al emitir evento {event_type}")
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error al emitir evento {event_type}: {str(e)}")
-            return False
+        # Enviar evento a cada componente secuencialmente con timeout individual
+        for name, component in self._components.items():
+            try:
+                # Crear tarea con timeout
+                task = asyncio.create_task(component.handle_event(event_type, event_data, source))
+                try:
+                    await asyncio.wait_for(task, timeout=self._component_timeout)
+                    self._successes += 1
+                    logger.debug(f"Componente {name} procesó evento {event_type}")
+                except asyncio.TimeoutError:
+                    self._timeouts += 1
+                    logger.warning(f"Timeout al procesar evento {event_type} en componente {name} - continuando")
+            except Exception as e:
+                logger.error(f"Error al procesar evento {event_type} en componente {name}: {str(e)}")
+        
+        logger.info(f"Evento {event_type} emitido")
+        return True
     
     def get_stats(self) -> Dict[str, int]:
         """
