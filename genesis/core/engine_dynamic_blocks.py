@@ -385,9 +385,11 @@ class DynamicExpansionEngine:
                             component.handle_event(event_type, full_data, event_source)
                         )
                     
-                    # Agregar metadata para logs
-                    task.component_name = name
-                    task.operation = operation
+                    # Guardar metadata en diccionario usando id de la tarea como clave
+                    task_metadata[id(task)] = {
+                        'component_name': name,
+                        'operation': operation
+                    }
                     tasks.append(task)
                 
                 # Ejecutar con timeout extendido para procesamiento completo

@@ -94,44 +94,57 @@ class ParallelBlockEngine:
         async with self.semaphore:
             # Crear tareas para todos los componentes en el bloque
             tasks = []
+            # Diccionario para almacenar metadatos de las tareas
+            task_metadata = {}
+            
             for name, component in block:
                 if operation == 'start':
                     task = asyncio.create_task(component.start())
-                    task.component_name = name  # Agregar metadata para logs
-                    task.operation = 'start'
+                    # Guardar metadata en diccionario usando id de la tarea como clave
+                    task_metadata[id(task)] = {
+                        'component_name': name,
+                        'operation': 'start'
+                    }
                 elif operation == 'stop':
                     task = asyncio.create_task(component.stop())
-                    task.component_name = name
-                    task.operation = 'stop'
+                    task_metadata[id(task)] = {
+                        'component_name': name,
+                        'operation': 'stop'
+                    }
                 elif operation == 'handle_event':
                     task = asyncio.create_task(
                         component.handle_event(event_type, event_data, event_source)
                     )
-                    task.component_name = name
-                    task.operation = 'handle_event'
-                    task.event_type = event_type
+                    task_metadata[id(task)] = {
+                        'component_name': name,
+                        'operation': 'handle_event',
+                        'event_type': event_type
+                    }
                 
                 tasks.append(task)
             
             # Procesar todas las tareas con timeout individual
             for task in tasks:
+                task_id = id(task)
+                task_meta = task_metadata.get(task_id, {})
+                
                 try:
                     await asyncio.wait_for(task, timeout=self.timeout)
-                    name = getattr(task, 'component_name', 'unknown')
-                    op = getattr(task, 'operation', 'unknown')
+                    name = task_meta.get('component_name', 'unknown')
+                    op = task_meta.get('operation', 'unknown')
                     
                     if op == 'handle_event':
-                        evt = getattr(task, 'event_type', 'unknown')
+                        evt = task_meta.get('event_type', 'unknown')
                         logger.debug(f"Componente {name} procesó evento {evt}")
                     else:
                         logger.info(f"Operación {op} completada en componente {name}")
                         
                 except asyncio.TimeoutError:
-                    name = getattr(task, 'component_name', 'unknown')
-                    op = getattr(task, 'operation', 'unknown')
+                    name = task_meta.get('component_name', 'unknown')
+                    op = task_meta.get('operation', 'unknown')
                     
                     if op == 'handle_event':
-                        evt = getattr(task, 'event_type', 'unknown')
+                        evt = task_meta.get('event_type', 'unknown')
                         logger.warning(f"Timeout en componente {name} procesando evento {evt}")
                     else:
                         logger.warning(f"Timeout en operación {op} para componente {name}")
@@ -141,11 +154,11 @@ class ParallelBlockEngine:
                         task.cancel()
                         
                 except Exception as e:
-                    name = getattr(task, 'component_name', 'unknown')
-                    op = getattr(task, 'operation', 'unknown')
+                    name = task_meta.get('component_name', 'unknown')
+                    op = task_meta.get('operation', 'unknown')
                     
                     if op == 'handle_event':
-                        evt = getattr(task, 'event_type', 'unknown')
+                        evt = task_meta.get('event_type', 'unknown')
                         logger.error(f"Error en componente {name} procesando evento {evt}: {str(e)}")
                     else:
                         logger.error(f"Error en operación {op} para componente {name}: {str(e)}")

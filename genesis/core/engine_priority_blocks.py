@@ -223,6 +223,9 @@ class PriorityBlockEngine:
                 
                 # Crear tareas para todos los componentes en el bloque
                 tasks = []
+                # Diccionario para almacenar metadatos de las tareas
+                task_metadata = {}
+                
                 for name, component in block.components:
                     if operation == 'start':
                         task = asyncio.create_task(component.start())
@@ -233,9 +236,11 @@ class PriorityBlockEngine:
                             component.handle_event(event_type, event_data, event_source)
                         )
                     
-                    # Agregar metadata para logs
-                    task.component_name = name
-                    task.operation = operation
+                    # Guardar metadata en diccionario usando id de la tarea como clave
+                    task_metadata[id(task)] = {
+                        'component_name': name,
+                        'operation': operation
+                    }
                     tasks.append(task)
                 
                 # Esperar a que todas las tareas completen con timeout
@@ -256,8 +261,10 @@ class PriorityBlockEngine:
                 
                 # Verificar resultados individuales
                 for task in tasks:
-                    name = getattr(task, 'component_name', 'unknown')
-                    op = getattr(task, 'operation', 'unknown')
+                    task_id = id(task)
+                    task_meta = task_metadata.get(task_id, {})
+                    name = task_meta.get('component_name', 'unknown')
+                    op = task_meta.get('operation', 'unknown')
                     
                     if task.done() and not task.cancelled():
                         try:
