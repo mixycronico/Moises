@@ -163,8 +163,15 @@ class Engine:
         shutdown_timeout = float(settings.get('shutdown_timeout', 10.0))
         self._setup_signal_handlers(shutdown_timeout=shutdown_timeout)
         
-        # Start event bus first
-        await self.event_bus.start()
+        # Start event bus first with timeout para evitar bloqueos
+        try:
+            # Usar un timeout más corto en modo prueba
+            timeout = 1.0 if self.event_bus.test_mode or hasattr(sys, '_called_from_test') else 5.0
+            await asyncio.wait_for(self.event_bus.start(), timeout=timeout)
+        except asyncio.TimeoutError:
+            self.logger.warning("Timeout al iniciar event_bus, continuando de todos modos")
+        except Exception as e:
+            self.logger.error(f"Error iniciando event_bus: {e}, continuando de todos modos")
         
         # Ordenar componentes por prioridad (mayor prioridad primero)
         priorities = getattr(self, 'operation_priorities', {})
@@ -175,31 +182,56 @@ class Engine:
         )
         
         # Start all components in priority order
+        start_tasks = []
         for name, component in ordered_components:
-            try:
-                self.logger.info(f"Starting component: {name} (priority: {priorities.get(name, 50)})")
-                # Usar timeout en modo prueba para evitar bloqueos
-                if self.event_bus.test_mode or hasattr(sys, '_called_from_test'):
-                    try:
-                        await asyncio.wait_for(component.start(), timeout=1.0)
-                    except asyncio.TimeoutError:
-                        self.logger.warning(f"Timeout al iniciar componente {name}")
-                else:
-                    await component.start()
-            except Exception as e:
-                self.logger.error(f"Error starting component {name}: {e}")
-                # Continue with other components
+            # Crear tarea para iniciar el componente (permitirá ejecutar en paralelo con timeout)
+            start_task = asyncio.create_task(self._start_component_with_timeout(name, component))
+            start_tasks.append(start_task)
         
+        # Esperar a que todos los componentes se inicien con un tiempo máximo total
+        total_start_timeout = 3.0 if self.event_bus.test_mode or hasattr(sys, '_called_from_test') else 30.0
+        try:
+            await asyncio.wait_for(asyncio.gather(*start_tasks, return_exceptions=True), timeout=total_start_timeout)
+        except asyncio.TimeoutError:
+            self.logger.warning(f"Timeout global al iniciar componentes ({total_start_timeout}s)")
+        
+        # Marcar como iniciado aunque algunos componentes hayan fallado
         self.running = True
         self.started_at = time.time()
         self.logger.info("Genesis engine started")
         
-        # Emit system started event
-        await self.event_bus.emit(
-            "system.started",
-            {"components": list(self.components.keys())},
-            "engine"
-        )
+        # Emit system started event con timeout para evitar bloqueos
+        try:
+            event_timeout = 1.0 if self.event_bus.test_mode or hasattr(sys, '_called_from_test') else 5.0
+            await asyncio.wait_for(
+                self.event_bus.emit(
+                    "system.started",
+                    {"components": list(self.components.keys())},
+                    "engine"
+                ),
+                timeout=event_timeout
+            )
+        except asyncio.TimeoutError:
+            self.logger.warning("Timeout al emitir evento system.started")
+        except Exception as e:
+            self.logger.error(f"Error al emitir evento system.started: {e}")
+    
+    async def _start_component_with_timeout(self, name, component):
+        """Helper interno para iniciar un componente con timeout."""
+        try:
+            priorities = getattr(self, 'operation_priorities', {})
+            self.logger.info(f"Starting component: {name} (priority: {priorities.get(name, 50)})")
+            
+            # Usar timeout en modo prueba para evitar bloqueos
+            timeout = 1.0 if self.event_bus.test_mode or hasattr(sys, '_called_from_test') else 5.0
+            try:
+                await asyncio.wait_for(component.start(), timeout=timeout)
+            except asyncio.TimeoutError:
+                self.logger.warning(f"Timeout al iniciar componente {name} (max: {timeout}s)")
+            except Exception as e:
+                self.logger.error(f"Error iniciando componente {name}: {e}")
+        except Exception as e:
+            self.logger.error(f"Error inesperado al iniciar componente {name}: {e}")
     
     async def stop(self, timeout: Optional[float] = None) -> None:
         """
@@ -221,34 +253,49 @@ class Engine:
             key=lambda x: priorities.get(x[0], 50)  # Menor prioridad primero
         )
         
-        # Stop components in priority order (lowest first)
-        for name, component in ordered_components:
-            try:
-                self.logger.info(f"Stopping component: {name} (priority: {priorities.get(name, 50)})")
-                # Si estamos en modo prueba y no hay timeout específico, usar timeout por defecto
-                if self.event_bus.test_mode or hasattr(sys, '_called_from_test'):
-                    actual_timeout = timeout if timeout else 1.0  # 1 segundo por defecto en tests
-                    try:
-                        await asyncio.wait_for(component.stop(), actual_timeout)
-                    except asyncio.TimeoutError:
-                        self.logger.warning(f"Stopping component {name} timed out after {actual_timeout} seconds")
-                # Si hay timeout específico pero no estamos en modo prueba
-                elif timeout:
-                    try:
-                        await asyncio.wait_for(component.stop(), timeout)
-                    except asyncio.TimeoutError:
-                        self.logger.warning(f"Stopping component {name} timed out after {timeout} seconds")
-                # Caso normal sin timeout
-                else:
-                    await component.stop()
-            except Exception as e:
-                self.logger.error(f"Error stopping component {name}: {e}")
+        # Determinar el timeout basado en el modo de ejecución
+        default_timeout = 1.0 if self.event_bus.test_mode or hasattr(sys, '_called_from_test') else 5.0
+        actual_timeout = timeout if timeout is not None else default_timeout
         
-        # Stop event bus last
-        await self.event_bus.stop()
+        # Crear tareas para detener componentes en paralelo con timeout individual
+        stop_tasks = []
+        for name, component in ordered_components:
+            stop_task = asyncio.create_task(self._stop_component_with_timeout(name, component, actual_timeout))
+            stop_tasks.append(stop_task)
+        
+        # Esperar a que todos los componentes se detengan con un timeout global
+        global_timeout = 3.0 if self.event_bus.test_mode or hasattr(sys, '_called_from_test') else 30.0
+        try:
+            await asyncio.wait_for(asyncio.gather(*stop_tasks, return_exceptions=True), timeout=global_timeout)
+        except asyncio.TimeoutError:
+            self.logger.warning(f"Timeout global al detener componentes ({global_timeout}s)")
+        
+        # Detener el event bus con timeout
+        try:
+            bus_timeout = 1.0 if self.event_bus.test_mode or hasattr(sys, '_called_from_test') else 5.0
+            await asyncio.wait_for(self.event_bus.stop(), timeout=bus_timeout)
+        except asyncio.TimeoutError:
+            self.logger.warning(f"Timeout al detener event_bus ({bus_timeout}s)")
+        except Exception as e:
+            self.logger.error(f"Error al detener event_bus: {e}")
         
         self.running = False
         self.logger.info("Genesis engine stopped")
+    
+    async def _stop_component_with_timeout(self, name, component, timeout):
+        """Helper interno para detener un componente con timeout."""
+        try:
+            priorities = getattr(self, 'operation_priorities', {})
+            self.logger.info(f"Stopping component: {name} (priority: {priorities.get(name, 50)})")
+            
+            try:
+                await asyncio.wait_for(component.stop(), timeout)
+            except asyncio.TimeoutError:
+                self.logger.warning(f"Timeout al detener componente {name} (max: {timeout}s)")
+            except Exception as e:
+                self.logger.error(f"Error deteniendo componente {name}: {e}")
+        except Exception as e:
+            self.logger.error(f"Error inesperado al detener componente {name}: {e}")
     
     def _setup_signal_handlers(self, shutdown_timeout: float = 10.0) -> None:
         """
