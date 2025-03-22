@@ -215,7 +215,12 @@ class Settings:
             for key, value in os.environ.items():
                 if key.startswith(prefix) and value:  # Skip empty values
                     # Remove prefix and convert to setting key style (lowercase)
-                    setting_key = key[len(prefix):].lower()
+                    remaining_key = key[len(prefix):]
+                    
+                    # Convert environment variable format (e.g., DATABASE_HOST) to
+                    # nested settings format (e.g., database.host)
+                    parts = remaining_key.lower().split('_')
+                    setting_key = '.'.join(parts)
                     
                     try:
                         # Convert to appropriate type
