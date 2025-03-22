@@ -571,15 +571,27 @@ class DynamicExpansionEngine:
         for block in safe_blocks:
             await self._process_block(block, 'start')
         
-        # Luego procesar bloques de expansión
-        expansion_tasks = []
-        for block in expansion_blocks:
-            task = asyncio.create_task(
-                self._process_block(block, 'start')
-            )
-            expansion_tasks.append(task)
+        # Inicializar componentes de expansión
+        # Los componentes de expansión se inician por separado para asegurar que siempre inicien
+        for name, component in self.components.items():
+            if name in self.expansion_components:
+                logger.info(f"Iniciando componente de EXPANSIÓN directamente: {name}")
+                try:
+                    await asyncio.wait_for(component.start(), timeout=self.timeout)
+                    logger.info(f"Componente de EXPANSIÓN {name} iniciado correctamente")
+                except Exception as e:
+                    logger.error(f"Error al iniciar componente de EXPANSIÓN {name}: {str(e)}")
         
-        if expansion_tasks:
+        # Luego procesar bloques de expansión (para estructura de procesamiento)
+        if expansion_blocks:
+            logger.info(f"Configurando {len(expansion_blocks)} bloques de expansión")
+            expansion_tasks = []
+            for block in expansion_blocks:
+                task = asyncio.create_task(
+                    self._process_block(block, 'start')
+                )
+                expansion_tasks.append(task)
+            
             await asyncio.gather(*expansion_tasks, return_exceptions=True)
         
         # Finalmente procesar bloques regulares en paralelo
@@ -627,15 +639,26 @@ class DynamicExpansionEngine:
         if regular_tasks:
             await asyncio.gather(*regular_tasks, return_exceptions=True)
         
-        # Luego detener bloques de expansión
-        expansion_tasks = []
-        for block in expansion_blocks:
-            task = asyncio.create_task(
-                self._process_block(block, 'stop')
-            )
-            expansion_tasks.append(task)
+        # Detener componentes de expansión directamente
+        for name, component in self.components.items():
+            if name in self.expansion_components:
+                logger.info(f"Deteniendo componente de EXPANSIÓN directamente: {name}")
+                try:
+                    await asyncio.wait_for(component.stop(), timeout=self.timeout)
+                    logger.info(f"Componente de EXPANSIÓN {name} detenido correctamente")
+                except Exception as e:
+                    logger.error(f"Error al detener componente de EXPANSIÓN {name}: {str(e)}")
         
-        if expansion_tasks:
+        # Luego detener bloques de expansión (para estructura de procesamiento)
+        if expansion_blocks:
+            logger.info(f"Finalizando {len(expansion_blocks)} bloques de expansión")
+            expansion_tasks = []
+            for block in expansion_blocks:
+                task = asyncio.create_task(
+                    self._process_block(block, 'stop')
+                )
+                expansion_tasks.append(task)
+            
             await asyncio.gather(*expansion_tasks, return_exceptions=True)
         
         # Finalmente detener bloques seguros
