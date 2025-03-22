@@ -121,7 +121,7 @@ class LoadTestComponent(Component):
 async def test_high_load_single_component():
     """Prueba el sistema con alta carga de eventos enviados a un solo componente."""
     # Crear motor no bloqueante con timeout más largo para pruebas de carga
-    engine = EngineNonBlocking(test_mode=True, component_timeout=5)
+    engine = EngineNonBlocking(test_mode=True, )
     
     # Crear componente para pruebas de carga
     comp = LoadTestComponent("load_test", processing_time=0.001)
@@ -180,7 +180,7 @@ async def test_high_load_single_component():
 async def test_high_load_multiple_components():
     """Prueba el sistema con alta carga de eventos enviados a múltiples componentes."""
     # Crear motor no bloqueante con timeout más largo para pruebas de carga
-    engine = EngineNonBlocking(test_mode=True, component_timeout=5)
+    engine = EngineNonBlocking(test_mode=True, )
     
     # Número de componentes
     num_components = 5
@@ -261,7 +261,7 @@ async def test_high_load_multiple_components():
 async def test_burst_load():
     """Prueba el sistema con ráfagas de eventos de alta intensidad."""
     # Crear motor no bloqueante
-    engine = EngineNonBlocking(test_mode=True, component_timeout=5)
+    engine = EngineNonBlocking(test_mode=True, )
     
     # Crear componentes con diferentes velocidades de procesamiento
     fast_comp = LoadTestComponent("fast", processing_time=0.0005)
