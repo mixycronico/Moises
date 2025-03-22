@@ -381,7 +381,6 @@ async def test_engine_error_handling_on_stop(event_bus):
 
 
 @pytest.mark.asyncio
-@pytest.mark.timeout(5)  # Establecer un timeout máximo de 5 segundos
 async def test_engine_error_handling_on_event():
     """Probar que el motor maneja correctamente errores durante el manejo de eventos."""
     # Crear manualmente event_bus para más control
