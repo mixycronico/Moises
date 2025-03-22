@@ -151,15 +151,22 @@ Estos modos avanzados tienen aplicaciones específicas según el contexto:
 1. **Divino**: Ideal para sistemas críticos donde la restauración rápida es esencial.
 2. **Big Bang**: Óptimo para entornos con fallos catastróficos donde los componentes deben regenerarse desde cero.
 3. **Interdimensional**: Perfecto para sistemas que requieren anticipación y procesamiento paralelo avanzado.
+4. **Materia Oscura**: Superior para sistemas altamente sensibles donde los fallos no deben ser visibles, manteniéndose operativos de forma invisible mientras se realizan reparaciones.
 
 ## Conclusiones y Trabajo Futuro
 
-Los modos Big Bang e Interdimensional representan el límite teórico de la resiliencia en sistemas distribuidos, alcanzando el 100% de éxito incluso bajo condiciones extremas que serían fatales para sistemas convencionales.
+Los modos Divino, Big Bang, Interdimensional y Materia Oscura representan el límite teórico de la resiliencia en sistemas distribuidos, alcanzando el 100% de éxito incluso bajo condiciones extremas que serían fatales para sistemas convencionales. Cada modo aporta un enfoque único a la resiliencia perfecta:
+
+- **Divino**: Restauración automática instantánea y perfecta
+- **Big Bang**: Regeneración primordial desde el origen mismo del sistema
+- **Interdimensional**: Operación simultánea en múltiples dimensiones alternativas
+- **Materia Oscura**: Influencia invisible que permite la operación perfecta sin recuperación explícita
 
 Como trabajo futuro, se explorará:
 
 1. **Fusión Modal**: Combinar características de los diferentes modos según contextos específicos
 2. **Meta-adaptación**: Sistema que seleccione automáticamente el modo óptimo según las condiciones
 3. **Anticipación Temporal**: Predicción y mitigación de fallos antes de que ocurran
+4. **Modo Energía Oscura**: Un hipotético modo aún más avanzado que no solo mantenga el sistema, sino que impulse su expansión y evolución automática
 
 Estos avances posicionan al Sistema Genesis como pionero en resiliencia de sistemas distribuidos, superando los límites teóricos tradicionales y estableciendo nuevos paradigmas para la computación resiliente del futuro.
