@@ -293,17 +293,17 @@ class BurstMonitorComponent(Component):
     activar modos de recuperación en los componentes LoadGenerator.
     """
     
-    def __init__(self, name: str, load_generators: List[str] = None, threshold: float = 0.8):
+    def __init__(self, name: str, load_generators: Optional[List[str]] = None, threshold: float = 0.8):
         """
         Inicializar monitor de picos.
         
         Args:
             name: Nombre del componente
-            load_generators: Lista de componentes generadores de carga a monitorear
+            load_generators: Lista de componentes generadores de carga a monitorear (opcional)
             threshold: Umbral para considerar sobrecarga (0.0-1.0)
         """
         super().__init__(name)
-        self.load_generators = load_generators or []
+        self.load_generators = load_generators if load_generators is not None else []
         self.threshold = threshold
         self.monitoring_active = False
         self.metrics_history = []
