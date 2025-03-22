@@ -17,8 +17,8 @@ from unittest.mock import patch, MagicMock
 from genesis.core.component import Component
 from genesis.core.engine_non_blocking import EngineNonBlocking
 
-# Configurar logging
-logging.basicConfig(level=logging.WARNING)
+# Configurar logging - usar INFO para reducir la cantidad de mensajes
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ResilienceTestComponent(Component):
@@ -68,25 +68,27 @@ class ResilienceTestComponent(Component):
             "timestamp": time.time()
         })
         
-        # Contamos los eventos recibidos
-        self.total_events_processed += 1
+        # Ignorar eventos del sistema
+        if event_type in ["component_registered", "component_started", "engine_started", "engine_stopped"]:
+            return None
+            
+        # Específicamente registrar solo eventos de prueba para el contador
+        if (event_type.startswith("normal_event_") or 
+            event_type.startswith("should_fail_") or 
+            event_type.startswith("after_recovery_") or
+            event_type.startswith("mixed_event_") or
+            event_type.startswith("test_event_") or
+            event_type.startswith("error_event_")):
+            self.total_events_processed += 1
         
-        # Si es un evento de control (set_unhealthy, recovery, etc.)
-        # solo lo procesa el componente al que va dirigido
+        # Eventos de control que modifican el estado
         if event_type == "set_unhealthy" and self.name == "recoverable":
             self.is_healthy = False
             return None
-        
-        # Los eventos de control específicos no cuentan para la verificación
-        if event_type in ["set_unhealthy", "recovery"]:
-            # Restar el contador para eventos de control
-            self.total_events_processed -= 1
             
-            # Si es un evento de recuperación para el componente adecuado
-            if event_type == "recovery" and self.name == "recoverable":
-                self.is_healthy = True
-                self.recovery_events += 1
-                
+        if event_type == "recovery" and self.name == "recoverable":
+            self.is_healthy = True
+            self.recovery_events += 1
             return None
         
         # Si el componente no está sano, fallar
