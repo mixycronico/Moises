@@ -183,7 +183,9 @@ class EventBus:
                     logger.debug("EventBus: proceso de eventos cancelado")
                     break
                 except Exception as e:
-                    logger.error(f"Error en procesamiento de eventos para {event_type if 'event_type' in locals() else 'desconocido'}: {e}")
+                    # Verificar que event_type exista en el contexto local antes de usarlo
+                    event_type_str = event_type if 'event_type' in locals() and event_type is not None else 'desconocido'
+                    logger.error(f"Error en procesamiento de eventos para {event_type_str}: {e}")
                     await asyncio.sleep(0.01)  # Prevenir CPU hogging si hay errores consecutivos
         except Exception as e:
             # Capa final de protección para que el procesador de eventos nunca se detenga

@@ -55,7 +55,7 @@ try:
     )
     # Importar los tipos de motor
     from genesis.core.engine_non_blocking import EngineNonBlocking
-    from genesis.core.engine_priority_blocks import PriorityBlockEngine
+    from genesis.core.engine_priority_blocks import PriorityBlockEngine  # Nombre correcto, no usar EnginePriorityBlocks
     from genesis.core.engine_dynamic_blocks import DynamicExpansionEngine
 except ImportError as e:
     logger.error(f"Error al importar las pruebas: {e}")

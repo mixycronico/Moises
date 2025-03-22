@@ -57,7 +57,7 @@ async def configurable_engine():
 @pytest.fixture
 async def priority_engine():
     """
-    Fixture optimizado para proporcionar un EnginePriorityBlocks limpio.
+    Fixture optimizado para proporcionar un PriorityBlockEngine limpio.
     
     Este fixture proporciona un motor con bloques de prioridad y
     garantiza que los recursos se limpien correctamente entre pruebas.
