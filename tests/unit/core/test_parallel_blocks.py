@@ -242,12 +242,12 @@ async def test_parallel_blocks_error_handling():
     
     # Crear componentes, algunos programados para fallar
     components = [
-        TestComponent("good1", delay=0.1),  # Funciona bien
-        TestComponent("fail_start", delay=0.1, fail_on={"start"}),  # Falla en start
-        TestComponent("good2", delay=0.1),  # Funciona bien
-        TestComponent("fail_event", delay=0.1, fail_on={"event"}),  # Falla en eventos
-        TestComponent("good3", delay=0.1),  # Funciona bien
-        TestComponent("fail_stop", delay=0.1, fail_on={"stop"})   # Falla en stop
+        ComponentForTesting("good1", delay=0.1),  # Funciona bien
+        ComponentForTesting("fail_start", delay=0.1, fail_on={"start"}),  # Falla en start
+        ComponentForTesting("good2", delay=0.1),  # Funciona bien
+        ComponentForTesting("fail_event", delay=0.1, fail_on={"event"}),  # Falla en eventos
+        ComponentForTesting("good3", delay=0.1),  # Funciona bien
+        ComponentForTesting("fail_stop", delay=0.1, fail_on={"stop"})   # Falla en stop
     ]
     
     # Registrar componentes

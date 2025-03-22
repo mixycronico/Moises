@@ -21,10 +21,11 @@ El sistema Genesis utiliza un motor de eventos para la comunicación entre compo
 
 Se han realizado cambios en la nomenclatura de las clases de prueba para prevenir que sean detectadas erróneamente por PyTest como casos de prueba:
 
-- Renombrado de `TestComponent` a `ComponentForTesting`
+- Renombrado de `TestComponent` a `ComponentForTesting` en múltiples archivos de prueba
 - Renombrado de `TestHeavyComponent` a `HeavyComponentForTesting`
+- Actualización de todas las referencias a estas clases en los conjuntos de pruebas
 
-Estos cambios evitan advertencias y potenciales problemas durante la ejecución de las pruebas automáticas.
+Estos cambios mejoran la organización del código, evitan advertencias y previenen potenciales problemas durante la ejecución de las pruebas automáticas, asegurando que solo las funciones y métodos designados sean ejecutados como pruebas por PyTest.
 
 ### 2. Optimización del Motor de Expansión Dinámica
 
@@ -56,12 +57,23 @@ Las mejoras implementadas han permitido lograr los siguientes resultados:
 
 Se han verificado satisfactoriamente los siguientes tests:
 
+### Tests de Motor de Expansión Dinámica
 1. `test_dynamic_engine_basic_operation`: ✅ PASADO
 2. `test_dynamic_engine_component_types`: ✅ PASADO
 3. `test_dynamic_engine_auto_scaling`: ✅ PASADO
 4. `test_dynamic_engine_error_handling`: ✅ PASADO
 5. `test_dynamic_engine_priority_handling`: ✅ PASADO
 6. `test_dynamic_engine_stress`: ✅ PASADO
+
+### Tests de Bloques Paralelos
+1. `test_parallel_blocks_basic`: ✅ PASADO
+2. `test_parallel_blocks_timeout_handling`: ✅ PASADO
+3. `test_parallel_blocks_error_handling`: ✅ PASADO
+
+### Tests de Prioridad
+1. `test_priority_queue_basic`: ✅ PASADO
+2. `test_priority_queue_same_priority`: ✅ PASADO
+3. `test_priority_queue_mixed`: ✅ PASADO
 
 ## Próximos Pasos
 
