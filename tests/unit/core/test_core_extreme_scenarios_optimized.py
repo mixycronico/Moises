@@ -41,16 +41,16 @@ class CascadeFailureComponent(Component):
     están saludables.
     """
     
-    def __init__(self, name: str, dependencies: List[str] = None):
+    def __init__(self, name: str, dependencies: Optional[List[str]] = None):
         """
         Inicializar el componente de fallo en cascada.
         
         Args:
             name: Nombre del componente
-            dependencies: Lista de IDs de componentes de los que depende
+            dependencies: Lista de IDs de componentes de los que depende (opcional)
         """
         super().__init__(name)
-        self.dependencies = dependencies or []
+        self.dependencies = dependencies if dependencies is not None else []
         self.healthy = True
         self.dependency_status = {dep: True for dep in self.dependencies}
         self.recovery_delay = 0.5  # Tiempo de recuperación reducido para optimizar las pruebas
@@ -86,10 +86,10 @@ class CascadeFailureComponent(Component):
             return {"healthy": self.healthy, "previous": previous_health}
             
         elif event_type == "dependency_status_change":
-            dep_id = data.get("dependency_id")
+            dep_id = data.get("dependency_id", "")
             status = data.get("status", True)
             
-            if dep_id in self.dependencies:
+            if dep_id and dep_id in self.dependencies:
                 self.dependency_status[dep_id] = status
                 
                 # Si alguna dependencia no está saludable, el componente tampoco lo está

@@ -42,18 +42,18 @@ class ResourceContenderComponent(Component):
     de maneras que pueden provocar condiciones de carrera o deadlocks.
     """
     
-    def __init__(self, name: str, dependencies: List[str] = None, shared_resources: List[str] = None):
+    def __init__(self, name: str, dependencies: Optional[List[str]] = None, shared_resources: Optional[List[str]] = None):
         """
         Inicializar componente con dependencias y recursos.
         
         Args:
             name: Nombre del componente
-            dependencies: Lista de nombres de componentes de los que depende
-            shared_resources: Lista de recursos compartidos que utiliza
+            dependencies: Lista de nombres de componentes de los que depende (opcional)
+            shared_resources: Lista de recursos compartidos que utiliza (opcional)
         """
         super().__init__(name)
-        self.dependencies = dependencies or []
-        self.resources = shared_resources or []
+        self.dependencies = dependencies if dependencies is not None else []
+        self.resources = shared_resources if shared_resources is not None else []
         self.held_resources: Set[str] = set()
         self.processing_count = 0
         self.error_count = 0
