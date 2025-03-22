@@ -118,7 +118,8 @@ async def test_dynamic_engine_basic_operation():
         timeout=0.5,
         min_concurrent_blocks=1,
         max_concurrent_blocks=3,
-        auto_scaling=True
+        auto_scaling=True,
+        scale_cooldown=0.1  # Reducir tiempo de enfriamiento para pruebas
     )
     
     # Crear componentes de prueba
@@ -135,6 +136,8 @@ async def test_dynamic_engine_basic_operation():
     
     # Iniciar motor
     await engine.start()
+    
+    # Verificar que los componentes se iniciaron
     assert comp1.started
     assert comp2.started
     assert comp3.started
@@ -142,8 +145,15 @@ async def test_dynamic_engine_basic_operation():
     
     # Emitir evento y verificar que fue recibido
     await engine.emit_event("test.event", {"data": "value"}, "test")
-    await asyncio.sleep(0.1)  # Tiempo para procesar
+    await asyncio.sleep(0.2)  # Tiempo para procesar (aumentado)
     
+    # Verificar que el evento llegó a todos los componentes
+    assert len(comp1.events_received) > 0, "El componente regular 1 no recibió eventos"
+    assert len(comp2.events_received) > 0, "El componente regular 2 no recibió eventos"
+    assert len(comp3.events_received) > 0, "El componente seguro no recibió eventos"
+    assert len(comp4.events_received) > 0, "El componente de expansión no recibió eventos"
+    
+    # Verificar que el evento específico fue recibido
     assert any("test.event" in event for event, _, _ in comp1.events_received)
     assert any("test.event" in event for event, _, _ in comp2.events_received)
     assert any("test.event" in event for event, _, _ in comp3.events_received)
@@ -151,6 +161,8 @@ async def test_dynamic_engine_basic_operation():
     
     # Detener motor
     await engine.stop()
+    
+    # Verificar que los componentes se detuvieron
     assert comp1.stopped
     assert comp2.stopped
     assert comp3.stopped
@@ -468,13 +480,13 @@ async def test_dynamic_engine_stress():
         # Agregar pequeño retraso aleatorio para simular llegada escalonada
         delay = (i % 3) * 0.02
         
+        # Crear función que maneje el retraso y la emisión del evento
+        async def delayed_emit():
+            await asyncio.sleep(delay)
+            await engine.emit_event(event_type, data, "stress_test")
+            
         # Crear tarea
-        task = asyncio.create_task(
-            asyncio.gather(
-                asyncio.sleep(delay),
-                engine.emit_event(event_type, data, "stress_test")
-            )
-        )
+        task = asyncio.create_task(delayed_emit())
         tasks.append(task)
     
     # Esperar a que todas las tareas se completen
