@@ -312,6 +312,9 @@ class DynamicExpansionEngine:
         """
         start_time = time.time()
         
+        # Diccionario para almacenar metadatos de tareas
+        task_metadata = {}
+        
         # Ajustar timeout según tipo de bloque
         block_timeout = self.timeout
         if block.block_type == "safe":
@@ -332,8 +335,12 @@ class DynamicExpansionEngine:
                     elif operation == 'stop':
                         await asyncio.wait_for(component.stop(), timeout=block_timeout)
                     elif operation == 'handle_event':
+                        # Asegurar que los parámetros nunca sean None
+                        event_type_safe = event_type or ""
+                        event_data_safe = event_data or {}
+                        event_source_safe = event_source or ""
                         await asyncio.wait_for(
-                            component.handle_event(event_type, event_data, event_source),
+                            component.handle_event(event_type_safe, event_data_safe, event_source_safe),
                             timeout=block_timeout
                         )
                     logger.info(f"Componente SEGURO {name} procesado exitosamente ({operation})")
@@ -359,8 +366,11 @@ class DynamicExpansionEngine:
                             # Pasar marcador de modo ligero en los datos
                             light_data = dict(event_data or {})
                             light_data['_light_mode'] = True
+                            # Asegurar que los parámetros nunca sean None
+                            event_type_safe = event_type or ""
+                            event_source_safe = event_source or ""
                             await asyncio.wait_for(
-                                component.handle_event(event_type, light_data, event_source),
+                                component.handle_event(event_type_safe, light_data, event_source_safe),
                                 timeout=block_timeout
                             )
                     except asyncio.TimeoutError:
@@ -410,8 +420,6 @@ class DynamicExpansionEngine:
                 
                 # Crear tareas para todos los componentes en el bloque
                 tasks = []
-                # Diccionario para almacenar metadatos de las tareas
-                task_metadata = {}
                 
                 for name, component in block.components:
                     if operation == 'start':
