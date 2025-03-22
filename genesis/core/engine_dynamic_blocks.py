@@ -820,15 +820,18 @@ class DynamicExpansionEngine:
             expansion_blocks = [b for b in blocks if b.block_type == "expansion"]
             regular_blocks = [b for b in blocks if b.block_type == "regular"]
             
+            # Asegurar que los parámetros nunca sean None
+            evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, source)
+            
             # Procesar bloques seguros primero (secuencialmente)
             for block in safe_blocks:
-                await self._process_block(block, 'handle_event', event_type, event_data, source)
+                await self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
             
             # Luego procesar bloques de expansión y regulares en paralelo
             other_tasks = []
             for block in expansion_blocks + regular_blocks:
                 task = asyncio.create_task(
-                    self._process_block(block, 'handle_event', event_type, event_data, source)
+                    self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
                 )
                 other_tasks.append(task)
             
@@ -844,15 +847,18 @@ class DynamicExpansionEngine:
             # Limitar bloques regulares a los de mayor prioridad
             regular_blocks = regular_blocks[:max(1, len(regular_blocks) // 2)]
             
+            # Asegurar que los parámetros nunca sean None
+            evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, source)
+            
             # Procesar bloques seguros primero (secuencialmente)
             for block in safe_blocks:
-                await self._process_block(block, 'handle_event', event_type, event_data, source)
+                await self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
             
             # Luego procesar bloques de expansión y regulares seleccionados en paralelo
             other_tasks = []
             for block in expansion_blocks + regular_blocks:
                 task = asyncio.create_task(
-                    self._process_block(block, 'handle_event', event_type, event_data, source)
+                    self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
                 )
                 other_tasks.append(task)
             
@@ -869,15 +875,18 @@ class DynamicExpansionEngine:
             expansion_blocks = expansion_blocks[:max(1, len(expansion_blocks) // 2)]
             regular_blocks = regular_blocks[:max(1, len(regular_blocks) // 3)]
             
+            # Asegurar que los parámetros nunca sean None
+            evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, source)
+            
             # Procesar bloques seguros primero (secuencialmente)
             for block in safe_blocks:
-                await self._process_block(block, 'handle_event', event_type, event_data, source)
+                await self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
             
             # Luego procesar bloques seleccionados en paralelo
             other_tasks = []
             for block in expansion_blocks + regular_blocks:
                 task = asyncio.create_task(
-                    self._process_block(block, 'handle_event', event_type, event_data, source)
+                    self._process_block(block, 'handle_event', evt_type, evt_data, evt_source)
                 )
                 other_tasks.append(task)
             
