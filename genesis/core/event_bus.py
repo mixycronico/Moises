@@ -516,11 +516,19 @@ class EventBus:
                         await asyncio.wait_for(handler(event_type, data, source), timeout=0.5)
                     except asyncio.TimeoutError:
                         logger.warning(f"Timeout en handler para {event_type} (modo prueba)")
+                    except Exception as e:
+                        # Capturar excepciones en modo prueba para garantizar resiliencia
+                        logger.error(f"Error en manejador de eventos (test mode): {e}")
                 else:
-                    # Modo normal sin timeout
-                    await handler(event_type, data, source)
+                    try:
+                        # Modo normal sin timeout pero también capturando excepciones
+                        await handler(event_type, data, source)
+                    except Exception as e:
+                        logger.error(f"Error en manejador de eventos: {e}")
             except asyncio.CancelledError:
                 # Permitir cancelación limpia
                 raise
             except Exception as e:
-                logger.error(f"Error en manejador de eventos: {e}")
+                # Este bloque se ejecuta sólo si hay un error en la lógica del bus de eventos
+                # No debería ocurrir en funcionamiento normal
+                logger.error(f"Error crítico en el bus de eventos: {e}")

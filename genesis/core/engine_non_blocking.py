@@ -384,6 +384,10 @@ class EngineNonBlocking:
         """
         Emitir un evento a través del bus con manejo de errores y timeouts.
         
+        En un sistema resiliente, las excepciones en los manejadores de eventos de 
+        los componentes no deben interrumpir el flujo principal de la aplicación.
+        Este método captura todas las excepciones y las registra, pero no las propaga.
+        
         Args:
             event_type: Tipo de evento
             data: Datos del evento
@@ -403,6 +407,8 @@ class EngineNonBlocking:
             logger.warning(f"Timeout al emitir evento {event_type}")
         except Exception as e:
             logger.error(f"Error al emitir evento {event_type}: {e}")
+            # No propagar la excepción para garantizar que los fallos en componentes
+            # individuales no afecten al funcionamiento general del sistema
 
     async def emit_event_with_response(
         self, event_type: str, data: Dict[str, Any], source: str
@@ -410,13 +416,17 @@ class EngineNonBlocking:
         """
         Emitir un evento y esperar respuestas de los manejadores.
         
+        En un sistema resiliente, las excepciones en los manejadores de eventos de 
+        los componentes no deben interrumpir el flujo principal de la aplicación.
+        Este método captura todas las excepciones y las registra, pero no las propaga.
+        
         Args:
             event_type: Tipo de evento
             data: Datos del evento
             source: Componente de origen
             
         Returns:
-            Lista de respuestas de los manejadores
+            Lista de respuestas de los manejadores, o lista vacía en caso de error
         """
         # Asegurar que el event bus está iniciado
         await self._ensure_event_bus_started()
@@ -433,4 +443,6 @@ class EngineNonBlocking:
             return []
         except Exception as e:
             logger.error(f"Error al emitir evento con respuesta {event_type}: {e}")
+            # Devolver una lista vacía en caso de error para que el sistema pueda 
+            # continuar funcionando sin afectar a otros componentes
             return []
