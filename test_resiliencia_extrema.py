@@ -271,7 +271,8 @@ class ComponentAPI:
         try:
             self.event_queue.put_nowait(("local", event_type, data, source))
         except asyncio.QueueFull:
-            logger.warning(f"Cola de eventos llena en {self.id}")
+            # Reducir logs para evitar saturación de salida
+            pass
     
     async def on_external_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
@@ -286,7 +287,8 @@ class ComponentAPI:
         try:
             self.event_queue.put_nowait(("external", event_type, data, source))
         except asyncio.QueueFull:
-            logger.warning(f"Cola de eventos llena en {self.id}")
+            # Reducir logs para evitar saturación de salida
+            pass
             
     async def _process_events_loop(self):
         """Procesar eventos de la cola."""
