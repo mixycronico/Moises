@@ -1,0 +1,310 @@
+Entiendo que quieres una solución híbrida de API y WebSocket donde haya **dos WebSockets**: uno "local" (interno, en memoria o en el mismo proceso, sin depender de la red) para comunicación rápida entre componentes dentro del sistema Genesis, y otro "externo" (basado en internet, como el de la solución anterior) para manejar eventos que vienen o van fuera del sistema. Esto tiene sentido si buscas optimizar la comunicación interna y mantener la capacidad de interactuar con el exterior, todo mientras resolvemos los deadlocks de raíz.
+
+Voy a diseñar una solución que:
+- Use un **WebSocket local simulado** (en memoria, usando `asyncio`) para comunicación interna eficiente.
+- Mantenga un **WebSocket externo** (con `aiohttp`) para eventos de red.
+- Combine esto con la **API interna** para solicitudes directas.
+
+---
+
+### Enfoque: API + WebSocket local + WebSocket externo
+**Estructura**:
+1. **API interna**: Solicitudes síncronas o asíncronas controladas entre componentes.
+2. **WebSocket local**: Un canal en memoria basado en `asyncio.Queue` para eventos internos en tiempo real, sin red.
+3. **WebSocket externo**: Un servidor WebSocket basado en `aiohttp` para comunicación con el exterior.
+4. **Coordinador híbrido**: Gestiona los tres canales de comunicación.
+
+#### Beneficios
+- **Sin deadlocks**: La API es explícita, el WebSocket local usa un solo flujo en memoria, y el externo es independiente.
+- **Eficiencia**: Comunicación interna rápida sin overhead de red.
+- **Flexibilidad**: Soporte para eventos locales y externos.
+
+---
+
+### Implementación
+#### Dependencias
+- `aiohttp` para el WebSocket externo (`pip install aiohttp`).
+
+#### Código
+```python
+"""
+Sistema Genesis híbrido con API, WebSocket local y WebSocket externo.
+
+- API para solicitudes directas.
+- WebSocket local (en memoria) para eventos internos.
+- WebSocket externo (red) para comunicación con el exterior.
+"""
+
+import asyncio
+import logging
+from typing import Dict, Any, List, Optional
+from aiohttp import web
+import json
+
+logger = logging.getLogger(__name__)
+
+class ComponentAPI:
+    """Interfaz para componentes con soporte para API y WebSockets."""
+    def __init__(self, id: str):
+        self.id = id
+        self.local_events = []  # Eventos recibidos localmente
+        self.external_events = []  # Eventos recibidos externamente
+        self.local_queue = asyncio.Queue()  # Cola para WebSocket local
+
+    async def process_request(self, request_type: str, data: Dict[str, Any], source: str) -> Any:
+        """Manejar solicitudes API."""
+        raise NotImplementedError(f"{self.id} debe implementar process_request")
+
+    async def on_local_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        """Manejar eventos del WebSocket local."""
+        self.local_events.append((event_type, data, source))
+
+    async def on_external_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        """Manejar eventos del WebSocket externo."""
+        self.external_events.append((event_type, data, source))
+
+    async def listen_local(self):
+        """Escuchar eventos del WebSocket local."""
+        while True:
+            event_type, data, source = await self.local_queue.get()
+            await self.on_local_event(event_type, data, source)
+            self.local_queue.task_done()
+
+class GenesisHybridCoordinator:
+    """Coordinador híbrido con API, WebSocket local y externo."""
+    def __init__(self, host: str = "localhost", port: int = 8080):
+        self.components: Dict[str, ComponentAPI] = {}
+        self.app = web.Application()
+        self.host = host
+        self.port = port
+        self.websocket_clients: Dict[str, web.WebSocketResponse] = {}  # WebSocket externo
+        self.running = False
+        self.request_count = 0
+        self.local_event_count = 0
+        self.external_event_count = 0
+
+        # Configurar rutas para WebSocket externo
+        self.app.add_routes([
+            web.get("/ws", self._external_websocket_handler),
+            web.post("/request/{target}", self._api_request_handler),
+        ])
+
+    def register_component(self, component_id: str, component: ComponentAPI) -> None:
+        """Registrar un componente y conectar sus canales."""
+        if component_id in self.components:
+            logger.warning(f"Componente {component_id} ya registrado, reemplazando")
+        self.components[component_id] = component
+        asyncio.create_task(component.listen_local())  # Iniciar escucha local
+        logger.debug(f"Componente {component_id} registrado")
+
+    # API
+    async def request(
+        self, target_id: str, request_type: str, data: Dict[str, Any], source: str, timeout: float = 2.0
+    ) -> Optional[Any]:
+        """Solicitud directa vía API."""
+        if target_id not in self.components:
+            logger.error(f"Componente {target_id} no encontrado")
+            return None
+        try:
+            self.request_count += 1
+            return await asyncio.wait_for(
+                self.components[target_id].process_request(request_type, data, source),
+                timeout=timeout
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout en {target_id} para {request_type}")
+            return None
+        except Exception as e:
+            logger.error(f"Error en {target_id}: {e}")
+            return None
+
+    # WebSocket local
+    async def emit_local(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        """Emitir evento al WebSocket local (en memoria)."""
+        if not self.running:
+            logger.warning(f"Sistema detenido, evento local {event_type} ignorado")
+            return
+        self.local_event_count += 1
+        for cid, component in self.components.items():
+            if cid != source:
+                await component.local_queue.put((event_type, data, source))
+        logger.debug(f"Evento local {event_type} emitido desde {source}")
+
+    # WebSocket externo
+    async def emit_external(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        """Emitir evento al WebSocket externo (red)."""
+        if not self.websocket_clients:
+            logger.warning("No hay clientes WebSocket externos conectados")
+            return
+        message = json.dumps({"type": event_type, "data": data, "source": source})
+        self.external_event_count += 1
+        tasks = [
+            ws.send_str(message)
+            for cid, ws in self.websocket_clients.items()
+            if cid != source and not ws.closed
+        ]
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        logger.debug(f"Evento externo {event_type} emitido desde {source}")
+
+    async def _external_websocket_handler(self, request: web.Request) -> web.WebSocketResponse:
+        """Manejar conexiones WebSocket externas."""
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        component_id = request.query.get("id")
+        if component_id not in self.components:
+            await ws.close(code=1008, message="Componente no registrado")
+            return ws
+
+        self.websocket_clients[component_id] = ws
+        logger.info(f"WebSocket externo conectado para {component_id}")
+
+        try:
+            async for msg in ws:
+                if msg.type == web.WSMsgType.TEXT:
+                    try:
+                        data = json.loads(msg.data)
+                        await self.components[component_id].on_external_event(
+                            data.get("type"), data.get("data", {}), data.get("source", component_id)
+                        )
+                    except json.JSONDecodeError:
+                        logger.error(f"Mensaje inválido desde {component_id}")
+        finally:
+            self.websocket_clients.pop(component_id, None)
+            logger.info(f"WebSocket externo desconectado para {component_id}")
+        return ws
+
+    async def _api_request_handler(self, request: web.Request) -> web.Response:
+        """Manejar solicitudes API."""
+        target_id = request.match_info["target"]
+        if target_id not in self.components:
+            return web.Response(status=404, text=f"Componente {target_id} no encontrado")
+        try:
+            data = await request.json()
+            result = await self.request(
+                target_id, data.get("type"), data.get("data", {}), data.get("source", "external")
+            )
+            return web.json_response({"result": result})
+        except Exception as e:
+            return web.Response(status=500, text=str(e))
+
+    async def start(self) -> None:
+        """Iniciar el coordinador."""
+        if self.running:
+            return
+        self.running = True
+        runner = web.AppRunner(self.app)
+        await runner.setup()
+        site = web.TCPSite(runner, self.host, self.port)
+        await site.start()
+        logger.info(f"Coordinador iniciado en {self.host}:{self.port}")
+        await asyncio.Future()  # Mantener corriendo
+
+    async def stop(self) -> None:
+        """Detener el coordinador."""
+        self.running = False
+        for ws in self.websocket_clients.values():
+            await ws.close()
+        await self.app.shutdown()
+        await self.app.cleanup()
+        logger.info(f"Detenido. Solicitudes: {self.request_count}, Local: {self.local_event_count}, Externo: {self.external_event_count}")
+
+# Ejemplo de componente
+class TestComponent(ComponentAPI):
+    async def process_request(self, request_type: str, data: Dict[str, Any], source: str) -> Optional[str]:
+        if request_type == "ping":
+            return f"Pong desde {self.id}"
+        return None
+
+    async def on_local_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        logger.debug(f"{self.id} recibió local: {event_type}")
+        self.local_events.append((event_type, data, source))
+
+    async def on_external_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        logger.debug(f"{self.id} recibió externo: {event_type}")
+        self.external_events.append((event_type, data, source))
+
+# Prueba
+async def main():
+    logging.basicConfig(level=logging.DEBUG)
+    coordinator = GenesisHybridCoordinator()
+
+    comp1 = TestComponent("comp1")
+    comp2 = TestComponent("comp2")
+    coordinator.register_component("comp1", comp1)
+    coordinator.register_component("comp2", comp2)
+
+    await coordinator.start()
+
+    # Probar API
+    response = await coordinator.request("comp2", "ping", {"data": "hello"}, "comp1")
+    print(f"Respuesta API: {response}")
+
+    # Probar WebSocket local
+    await coordinator.emit_local("local_test", {"value": 42}, "comp1")
+    await asyncio.sleep(0.1)
+    print(f"Eventos locales en comp2: {comp2.local_events}")
+
+    # Probar WebSocket externo (simulando conexión)
+    async with websockets.connect("ws://localhost:8080/ws?id=comp2") as ws:
+        await coordinator.emit_external("external_test", {"value": 100}, "comp1")
+        await asyncio.sleep(0.1)
+        print(f"Eventos externos en comp2: {comp2.external_events}")
+
+    await coordinator.stop()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+---
+
+### Cómo funciona
+1. **API**:
+   - `request`: Llama a `process_request` con timeout, asegurando que no haya bloqueos prolongados.
+
+2. **WebSocket local**:
+   - Usa `asyncio.Queue` por componente para eventos internos, procesados en una tarea única por componente.
+   - `emit_local`: Envía eventos directamente a las colas de los componentes, sin red.
+
+3. **WebSocket externo**:
+   - Usa `aiohttp` para un servidor WebSocket en `ws://localhost:8080/ws`.
+   - `emit_external`: Envía eventos a clientes conectados por red.
+
+4. **Coordinador**:
+   - Gestiona los tres canales de forma independiente, evitando cruces que causen deadlocks.
+
+---
+
+### Ventajas
+- **Sin deadlocks**: La API es controlada, el WebSocket local es simple y el externo es unidireccional.
+- **Eficiencia**: Comunicación local en memoria, sin overhead de red.
+- **Separación clara**: Eventos internos y externos tienen canales distintos.
+
+---
+
+### Desventajas
+- **Complejidad**: Tres sistemas (API, local, externo) requieren más código.
+- **Dependencia**: Aún usa `aiohttp` para el WebSocket externo.
+
+---
+
+### ¿Es esto mejor?
+**Sí**, si:
+- Quieres comunicación interna rápida (WebSocket local) sin red.
+- Necesitas interactuar con sistemas externos (WebSocket externo).
+- Valoras la separación entre flujos internos y externos.
+
+**No**, si:
+- No necesitas comunicación externa (podrías eliminar el WebSocket externo).
+- Prefieres una solución más simple sin múltiples canales.
+
+---
+
+### ¿Cómo te ayudo?
+- **Prueba específica**: Si tienes un caso de Genesis (un deadlock o interacción), lo adapto.
+- **Simplificación**: Puedo eliminar el WebSocket externo si no lo necesitas.
+- **Integración**: Dime cómo se ve tu código actual y lo migramos.
+
+¿Qué opinas? ¿Es esto lo que buscabas o quieres ajustar algo?
