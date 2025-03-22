@@ -79,7 +79,16 @@ class Settings:
         self._load_from_env()
         
     def _load_from_file(self, config_path: str | Path) -> None:
-        """Load settings from a configuration file if provided."""
+        """
+        Load settings from a configuration file if provided.
+        
+        Args:
+            config_path: Path to the configuration file
+            
+        Raises:
+            FileNotFoundError: If the file doesn't exist
+            json.JSONDecodeError: If the file contains invalid JSON
+        """
         if isinstance(config_path, str):
             config_path = Path(config_path)
             
@@ -89,12 +98,70 @@ class Settings:
         try:
             with open(config_path, 'r') as f:
                 file_settings = json.load(f)
+                
+                # Process encrypted values (mark them as sensitive)
+                self._process_encrypted_values(file_settings)
+                
                 self._settings = self._deep_update(self._settings, file_settings)
         except json.JSONDecodeError as e:
             raise json.JSONDecodeError(f"Invalid JSON in configuration file: {e.msg}", e.doc, e.pos)
         except Exception as e:
             print(f"Error loading configuration file: {e}")
     
+    def _process_encrypted_values(self, settings_dict: Dict[str, Any], parent_key: str = "") -> None:
+        """
+        Process a settings dictionary to find and decrypt encrypted values.
+        
+        Args:
+            settings_dict: Dictionary of settings to process
+            parent_key: Parent key for nested dictionaries
+        """
+        for key, value in settings_dict.items():
+            full_key = f"{parent_key}.{key}" if parent_key else key
+            
+            if isinstance(value, str) and value.startswith("ENCRYPTED:"):
+                # Decrypt the value
+                settings_dict[key] = self._decrypt_value(value)
+                # Mark the key as sensitive
+                self._sensitive_keys.add(full_key)
+            elif isinstance(value, dict):
+                # Recursively process nested dictionaries
+                self._process_encrypted_values(value, full_key)
+    
+    def _convert_env_value(self, value: str) -> Any:
+        """
+        Convert environment variable string to appropriate type.
+        
+        Args:
+            value: String value to convert
+            
+        Returns:
+            Converted value
+        """
+        if not value:
+            return None
+            
+        # First, check if it's valid JSON (for lists, dicts, etc.)
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            pass
+            
+        # Then try boolean values
+        if value.lower() in ("true", "yes", "1"):
+            return True
+        elif value.lower() in ("false", "no", "0"):
+            return False
+            
+        # Then try numeric values
+        if value.isdigit():
+            return int(value)
+        if value.replace(".", "", 1).isdigit() and value.count(".") <= 1:
+            return float(value)
+            
+        # Default to string
+        return value
+        
     def _load_from_env(self, prefix: str = "") -> None:
         """
         Override settings from environment variables.
@@ -102,52 +169,61 @@ class Settings:
         Args:
             prefix: Optional prefix for environment variables
         """
-        # Handle known environment mappings
-        if os.environ.get("LOG_LEVEL"):
-            self._settings["log_level"] = os.environ.get("LOG_LEVEL")
+        # Map of environment variables to setting keys
+        env_mappings = {
+            "LOG_LEVEL": "log_level",
+            "DATABASE_URL": "database.connection_string",
+            "TRADING_ENABLED": "trading.trading_enabled",
+            "DRY_RUN": "trading.dry_run",
+            "STAKE_AMOUNT": "trading.stake_amount",
+            "MAX_OPEN_TRADES": "trading.max_open_trades",
+            "DEFAULT_EXCHANGE": "exchanges.default_exchange",
+            "RATE_LIMIT_MAX": "exchanges.rate_limit.max_requests",
+            "RISK_MAX_PER_TRADE": "risk.max_risk_per_trade",
+            "RISK_MAX_TOTAL": "risk.max_risk_total",
+            "DEFAULT_STRATEGY": "strategies.default_strategy",
+            "API_HOST": "api.host",
+            "API_PORT": "api.port",
+            "API_DEBUG": "api.debug"
+        }
+        
+        # Process known mappings
+        for env_var, setting_key in env_mappings.items():
+            if env_var in os.environ and os.environ[env_var]:
+                # Get environment value and convert to appropriate type
+                env_value = os.environ[env_var]
+                typed_value = self._convert_env_value(env_value)
+                
+                # Set value with proper type
+                self.set(setting_key, typed_value)
             
-        # Database settings from environment
-        if os.environ.get("DATABASE_URL"):
-            self._settings["database"]["connection_string"] = os.environ.get("DATABASE_URL")
-            
-        # Trading settings
-        if os.environ.get("TRADING_ENABLED"):
-            self._settings["trading"]["trading_enabled"] = os.environ.get("TRADING_ENABLED").lower() == "true"
-            
-        if os.environ.get("DRY_RUN"):
-            self._settings["trading"]["dry_run"] = os.environ.get("DRY_RUN").lower() == "true"
-            
-        if os.environ.get("STAKE_AMOUNT"):
-            self._settings["trading"]["stake_amount"] = float(os.environ.get("STAKE_AMOUNT"))
-            
-        # Procesar variables con prefijo si se proporciona
+        # Process variables with custom prefix
         if prefix:
             for key, value in os.environ.items():
-                if key.startswith(prefix):
-                    # Quitar el prefijo y convertir a estilo de clave de configuración
+                if key.startswith(prefix) and value:  # Skip empty values
+                    # Remove prefix and convert to setting key style
                     setting_key = key[len(prefix):].lower().replace("_", ".")
                     
-                    # Intentar convertir el valor a su tipo apropiado
                     try:
-                        # Intentar cargar como JSON (para listas, dicts, etc.)
-                        try:
-                            typed_value = json.loads(value)
-                        except json.JSONDecodeError:
-                            # Si no es JSON válido, intentar convertir números y booleanos
-                            if value.lower() in ("true", "yes", "1"):
-                                typed_value = True
-                            elif value.lower() in ("false", "no", "0"):
-                                typed_value = False
-                            elif value.isdigit():
-                                typed_value = int(value)
-                            elif value.replace(".", "", 1).isdigit():
-                                typed_value = float(value)
-                            else:
-                                typed_value = value
-                                
+                        # Convert to appropriate type
+                        typed_value = self._convert_env_value(value)
                         self.set(setting_key, typed_value)
                     except Exception as e:
                         print(f"Error processing environment variable {key}: {e}")
+                    
+        # Special case: Mark any credentials or secrets as sensitive
+        sensitive_keys = [
+            "database.password", 
+            "database.connection_string",
+            "exchanges.api_key", 
+            "exchanges.api_secret",
+            "notifications.email.password",
+            "notifications.sms.api_key"
+        ]
+        
+        for key in sensitive_keys:
+            if self.get(key):
+                self._sensitive_keys.add(key)
     
     @staticmethod
     def _deep_update(d: Dict[str, Any], u: Dict[str, Any]) -> Dict[str, Any]:
