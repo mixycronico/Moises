@@ -63,9 +63,12 @@ class Engine:
         
         Args:
             component: Component instance to register
+            
+        Raises:
+            ValueError: If a component with the same name is already registered
         """
         if component.name in self.components:
-            self.logger.warning(f"Component with name '{component.name}' already registered, replacing")
+            raise ValueError(f"Component with name '{component.name}' already registered")
         
         self.components[component.name] = component
         component.attach_event_bus(self.event_bus)

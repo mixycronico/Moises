@@ -21,12 +21,22 @@ class EventBus:
     in the system without direct dependencies, facilitating a modular design.
     """
     
-    def __init__(self):
-        """Initialize the event bus."""
+    def __init__(self, test_mode=False):
+        """
+        Initialize the event bus.
+        
+        Args:
+            test_mode: If True, operate in test mode (direct event delivery with no background tasks)
+        """
         self.subscribers: Dict[str, Set[EventHandler]] = {}
         self.running = False
         self.queue: Optional[asyncio.Queue] = None
         self.process_task: Optional[asyncio.Task] = None
+        self.test_mode = test_mode or hasattr(sys, '_called_from_test')
+        
+        # En modo prueba, marcamos el bus como iniciado automáticamente
+        if self.test_mode:
+            self.running = True
     
     async def start(self) -> None:
         """Start the event bus."""
