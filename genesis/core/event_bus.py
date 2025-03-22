@@ -325,16 +325,15 @@ class EventBus:
         """
         Register a listener that will be executed only once.
         
+        Compatibility wrapper for subscribe_once.
+        
         Args:
             event_type: Event type to subscribe to
             handler: Handler function
             priority: Priority level (higher values = higher priority)
         """
-        if event_type not in self.one_time_listeners:
-            self.one_time_listeners[event_type] = []
-            
-        self.one_time_listeners[event_type].append((priority, handler))
-        self.one_time_listeners[event_type].sort(key=lambda x: x[0], reverse=True)
+        # Redirigir al método subscribe_once para unificar implementación
+        self.subscribe_once(event_type, handler, priority)
     
     def _matches_pattern(self, pattern: str, event_type: str) -> bool:
         """
