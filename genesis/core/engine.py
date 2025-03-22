@@ -60,6 +60,11 @@ class Engine:
         
         self.components[component.name] = component
         component.attach_event_bus(self.event_bus)
+        
+        # Registrar el componente para que reciba todos los eventos
+        # Esto permite que handle_event se llame para cada evento
+        self.event_bus.subscribe("*", component.handle_event)
+        
         self.logger.debug(f"Registered component: {component.name}")
     
     def get_component(self, name: str) -> Optional[Component]:

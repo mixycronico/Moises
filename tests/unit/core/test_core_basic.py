@@ -57,9 +57,14 @@ def config():
 
 
 @pytest.fixture
-def event_bus():
+async def event_bus():
     """Proporcionar un bus de eventos para pruebas."""
-    return EventBus()
+    bus = EventBus()
+    # Iniciar el bus para que pueda procesar eventos
+    await bus.start()
+    yield bus
+    # Limpiar después de las pruebas
+    await bus.stop()
 
 
 @pytest.fixture
@@ -69,9 +74,10 @@ def test_component():
 
 
 @pytest.fixture
-def engine(event_bus):
+async def engine(event_bus):
     """Proporcionar un motor del sistema para pruebas."""
-    return Engine(event_bus)
+    eng = Engine(event_bus)
+    yield eng
 
 
 @pytest.mark.asyncio
