@@ -7,7 +7,11 @@ an asynchronous publish-subscribe pattern.
 
 import asyncio
 import sys
+import logging
 from typing import Dict, Set, Callable, Any, Awaitable, Optional
+
+# Configurar el logger para este módulo
+logger = logging.getLogger(__name__)
 
 # Type definition for event handlers
 EventHandler = Callable[[str, Dict[str, Any], str], Awaitable[None]]
@@ -55,7 +59,7 @@ class EventBus:
                 try:
                     self.queue = asyncio.Queue()
                 except Exception as e:
-                    print(f"Error al crear cola: {e}")
+                    logger.error(f"Error al crear cola: {e}")
                     # Continuar con procesamiento directo
                     return
             
@@ -66,7 +70,7 @@ class EventBus:
                     # Verificar si hubo excepción
                     exc = self.process_task.exception()
                     if exc:
-                        print(f"Error previo en event_bus: {exc}")
+                        logger.error(f"Error previo en event_bus: {exc}")
                 except (asyncio.InvalidStateError, asyncio.CancelledError):
                     pass
                 self.process_task = None
@@ -76,10 +80,10 @@ class EventBus:
                 try:
                     self.process_task = asyncio.create_task(self._process_events())
                 except Exception as e:
-                    print(f"Error al crear tarea para procesar eventos: {e}")
+                    logger.error(f"Error al crear tarea para procesar eventos: {e}")
                     # Continuar con procesamiento directo
         except Exception as e:
-            print(f"Error al iniciar event_bus: {e}")
+            logger.error(f"Error al iniciar event_bus: {e}")
             # Si hay error, al menos permitir el envío directo de eventos 
             # para que las pruebas funcionen
     
@@ -112,7 +116,7 @@ class EventBus:
                         try:
                             await handler(event_type, data, source)
                         except Exception as e:
-                            print(f"Error in event handler: {e}")
+                            logger.error(f"Error in event handler: {e}")
                 
                 # Process 'all' event subscribers
                 if '*' in self.subscribers:
@@ -120,13 +124,13 @@ class EventBus:
                         try:
                             await handler(event_type, data, source)
                         except Exception as e:
-                            print(f"Error in wildcard event handler: {e}")
+                            logger.error(f"Error in wildcard event handler: {e}")
                 
                 self.queue.task_done()
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                print(f"Error processing event: {e}")
+                logger.error(f"Error processing event: {e}")
     
     def subscribe(self, event_type: str, handler: EventHandler) -> None:
         """
@@ -177,9 +181,9 @@ class EventBus:
             # Durante pruebas, auto-iniciar el bus en modo directo
             self.running = True
             if hasattr(sys, '_called_from_test'):
-                print("EventBus: auto-inicio para pruebas")
+                logger.debug("EventBus: auto-inicio para pruebas")
             else:
-                print("Advertencia: Emitiendo eventos sin iniciar el bus formalmente")
+                logger.warning("Emitiendo eventos sin iniciar el bus formalmente")
         
         # Intentar encolar el evento si tenemos una cola (modo normal de producción)
         enqueued = False
@@ -188,7 +192,7 @@ class EventBus:
                 await self.queue.put((event_type, data, source))
                 enqueued = True
             except Exception as e:
-                print(f"Error al encolar evento: {e}")
+                logger.error(f"Error al encolar evento: {e}")
         
         # Para pruebas o cuando falla la cola: procesar eventos directamente
         # Este modo de procesamiento directo asegura que:
@@ -201,7 +205,7 @@ class EventBus:
                 try:
                     await handler(event_type, data, source)
                 except Exception as e:
-                    print(f"Error en manejador de eventos directo: {e}")
+                    logger.error(f"Error en manejador de eventos directo: {e}")
                     
         # Procesar suscriptores wildcard ('*')
         if '*' in self.subscribers:
