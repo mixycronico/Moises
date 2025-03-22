@@ -49,7 +49,7 @@ class TestEventHandlerComponent(Component):
 @pytest.fixture
 def event_bus():
     """Proporcionar un bus de eventos para pruebas."""
-    return EventBus()
+    return EventBus(test_mode=True)
 
 
 @pytest.fixture
