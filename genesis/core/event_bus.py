@@ -417,6 +417,7 @@ class EventBus:
         
         # Recopilar handlers para el evento usando el método centralizado
         all_handlers = self._collect_all_handlers_for_event(event_type)
+        print(f"Found {len(all_handlers)} handlers for event {event_type}")
         
         # Ejecutar handlers en orden de prioridad y recopilar respuestas
         responses = []
@@ -437,9 +438,13 @@ class EventBus:
                     try:
                         response = await asyncio.wait_for(handler(event_type, data, source), timeout=0.5)
                         if response is not None:
+                            print(f"Adding response to {event_type} from handler: {response}")
                             responses.append(response)
+                        else:
+                            print(f"Handler for {event_type} returned None")
                     except asyncio.TimeoutError:
                         logger.warning(f"Timeout en handler para {event_type} (modo prueba)")
+                        print(f"Timeout en handler para {event_type} (modo prueba)")
                 else:
                     # Modo normal sin timeout
                     response = await handler(event_type, data, source)

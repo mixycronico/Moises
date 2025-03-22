@@ -171,24 +171,28 @@ async def test_event_fan_out_and_fan_in(engine):
     # Mockear handle_event para que devuelva una respuesta
     original_handle_event = component1.handle_event
     async def component1_handler(event_type, data, source):
+        print(f"Component1 received event: {event_type} from {source}")
         if event_type == "task_request":
             # Procesar la primera mitad de los items
             processed = [item * 2 for item in data["items"][:3]]
+            print(f"Component1 returning: {processed}")
             return {"processed": processed, "component": "component1"}
         return await original_handle_event(event_type, data, source)
     component1.handle_event = component1_handler
     
     original_handle_event2 = component2.handle_event
     async def component2_handler(event_type, data, source):
+        print(f"Component2 received event: {event_type} from {source}")
         if event_type == "task_request":
             # Procesar la segunda mitad de los items
             processed = [item * 3 for item in data["items"][3:]]
+            print(f"Component2 returning: {processed}")
             return {"processed": processed, "component": "component2"}
         return await original_handle_event2(event_type, data, source)
     component2.handle_event = component2_handler
     
-    # Emitir el evento desde el coordinador
-    responses = await engine.event_bus.emit_with_response("task_request", task_data, "coordinator")
+    # Emitir el evento desde un origen neutro (no desde un componente)
+    responses = await engine.event_bus.emit_with_response("task_request", task_data, "system")
     
     # Verificar que recibimos respuestas de ambos componentes
     assert len(responses) == 2
