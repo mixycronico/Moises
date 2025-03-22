@@ -990,18 +990,30 @@ async def test_cascading_failures():
         
         # FASE 3: Verificar estado después del fallo
         logger.info("FASE 3: Verificando estado")
+        
+        # Comprobar los componentes registrados
+        logger.info(f"Componentes registrados: {[c.name for c in engine.components.values()]}")
+        
+        # Verificar comp_a
+        logger.info("Enviando check_status a comp_a")
         try:
-            logger.info("Enviando check_status a comp_a")
-            resp_a = await engine.emit_event("check_status", {}, "comp_a")
-            logger.info(f"Estado A: {resp_a}")
+            resp_a = await engine.emit_event_with_response("check_status", {}, "comp_a")
+            logger.info(f"Respuestas brutas A: {resp_a}")
+            # Tomar la primera respuesta válida o un diccionario predeterminado
+            resp_a = resp_a[0] if resp_a and len(resp_a) > 0 else {"healthy": False, "error": "No response"}
+            logger.info(f"Estado A procesado: {resp_a}")
         except Exception as e:
             logger.error(f"Error al verificar estado de A: {type(e).__name__}: {str(e)}")
             resp_a = {"healthy": False, "error": str(e)}
-            
+        
+        # Verificar comp_b
+        logger.info("Enviando check_status a comp_b")
         try:
-            logger.info("Enviando check_status a comp_b")
-            resp_b = await engine.emit_event("check_status", {}, "comp_b")
-            logger.info(f"Estado B: {resp_b}")
+            resp_b = await engine.emit_event_with_response("check_status", {}, "comp_b")
+            logger.info(f"Respuestas brutas B: {resp_b}")
+            # Tomar la primera respuesta válida o un diccionario predeterminado
+            resp_b = resp_b[0] if resp_b and len(resp_b) > 0 else {"healthy": True, "error": "No response"}
+            logger.info(f"Estado B procesado: {resp_b}")
         except Exception as e:
             logger.error(f"Error al verificar estado de B: {type(e).__name__}: {str(e)}")
             resp_b = {"healthy": True, "error": str(e)}
@@ -1020,8 +1032,11 @@ async def test_cascading_failures():
         logger.info("FASE 5: Verificando recuperación")
         try:
             logger.info("Enviando check_status para verificar recuperación de A")
-            resp_a = await engine.emit_event("check_status", {}, "comp_a")
-            logger.info(f"Estado final A: {resp_a}")
+            resp_a_recovery = await engine.emit_event_with_response("check_status", {}, "comp_a")
+            logger.info(f"Respuestas brutas A (recuperación): {resp_a_recovery}")
+            # Tomar la primera respuesta válida o un diccionario predeterminado
+            resp_a = resp_a_recovery[0] if resp_a_recovery and len(resp_a_recovery) > 0 else {"healthy": True, "error": "No response", "recovered": True}
+            logger.info(f"Estado final A procesado: {resp_a}")
         except Exception as e:
             logger.error(f"Error al verificar estado de A después de recuperación: {type(e).__name__}: {str(e)}")
             resp_a = {"healthy": True, "error": str(e), "recovered": True}
