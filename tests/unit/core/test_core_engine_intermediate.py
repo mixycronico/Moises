@@ -25,11 +25,11 @@ class TestEventHandlerComponent(Component):
         
     async def start(self):
         """Iniciar el componente."""
-        return True
+        self.is_running = True
         
     async def stop(self):
         """Detener el componente."""
-        return True
+        self.is_running = False
         
     async def handle_event(self, event_type, data, source):
         """Registrar eventos recibidos para verificación."""
@@ -126,7 +126,7 @@ async def test_engine_handles_component_errors_gracefully(engine):
     failing_component = Mock(spec=Component)
     failing_component.name = "failing_component"
     failing_component.start = AsyncMock(side_effect=Exception("Component failed to start"))
-    failing_component.stop = AsyncMock(return_value=True)
+    failing_component.stop = AsyncMock()
     failing_component.handle_event = AsyncMock(return_value=None)
     
     engine.register_component(failing_component)
@@ -277,11 +277,11 @@ async def test_conditional_event_propagation(engine):
     
     # Añadir un listener que solo escucha eventos de mercado
     market_listener = Mock()
-    await engine.event_bus.add_listener("market_update", market_listener)
+    engine.event_bus.subscribe("market_update", market_listener)
     
     # Añadir un listener que escucha todo
     all_listener = Mock()
-    await engine.event_bus.add_listener("*", all_listener)
+    engine.event_bus.subscribe("*", all_listener)
     
     # Emitir eventos
     await engine.event_bus.emit("market_update", market_event["data"], "external")
