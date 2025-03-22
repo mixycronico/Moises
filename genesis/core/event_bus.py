@@ -94,6 +94,9 @@ class EventBus:
         
         self.subscribers[event_type].add(handler)
     
+    # Alias for backwards compatibility with tests
+    register_listener = subscribe
+    
     def unsubscribe(self, event_type: str, handler: EventHandler) -> None:
         """
         Unsubscribe from an event type.
@@ -108,6 +111,9 @@ class EventBus:
             # Clean up empty subscriber sets
             if not self.subscribers[event_type]:
                 del self.subscribers[event_type]
+    
+    # Alias for backwards compatibility with tests
+    unregister_listener = unsubscribe
     
     async def emit(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """

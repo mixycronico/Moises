@@ -26,16 +26,23 @@ class Engine:
     lifecycle, and provides the main entry point for system operation.
     """
     
-    def __init__(self, name: str = "engine"):
+    def __init__(self, event_bus_or_name=None):
         """
         Initialize the engine.
         
         Args:
-            name: Name of the engine instance
+            event_bus_or_name: Either an EventBus instance or a name string for the engine
+                               For backwards compatibility with testing code
         """
-        self.name = name
-        self.logger = setup_logging(name, level=settings.get('log_level', 'INFO'))
-        self.event_bus = EventBus()
+        # Handle both EventBus instance or string name for backwards compatibility
+        if isinstance(event_bus_or_name, EventBus):
+            self.name = "engine"
+            self.event_bus = event_bus_or_name
+        else:
+            self.name = event_bus_or_name if isinstance(event_bus_or_name, str) else "engine"
+            self.event_bus = EventBus()
+            
+        self.logger = setup_logging(self.name, level=settings.get('log_level', 'INFO'))
         self.components: Dict[str, Component] = {}
         self.running = False
         self._shutdown_event = asyncio.Event()
