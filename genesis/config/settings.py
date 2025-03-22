@@ -141,23 +141,29 @@ class Settings:
         if not value:
             return None
             
-        # First, check if it's valid JSON (for lists, dicts, etc.)
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            pass
-            
-        # Then try boolean values
-        if value.lower() in ("true", "yes", "1"):
+        # Try boolean values first
+        if value.lower() in ("true", "yes", "1", "on"):
             return True
-        elif value.lower() in ("false", "no", "0"):
+        elif value.lower() in ("false", "no", "0", "off"):
             return False
+        
+        # Then check if it's valid JSON (for lists, dicts, etc.)
+        if (value.startswith('[') and value.endswith(']')) or \
+           (value.startswith('{') and value.endswith('}')):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                pass
             
         # Then try numeric values
-        if value.isdigit():
-            return int(value)
-        if value.replace(".", "", 1).isdigit() and value.count(".") <= 1:
+        try:
+            # If it doesn't have a decimal point, try as integer
+            if '.' not in value:
+                return int(value)
+            # Otherwise try as float
             return float(value)
+        except ValueError:
+            pass
             
         # Default to string
         return value
@@ -202,14 +208,8 @@ class Settings:
         if prefix:
             for key, value in os.environ.items():
                 if key.startswith(prefix) and value:  # Skip empty values
-                    # Remove prefix and convert to setting key style
-                    key_without_prefix = key[len(prefix):]
-                    
-                    # Handle the root level keys without underscores
-                    if "_" not in key_without_prefix:
-                        setting_key = key_without_prefix.lower()
-                    else:
-                        setting_key = key_without_prefix.lower().replace("_", ".")
+                    # Remove prefix and convert to setting key style (lowercase)
+                    setting_key = key[len(prefix):].lower()
                     
                     try:
                         # Convert to appropriate type
@@ -492,7 +492,7 @@ class Settings:
             
         # Check required properties
         for req in schema.get("required", []):
-            if not self.get(req):
+            if self.get(req) is None:  # Use is None instead of not get() to allow falsy values
                 raise ValueError(f"Required property '{req}' is missing")
                 
         # Validate properties
@@ -530,7 +530,7 @@ class Settings:
                 raise ValueError(f"Property '{prop_name}' must be one of {prop_schema['enum']}")
                 
             # Recursively validate objects
-            if prop_type == "object" and "properties" in prop_schema:
+            if prop_type == "object" and "properties" in prop_schema and isinstance(value, dict):
                 # Create a sub-settings object with just this property
                 sub_settings = Settings()
                 sub_settings._settings = value

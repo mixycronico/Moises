@@ -232,6 +232,9 @@ def test_settings_type_conversion(settings):
         # Cargar desde variables de entorno
         settings.load_from_env(prefix="GENESIS_")
         
+        # Debug para ver qué se cargó realmente
+        print("DEBUG: Settings after load_from_env:", settings._settings)
+        
         # Verificar conversión de tipos
         assert settings.get("int_value") == 42
         assert isinstance(settings.get("int_value"), int)
