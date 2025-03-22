@@ -421,7 +421,7 @@ class ConfigChangeComponent(Component):
 class CascadeFailureComponent(Component):
     """Componente que simula fallos en cascada entre componentes dependientes."""
     
-    def __init__(self, name: str, dependencies: List[str] = None, fail_threshold: int = 3):
+    def __init__(self, name: str, dependencies: Optional[List[str]] = None, fail_threshold: int = 3):
         """
         Inicializar componente de fallo en cascada.
         
@@ -545,7 +545,7 @@ class CascadeFailureComponent(Component):
 async def test_network_disruption():
     """Prueba el sistema durante disrupciones de red simuladas."""
     # Crear motor no bloqueante
-    engine = EngineNonBlocking(test_mode=True, component_timeout=2.0)
+    engine = EngineNonBlocking(test_mode=True)  # El parámetro component_timeout no existe en esta clase
     
     # Crear componentes
     network = NetworkSimulatorComponent("network", initial_state="online")
