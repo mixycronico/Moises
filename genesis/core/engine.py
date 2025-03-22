@@ -91,6 +91,44 @@ class Engine:
             The component instance or None if not found
         """
         return self.components.get(name)
+        
+    def get_all_components(self) -> List[Component]:
+        """
+        Get all registered components.
+        
+        Returns:
+            List of all component instances
+        """
+        return list(self.components.values())
+        
+    def deregister_component(self, name: str) -> None:
+        """
+        Unregister a component from the engine.
+        
+        Args:
+            name: Name of the component to unregister
+            
+        Raises:
+            ValueError: If component with given name is not registered
+        """
+        if name not in self.components:
+            raise ValueError(f"Component with name '{name}' not registered")
+            
+        component = self.components[name]
+        
+        # Si el motor está ejecutándose, detener primero el componente
+        if self.running and hasattr(component, 'stop'):
+            # Para evitar bloqueos, ejecutamos stop pero no esperamos
+            # ya que esto se llama desde código síncrono
+            asyncio.create_task(component.stop())
+            
+        # Eliminar el componente de la lista
+        del self.components[name]
+        
+        # Eliminar suscripción a eventos globales
+        self.event_bus.unsubscribe("*", component.handle_event)
+        
+        self.logger.debug(f"Unregistered component: {name}")
     
     async def start(self) -> None:
         """Start the engine and all registered components."""
