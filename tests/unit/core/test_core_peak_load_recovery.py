@@ -69,6 +69,13 @@ class LoadGeneratorComponent(Component):
         self.burst_mode = False
         self.burst_recovery = False
         
+        # Referencia al motor
+        self._engine = None
+        
+    def set_engine(self, engine):
+        """Establecer referencia al motor de eventos."""
+        self._engine = engine
+        
     async def start(self) -> None:
         """Iniciar el componente."""
         logger.debug(f"LoadGeneratorComponent {self.name} iniciado")
@@ -315,6 +322,10 @@ class BurstMonitorComponent(Component):
         # Detectores de anomalías
         self.anomaly_detected = False
         self.anomaly_start_time = 0
+        
+    def set_engine(self, engine):
+        """Establecer referencia al motor de eventos."""
+        self._engine = engine
         
     async def start(self) -> None:
         """Iniciar el componente de monitoreo."""
@@ -577,8 +588,8 @@ async def test_peak_load_recovery():
         
         # Registrar monitor de picos
         monitor = BurstMonitorComponent("load_monitor", generator_names)
-        # Establecer el motor en el monitor para las llamadas a emit_with_timeout
-        monitor._engine = engine
+        # Usar método set_engine para establecer el motor en el monitor
+        monitor.set_engine(engine)
         await engine.register_component(monitor)
         
         logger.info(f"Registrados {len(load_generators)} generadores de carga y 1 monitor")
