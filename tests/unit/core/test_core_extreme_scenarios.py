@@ -984,7 +984,7 @@ async def test_cascading_failures():
         
         # FASE 2: Simular fallo en A
         logger.info("FASE 2: Provocando fallo en A")
-        response = await engine.emit_event("set_health", {"healthy": False}, "comp_a")
+        response = await engine.emit_event_with_response("set_health", {"healthy": False}, "comp_a")
         logger.info(f"Respuesta: {response}")
         await asyncio.sleep(0.1)
         
@@ -1025,7 +1025,7 @@ async def test_cascading_failures():
         
         # FASE 4: Restaurar A
         logger.info("FASE 4: Restaurando A")
-        await engine.emit_event("set_health", {"healthy": True}, "comp_a")
+        await engine.emit_event_with_response("set_health", {"healthy": True}, "comp_a")
         await asyncio.sleep(0.1)
         
         # FASE 5: Verificar recuperación
