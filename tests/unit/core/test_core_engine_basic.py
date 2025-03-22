@@ -247,6 +247,9 @@ async def test_engine_event_bus_integration(engine, simple_component, event_bus)
     # Iniciar el motor
     await engine.start()
     
+    # Limpiar eventos recibidos (eliminar system.started)
+    simple_component.events_received.clear()
+    
     # Emitir un evento
     test_data = {"message": "Test event"}
     await event_bus.emit("test_event", test_data, "test_source")
