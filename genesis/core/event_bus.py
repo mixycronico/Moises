@@ -396,6 +396,11 @@ class EventBus:
         """
         Emit an event to subscribers and collect their responses.
         
+        Este método garantiza resiliencia total frente a cualquier tipo de fallo
+        en los componentes que reciben eventos. Las excepciones son capturadas,
+        registradas, pero nunca propagadas hacia arriba para permitir que el motor
+        continúe funcionando incluso si algunos componentes fallan.
+        
         Args:
             event_type: Type of the event
             data: Event data
@@ -404,131 +409,158 @@ class EventBus:
         Returns:
             List of responses from all handlers that returned a value
         """
-        # Auto-inicio para pruebas y casos especiales
-        if not self.running:
-            self.running = True
-            if self.test_mode:
-                logger.debug("EventBus: auto-inicio para pruebas (modo test)")
-            elif hasattr(sys, '_called_from_test') or 'pytest' in sys.modules:
-                logger.debug("EventBus: auto-inicio para pruebas (pytest detectado)")
-                self.test_mode = True  # Forzar modo prueba si es detectado durante ejecución
-            else:
-                logger.warning("Emitiendo eventos sin iniciar el bus formalmente")
-        
-        # Recopilar handlers para el evento usando el método centralizado
-        all_handlers = self._collect_all_handlers_for_event(event_type)
-        print(f"Found {len(all_handlers)} handlers for event {event_type}")
-        
-        # Ejecutar handlers en orden de prioridad y recopilar respuestas
         responses = []
-        for priority, handler in all_handlers:
-            try:
-                # Obtener el nombre del componente del handler
-                component_name = getattr(handler, '__self__', None)
-                if component_name:
-                    component_name = getattr(component_name, 'name', None)
-                
-                # Evitar enviar eventos a la misma fuente que los generó
-                if component_name and component_name == source:
-                    logger.debug(f"Omitiendo envío de evento {event_type} al componente {source} (origen del evento)")
-                    continue
-                
-                # En modo prueba, usar timeout para evitar bloqueos
-                if self.test_mode or hasattr(sys, '_called_from_test'):
-                    try:
-                        response = await asyncio.wait_for(handler(event_type, data, source), timeout=0.5)
-                        if response is not None:
-                            print(f"Adding response to {event_type} from handler: {response}")
-                            responses.append(response)
-                        else:
-                            print(f"Handler for {event_type} returned None")
-                    except asyncio.TimeoutError:
-                        logger.warning(f"Timeout en handler para {event_type} (modo prueba)")
-                        print(f"Timeout en handler para {event_type} (modo prueba)")
-                else:
-                    # Modo normal sin timeout
-                    response = await handler(event_type, data, source)
-                    if response is not None:
-                        responses.append(response)
-            except asyncio.CancelledError:
-                # Permitir cancelación limpia
-                raise
-            except Exception as e:
-                logger.error(f"Error en manejador de eventos: {e}")
         
+        try:
+            # Auto-inicio para pruebas y casos especiales
+            if not self.running:
+                self.running = True
+                if self.test_mode:
+                    logger.debug("EventBus: auto-inicio para pruebas (modo test)")
+                elif hasattr(sys, '_called_from_test') or 'pytest' in sys.modules:
+                    logger.debug("EventBus: auto-inicio para pruebas (pytest detectado)")
+                    self.test_mode = True  # Forzar modo prueba si es detectado durante ejecución
+                else:
+                    logger.warning("Emitiendo eventos sin iniciar el bus formalmente")
+            
+            # Recopilar handlers para el evento usando el método centralizado
+            all_handlers = self._collect_all_handlers_for_event(event_type)
+            logger.debug(f"Found {len(all_handlers)} handlers for event {event_type}")
+            
+            # Ejecutar handlers en orden de prioridad y recopilar respuestas
+            for priority, handler in all_handlers:
+                try:
+                    # Obtener el nombre del componente del handler
+                    component_name = getattr(handler, '__self__', None)
+                    if component_name:
+                        component_name = getattr(component_name, 'name', None)
+                    
+                    # Evitar enviar eventos a la misma fuente que los generó
+                    if component_name and component_name == source:
+                        logger.debug(f"Omitiendo envío de evento {event_type} al componente {source} (origen del evento)")
+                        continue
+                    
+                    # En modo prueba, usar timeout para evitar bloqueos
+                    if self.test_mode or hasattr(sys, '_called_from_test'):
+                        try:
+                            response = await asyncio.wait_for(handler(event_type, data, source), timeout=0.5)
+                            if response is not None:
+                                logger.debug(f"Adding response to {event_type} from handler: {response}")
+                                responses.append(response)
+                        except asyncio.TimeoutError:
+                            logger.warning(f"Timeout en handler para {event_type} (modo prueba)")
+                        except Exception as e:
+                            # Capturar excepciones en modo prueba para garantizar resiliencia
+                            logger.error(f"Error en manejador de eventos durante emit_with_response (test mode): {e}")
+                    else:
+                        try:
+                            # Modo normal sin timeout pero también capturando excepciones
+                            response = await handler(event_type, data, source)
+                            if response is not None:
+                                responses.append(response)
+                        except Exception as e:
+                            logger.error(f"Error en manejador de eventos durante emit_with_response: {e}")
+                except asyncio.CancelledError:
+                    # Permitir cancelación limpia - pero sólo dentro del bucle de manejadores
+                    # para evitar que una cancelación detenga todo el procesamiento
+                    logger.warning(f"Cancelación en manejador de eventos {event_type} durante emit_with_response")
+                    continue
+                except Exception as e:
+                    # Este bloque se ejecuta sólo si hay un error en la lógica del bus de eventos
+                    # No debería ocurrir en funcionamiento normal
+                    logger.error(f"Error crítico en el bus de eventos al procesar {event_type} en emit_with_response: {e}")
+        except Exception as e:
+            # Captura total de excepciones en el nivel superior para garantizar
+            # que el sistema nunca se detenga por un error en el bus de eventos
+            logger.error(f"ERROR FATAL en bus de eventos para {event_type} durante emit_with_response: {e}")
+            # No propagar la excepción
+            
         return responses
     
     async def emit(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
         Emit an event to subscribers.
         
+        Este método garantiza resiliencia total frente a cualquier tipo de fallo
+        en los componentes que reciben eventos. Las excepciones son capturadas,
+        registradas, pero nunca propagadas hacia arriba para permitir que el motor
+        continúe funcionando incluso si algunos componentes fallan.
+        
         Args:
             event_type: Type of the event
             data: Event data
             source: Source component of the event
         """
-        # Auto-inicio para pruebas y casos especiales
-        if not self.running:
-            self.running = True
-            if self.test_mode:
-                logger.debug("EventBus: auto-inicio para pruebas (modo test)")
-            elif hasattr(sys, '_called_from_test') or 'pytest' in sys.modules:
-                logger.debug("EventBus: auto-inicio para pruebas (pytest detectado)")
-                self.test_mode = True  # Forzar modo prueba si es detectado durante ejecución
-            else:
-                logger.warning("Emitiendo eventos sin iniciar el bus formalmente")
-        
-        # En modo prueba, siempre usamos procesamiento directo para asegurar inmediatez
-        if self.test_mode:
-            logger.debug(f"Procesando evento {event_type} en modo prueba (procesamiento directo)")
-            # Continuar con procesamiento directo
-        # Intentar encolar el evento (modo normal)
-        elif self.queue:
-            try:
-                await self.queue.put((event_type, data, source))
-                return  # En modo normal, el procesador se encarga de ejecutar los handlers
-            except Exception as e:
-                logger.error(f"Error al encolar evento: {e}")
-                # Continuar con procesamiento directo
-        else:
-            logger.debug(f"Cola no inicializada, procesando evento {event_type} directamente")
-        
-        # Procesamiento directo para pruebas o cuando falla la cola
-        # Recopilar handlers para el evento usando el método centralizado
-        all_handlers = self._collect_all_handlers_for_event(event_type)
-        
-        # Ejecutar handlers en orden de prioridad
-        for priority, handler in all_handlers:
-            try:
-                # Obtener el nombre del componente del handler
-                component_name = getattr(handler, '__self__', None)
-                if component_name:
-                    component_name = getattr(component_name, 'name', None)
-                
-                # Evitar enviar eventos a la misma fuente que los generó
-                if component_name and component_name == source:
-                    logger.debug(f"Omitiendo envío de evento {event_type} al componente {source} (origen del evento)")
-                    continue
-                    
-                # En modo prueba, usar timeout para evitar bloqueos
-                if self.test_mode or hasattr(sys, '_called_from_test'):
-                    try:
-                        await asyncio.wait_for(handler(event_type, data, source), timeout=0.5)
-                    except asyncio.TimeoutError:
-                        logger.warning(f"Timeout en handler para {event_type} (modo prueba)")
-                    except Exception as e:
-                        # Capturar excepciones en modo prueba para garantizar resiliencia
-                        logger.error(f"Error en manejador de eventos (test mode): {e}")
+        try:
+            # Auto-inicio para pruebas y casos especiales
+            if not self.running:
+                self.running = True
+                if self.test_mode:
+                    logger.debug("EventBus: auto-inicio para pruebas (modo test)")
+                elif hasattr(sys, '_called_from_test') or 'pytest' in sys.modules:
+                    logger.debug("EventBus: auto-inicio para pruebas (pytest detectado)")
+                    self.test_mode = True  # Forzar modo prueba si es detectado durante ejecución
                 else:
-                    try:
-                        # Modo normal sin timeout pero también capturando excepciones
-                        await handler(event_type, data, source)
-                    except Exception as e:
-                        logger.error(f"Error en manejador de eventos: {e}")
-            except asyncio.CancelledError:
-                # Permitir cancelación limpia
-                raise
-            except Exception as e:
-                # Este bloque se ejecuta sólo si hay un error en la lógica del bus de eventos
-                # No debería ocurrir en funcionamiento normal
-                logger.error(f"Error crítico en el bus de eventos: {e}")
+                    logger.warning("Emitiendo eventos sin iniciar el bus formalmente")
+            
+            # En modo prueba, siempre usamos procesamiento directo para asegurar inmediatez
+            if self.test_mode:
+                logger.debug(f"Procesando evento {event_type} en modo prueba (procesamiento directo)")
+                # Continuar con procesamiento directo
+            # Intentar encolar el evento (modo normal)
+            elif self.queue:
+                try:
+                    await self.queue.put((event_type, data, source))
+                    return  # En modo normal, el procesador se encarga de ejecutar los handlers
+                except Exception as e:
+                    logger.error(f"Error al encolar evento: {e}")
+                    # Continuar con procesamiento directo
+            else:
+                logger.debug(f"Cola no inicializada, procesando evento {event_type} directamente")
+            
+            # Procesamiento directo para pruebas o cuando falla la cola
+            # Recopilar handlers para el evento usando el método centralizado
+            all_handlers = self._collect_all_handlers_for_event(event_type)
+            
+            # Ejecutar handlers en orden de prioridad
+            for priority, handler in all_handlers:
+                try:
+                    # Obtener el nombre del componente del handler
+                    component_name = getattr(handler, '__self__', None)
+                    if component_name:
+                        component_name = getattr(component_name, 'name', None)
+                    
+                    # Evitar enviar eventos a la misma fuente que los generó
+                    if component_name and component_name == source:
+                        logger.debug(f"Omitiendo envío de evento {event_type} al componente {source} (origen del evento)")
+                        continue
+                        
+                    # En modo prueba, usar timeout para evitar bloqueos
+                    if self.test_mode or hasattr(sys, '_called_from_test'):
+                        try:
+                            await asyncio.wait_for(handler(event_type, data, source), timeout=0.5)
+                        except asyncio.TimeoutError:
+                            logger.warning(f"Timeout en handler para {event_type} (modo prueba)")
+                        except Exception as e:
+                            # Capturar excepciones en modo prueba para garantizar resiliencia
+                            logger.error(f"Error en manejador de eventos (test mode): {e}")
+                    else:
+                        try:
+                            # Modo normal sin timeout pero también capturando excepciones
+                            await handler(event_type, data, source)
+                        except Exception as e:
+                            logger.error(f"Error en manejador de eventos: {e}")
+                except asyncio.CancelledError:
+                    # Permitir cancelación limpia - pero sólo dentro del bucle de manejadores
+                    # para evitar que una cancelación detenga todo el procesamiento
+                    logger.warning(f"Cancelación en manejador de eventos {event_type}")
+                    continue
+                except Exception as e:
+                    # Este bloque se ejecuta sólo si hay un error en la lógica del bus de eventos
+                    # No debería ocurrir en funcionamiento normal
+                    logger.error(f"Error crítico en el bus de eventos al procesar {event_type}: {e}")
+        except Exception as e:
+            # Captura total de excepciones en el nivel superior para garantizar
+            # que el sistema nunca se detenga por un error en el bus de eventos
+            logger.error(f"ERROR FATAL en bus de eventos para {event_type}: {e}")
+            # No propagar la excepción
