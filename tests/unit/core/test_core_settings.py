@@ -18,7 +18,7 @@ from genesis.config.settings import Settings
 @pytest.fixture
 def settings():
     """Proporcionar una instancia de configuración para pruebas."""
-    return Settings()
+    return Settings(empty=True)  # Use empty settings for tests to avoid default values
 
 
 @pytest.fixture
@@ -305,10 +305,10 @@ def test_settings_schema_validation(settings):
         settings.validate_schema(schema)
     
     # Otra configuración inválida - falta campo requerido
-    settings = Settings()
+    settings = Settings(empty=True)  # Initialize with empty settings
     settings.set("server.host", "localhost")
     settings.set("server.port", 8080)
-    # Falta database.url
+    # Falta database.url y todo el diccionario database
     
     # Validar - debería fallar
     with pytest.raises(ValueError):

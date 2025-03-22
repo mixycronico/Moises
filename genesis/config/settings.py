@@ -64,19 +64,25 @@ class Settings:
     and falls back to default values.
     """
     
-    def __init__(self, config_path: Optional[Path] = None, defaults: Optional[Dict[str, Any]] = None):
+    def __init__(self, config_path: Optional[Path] = None, defaults: Optional[Dict[str, Any]] = None, empty: bool = False):
         """
         Initialize Settings with optional configuration file path.
         
         Args:
             config_path: Path to a JSON configuration file
             defaults: Optional custom default settings (overrides DEFAULT_SETTINGS)
+            empty: If True, initialize with empty settings (for testing)
         """
-        self._settings = (defaults or DEFAULT_SETTINGS).copy()
+        if empty:
+            self._settings = {}
+        else:
+            self._settings = (defaults or DEFAULT_SETTINGS).copy()
+            
         self._sensitive_keys = set()  # Track keys marked as sensitive
         if config_path:
             self._load_from_file(config_path)
-        self._load_from_env()
+        if not empty:
+            self._load_from_env()
         
     def _load_from_file(self, config_path: str | Path) -> None:
         """
