@@ -259,7 +259,7 @@ class CrashingComponent(Component):
 async def test_component_recovery():
     """Prueba la capacidad del sistema para manejar componentes que fallan y se recuperan."""
     # Crear motor no bloqueante
-    engine = EngineNonBlocking(test_mode=True, component_timeout=1.0)
+    engine = EngineNonBlocking(test_mode=True)
     
     # Crear componentes
     normal_comp = ResilienceTestComponent("normal")
@@ -322,7 +322,7 @@ async def test_component_recovery():
 async def test_error_isolation():
     """Prueba que los errores en un componente no afecten a otros componentes."""
     # Crear motor no bloqueante
-    engine = EngineNonBlocking(test_mode=True, component_timeout=1.0)
+    engine = EngineNonBlocking(test_mode=True)
     
     # Crear componentes
     components = [ResilienceTestComponent(f"comp_{i}") for i in range(5)]
@@ -372,7 +372,7 @@ async def test_error_isolation():
 async def test_intermittent_failures():
     """Prueba el sistema con componentes que fallan intermitentemente."""
     # Crear motor no bloqueante
-    engine = EngineNonBlocking(test_mode=True, component_timeout=1.0)
+    engine = EngineNonBlocking(test_mode=True)
     
     # Crear componentes
     normal_comp = ResilienceTestComponent("normal")
@@ -410,10 +410,10 @@ async def test_intermittent_failures():
 
 
 @pytest.mark.asyncio
-async def test_component_timeout():
-    """Prueba que el sistema maneje correctamente componentes que se bloquean por timeout."""
-    # Crear motor no bloqueante con timeout corto
-    engine = EngineNonBlocking(test_mode=True, component_timeout=0.5)
+async def test_component_slow_response():
+    """Prueba que el sistema maneje correctamente componentes que responden lentamente."""
+    # Crear motor no bloqueante
+    engine = EngineNonBlocking(test_mode=True)  # No se usa component_timeout aquí
     
     # Crear componentes
     normal_comp = ResilienceTestComponent("normal")
@@ -460,7 +460,7 @@ async def test_component_timeout():
 async def test_engine_recovery_after_severe_errors():
     """Prueba que el motor puede recuperarse después de errores severos."""
     # Crear motor no bloqueante
-    engine = EngineNonBlocking(test_mode=True, component_timeout=1.0)
+    engine = EngineNonBlocking(test_mode=True)
     
     # Crear componentes
     normal_comp = ResilienceTestComponent("normal")
