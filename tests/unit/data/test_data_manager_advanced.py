@@ -693,4 +693,3 @@ async def test_data_manager_data_validation(data_manager, unreliable_providers):
     
     # Restaurar el método original
     provider.get_market_data = original_get_market_data
-"""

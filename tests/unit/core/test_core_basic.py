@@ -249,4 +249,3 @@ async def test_engine_event_propagation(engine, test_component, event_bus):
     
     # Detener el motor
     await engine.stop()
-"""
