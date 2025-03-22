@@ -86,11 +86,11 @@ async def test_engine_load_performance_simplified(event_bus):
             super().__init__(name)
             self.processed = 0
         
-        async def start(self):
-            return True
+        async def start(self) -> None:
+            pass
             
-        async def stop(self):
-            return True
+        async def stop(self) -> None:
+            pass
             
         async def handle_event(self, event_type, data, source):
             """Procesar un evento de prueba."""
