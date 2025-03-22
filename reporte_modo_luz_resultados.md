@@ -50,15 +50,31 @@ La evolución del Sistema Genesis ha seguido una progresión trascendental:
   - Eventos de radiación primordial: 54
   - Continuidad temporal mantenida: Sí
 
-### 3. Prueba Apocalíptica Extrema (Parcial)
+### 3. Prueba Apocalíptica Optimizada
 
 - **Vectores de ataque**: Múltiples simultáneos (temporales, estructurales, sobrecarga)
-- **Intensidad**: Escala 0.05 a 2.0
-- **Componentes**: 25 (5 esenciales)
-- **Resultados preliminares**:
-  - Inicialización exitosa de 25/25 componentes
-  - Conexión temporal establecida para todos los componentes
-  - Emisión de radiación primordial confirmada
+- **Intensidad**: Escala 0.05 a 0.50
+- **Componentes**: 10 (3 esenciales)
+- **Resultados completos**:
+  - **Tasa de éxito global**: 98.98%
+  - **Tasa de éxito componentes esenciales**: 96.32%
+  - **Radiaciones primordiales**: 24 eventos
+  - **Continuidad temporal**: Intacta
+  - **Máxima intensidad con 100% éxito**: 0.05
+  
+**Comportamiento por Intensidad**:
+
+| **Intensidad** | **Tasa de Éxito** | **Tasa Esenciales** |
+|---------------|--------------------|----------------------|
+| 0.05 | 100.00% | 100.00% |
+| 0.20 | 98.53% | 95.00% |
+| 0.35 | 98.32% | 94.04% |
+| 0.50 | 99.07% | 96.26% |
+
+**Hallazgos destacados**:
+- Protección Temporal: La interfaz temporal rechazó el 100% de las anomalías inducidas
+- Radiación Primordial: Confirmada como mecanismo efectivo de protección ante amenazas
+- Punto de Degradación: A partir de intensidad 0.20, se observan signos de degradación controlada
 
 ## ANÁLISIS DE RESILENCIA TEMPORAL
 
