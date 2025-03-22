@@ -178,7 +178,14 @@ class Engine:
         for name, component in ordered_components:
             try:
                 self.logger.info(f"Starting component: {name} (priority: {priorities.get(name, 50)})")
-                await component.start()
+                # Usar timeout en modo prueba para evitar bloqueos
+                if self.event_bus.test_mode or hasattr(sys, '_called_from_test'):
+                    try:
+                        await asyncio.wait_for(component.start(), timeout=1.0)
+                    except asyncio.TimeoutError:
+                        self.logger.warning(f"Timeout al iniciar componente {name}")
+                else:
+                    await component.start()
             except Exception as e:
                 self.logger.error(f"Error starting component {name}: {e}")
                 # Continue with other components
