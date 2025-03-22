@@ -19,7 +19,7 @@ from genesis.core.engine_parallel_blocks import ParallelBlockEngine
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class TestComponent(Component):
+class ComponentForTesting(Component):
     """Componente de prueba con comportamiento configurable."""
     
     def __init__(self, name: str, delay: float = 0.1, fail_on: Set[str] = None):
@@ -116,11 +116,11 @@ async def test_parallel_blocks_basic():
     
     # Crear componentes con diferentes tiempos
     components = [
-        TestComponent("comp1", delay=0.1),   # Rápido
-        TestComponent("comp2", delay=0.15),  # Rápido
-        TestComponent("comp3", delay=0.2),   # Medio
-        TestComponent("comp4", delay=0.25),  # Medio
-        TestComponent("comp5", delay=0.3)    # Lento
+        ComponentForTesting("comp1", delay=0.1),   # Rápido
+        ComponentForTesting("comp2", delay=0.15),  # Rápido
+        ComponentForTesting("comp3", delay=0.2),   # Medio
+        ComponentForTesting("comp4", delay=0.25),  # Medio
+        ComponentForTesting("comp5", delay=0.3)    # Lento
     ]
     
     # Registrar componentes
@@ -187,11 +187,11 @@ async def test_parallel_blocks_timeout_handling():
     
     # Crear algunos componentes normales y algunos lentos
     components = [
-        TestComponent("normal1", delay=0.1),   # Normal
-        TestComponent("normal2", delay=0.2),   # Normal
-        TestComponent("slow1", delay=0.4),     # Excede timeout
-        TestComponent("slow2", delay=0.5),     # Excede timeout
-        TestComponent("normal3", delay=0.15)   # Normal
+        ComponentForTesting("normal1", delay=0.1),   # Normal
+        ComponentForTesting("normal2", delay=0.2),   # Normal
+        ComponentForTesting("slow1", delay=0.4),     # Excede timeout
+        ComponentForTesting("slow2", delay=0.5),     # Excede timeout
+        ComponentForTesting("normal3", delay=0.15)   # Normal
     ]
     
     # Registrar componentes
