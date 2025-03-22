@@ -102,8 +102,10 @@ class TestEventBus:
 
 
 # Componente simplificado para pruebas
+# No es una clase de prueba real, solo una utilidad para las pruebas
 class TestComponent:
     """Componente muy simple para pruebas."""
+    __test__ = False  # Esto informa a pytest que no es una clase de prueba
     
     def __init__(self, name):
         self.name = name

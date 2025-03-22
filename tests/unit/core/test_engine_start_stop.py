@@ -15,6 +15,7 @@ from genesis.core.event_bus import EventBus
 
 class SimpleComponent:
     """Componente muy simple para pruebas."""
+    __test__ = False  # Esto informa a pytest que no es una clase de prueba
     
     def __init__(self, name):
         self.name = name

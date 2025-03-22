@@ -16,6 +16,7 @@ from tests.unit.core.test_event_bus_optimized import TestEventBus
 # Componente simplificado para pruebas
 class SimpleComponent:
     """Componente muy simple para pruebas."""
+    __test__ = False  # Esto informa a pytest que no es una clase de prueba
     
     def __init__(self, name):
         self.name = name
@@ -50,6 +51,7 @@ class SimpleComponent:
 # Motor simplificado para pruebas
 class SimpleEngine:
     """Motor simplificado para pruebas."""
+    __test__ = False  # Esto informa a pytest que no es una clase de prueba
     
     def __init__(self, event_bus=None):
         """Inicializa el motor con un bus de eventos."""

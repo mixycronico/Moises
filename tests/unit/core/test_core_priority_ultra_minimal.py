@@ -20,19 +20,16 @@ def test_component_priority_sorting():
     event_bus = object()  # No necesitamos un EventBus real para esta prueba
     engine = Engine(event_bus, test_mode=True)
     
-    # Simular componentes como objetos simples
-    high = type('Component', (), {'name': 'high'})()
-    medium = type('Component', (), {'name': 'medium'})()
-    low = type('Component', (), {'name': 'low'})()
-    
+    # Usar diccionario simple para simular componentes
     # Monkeypatching para evitar interacciones
     engine.components = {}
     engine.operation_priorities = {}
     
-    # "Registrar" los componentes para la prueba
-    engine.components['low'] = low
-    engine.components['medium'] = medium
-    engine.components['high'] = high
+    # Simplemente usar strings para representar los componentes
+    # en lugar de objetos reales (no necesitamos componentes reales para esta prueba)
+    engine.components['low'] = 'low_component'
+    engine.components['medium'] = 'medium_component'
+    engine.components['high'] = 'high_component'
     
     engine.operation_priorities['low'] = 10
     engine.operation_priorities['medium'] = 50
