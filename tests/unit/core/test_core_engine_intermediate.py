@@ -55,7 +55,7 @@ def event_bus():
 @pytest.fixture
 def engine(event_bus):
     """Proporcionar un motor con dos componentes para pruebas."""
-    engine = Engine(event_bus=event_bus)
+    engine = Engine(event_bus_or_name=event_bus, test_mode=True)
     
     # Crear componentes de prueba que registran eventos recibidos
     component1 = TestEventHandlerComponent("component1")
@@ -215,8 +215,8 @@ async def test_component_lifecycle_events(engine):
         if event_type.startswith("component_"):
             lifecycle_events.append((event_type, data["component"], source))
     
-    engine.event_bus.add_listener("component_started", lifecycle_listener)
-    engine.event_bus.add_listener("component_stopped", lifecycle_listener)
+    engine.event_bus.subscribe("component_started", lifecycle_listener)
+    engine.event_bus.subscribe("component_stopped", lifecycle_listener)
     
     # Iniciar el motor - debería emitir eventos de inicio
     await engine.start()
@@ -297,4 +297,3 @@ async def test_conditional_event_propagation(engine):
     
     # Detener el motor
     await engine.stop()
-"""
