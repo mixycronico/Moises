@@ -926,8 +926,6 @@ async def engine_fixture():
     Fixture que proporciona un motor no bloqueante para pruebas.
     Maneja automáticamente la limpieza de recursos.
     """
-    from tests.utils.timeout_helpers import cleanup_engine
-    
     # Crear motor no bloqueante
     engine = EngineNonBlocking(test_mode=True)
     
@@ -936,7 +934,31 @@ async def engine_fixture():
     
     # Limpieza controlada con timeout
     try:
-        await asyncio.wait_for(cleanup_engine(engine), timeout=2.0)
+        # Desregistrar todos los componentes
+        if hasattr(engine, 'components') and engine.components:
+            for component_name in list(engine.components.keys()):
+                try:
+                    await engine.unregister_component(component_name)
+                except Exception as e:
+                    logger.warning(f"Error al desregistrar componente {component_name}: {str(e)}")
+        
+        # Detener el motor
+        if hasattr(engine, 'stop'):
+            await engine.stop()
+        
+        # Cancelar tareas pendientes
+        pending = [t for t in asyncio.all_tasks() 
+                  if not t.done() and t != asyncio.current_task()]
+        
+        if pending:
+            logger.warning(f"Cancelando {len(pending)} tareas pendientes")
+            for task in pending:
+                task.cancel()
+            
+            try:
+                await asyncio.gather(*pending, return_exceptions=True)
+            except Exception as e:
+                logger.warning(f"Error durante la cancelación de tareas: {str(e)}")
     except asyncio.TimeoutError:
         logger.warning("Timeout durante la limpieza del motor")
     except Exception as e:
@@ -956,7 +978,6 @@ async def test_cascading_failures_basic(engine_fixture):
     2. El fallo no se propaga a otros componentes
     3. El componente puede recuperarse
     """
-    from tests.utils.timeout_helpers import emit_with_timeout, safe_get_response, run_test_with_timing
     
     # Obtener motor del fixture
     engine = engine_fixture
@@ -1111,7 +1132,48 @@ async def test_cascading_failures_multiple_components(engine_fixture):
     - Un fallo en un componente no afecta a componentes independientes
     - El sistema puede seguir operando con componentes parcialmente funcionales
     """
-    from tests.utils.timeout_helpers import emit_with_timeout, safe_get_response, run_test_with_timing
+    # Implementaciones internas para evitar problemas de importación
+async def emit_with_timeout(
+    engine, 
+    event_type: str, 
+    data: Dict[str, Any], 
+    source: str, 
+    timeout: float = 5.0,
+    retries: int = 0,
+    default_response: Optional[List[Dict[str, Any]]] = None
+) -> List[Dict[str, Any]]:
+    """Emitir evento con timeout."""
+    try:
+        response = await asyncio.wait_for(
+            engine.emit_event_with_response(event_type, data, source),
+            timeout=timeout
+        )
+        return response if response is not None else []
+    except asyncio.TimeoutError:
+        logger.warning(f"Timeout al emitir {event_type} desde {source}")
+        return []
+    except Exception as e:
+        logger.error(f"Error al emitir {event_type} desde {source}: {str(e)}")
+        return []
+
+def safe_get_response(response, key, default=None):
+    """Obtener un valor de forma segura."""
+    if not response or not isinstance(response, list) or len(response) == 0:
+        return default
+    
+    current = response[0]
+    if not isinstance(current, dict) or key not in current:
+        return default
+    
+    return current[key]
+
+async def run_test_with_timing(engine, test_name: str, test_func):
+    """Ejecutar una prueba y medir su tiempo."""
+    start_time = time.time()
+    result = await test_func(engine)
+    elapsed = time.time() - start_time
+    logger.info(f"{test_name} completado en {elapsed:.3f} segundos")
+    return result
     
     engine = engine_fixture
     

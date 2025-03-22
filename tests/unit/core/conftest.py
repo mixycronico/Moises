@@ -10,18 +10,41 @@ import logging
 import pytest
 from typing import Dict, Any, List, Optional
 
-# Importamos las utilidades de timeout
-from tests.utils.timeout_helpers import cleanup_engine
+# Configuración de logging para pruebas
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Función interna para limpieza de engine
+async def cleanup_engine(engine):
+    """
+    Limpieza completa del motor y tareas pendientes.
+    
+    Args:
+        engine: Instancia del motor de eventos a limpiar
+    """
+    # Detener el motor
+    if hasattr(engine, 'stop'):
+        await engine.stop()
+    
+    # Cancelar tareas pendientes
+    pending = [t for t in asyncio.all_tasks() 
+              if not t.done() and t != asyncio.current_task()]
+    
+    if pending:
+        logger.warning(f"Cancelando {len(pending)} tareas pendientes")
+        for task in pending:
+            task.cancel()
+        
+        try:
+            await asyncio.gather(*pending, return_exceptions=True)
+        except Exception as e:
+            logger.warning(f"Error durante la cancelación de tareas: {str(e)}")
 
 # Importamos las clases necesarias
 from genesis.core.engine_non_blocking import EngineNonBlocking
 from genesis.core.engine_configurable import ConfigurableTimeoutEngine
 from genesis.core.engine_priority_blocks import PriorityBlockEngine
 from genesis.core.engine_dynamic_blocks import DynamicExpansionEngine
-
-# Configuración de logging para pruebas
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
