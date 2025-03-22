@@ -8,13 +8,13 @@ an asynchronous publish-subscribe pattern.
 import asyncio
 import sys
 import logging
-from typing import Dict, Set, Callable, Any, Awaitable, Optional
+from typing import Dict, Set, Callable, Any, Awaitable, Optional, Union
 
 # Configurar el logger para este módulo
 logger = logging.getLogger(__name__)
 
 # Type definition for event handlers
-EventHandler = Callable[[str, Dict[str, Any], str], Awaitable[None]]
+EventHandler = Callable[[str, Dict[str, Any], str], Awaitable[Any]]
 
 
 class EventBus:
@@ -368,6 +368,66 @@ class EventBus:
             # Patrones simples con un solo comodín, como "user.*" o "system.*"
             prefix, suffix = pattern.split('*', 1)
             return event_type.startswith(prefix) and event_type.endswith(suffix)
+    
+    async def emit_with_response(self, event_type: str, data: Dict[str, Any], source: str) -> list:
+        """
+        Emit an event to subscribers and collect their responses.
+        
+        Args:
+            event_type: Type of the event
+            data: Event data
+            source: Source component of the event
+            
+        Returns:
+            List of responses from all handlers that returned a value
+        """
+        # Auto-inicio para pruebas y casos especiales
+        if not self.running:
+            self.running = True
+            if hasattr(sys, '_called_from_test'):
+                logger.debug("EventBus: auto-inicio para pruebas")
+            else:
+                logger.warning("Emitiendo eventos sin iniciar el bus formalmente")
+        
+        # Recopilar listeners para un procesamiento más eficiente
+        handlers_to_execute = []
+        
+        # 1. Listeners específicos para el evento exacto (caso más común primero)
+        if event_type in self.subscribers:
+            handlers_to_execute.extend(self.subscribers[event_type])
+        
+        # 2. Listeners de un solo uso (para este evento específico)
+        one_time_handlers = []
+        if event_type in self.one_time_listeners:
+            one_time_handlers = self.one_time_listeners[event_type]
+            del self.one_time_listeners[event_type]
+        
+        # 3. Listeners wildcard (casos más simples y comunes)
+        wildcard_handlers = []
+        if '*' in self.subscribers:
+            wildcard_handlers = self.subscribers['*']
+        
+        # 4. Listeners de patrones (más costosos, los dejamos para el final)
+        pattern_handlers = []
+        for pattern, handlers in self.subscribers.items():
+            if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
+                pattern_handlers.extend(handlers)
+        
+        # Combinar y ordenar todos los handlers por prioridad
+        all_handlers = handlers_to_execute + one_time_handlers + wildcard_handlers + pattern_handlers
+        all_handlers.sort(key=lambda x: x[0], reverse=True)
+        
+        # Ejecutar handlers en orden de prioridad y recopilar respuestas
+        responses = []
+        for priority, handler in all_handlers:
+            try:
+                response = await handler(event_type, data, source)
+                if response is not None:
+                    responses.append(response)
+            except Exception as e:
+                logger.error(f"Error en manejador de eventos: {e}")
+        
+        return responses
     
     async def emit(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """

@@ -28,15 +28,13 @@ class DelayedComponent(Component):
         self.processed_events = []
         self.error_rate = 0.0  # Probabilidad de error (0.0 - 1.0)
         
-    async def start(self):
+    async def start(self) -> None:
         """Iniciar el componente."""
         self.is_running = True
-        return True
         
-    async def stop(self):
+    async def stop(self) -> None:
         """Detener el componente."""
         self.is_running = False
-        return True
         
     async def handle_event(self, event_type, data, source):
         """Manejar evento con retraso aleatorio y posibilidad de error."""
@@ -76,15 +74,13 @@ class StateTrackingComponent(Component):
         self.system_state = {}
         self.state_updates = []
         
-    async def start(self):
+    async def start(self) -> None:
         """Iniciar el componente."""
         self.is_running = True
-        return True
         
-    async def stop(self):
+    async def stop(self) -> None:
         """Detener el componente."""
         self.is_running = False
-        return True
         
     async def handle_event(self, event_type, data, source):
         """Actualizar estado del sistema basado en eventos."""
