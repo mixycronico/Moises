@@ -213,4 +213,4 @@ class EventBus:
                 try:
                     await handler(event_type, data, source)
                 except Exception as e:
-                    print(f"Error en manejador wildcard directo: {e}")
+                    logger.error(f"Error en manejador wildcard directo: {e}")

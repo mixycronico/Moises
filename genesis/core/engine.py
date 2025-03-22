@@ -26,13 +26,14 @@ class Engine:
     lifecycle, and provides the main entry point for system operation.
     """
     
-    def __init__(self, event_bus_or_name=None):
+    def __init__(self, event_bus_or_name=None, test_mode=False):
         """
         Initialize the engine.
         
         Args:
             event_bus_or_name: Either an EventBus instance or a name string for the engine
                                For backwards compatibility with testing code
+            test_mode: If True, operate in test mode with direct event delivery
         """
         # Handle both EventBus instance or string name for backwards compatibility
         if isinstance(event_bus_or_name, EventBus):
@@ -40,7 +41,7 @@ class Engine:
             self.event_bus = event_bus_or_name
         else:
             self.name = event_bus_or_name if isinstance(event_bus_or_name, str) else "engine"
-            self.event_bus = EventBus()
+            self.event_bus = EventBus(test_mode=test_mode)
             
         self.logger = setup_logging(self.name, level=settings.get('log_level', 'INFO'))
         self.components: Dict[str, Component] = {}

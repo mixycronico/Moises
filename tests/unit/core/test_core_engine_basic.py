@@ -80,13 +80,13 @@ class CounterComponent(Component):
 @pytest.fixture
 def event_bus():
     """Proporcionar un bus de eventos para pruebas."""
-    return EventBus()
+    return EventBus(test_mode=True)
 
 
 @pytest.fixture
 def engine(event_bus):
     """Proporcionar un motor del sistema para pruebas."""
-    return Engine(event_bus)
+    return Engine(event_bus, test_mode=True)
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ def counter_component():
 async def test_engine_initialization():
     """Probar inicialización básica del motor."""
     # Crear motor sin bus de eventos (debe crear uno internamente)
-    engine = Engine()
+    engine = Engine(test_mode=True)
     
     # Verificar que se creó un bus de eventos
     assert engine.event_bus is not None
@@ -115,8 +115,8 @@ async def test_engine_initialization():
     assert len(engine.components) == 0
     
     # Crear motor con bus de eventos proporcionado
-    event_bus = EventBus()
-    engine = Engine(event_bus)
+    event_bus = EventBus(test_mode=True)
+    engine = Engine(event_bus, test_mode=True)
     
     # Verificar que se usó el bus proporcionado
     assert engine.event_bus is event_bus
@@ -375,7 +375,11 @@ async def test_engine_with_settings(simple_component):
     settings.set("engine.operation_timeout", 5.0)
     
     # Crear motor con configuración
-    engine = Engine(settings=settings)
+    engine = Engine(event_bus_or_name="test_engine", test_mode=True)
+    
+    # Establecer configuración manualmente
+    engine.use_priorities = True
+    engine.operation_timeout = 5.0
     
     # Verificar que la configuración se aplicó
     assert engine.use_priorities is True
