@@ -65,7 +65,8 @@ class Engine:
         
         Args:
             component: Component instance to register
-            priority: Priority level for event handling (higher values = higher priority)
+            priority: Priority level for event handling and startup
+                    (higher values = higher priority)
             
         Raises:
             ValueError: If a component with the same name is already registered
@@ -74,6 +75,10 @@ class Engine:
             raise ValueError(f"Component with name '{component.name}' already registered")
         
         self.components[component.name] = component
+        # Almacenar la prioridad para usarla en startup
+        self.operation_priorities = getattr(self, 'operation_priorities', {})
+        self.operation_priorities[component.name] = priority
+        
         component.attach_event_bus(self.event_bus)
         
         # Registrar el componente para que reciba todos los eventos
@@ -161,10 +166,18 @@ class Engine:
         # Start event bus first
         await self.event_bus.start()
         
-        # Start all components
-        for name, component in self.components.items():
+        # Ordenar componentes por prioridad (mayor prioridad primero)
+        priorities = getattr(self, 'operation_priorities', {})
+        ordered_components = sorted(
+            self.components.items(),
+            key=lambda x: priorities.get(x[0], 50),
+            reverse=True  # Mayor prioridad primero
+        )
+        
+        # Start all components in priority order
+        for name, component in ordered_components:
             try:
-                self.logger.info(f"Starting component: {name}")
+                self.logger.info(f"Starting component: {name} (priority: {priorities.get(name, 50)})")
                 await component.start()
             except Exception as e:
                 self.logger.error(f"Error starting component {name}: {e}")
@@ -194,18 +207,24 @@ class Engine:
         
         self.logger.info("Stopping Genesis engine")
         
-        # Stop components in reverse order
-        component_names = list(self.components.keys())
-        for name in reversed(component_names):
+        # Ordenar componentes por prioridad (menor prioridad primero para detener)
+        priorities = getattr(self, 'operation_priorities', {})
+        ordered_components = sorted(
+            self.components.items(),
+            key=lambda x: priorities.get(x[0], 50)  # Menor prioridad primero
+        )
+        
+        # Stop components in priority order (lowest first)
+        for name, component in ordered_components:
             try:
-                self.logger.info(f"Stopping component: {name}")
+                self.logger.info(f"Stopping component: {name} (priority: {priorities.get(name, 50)})")
                 if timeout:
                     try:
-                        await asyncio.wait_for(self.components[name].stop(), timeout)
+                        await asyncio.wait_for(component.stop(), timeout)
                     except asyncio.TimeoutError:
                         self.logger.warning(f"Stopping component {name} timed out after {timeout} seconds")
                 else:
-                    await self.components[name].stop()
+                    await component.stop()
             except Exception as e:
                 self.logger.error(f"Error stopping component {name}: {e}")
         
@@ -249,13 +268,15 @@ class Engine:
         
     async def _start_component(self, component: Component) -> None:
         """
-        Helper interno para iniciar un componente.
+        Helper interno para iniciar un componente durante la ejecución.
         
         Args:
             component: Componente a iniciar
         """
         try:
-            self.logger.info(f"Starting component at runtime: {component.name}")
+            priorities = getattr(self, 'operation_priorities', {})
+            priority = priorities.get(component.name, 50)
+            self.logger.info(f"Starting component at runtime: {component.name} (priority: {priority})")
             await component.start()
         except Exception as e:
             self.logger.error(f"Error starting component {component.name}: {e}")
