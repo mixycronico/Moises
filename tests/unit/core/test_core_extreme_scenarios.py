@@ -920,8 +920,46 @@ async def test_rapid_config_changes():
 
 @pytest.mark.asyncio
 @pytest.mark.timeout(10)  # Aumentar timeout para que no falle por timeout
-async def test_cascading_failures():
-    """Prueba ultra simplificada de fallos en cascada con componentes independientes."""
+@pytest.fixture
+async def engine_fixture():
+    """
+    Fixture que proporciona un motor no bloqueante para pruebas.
+    Maneja automáticamente la limpieza de recursos.
+    """
+    from tests.utils.timeout_helpers import cleanup_engine
+    
+    # Crear motor no bloqueante
+    engine = EngineNonBlocking(test_mode=True)
+    
+    # Entregar el motor a la prueba
+    yield engine
+    
+    # Limpieza controlada con timeout
+    try:
+        await asyncio.wait_for(cleanup_engine(engine), timeout=2.0)
+    except asyncio.TimeoutError:
+        logger.warning("Timeout durante la limpieza del motor")
+    except Exception as e:
+        logger.error(f"Error en cleanup: {e}")
+    
+    # Pausa corta para permitir que se completen operaciones en segundo plano
+    await asyncio.sleep(0.1)
+
+
+@pytest.mark.asyncio
+async def test_cascading_failures_basic(engine_fixture):
+    """
+    Prueba básica de fallos en cascada con componentes independientes.
+    
+    Esta prueba verifica que:
+    1. Un componente puede cambiar a estado no saludable
+    2. El fallo no se propaga a otros componentes
+    3. El componente puede recuperarse
+    """
+    from tests.utils.timeout_helpers import emit_with_timeout, safe_get_response, run_test_with_timing
+    
+    # Obtener motor del fixture
+    engine = engine_fixture
     
     # Crear un componente ultra simple que solo maneja eventos simples
     class UltraSimpleComponent(Component):
@@ -959,34 +997,37 @@ async def test_cascading_failures():
             # Para cualquier otro evento solo incrementar contador y devolver estado
             return {"name": self.name, "event_type": event_type, "count": self.event_count, "healthy": self.is_healthy}
     
-    logger.info("Iniciando prueba simplificada de propagación")
-    
-    # Crear motor no bloqueante
-    engine = EngineNonBlocking(test_mode=True)
-    
-    # Crear componentes simples
-    comp_a = UltraSimpleComponent("comp_a")
-    comp_b = UltraSimpleComponent("comp_b")
-    
-    # Registrar componentes
-    engine.register_component(comp_a)
-    engine.register_component(comp_b)
-    
-    try:
+    async def execute_test(engine):
+        """Función interna para ejecutar la prueba con medición de tiempo."""
+        logger.info("Iniciando prueba simplificada de propagación")
+        
+        # Crear componentes simples
+        comp_a = UltraSimpleComponent("comp_a")
+        comp_b = UltraSimpleComponent("comp_b")
+        
+        # Registrar componentes
+        engine.register_component(comp_a)
+        engine.register_component(comp_b)
+        
         # Iniciar motor
         logger.info("Iniciando motor")
         await engine.start()
         
         # FASE 1: Comprobar funcionamiento normal
         logger.info("FASE 1: Verificando funcionamiento normal")
-        await engine.emit_event("test_event", {"value": 1}, "test")
-        await asyncio.sleep(0.1)
+        await emit_with_timeout(engine, "test_event", {"value": 1}, "test", timeout=1.0)
         
         # FASE 2: Simular fallo en A
         logger.info("FASE 2: Provocando fallo en A")
-        response = await engine.emit_event_with_response("set_health", {"healthy": False}, "comp_a")
+        response = await emit_with_timeout(
+            engine, 
+            "set_health", 
+            {"healthy": False}, 
+            "comp_a", 
+            timeout=1.0,
+            retries=1
+        )
         logger.info(f"Respuesta: {response}")
-        await asyncio.sleep(0.1)
         
         # FASE 3: Verificar estado después del fallo
         logger.info("FASE 3: Verificando estado")
@@ -994,60 +1035,157 @@ async def test_cascading_failures():
         # Comprobar los componentes registrados
         logger.info(f"Componentes registrados: {[c.name for c in engine.components.values()]}")
         
-        # Verificar comp_a
+        # Verificar comp_a usando funciones seguras
         logger.info("Enviando check_status a comp_a")
-        try:
-            resp_a = await engine.emit_event_with_response("check_status", {}, "comp_a")
-            logger.info(f"Respuestas brutas A: {resp_a}")
-            # Tomar la primera respuesta válida o un diccionario predeterminado
-            resp_a = resp_a[0] if resp_a and len(resp_a) > 0 else {"healthy": False, "error": "No response"}
-            logger.info(f"Estado A procesado: {resp_a}")
-        except Exception as e:
-            logger.error(f"Error al verificar estado de A: {type(e).__name__}: {str(e)}")
-            resp_a = {"healthy": False, "error": str(e)}
+        resp_a = await emit_with_timeout(
+            engine, 
+            "check_status", 
+            {}, 
+            "comp_a", 
+            timeout=1.0,
+            retries=1
+        )
+        logger.info(f"Respuestas brutas A: {resp_a}")
         
-        # Verificar comp_b
+        # Verificar comp_b usando funciones seguras
         logger.info("Enviando check_status a comp_b")
-        try:
-            resp_b = await engine.emit_event_with_response("check_status", {}, "comp_b")
-            logger.info(f"Respuestas brutas B: {resp_b}")
-            # Tomar la primera respuesta válida o un diccionario predeterminado
-            resp_b = resp_b[0] if resp_b and len(resp_b) > 0 else {"healthy": True, "error": "No response"}
-            logger.info(f"Estado B procesado: {resp_b}")
-        except Exception as e:
-            logger.error(f"Error al verificar estado de B: {type(e).__name__}: {str(e)}")
-            resp_b = {"healthy": True, "error": str(e)}
+        resp_b = await emit_with_timeout(
+            engine, 
+            "check_status", 
+            {}, 
+            "comp_b", 
+            timeout=1.0,
+            retries=1
+        )
+        logger.info(f"Respuestas brutas B: {resp_b}")
+        
+        # Usar safe_get_response para acceder a los valores
+        is_a_healthy = safe_get_response(resp_a, "healthy", False)
+        is_b_healthy = safe_get_response(resp_b, "healthy", True)
         
         # Verificar que A está no-sano
-        assert not resp_a["healthy"], "A debería estar no-sano después del fallo"
+        assert not is_a_healthy, "A debería estar no-sano después del fallo"
         # B debería seguir sano porque no hay propagación en este componente simple
-        assert resp_b["healthy"], "B debería estar sano (no hay propagación)"
+        assert is_b_healthy, "B debería estar sano (no hay propagación)"
         
         # FASE 4: Restaurar A
         logger.info("FASE 4: Restaurando A")
-        await engine.emit_event_with_response("set_health", {"healthy": True}, "comp_a")
-        await asyncio.sleep(0.1)
+        await emit_with_timeout(
+            engine, 
+            "set_health", 
+            {"healthy": True}, 
+            "comp_a", 
+            timeout=1.0,
+            retries=1
+        )
         
         # FASE 5: Verificar recuperación
         logger.info("FASE 5: Verificando recuperación")
-        try:
-            logger.info("Enviando check_status para verificar recuperación de A")
-            resp_a_recovery = await engine.emit_event_with_response("check_status", {}, "comp_a")
-            logger.info(f"Respuestas brutas A (recuperación): {resp_a_recovery}")
-            # Tomar la primera respuesta válida o un diccionario predeterminado
-            resp_a = resp_a_recovery[0] if resp_a_recovery and len(resp_a_recovery) > 0 else {"healthy": True, "error": "No response", "recovered": True}
-            logger.info(f"Estado final A procesado: {resp_a}")
-        except Exception as e:
-            logger.error(f"Error al verificar estado de A después de recuperación: {type(e).__name__}: {str(e)}")
-            resp_a = {"healthy": True, "error": str(e), "recovered": True}
-            
-        assert resp_a["healthy"], "A debería estar sano después de la recuperación"
+        resp_a_recovery = await emit_with_timeout(
+            engine, 
+            "check_status", 
+            {}, 
+            "comp_a", 
+            timeout=1.0,
+            retries=1
+        )
+        logger.info(f"Respuestas brutas A (recuperación): {resp_a_recovery}")
+        
+        # Verificar recuperación usando safe_get_response
+        is_a_recovered = safe_get_response(resp_a_recovery, "healthy", False)
+        assert is_a_recovered, "A debería estar sano después de la recuperación"
+        
+        return True
     
-    finally:
-        # Asegurar que el motor se detiene
-        logger.info("Deteniendo el motor")
-        await engine.stop()
-        logger.info("Prueba finalizada")
+    # Ejecutar la prueba con medición de tiempo
+    success = await run_test_with_timing(engine, "test_cascading_failures_basic", execute_test)
+    assert success, "La prueba de fallos en cascada debería completarse exitosamente"
+
+
+@pytest.mark.asyncio
+async def test_cascading_failures_multiple_components(engine_fixture):
+    """
+    Prueba focalizada en la propagación de fallos entre componentes.
+    
+    Esta prueba verifica específicamente que:
+    - Un fallo en un componente no afecta a componentes independientes
+    - El sistema puede seguir operando con componentes parcialmente funcionales
+    """
+    from tests.utils.timeout_helpers import emit_with_timeout, safe_get_response, run_test_with_timing
+    
+    engine = engine_fixture
+    
+    # Función interna para ejecutar la prueba
+    async def execute_test(engine):
+        # Crear y registrar componentes
+        comp_a = UltraSimpleComponent("comp_a")
+        comp_b = UltraSimpleComponent("comp_b")
+        comp_c = UltraSimpleComponent("comp_c")
+        
+        engine.register_component(comp_a)
+        engine.register_component(comp_b)
+        engine.register_component(comp_c)
+        
+        await engine.start()
+        
+        # Provocar fallo en el componente A
+        await emit_with_timeout(engine, "set_health", {"healthy": False}, "comp_a", timeout=1.0)
+        
+        # Verificar que solo A está afectado
+        resp_a = await emit_with_timeout(engine, "check_status", {}, "comp_a", timeout=1.0)
+        resp_b = await emit_with_timeout(engine, "check_status", {}, "comp_b", timeout=1.0)
+        resp_c = await emit_with_timeout(engine, "check_status", {}, "comp_c", timeout=1.0)
+        
+        # Verificar estados usando safe_get_response
+        is_a_healthy = safe_get_response(resp_a, "healthy", True)
+        is_b_healthy = safe_get_response(resp_b, "healthy", True)
+        is_c_healthy = safe_get_response(resp_c, "healthy", True)
+        
+        assert not is_a_healthy, "comp_a debería estar no-sano"
+        assert is_b_healthy, "comp_b no debería ser afectado por el fallo en A"
+        assert is_c_healthy, "comp_c no debería ser afectado por el fallo en A"
+        
+        return True
+    
+    # Ejecutar la prueba con medición de tiempo
+    await run_test_with_timing(engine, "test_cascading_failures_multiple", execute_test)
+
+
+# Componente simple para las pruebas
+class UltraSimpleComponent(Component):
+    def __init__(self, name: str):
+        super().__init__(name)
+        self.event_count = 0
+        self.is_healthy = True
+    
+    async def start(self) -> None:
+        logger.info(f"Componente {self.name} iniciado")
+    
+    async def stop(self) -> None:
+        logger.info(f"Componente {self.name} detenido")
+    
+    async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> Dict[str, Any]:
+        self.event_count += 1
+        
+        # Manejar eventos de control
+        if event_type == "set_health":
+            old_health = self.is_healthy
+            self.is_healthy = data.get("healthy", True)
+            logger.info(f"Componente {self.name}: salud cambiada de {old_health} a {self.is_healthy}")
+            return {"name": self.name, "old_health": old_health, "new_health": self.is_healthy}
+        
+        # Manejar consultas de estado explícitamente
+        elif event_type == "check_status":
+            logger.info(f"Componente {self.name}: consultando estado (healthy={self.is_healthy})")
+            return {
+                "name": self.name, 
+                "healthy": self.is_healthy,
+                "event_count": self.event_count,
+                "timestamp": time.time()
+            }
+        
+        # Para cualquier otro evento solo incrementar contador y devolver estado
+        return {"name": self.name, "event_type": event_type, "count": self.event_count, "healthy": self.is_healthy}
 
 
 @pytest.mark.asyncio
