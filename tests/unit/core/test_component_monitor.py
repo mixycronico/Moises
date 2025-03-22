@@ -18,6 +18,32 @@ from genesis.core.component_monitor import ComponentMonitor
 from tests.utils.timeout_helpers import safe_get_response, emit_with_timeout, cleanup_engine
 
 # Configurar logging
+@pytest.fixture(scope="module", autouse=True)
+def setup_testing_logging():
+    """Configurar logging para pruebas, deshabilitando escritura a DB."""
+    # Remover todos los handlers existentes para genesis
+    for logger_name in logging.Logger.manager.loggerDict:
+        if logger_name.startswith('genesis'):
+            logger = logging.getLogger(logger_name)
+            for handler in logger.handlers[:]:
+                logger.removeHandler(handler)
+    
+    # Configurar handler básico para consola
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(console_handler)
+    
+    genesis_logger = logging.getLogger('genesis')
+    genesis_logger.setLevel(logging.DEBUG)
+    
+    yield
+    
+    # Limpiar después de las pruebas
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -169,7 +195,8 @@ async def engine_with_monitor():
     )
     
     # Registrar monitor
-    await engine.register_component(monitor)
+    # register_component no es async, así que lo llamamos directamente sin await
+    engine.register_component(monitor)
     
     # Iniciar el monitor
     await monitor.start()
