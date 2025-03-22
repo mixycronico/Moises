@@ -161,34 +161,12 @@ class EventBus:
         """
         Collect handlers for an event type efficiently.
         Returns a list of (priority, handler) tuples.
+        
+        Este método ahora delega a _collect_all_handlers_for_event para centralizar lógica
+        y evitar duplicación de código.
         """
-        handlers = []
-        
-        # 1. Más común primero: listeners específicos
-        if event_type in self.subscribers:
-            handlers.extend(self.subscribers[event_type])
-        
-        # 2. Listeners de un solo uso (ya no se usa, pero se mantiene por compatibilidad)
-        # Nota: subscribe_once es el método oficial para listeners de un solo uso ahora
-        one_time = []
-        
-        # 3. Listeners wildcard (simples)
-        wildcard = []
-        if '*' in self.subscribers:
-            wildcard = self.subscribers['*']
-        
-        # 4. Listeners con patrones (más costosos, cache para optimizar)
-        pattern_handlers = []
-        # Optimizar búsqueda de patrones con cache
-        for pattern, pattern_subs in self.subscribers.items():
-            if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
-                pattern_handlers.extend(pattern_subs)
-        
-        # Combinar y ordenar por prioridad
-        combined = handlers + one_time + wildcard + pattern_handlers
-        combined.sort(key=lambda x: x[0], reverse=True)
-        
-        return combined
+        # Usar el método centralizado para recopilar handlers
+        return self._collect_all_handlers_for_event(event_type)
     
     async def _execute_handlers(self, event_type, data, source, handlers, semaphore):
         """
