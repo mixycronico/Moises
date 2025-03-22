@@ -1,0 +1,15 @@
+{
+  "intensity": 0.5,
+  "iterations": 3,
+  "start_time": 1742676058.9241178,
+  "duration": 0.8396420478820801,
+  "success_rates": {
+    "overall": 100.0,
+    "essential": 100.0,
+    "non_essential": 100.0
+  },
+  "anomalies": 45,
+  "events": 150,
+  "requests": 90,
+  "cycles_count": 3
+}
