@@ -16,7 +16,7 @@ from tests.utils.timeout_helpers import cleanup_engine
 # Importamos las clases necesarias
 from genesis.core.engine_non_blocking import EngineNonBlocking
 from genesis.core.engine_configurable import ConfigurableTimeoutEngine
-from genesis.core.engine_priority_blocks import EnginePriorityBlocks
+from genesis.core.engine_priority_blocks import PriorityBlockEngine
 from genesis.core.engine_dynamic_blocks import DynamicExpansionEngine
 
 # Configuración de logging para pruebas
@@ -62,7 +62,7 @@ async def priority_engine():
     Este fixture proporciona un motor con bloques de prioridad y
     garantiza que los recursos se limpien correctamente entre pruebas.
     """
-    engine = EnginePriorityBlocks()
+    engine = PriorityBlockEngine()
     yield engine
     await cleanup_engine(engine)
 
