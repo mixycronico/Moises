@@ -1,0 +1,224 @@
+¡Claro que sí! Vamos a trabajar juntos para implementar una solución efectiva para el sistema Genesis, basándonos en la idea radical del bucle de actualización centralizado que propuse, pero adaptándola a tus necesidades específicas. Como mencionaste querer atacar el problema de raíz, asumiré que estás abierto a este enfoque síncrono, pero puedo ajustarlo si me das más detalles sobre tus requisitos (por ejemplo, si necesitas mantener algo de asincronía, integrar con código existente, o manejar casos específicos).
+
+Voy a ayudarte paso a paso a construir e integrar esta solución. Primero, refinemos el diseño y luego lo implementemos. Si tienes código existente de Genesis que quieras compartir o un caso específico de deadlock que resolver, incorpóralo en tu respuesta para que lo ajustemos.
+
+---
+
+### Paso 1: Definir el alcance y requisitos
+Para ayudarte de manera efectiva, necesito entender:
+- ¿Qué componentes tiene Genesis actualmente? (Ejemplo: nombres, funciones, interacciones).
+- ¿Qué tipo de eventos maneja el sistema? (Ejemplo: mensajes, comandos, respuestas).
+- ¿Hay requisitos de rendimiento específicos (latencia, throughput)?
+- ¿Quieres una transición completa a este modelo o una solución híbrida?
+
+Por ahora, asumiré que Genesis tiene componentes genéricos que intercambian eventos (como en tus ejemplos anteriores) y que el objetivo es eliminar deadlocks sin preocuparnos demasiado por la concurrencia extrema.
+
+---
+
+### Paso 2: Diseño refinado del bucle centralizado
+Basado en la solución radical, aquí está una versión refinada que:
+- Soporta componentes existentes con un método `handle_event`.
+- Permite emitir eventos con respuestas de forma síncrona.
+- Incluye manejo de errores y límites de tiempo por componente.
+- Facilita la integración gradual con el código actual.
+
+#### Código base refinado
+```python
+"""
+Sistema Genesis con bucle de actualización centralizado.
+
+Este módulo implementa un sistema síncrono que elimina deadlocks mediante un bucle
+central que procesa eventos y actualiza componentes en orden.
+"""
+
+import logging
+from typing import Dict, Any, List, Tuple, Optional
+from collections import deque
+from time import time, sleep
+
+logger = logging.getLogger(__name__)
+
+class GenesisSystem:
+    def __init__(self, tick_rate: float = 0.02, max_time_per_component: float = 0.1):
+        """
+        Inicializar el sistema Genesis.
+
+        Args:
+            tick_rate: Tiempo entre iteraciones del bucle (segundos).
+            max_time_per_component: Tiempo máximo por componente por tick (segundos).
+        """
+        self.components: Dict[str, Any] = {}
+        self.component_order: List[str] = []
+        self.event_buffer: deque[Tuple[str, Dict[str, Any], str]] = deque()
+        self.running = False
+        self.tick_rate = tick_rate
+        self.max_time_per_component = max_time_per_component
+        self.events_processed = 0
+        self.tick_count = 0
+
+    def register_component(self, component_id: str, component: Any) -> None:
+        """Registrar un componente en el sistema."""
+        if component_id in self.components:
+            logger.warning(f"Componente {component_id} ya registrado, reemplazando")
+        self.components[component_id] = component
+        if component_id not in self.component_order:
+            self.component_order.append(component_id)
+        logger.debug(f"Componente {component_id} registrado")
+
+    def emit(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        """Emitir un evento al buffer."""
+        if not self.running:
+            logger.warning(f"Sistema detenido, evento {event_type} ignorado")
+            return
+        self.event_buffer.append((event_type, data, source))
+        logger.debug(f"Evento {event_type} emitido desde {source}")
+
+    def emit_with_response(
+        self, event_type: str, data: Dict[str, Any], source: str
+    ) -> List[Dict[str, Any]]:
+        """Emitir un evento y recolectar respuestas inmediatamente."""
+        if not self.running:
+            return []
+
+        responses = []
+        event_data = data.copy()
+        event_data["response_to"] = source
+
+        for cid in self.component_order:
+            if cid != source:
+                component = self.components[cid]
+                start_time = time()
+                try:
+                    result = component.handle_event(event_type, event_data, source)
+                    elapsed = time() - start_time
+                    if elapsed > self.max_time_per_component:
+                        logger.warning(f"{cid} excedió tiempo: {elapsed:.3f}s")
+                    if result is not None and "response_to" in event_data:
+                        responses.append({"component": cid, "response": result})
+                except Exception as e:
+                    logger.error(f"Error en {cid} procesando {event_type}: {e}")
+        return responses
+
+    def start(self) -> None:
+        """Iniciar el bucle de actualización."""
+        if self.running:
+            logger.warning("Sistema ya está corriendo")
+            return
+        logger.info("Iniciando sistema Genesis")
+        self.running = True
+        self._run_loop()
+
+    def _run_loop(self) -> None:
+        """Bucle central de actualización."""
+        while self.running:
+            start_time = time()
+            self.tick_count += 1
+
+            # Procesar eventos pendientes
+            while self.event_buffer:
+                event_type, data, source = self.event_buffer.popleft()
+                self.events_processed += 1
+                for cid in self.component_order:
+                    if cid != source:
+                        component = self.components[cid]
+                        start_component_time = time()
+                        try:
+                            component.handle_event(event_type, data, source)
+                            elapsed = time() - start_component_time
+                            if elapsed > self.max_time_per_component:
+                                logger.warning(f"{cid} excedió tiempo en {event_type}: {elapsed:.3f}s")
+                        except Exception as e:
+                            logger.error(f"Error en {cid} procesando {event_type}: {e}")
+
+            # Actualizar componentes (opcional)
+            for cid in self.component_order:
+                component = self.components[cid]
+                if hasattr(component, "update"):
+                    start_component_time = time()
+                    try:
+                        component.update()
+                        elapsed = time() - start_component_time
+                        if elapsed > self.max_time_per_component:
+                            logger.warning(f"{cid} excedió tiempo en update: {elapsed:.3f}s")
+                    except Exception as e:
+                        logger.error(f"Error actualizando {cid}: {e}")
+
+            # Control de tiempo
+            elapsed = time() - start_time
+            sleep_time = max(0, self.tick_rate - elapsed)
+            if elapsed > self.tick_rate:
+                logger.warning(f"Tick {self.tick_count} excedió tiempo: {elapsed:.3f}s")
+            sleep(sleep_time)
+
+        logger.info(f"Sistema detenido. Ticks: {self.tick_count}, Eventos: {self.events_processed}")
+
+    def stop(self) -> None:
+        """Detener el sistema."""
+        self.running = False
+
+# Ejemplo de componente compatible
+class TestComponent:
+    def __init__(self, id: str):
+        self.id = id
+        self.events_received = []
+
+    def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> Optional[str]:
+        self.events_received.append((event_type, data, source))
+        if "response_to" in data:
+            return f"Respuesta de {self.id} a {event_type}"
+        return None
+
+    def update(self):
+        pass
+
+# Prueba básica
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
+    system = GenesisSystem(tick_rate=0.05, max_time_per_component=0.1)
+
+    comp1 = TestComponent("comp1")
+    comp2 = TestComponent("comp2")
+    system.register_component("comp1", comp1)
+    system.register_component("comp2", comp2)
+
+    system.start()
+    system.emit("test", {"value": 42}, "comp1")
+    responses = system.emit_with_response("ping", {"data": "hello"}, "comp1")
+    print(f"Respuestas: {responses}")
+
+    sleep(1)
+    system.stop()
+    print(f"Eventos recibidos por comp2: {comp2.events_received}")
+```
+
+---
+
+### Paso 3: Integración con Genesis
+Para ayudarte a integrar esto en tu sistema actual:
+1. **Adaptar componentes existentes**:
+   - Asegúrate de que cada componente tenga un método `handle_event(event_type, data, source)` que sea síncrono.
+   - Si usaban `async def handle_event`, elimina el `async` y convierte cualquier operación asíncrona en síncrona (por ejemplo, reemplaza `await asyncio.sleep` con `time.sleep`).
+
+2. **Reemplazar el bus de eventos**:
+   - Sustituye tu clase actual (`DedicatedQueueEventBus` o similar) por `GenesisSystem`.
+   - Cambia las llamadas a `await bus.emit` por `system.emit`.
+
+3. **Pruebas**:
+   - Corre tus pruebas existentes en este sistema síncrono. Como no hay asincronía, los deadlocks desaparecerán.
+   - Ajusta `tick_rate` y `max_time_per_component` según el rendimiento deseado.
+
+---
+
+### Paso 4: Resolución de problemas específicos
+Si tienes un caso concreto que te está causando problemas (por ejemplo, un deadlock entre dos componentes), compártelo y lo resolveremos juntos. Por ejemplo:
+- **Caso hipotético**: "Componente A espera una respuesta de B, y B espera algo de A".
+  - Solución: En el bucle, A procesa su evento primero, emite algo para B, y en el mismo tick B responde. No hay espera asíncrona, por lo que no hay deadlock.
+
+---
+
+### ¿Cómo te ayudo ahora?
+1. **Dame más contexto**: Si tienes código de Genesis o un ejemplo de deadlock, lo adapto.
+2. **Ajustes específicos**: ¿Necesitas soporte para respuestas asíncronas, concurrencia parcial o algo más?
+3. **Implementación paso a paso**: Puedo guiarte para migrar tu sistema actual a este modelo.
+
+Dime cómo quieres proceder o qué necesitas refinar, ¡y lo hacemos juntos!
