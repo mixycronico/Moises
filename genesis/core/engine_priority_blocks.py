@@ -104,6 +104,7 @@ class PriorityBlockEngine:
         # Componentes y estado
         self.components = {}
         self.safe_components = set()  # Nombres de componentes seguros
+        self.paused_components = set()  # Componentes pausados temporalmente
         self.running = False
         
         # Semáforo para controlar concurrencia
@@ -112,6 +113,10 @@ class PriorityBlockEngine:
         # Estadísticas
         self.processed_blocks = 0
         self.timeout_blocks = 0
+        self.isolation_events = 0
+        
+        # Monitor de componentes (se inicializa si es necesario)
+        self.component_monitor = None
         
         logger.info(f"Motor de bloques priorizados creado: "
                    f"block_size={block_size}, timeout={timeout}s, "
@@ -219,6 +224,11 @@ class PriorityBlockEngine:
         # Si es bloque seguro, procesar secuencialmente con alta prioridad
         if block.is_safe_block:
             for name, component in block.components:
+                # Verificar si el componente está pausado (excepto para 'stop' que siempre se procesa)
+                if name in self.paused_components and operation != 'stop':
+                    logger.debug(f"Saltando componente SEGURO pausado {name} ({operation})")
+                    continue
+                    
                 try:
                     logger.info(f"Procesando componente SEGURO {name} ({operation})")
                     if operation == 'start':
@@ -226,6 +236,14 @@ class PriorityBlockEngine:
                     elif operation == 'stop':
                         await asyncio.wait_for(component.stop(), timeout=self.timeout)
                     elif operation == 'handle_event':
+                        # Verificar si es un evento de sistema para componentes pausados
+                        if event_type and event_type in ["component_paused", "component_resumed"]:
+                            # Eventos de sistema de componentes se entregan a todos
+                            pass
+                        elif name in self.paused_components:
+                            # Saltar procesamiento para componentes pausados
+                            continue
+                            
                         # Asegurar que los parámetros nunca sean None
                         evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, event_source)
                         await asyncio.wait_for(
@@ -235,19 +253,37 @@ class PriorityBlockEngine:
                     logger.info(f"Componente SEGURO {name} procesado exitosamente ({operation})")
                 except asyncio.TimeoutError:
                     logger.warning(f"Timeout en componente SEGURO {name} ({operation})")
+                    # Considerar pausar componentes con timeout en eventos críticos
+                    if operation == 'handle_event' and event_type and event_type.startswith("risk."):
+                        await self.pause_component(name)
                 except Exception as e:
                     logger.error(f"Error en componente SEGURO {name} ({operation}): {str(e)}")
+                    # Considerar pausar componentes con errores en eventos críticos
+                    if operation == 'handle_event' and event_type and event_type.startswith("risk."):
+                        await self.pause_component(name)
         else:
             # Para bloques regulares, procesar con semáforo de concurrencia
             async with self.semaphore:
                 logger.info(f"Procesando bloque {block.priority} con {len(block.components)} componentes")
                 
-                # Crear tareas para todos los componentes en el bloque
+                # Crear tareas para todos los componentes en el bloque que no están pausados
                 tasks = []
                 # Diccionario para almacenar metadatos de las tareas
                 task_metadata = {}
                 
                 for name, component in block.components:
+                    # Verificar si el componente está pausado (excepto para 'stop' que siempre se procesa)
+                    if name in self.paused_components and operation != 'stop':
+                        logger.debug(f"Saltando componente pausado {name} ({operation})")
+                        continue
+                        
+                    # Verificar si es un evento de sistema para componentes pausados
+                    if (operation == 'handle_event' and event_type and 
+                        not (event_type in ["component_paused", "component_resumed"]) and
+                        name in self.paused_components):
+                        # Saltar procesamiento para componentes pausados
+                        continue
+                        
                     task = None
                     if operation == 'start':
                         task = asyncio.create_task(component.start())
@@ -268,6 +304,11 @@ class PriorityBlockEngine:
                             'operation': operation
                         }
                         tasks.append(task)
+                
+                # Verificar si hay tareas para procesar
+                if not tasks:
+                    logger.info(f"No hay componentes activos en el bloque {block.priority} para procesar")
+                    return
                 
                 # Esperar a que todas las tareas completen con timeout
                 try:
@@ -298,6 +339,12 @@ class PriorityBlockEngine:
                             logger.debug(f"Tarea exitosa: {name} ({op})")
                         except Exception as e:
                             logger.error(f"Error en tarea: {name} ({op}): {str(e)}")
+                            # Considerar pausar componentes con errores en eventos críticos
+                            if (op == 'handle_event' and event_type and 
+                                (event_type.startswith("risk.") or 
+                                 event_type.startswith("trade.") or
+                                 event_type.startswith("critical."))):
+                                await self.pause_component(name)
     
     async def start(self) -> None:
         """Iniciar motor y componentes en bloques priorizados."""
@@ -434,6 +481,135 @@ class PriorityBlockEngine:
         
         logger.info(f"Evento {event_type} procesado por {len(process_blocks)} bloques")
     
+    async def pause_component(self, component_id: str) -> bool:
+        """
+        Pausar temporalmente un componente para evitar que procese eventos.
+        
+        Esta función aisla un componente problemático permitiendo que el
+        resto del sistema siga funcionando normalmente.
+        
+        Args:
+            component_id: Identificador del componente a pausar
+            
+        Returns:
+            True si el componente fue pausado, False en caso contrario
+        """
+        if component_id not in self.components:
+            logger.warning(f"Intento de pausar componente inexistente: {component_id}")
+            return False
+            
+        if component_id in self.paused_components:
+            logger.info(f"Componente {component_id} ya estaba pausado")
+            return True
+            
+        logger.warning(f"Pausando componente: {component_id}")
+        self.paused_components.add(component_id)
+        self.isolation_events += 1
+        
+        # Notificar al componente que está siendo pausado
+        try:
+            component = self.components[component_id]
+            if hasattr(component, "on_pause"):
+                await asyncio.wait_for(
+                    component.on_pause(),
+                    timeout=self.timeout
+                )
+                logger.info(f"Método on_pause ejecutado para {component_id}")
+        except Exception as e:
+            logger.error(f"Error al pausar componente {component_id}: {e}")
+            
+        # Notificar a otros componentes que este ha sido pausado
+        await self.emit_event(
+            "component_paused", 
+            {"component_id": component_id},
+            "system",
+            EventPriority.HIGH  # Alta prioridad para este tipo de eventos
+        )
+        
+        return True
+        
+    async def resume_component(self, component_id: str) -> bool:
+        """
+        Reanudar un componente previamente pausado.
+        
+        Args:
+            component_id: Identificador del componente a reanudar
+            
+        Returns:
+            True si el componente fue reanudado, False en caso contrario
+        """
+        if component_id not in self.components:
+            logger.warning(f"Intento de reanudar componente inexistente: {component_id}")
+            return False
+            
+        if component_id not in self.paused_components:
+            logger.info(f"Componente {component_id} no estaba pausado")
+            return True
+            
+        logger.info(f"Reanudando componente: {component_id}")
+        self.paused_components.remove(component_id)
+        
+        # Notificar al componente que está siendo reanudado
+        try:
+            component = self.components[component_id]
+            if hasattr(component, "on_resume"):
+                await asyncio.wait_for(
+                    component.on_resume(),
+                    timeout=self.timeout
+                )
+                logger.info(f"Método on_resume ejecutado para {component_id}")
+        except Exception as e:
+            logger.error(f"Error al reanudar componente {component_id}: {e}")
+            
+        # Notificar a otros componentes que este ha sido reanudado
+        await self.emit_event(
+            "component_resumed", 
+            {"component_id": component_id},
+            "system",
+            EventPriority.HIGH  # Alta prioridad para este tipo de eventos
+        )
+        
+        return True
+        
+    async def enable_component_monitoring(self, check_interval: float = 10.0) -> None:
+        """
+        Habilitar el monitoreo automático de componentes para detectar y aislar
+        componentes problemáticos.
+        
+        Args:
+            check_interval: Intervalo de verificación en segundos
+        """
+        # Importar aquí para evitar importación circular
+        from genesis.core.component_monitor import ComponentMonitor
+        
+        if self.component_monitor is None:
+            self.component_monitor = ComponentMonitor(self)
+            await self.component_monitor.start(check_interval)
+            logger.info(f"Monitoreo de componentes habilitado (intervalo: {check_interval}s)")
+        else:
+            logger.warning("El monitoreo de componentes ya estaba habilitado")
+            
+    async def disable_component_monitoring(self) -> None:
+        """Deshabilitar el monitoreo automático de componentes."""
+        if self.component_monitor is not None:
+            await self.component_monitor.stop()
+            self.component_monitor = None
+            logger.info("Monitoreo de componentes deshabilitado")
+        else:
+            logger.warning("El monitoreo de componentes no estaba habilitado")
+            
+    def is_component_paused(self, component_id: str) -> bool:
+        """
+        Verificar si un componente está pausado.
+        
+        Args:
+            component_id: Identificador del componente
+            
+        Returns:
+            True si el componente está pausado, False en caso contrario
+        """
+        return component_id in self.paused_components
+        
     def get_stats(self) -> Dict[str, Any]:
         """
         Obtener estadísticas del motor.
@@ -446,5 +622,8 @@ class PriorityBlockEngine:
             "timeout_blocks": self.timeout_blocks,
             "components": len(self.components),
             "safe_components": len(self.safe_components),
-            "running": self.running
+            "paused_components": len(self.paused_components),
+            "isolation_events": self.isolation_events,
+            "running": self.running,
+            "monitoring_enabled": self.component_monitor is not None
         }
