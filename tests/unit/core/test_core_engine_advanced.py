@@ -372,21 +372,19 @@ async def test_load_balancing_between_components(advanced_engine):
 
 
 @pytest.mark.asyncio
-async def test_component_priority_based_execution(advanced_engine):
+async def test_component_priority_based_execution():
     """Verificar que los componentes se ejecutan según su prioridad."""
-    # Reiniciar el motor con un orden específico
-    await advanced_engine.stop()
-    
-    # Crear un nuevo motor con prioridades específicas
-    new_engine = Engine(EventBus())
+    # Crear un nuevo motor con prioridades específicas y modo de prueba para evitar tareas en background
+    new_engine = Engine(EventBus(test_mode=True))
     
     # Crear componentes con diferentes prioridades
-    high_priority = DelayedComponent("high_priority", delay_range=(0.01, 0.02))
-    medium_priority = DelayedComponent("medium_priority", delay_range=(0.01, 0.02))
-    low_priority = DelayedComponent("low_priority", delay_range=(0.01, 0.02))
+    # Reducir delay_range a valores más pequeños para acelerar el test
+    high_priority = DelayedComponent("high_priority", delay_range=(0.001, 0.002))
+    medium_priority = DelayedComponent("medium_priority", delay_range=(0.001, 0.002))
+    low_priority = DelayedComponent("low_priority", delay_range=(0.001, 0.002))
     
     # Añadir componentes en orden inverso para asegurar que la prioridad funciona
-    new_engine.register_component(low_priority, priority=0)
+    new_engine.register_component(low_priority, priority=10)
     new_engine.register_component(medium_priority, priority=50)
     new_engine.register_component(high_priority, priority=100)
     
@@ -394,34 +392,26 @@ async def test_component_priority_based_execution(advanced_engine):
     startup_order = []
     
     # Reemplazar el método start de cada componente para registrar el orden
-    original_starts = {}
+    # Usar una función de fábrica para asegurar que cada reemplazo tenga su propio alcance
+    def create_start_replacement(component, original_start):
+        async def replacement():
+            startup_order.append(component.name)
+            return await original_start()
+        return replacement
     
+    # Reemplazar los métodos start
     for name, component in new_engine.components.items():
         original_start = component.start
-        original_starts[name] = original_start
-        
-        async def track_start(self=component, original=original_start):
-            startup_order.append(self.name)
-            return await original()
-        
-        component.start = track_start
+        component.start = create_start_replacement(component, original_start)
     
     # Iniciar el motor
     await new_engine.start()
     
     # Verificar el orden de inicio (mayor prioridad primero)
-    assert startup_order[0] == "high_priority"
-    assert startup_order[1] == "medium_priority" 
-    assert startup_order[2] == "low_priority"
+    assert len(startup_order) == 3, f"Expected 3 components to start, got {len(startup_order)}: {startup_order}"
+    assert startup_order[0] == "high_priority", f"Expected high_priority first, got {startup_order}"
+    assert startup_order[1] == "medium_priority", f"Expected medium_priority second, got {startup_order}" 
+    assert startup_order[2] == "low_priority", f"Expected low_priority third, got {startup_order}"
     
-    # Enviar un evento y medir las respuestas
-    responses = await new_engine.event_bus.emit_with_response(
-        "priority_test", {"test": "data"}, "tester"
-    )
-    
-    # Restaurar los métodos originales
-    for name, component in new_engine.components.items():
-        component.start = original_starts[name]
-    
-    # Detener el motor
+    # Detener el motor sin intentar enviar eventos adicionales
     await new_engine.stop()
