@@ -98,6 +98,7 @@ class ParallelBlockEngine:
             task_metadata = {}
             
             for name, component in block:
+                task = None
                 if operation == 'start':
                     task = asyncio.create_task(component.start())
                     # Guardar metadata en diccionario usando id de la tarea como clave
@@ -121,7 +122,9 @@ class ParallelBlockEngine:
                         'event_type': event_type
                     }
                 
-                tasks.append(task)
+                # Solo agregar la tarea si se creó correctamente
+                if task is not None:
+                    tasks.append(task)
             
             # Procesar todas las tareas con timeout individual
             for task in tasks:

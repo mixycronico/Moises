@@ -402,6 +402,7 @@ class DynamicExpansionEngine:
                 tasks = []
                 for name, component in block.components:
                     logger.info(f"Procesando componente EXPANSIÓN {name} en modo COMPLETO ({operation})")
+                    task = None
                     if operation == 'start':
                         task = asyncio.create_task(component.start())
                     elif operation == 'stop':
@@ -417,12 +418,14 @@ class DynamicExpansionEngine:
                             component.handle_event(event_type_safe, full_data, event_source_safe)
                         )
                     
-                    # Guardar metadata en diccionario usando id de la tarea como clave
-                    task_metadata[id(task)] = {
-                        'component_name': name,
-                        'operation': operation
-                    }
-                    tasks.append(task)
+                    # Solo agregar la tarea si se creó correctamente
+                    if task is not None:
+                        # Guardar metadata en diccionario usando id de la tarea como clave
+                        task_metadata[id(task)] = {
+                            'component_name': name,
+                            'operation': operation
+                        }
+                        tasks.append(task)
                 
                 # Ejecutar con timeout extendido para procesamiento completo
                 try:
@@ -444,6 +447,7 @@ class DynamicExpansionEngine:
                 tasks = []
                 
                 for name, component in block.components:
+                    task = None
                     if operation == 'start':
                         task = asyncio.create_task(component.start())
                     elif operation == 'stop':
@@ -457,12 +461,14 @@ class DynamicExpansionEngine:
                             component.handle_event(event_type_safe, event_data_safe, event_source_safe)
                         )
                     
-                    # Guardar metadata en diccionario usando id de la tarea como clave
-                    task_metadata[id(task)] = {
-                        'component_name': name,
-                        'operation': operation
-                    }
-                    tasks.append(task)
+                    # Solo agregar la tarea si se creó correctamente
+                    if task is not None:
+                        # Guardar metadata en diccionario usando id de la tarea como clave
+                        task_metadata[id(task)] = {
+                            'component_name': name,
+                            'operation': operation
+                        }
+                        tasks.append(task)
                 
                 # Esperar a que todas las tareas completen con timeout
                 try:

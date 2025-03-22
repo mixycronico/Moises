@@ -28,4 +28,5 @@ dependencies = [
     "pytest-mock>=3.14.0",
     "pytest>=8.3.5",
     "typing-extensions>=4.12.2",
+    "mypy>=1.15.0",
 ]
