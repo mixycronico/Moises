@@ -583,6 +583,8 @@ async def test_peak_load_recovery():
         # Registrar componentes en el motor
         generator_names = []
         for generator in load_generators:
+            # Establecer el motor en cada generador
+            generator.set_engine(engine)
             await engine.register_component(generator)
             generator_names.append(generator.name)
         
@@ -945,6 +947,7 @@ async def test_concurrent_load_distribution():
         for load_type in ["cpu", "memory", "io", "mixed"]:
             for i in range(3):  # 3 generadores de cada tipo
                 generator = LoadGeneratorComponent(f"{load_type}_gen_{i}", load_type)
+                generator.set_engine(engine)  # Establecer el motor en cada generador
                 load_generators.append(generator)
                 generator_names.append(generator.name)
                 await engine.register_component(generator)
