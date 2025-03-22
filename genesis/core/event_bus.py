@@ -32,7 +32,10 @@ class EventBus:
         Args:
             test_mode: If True, operate in test mode (direct event delivery with no background tasks)
         """
-        self.subscribers: Dict[str, Set[EventHandler]] = {}
+        # Almacenar suscriptores con sus prioridades
+        # {event_type: [(priority, handler)]}
+        self.subscribers: Dict[str, list] = {}
+        self.one_time_listeners: Dict[str, list] = {}  # Para listeners de una sola vez
         self.running = False
         self.queue: Optional[asyncio.Queue] = None
         self.process_task: Optional[asyncio.Task] = None
@@ -145,8 +148,21 @@ class EventBus:
         
         self.subscribers[event_type].add(handler)
     
-    # Alias for backwards compatibility with tests
-    register_listener = subscribe
+    def register_listener(self, *args):
+        """
+        Backwards compatibility wrapper for subscribe.
+        Handles both:
+        - register_listener(handler) → subscribe('*', handler)
+        - register_listener(event_type, handler) → subscribe(event_type, handler)
+        """
+        if len(args) == 1:
+            # Old style: register_listener(handler)
+            return self.subscribe('*', args[0])
+        elif len(args) == 2:
+            # New style: register_listener(event_type, handler)
+            return self.subscribe(args[0], args[1])
+        else:
+            raise TypeError(f"register_listener() takes 1 or 2 arguments but {len(args)} were given")
     
     def unsubscribe(self, event_type: str, handler: EventHandler) -> None:
         """
@@ -163,8 +179,25 @@ class EventBus:
             if not self.subscribers[event_type]:
                 del self.subscribers[event_type]
     
-    # Alias for backwards compatibility with tests
-    unregister_listener = unsubscribe
+    def unregister_listener(self, *args):
+        """
+        Backwards compatibility wrapper for unsubscribe.
+        Handles both:
+        - unregister_listener(handler) → unsubscribe from all event types
+        - unregister_listener(event_type, handler) → unsubscribe(event_type, handler)
+        """
+        if len(args) == 1:
+            # Old style: unregister_listener(handler)
+            handler = args[0]
+            # Remove from all event types
+            for event_type in list(self.subscribers.keys()):
+                if handler in self.subscribers[event_type]:
+                    self.unsubscribe(event_type, handler)
+        elif len(args) == 2:
+            # New style: unregister_listener(event_type, handler)
+            return self.unsubscribe(args[0], args[1])
+        else:
+            raise TypeError(f"unregister_listener() takes 1 or 2 arguments but {len(args)} were given")
     
     async def emit(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
