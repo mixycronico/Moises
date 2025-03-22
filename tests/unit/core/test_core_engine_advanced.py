@@ -122,7 +122,7 @@ def event_bus():
 @pytest.fixture
 def advanced_engine(event_bus):
     """Proporcionar un motor con componentes avanzados para pruebas."""
-    engine = Engine(event_bus=event_bus)
+    engine = Engine(event_bus)
     
     # Componentes de procesamiento con diferentes latencias
     fast_processor = DelayedComponent("fast_processor", delay_range=(0.001, 0.01))
@@ -378,7 +378,7 @@ async def test_component_priority_based_execution(advanced_engine):
     await advanced_engine.stop()
     
     # Crear un nuevo motor con prioridades específicas
-    new_engine = Engine(event_bus=EventBus())
+    new_engine = Engine(EventBus())
     
     # Crear componentes con diferentes prioridades
     high_priority = DelayedComponent("high_priority", delay_range=(0.01, 0.02))

@@ -59,12 +59,13 @@ class Engine:
         """Alias para running, para compatibilidad con pruebas."""
         return self.running
     
-    def register_component(self, component: Component) -> None:
+    def register_component(self, component: Component, priority: int = 50) -> None:
         """
         Register a component with the engine.
         
         Args:
             component: Component instance to register
+            priority: Priority level for event handling (higher values = higher priority)
             
         Raises:
             ValueError: If a component with the same name is already registered
@@ -77,7 +78,7 @@ class Engine:
         
         # Registrar el componente para que reciba todos los eventos
         # Esto permite que handle_event se llame para cada evento
-        self.event_bus.subscribe("*", component.handle_event)
+        self.event_bus.subscribe("*", component.handle_event, priority=priority)
         
         self.logger.debug(f"Registered component: {component.name}")
         
