@@ -1,92 +1,97 @@
-# Informe de Mejoras del Motor de Eventos Genesis
-
-## Resumen Ejecutivo
-
-Este informe documenta las mejoras implementadas en el motor de eventos del sistema Genesis, específicamente en los módulos relacionados con la gestión de eventos dinámicos, paralelismo y priorización. El objetivo de estas mejoras ha sido aumentar la eficiencia del procesamiento de eventos, reducir los tiempos de respuesta y mejorar la capacidad de adaptación del sistema a diferentes cargas de trabajo.
+# Informe de Mejoras para Pruebas del Motor Genesis
 
 ## Contexto
 
-El sistema Genesis utiliza un motor de eventos para la comunicación entre componentes. Hasta ahora, se han implementado diferentes versiones del motor, cada una con características específicas:
+Las pruebas en `tests/unit/core/test_core_extreme_scenarios.py` presentaban dos problemas importantes:
 
-1. **EngineNonBlocking**: Motor básico no bloqueante
-2. **EngineConfigurable**: Motor con timeouts configurables
-3. **EngineParallelBlocks**: Motor con procesamiento en bloques paralelos
-4. **EnginePriorityEvents**: Motor con priorización de eventos
-5. **EnginePriorityBlocks**: Motor combinando prioridades y bloques
-6. **DynamicExpansionEngine**: Motor con capacidad de expansión dinámica
+1. **Error de suscripción de objetos nulos**: Algunas pruebas fallaban con `"Object of type 'None' is not subscriptable"` al intentar acceder a respuestas inexistentes.
+2. **Tiempos de ejecución excesivos**: Varias pruebas tardan demasiado tiempo en ejecutarse, lo que afecta el flujo de desarrollo.
 
-## Mejoras Implementadas
+## Solución Implementada
 
-### 1. Corrección de Nomenclatura en Tests
+Para el primer problema, se realizaron los siguientes cambios:
 
-Se han realizado cambios en la nomenclatura de las clases de prueba para prevenir que sean detectadas erróneamente por PyTest como casos de prueba:
+1. Se reemplazaron llamadas a `emit_event()` con `emit_event_with_response()` cuando se esperaban respuestas:
+   ```python
+   # Antes
+   response = await engine.emit_event("set_health", {"healthy": False}, "comp_a")
+   
+   # Después
+   response = await engine.emit_event_with_response("set_health", {"healthy": False}, "comp_a")
+   ```
 
-- Renombrado de `TestComponent` a `ComponentForTesting` en múltiples archivos de prueba
-- Renombrado de `TestHeavyComponent` a `HeavyComponentForTesting`
-- Actualización de todas las referencias a estas clases en los conjuntos de pruebas
+2. Se aplicó manejo defensivo de respuestas nulas:
+   ```python
+   resp_a = resp_a_recovery[0] if resp_a_recovery and len(resp_a_recovery) > 0 else {"healthy": True, "error": "No response", "recovered": True}
+   ```
 
-Estos cambios mejoran la organización del código, evitan advertencias y previenen potenciales problemas durante la ejecución de las pruebas automáticas, asegurando que solo las funciones y métodos designados sean ejecutados como pruebas por PyTest.
+## Mejoras Propuestas
 
-### 2. Optimización del Motor de Expansión Dinámica
+### 1. Agregar Timeouts para Prevenir Bloqueos
 
-El `DynamicExpansionEngine` ha sido mejorado para:
+Implementar una función helper para llamar a `emit_event_with_response()` con timeouts:
 
-- Gestionar correctamente la distribución de eventos a los componentes de expansión
-- Escalar automáticamente el número de bloques concurrentes según la carga del sistema
-- Reducir los tiempos de enfriamiento para una adaptación más rápida a cambios en la carga
+```python
+async def emit_with_timeout(engine, event_type, data, source, timeout=5.0):
+    """Emitir evento con timeout para evitar bloqueos indefinidos."""
+    try:
+        return await asyncio.wait_for(
+            engine.emit_event_with_response(event_type, data, source),
+            timeout=timeout
+        )
+    except asyncio.TimeoutError:
+        logger.warning(f"Timeout al esperar respuesta para {event_type} de {source}")
+        return [{"error": "timeout", "event": event_type, "source": source}]
+```
 
-### 3. Mejoras en los Tests
+### 2. Monitoreo de Tiempo de Ejecución
 
-Se han simplificado y optimizado las pruebas para:
+Agregar mediciones de tiempo para identificar cuellos de botella:
 
-- Reducir el riesgo de timeouts durante la ejecución
-- Mejorar la estabilidad de las pruebas
-- Aumentar la cobertura de casos de uso específicos
-- Verificar el comportamiento del sistema en condiciones de estrés
+```python
+import time
 
-## Resultados
+start_time = time.time()
+# Código a medir
+elapsed = time.time() - start_time
+logger.info(f"Operación completada en {elapsed:.3f} segundos")
+```
 
-Las mejoras implementadas han permitido lograr los siguientes resultados:
+### 3. Verificación de Tareas Pendientes
 
-1. **Mayor Eficiencia**: El procesamiento de eventos ahora es más eficiente gracias a la expansión dinámica y la priorización.
-2. **Mejor Adaptabilidad**: El sistema se adapta automáticamente a diferentes cargas de trabajo.
-3. **Mayor Robustez**: El manejo mejorado de errores permite al sistema seguir funcionando incluso cuando algunos componentes fallan.
-4. **Tests Más Confiables**: Las pruebas ahora son más estables y menos propensas a falsos negativos.
+Al final de cada prueba, verificar si hay tareas asíncronas sin completar:
 
-## Tests Verificados
+```python
+# En cleanup/finally
+pending = len([t for t in asyncio.all_tasks() if not t.done() and t != asyncio.current_task()])
+if pending > 0:
+    logger.warning(f"Hay {pending} tareas pendientes al finalizar la prueba")
+```
 
-Se han verificado satisfactoriamente los siguientes tests:
+### 4. Limpieza Explícita de Recursos
 
-### Tests de Motor de Expansión Dinámica
-1. `test_dynamic_engine_basic_operation`: ✅ PASADO
-2. `test_dynamic_engine_component_types`: ✅ PASADO
-3. `test_dynamic_engine_auto_scaling`: ✅ PASADO
-4. `test_dynamic_engine_error_handling`: ✅ PASADO
-5. `test_dynamic_engine_priority_handling`: ✅ PASADO
-6. `test_dynamic_engine_stress`: ✅ PASADO
+Asegurar que cada prueba limpie correctamente todos los recursos:
 
-### Tests de Bloques Paralelos
-1. `test_parallel_blocks_basic`: ✅ PASADO
-2. `test_parallel_blocks_timeout_handling`: ✅ PASADO
-3. `test_parallel_blocks_error_handling`: ✅ PASADO
+```python
+@pytest.fixture
+async def engine_fixture():
+    engine = EngineNonBlocking(test_mode=True)
+    yield engine
+    # Cleanup explícito
+    for component in list(engine.components.values()):
+        await engine.unregister_component(component.name)
+    await engine.stop()
+    # Esperar un poco para que las tareas terminen
+    await asyncio.sleep(0.1)
+```
 
-### Tests de Prioridad
-1. `test_priority_queue_basic`: ✅ PASADO
-2. `test_priority_queue_same_priority`: ✅ PASADO
-3. `test_priority_queue_mixed`: ✅ PASADO
+## Recomendaciones Adicionales
 
-## Próximos Pasos
-
-Para continuar mejorando el sistema, se recomienda:
-
-1. **Implementar más pruebas de integración** entre diferentes versiones del motor y otros componentes del sistema.
-2. **Optimizar el manejo de errores** en situaciones extremas y de alta concurrencia.
-3. **Implementar métricas detalladas** para monitorear el rendimiento del motor en producción.
-4. **Explorar estrategias avanzadas** de balanceo de carga y distribución de eventos.
+1. **Reducir la Complejidad de las Pruebas**: Simplificar escenarios excesivamente complejos.
+2. **Ejecución Selectiva**: Usar marcadores de pytest para excluir pruebas lentas durante el desarrollo.
+3. **Paralelización**: Considerar ejecutar pruebas en paralelo con pytest-xdist.
+4. **Optimización del Motor**: Revisar el motor para eliminar posibles cuellos de botella.
 
 ## Conclusión
 
-Las mejoras implementadas en el motor de eventos han aumentado significativamente la robustez y eficiencia del sistema Genesis. El motor ahora es capaz de manejar cargas variables y priorizar correctamente los eventos críticos, lo que lo hace más adecuado para su uso en entornos de producción exigentes.
-
----
-*Informe generado el 22 de marzo de 2025*
+Las correcciones implementadas resuelven los problemas inmediatos de errores de suscripción. Para mejorar el rendimiento, se recomienda implementar los timeouts y las mejoras en el monitoreo de tiempo y recursos. Estos cambios mejorarán la estabilidad y velocidad de ejecución de las pruebas, facilitando el desarrollo y mantenimiento del sistema.

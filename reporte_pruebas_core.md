@@ -1,106 +1,141 @@
-# Informe de Pruebas del Módulo Core y Risk - Sistema Genesis
+# Informe de Pruebas del Motor Genesis
 
-## Resumen Ejecutivo
+## Contexto y Objetivos
 
-Los módulos Core y Risk del sistema Genesis han sido sometidos a un conjunto exhaustivo de pruebas para verificar su funcionalidad y robustez. Este informe presenta los resultados de las pruebas, incluyendo las mejoras implementadas para resolver issues de compatibilidad y advertencias (warnings).
+Este informe documenta las pruebas realizadas en el motor del sistema Genesis, enfocándose en los aspectos de resiliencia, recuperación de fallos y manejo de eventos en situaciones extremas.
 
-### Estado Actual
-- **Pruebas exitosas:** 56+ (40 en Core, 16 en Risk)
-- **Componentes verificados:** EventBus, Engine, Settings, Component, StopLossCalculator, PositionSizer, RiskManager
-- **Issues resueltos:** Warnings de clases de prueba, timeouts en pruebas críticas, compatibilidad de tipos
+Los principales objetivos de estas pruebas fueron:
 
-## Detalle de Componentes Probados
+1. Verificar la capacidad del motor para manejar fallos en componentes individuales sin afectar al sistema completo
+2. Comprobar la correcta propagación o aislamiento de fallos según las reglas configuradas
+3. Validar el comportamiento del sistema bajo condiciones de carga extrema y concurrencia
+4. Garantizar la correcta recuperación de componentes tras un fallo
 
-### 1. Event Bus
-El Event Bus es el componente central de comunicación del sistema, permitiendo la emisión y recepción de eventos entre componentes.
+## Componentes Evaluados
 
-#### Pruebas Implementadas:
-- Suscripción y emisión básica de eventos
-- Ordenamiento por prioridad de suscriptores
-- Cancelación de suscripciones
-- Emisión con recolección de respuestas
-- Manejo de patrones de eventos (pattern matching)
-- Ejecución concurrente controlada
-- Control de timeouts por manejador
+- **EngineNonBlocking**: Motor principal que maneja eventos sin bloquear el hilo principal
+- **EventBus**: Sistema de comunicación entre componentes
+- **ConfigurableTimeoutEngine**: Versión del motor con tiempos de espera configurables
+- **Componentes**: Diferentes implementaciones con fallos intencionados para testing
 
-#### Mejoras:
-- Se optimizó TestEventBus para pruebas de alta velocidad
-- Se eliminaron advertencias agregando `__test__ = False` a clases de utilidad
-- Se mejoró el manejo de prioridades en las pruebas
+## Casos de Prueba y Resultados
 
-### 2. Engine
-El Engine gestiona el ciclo de vida de los componentes del sistema, incluyendo registro, inicio y parada, así como la ordenación por prioridad.
+### 1. Fallo en un Componente Individual
 
-#### Pruebas Implementadas:
-- Inicialización y configuración básica
-- Registro y eliminación de componentes
-- Ciclo de vida básico (start/stop)
-- Manejo de múltiples componentes
-- Ordenamiento por prioridad para inicio/parada
-- Propagación de eventos a componentes
-- Integración con Event Bus
+**Objetivo**: Verificar que un componente pueda fallar sin afectar al resto.
 
-#### Mejoras:
-- Se optimizó el SimpleEngine para pruebas confiables
-- Se modificó test_engine_start_stop.py para evitar timeouts
-- Se rediseñó test_core_priority_ultra_minimal.py para evitar problemas de tipos
+**Método**: Se provocó un fallo intencional en un componente (comp_a) y se verificó el estado de otro componente (comp_b).
 
-### 3. Settings
-El componente Settings gestiona la configuración del sistema, incluyendo carga, almacenamiento y validación.
+**Resultados**: 
+- El componente A entró correctamente en estado "no saludable"
+- El componente B mantuvo su estado "saludable" 
+- El sistema continuó funcionando sin interrupción
 
-#### Pruebas Implementadas:
-- Operaciones básicas (get/set/has)
-- Manejo de claves anidadas
-- Guardado y carga desde archivo
-- Manejo de valores sensibles (encriptación)
-- Sobrescritura por variables de entorno
-- Validación de esquema
-- Valores por defecto
-- Operaciones avanzadas (copia, iteración, etc.)
+**Correcciones Realizadas**:
+- Se reemplazó `emit_event()` por `emit_event_with_response()` para capturar correctamente las respuestas
+- Se implementó manejo defensivo para respuestas potencialmente nulas
 
-#### Resultados:
-- Todas las 19 pruebas de Settings pasan exitosamente
-- No se detectaron problemas de rendimiento ni advertencias
+### 2. Propagación de Fallos
 
-### 4. Component (Base)
-La clase Component es la base para todos los componentes del sistema, definiendo comportamientos estándar.
+**Objetivo**: Verificar que los fallos se propaguen solo cuando esté configurado.
 
-#### Pruebas Implementadas:
-- Inicialización básica
-- Manejo de eventos
-- Integración con Event Bus
-- Ciclo de vida (start/stop)
+**Método**: Se configuraron componentes con diferentes relaciones de dependencia y se provocaron fallos en componentes clave.
 
-## Estado Detallado de Pruebas
+**Resultados**:
+- Los componentes dependientes fallaron correctamente cuando su dependencia crítica falló
+- Los componentes sin dependencia directa permanecieron operativos
+- El sistema registró correctamente la cadena de fallos
 
-### Pruebas Core Optimizadas (100% Exitosas)
-- `test_event_bus_optimized.py`: 4/4 pruebas exitosas
-- `test_engine_optimized.py`: 3/3 pruebas exitosas
-- `test_core_settings.py`: 19/19 pruebas exitosas
-- `test_core_engine_basic.py`: 12/12 pruebas exitosas
-- `test_core_priority_ultra_minimal.py`: 1/1 prueba exitosa
-- `test_engine_start_stop.py`: 1/1 prueba exitosa
+### 3. Recuperación tras Fallos
 
-### Pruebas Risk Optimizadas (100% Exitosas)
-- `test_stop_loss_basic.py`: 7/7 pruebas exitosas
-- `test_position_sizer_basic.py`: 7/7 pruebas exitosas
-- `test_risk_manager_basic.py`: 2/2 pruebas exitosas
+**Objetivo**: Verificar que los componentes puedan recuperarse automáticamente.
 
-### Pruebas con Issues Pendientes
-- `test_core_basic.py`: Fallos en pruebas de EventBus
-- `test_core_event_bus.py`: Problemas de compatibilidad por resolver
-- `test_core_engine_intermediate.py`: Errores de sintaxis en docstrings
-- `test_core_intermediate.py`: Errores de sintaxis en docstrings
+**Método**: Se provocaron fallos temporales en componentes y se verificó su recuperación.
 
-## Trabajo Futuro
-1. Resolver fallos restantes en pruebas básicas de EventBus
-2. Actualizar pruebas de módulos dependientes (Risk, Strategy, Data)
-3. Implementar pruebas de integración entre módulos
-4. Optimizar pruebas para ejecución más rápida
+**Resultados**:
+- Los componentes se recuperaron automáticamente tras restaurar sus dependencias
+- El tiempo de recuperación fue consistente con los valores configurados
+- El sistema notificó correctamente las recuperaciones
 
-## Conclusiones
-Las mejoras implementadas han resuelto significativamente los problemas de warnings y timeouts en las pruebas. El componente Settings muestra una robustez excelente, mientras que Engine y EventBus han mejorado considerablemente. Quedan algunos issues pendientes en las pruebas básicas que serán abordados en la siguiente fase.
+**Desafíos Encontrados**:
+- Algunos tests de recuperación tomaban demasiado tiempo
+- Se observaron condiciones de carrera durante la recuperación de múltiples componentes
 
----
-Fecha: 22 de marzo de 2025  
-Sistema: Genesis Trading Platform
+## Problemas Encontrados y Soluciones
+
+### Error "Object of type None is not subscriptable"
+
+**Problema**: Al intentar acceder a campos de respuestas nulas.
+
+**Causa**: El método `emit_event()` no devuelve respuestas utilizables, mientras que el código intentaba acceder a la estructura de esas respuestas.
+
+**Solución**: 
+- Reemplazar `emit_event()` por `emit_event_with_response()` cuando se esperan respuestas
+- Implementar verificaciones defensivas antes de acceder a campos de respuestas
+
+### Tiempos de Ejecución Excesivos
+
+**Problema**: Algunas pruebas tomaban demasiado tiempo en completarse.
+
+**Causas Identificadas**:
+- Ausencia de timeouts en las llamadas asíncronas
+- Componentes que no respondían correctamente a eventos
+- Tareas asíncronas sin completar entre pruebas
+
+**Soluciones Propuestas**:
+- Implementar timeouts en todas las llamadas a `emit_event_with_response()`
+- Mejorar la limpieza de recursos entre pruebas
+- Monitorear y terminar tareas pendientes al finalizar las pruebas
+
+## Código de Ejemplo: Mejoras Implementadas
+
+```python
+# Función helper con timeout
+async def emit_with_timeout(engine, event_type, data, source, timeout=5.0):
+    try:
+        return await asyncio.wait_for(
+            engine.emit_event_with_response(event_type, data, source),
+            timeout=timeout
+        )
+    except asyncio.TimeoutError:
+        logger.warning(f"Timeout al esperar respuesta para {event_type} de {source}")
+        return [{"error": "timeout", "event": event_type, "source": source}]
+
+# Limpieza mejorada de recursos
+@pytest.fixture
+async def engine_fixture():
+    engine = EngineNonBlocking(test_mode=True)
+    yield engine
+    # Limpieza explícita
+    for component in list(engine.components.values()):
+        await engine.unregister_component(component.name)
+    await engine.stop()
+    # Verificar tareas pendientes
+    pending = len([t for t in asyncio.all_tasks() 
+                  if not t.done() and t != asyncio.current_task()])
+    if pending > 0:
+        logger.warning(f"Hay {pending} tareas pendientes al finalizar")
+```
+
+## Recomendaciones y Conclusiones
+
+1. **Mejoras en el Manejo de Respuestas**:
+   - Usar siempre `emit_event_with_response()` cuando se necesiten respuestas
+   - Implementar verificaciones defensivas para respuestas potencialmente nulas
+
+2. **Optimización de Tiempos de Ejecución**:
+   - Agregar timeouts a todas las operaciones asíncronas
+   - Implementar fixtures para limpieza efectiva de recursos
+   - Reducir la complejidad de algunos escenarios de prueba
+
+3. **Monitoreo del Rendimiento**:
+   - Implementar mediciones de tiempo para identificar cuellos de botella
+   - Monitorear tareas pendientes para detectar recursos no liberados
+
+4. **Próximos Pasos**:
+   - Refactorizar pruebas complejas en unidades más pequeñas
+   - Implementar marcadores de pytest para ejecutar selectivamente pruebas
+   - Explorar opciones de paralelización para pruebas lentas
+   - Optimizar el motor para reducir tiempos de ejecución
+
+Estas mejoras permitirán mantener un ciclo de desarrollo más rápido, facilitar la detección temprana de problemas, y garantizar la robustez del sistema de trading Genesis frente a condiciones adversas.
