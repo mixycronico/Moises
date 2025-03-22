@@ -4,12 +4,11 @@ Sistema Genesis Divino - Resiliencia trascendental.
 
 import asyncio
 import logging
-from typing import Dict, Any, Optional
-from aiohttp import web
+from typing import Dict, Any, Optional, List, Union, Callable, Coroutine, NoReturn
 import json
 from time import time
 from random import uniform, random
-from enum import Enum
+from enum import Enum, auto
 from statistics import mean
 
 logger = logging.getLogger(__name__)
@@ -88,7 +87,7 @@ class ComponentAPI:
         self.failed = False
         self.checkpoint = {}
         self.circuit_breaker = CircuitBreaker(self.id, is_essential=is_essential)
-        self.task = None
+        self.task = asyncio.Future()  # Para almacenar la tarea de procesamiento
         self.is_essential = is_essential
         self.replica_states = {}  # Replicación divina
 
@@ -132,10 +131,9 @@ class ComponentAPI:
 class GenesisHybridCoordinator:
     def __init__(self, host: str = "localhost", port: int = 8080, max_ws_connections: int = 500):
         self.components: Dict[str, ComponentAPI] = {}
-        self.app = web.Application()
         self.host = host
         self.port = port
-        self.websocket_clients: Dict[str, web.WebSocketResponse] = {}
+        self.websocket_clients = {}  # Clientes WebSocket (simulado para pruebas)
         self.running = False
         self.mode = SystemMode.NORMAL
         self.essential_components = {"comp0", "comp1", "comp2"}
@@ -143,8 +141,8 @@ class GenesisHybridCoordinator:
         self.max_ws_connections = max_ws_connections
         self.emergency_buffer = []
 
-        self.app.add_routes([web.get("/ws", self._external_websocket_handler), web.post("/request/{target}", self._api_request_handler)])
-        asyncio.create_task(self._monitor_and_checkpoint())
+        # Inicializar tareas de monitoreo
+        self._monitor_task = asyncio.create_task(self._monitor_and_checkpoint())
 
     def register_component(self, component_id: str, component: ComponentAPI) -> None:
         self.components[component_id] = component
@@ -212,6 +210,22 @@ class GenesisHybridCoordinator:
         if tasks:
             await asyncio.gather(*tasks[:50], return_exceptions=True)  # Procesamiento omnisciente
 
+    async def start(self):
+        """Iniciar el sistema."""
+        logger.info("Iniciando GenesisHybridCoordinator en modo Divino")
+        self.running = True
+        self.stats = {"api_calls": 0, "local_events": 0, "failures": 0, "recoveries": 0}
+        self.mode = SystemMode.NORMAL
+        return True
+
+    async def stop(self):
+        """Detener el sistema."""
+        logger.info(f"Deteniendo GenesisHybridCoordinator. Estadísticas finales: {self.stats}")
+        self.running = False
+        # Dar tiempo para finalizar tareas pendientes
+        await asyncio.sleep(0.1)
+        return True
+        
     async def _monitor_and_checkpoint(self):
         while True:
             if not self.running:
@@ -220,7 +234,7 @@ class GenesisHybridCoordinator:
 
             failed_count = sum(1 for c in self.components.values() if c.failed)
             total = len(self.components) or 1
-            essential_failed = sum(1 for cid in self.essential_components if self.components[cid].failed)
+            essential_failed = sum(1 for cid in self.essential_components if cid in self.components and self.components[cid].failed)
             failure_rate = failed_count / total
 
             if essential_failed > 2 or failure_rate > 0.2:
