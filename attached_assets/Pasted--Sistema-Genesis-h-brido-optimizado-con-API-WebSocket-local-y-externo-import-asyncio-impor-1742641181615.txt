@@ -1,0 +1,188 @@
+"""
+Sistema Genesis híbrido optimizado con API, WebSocket local y externo.
+"""
+
+import asyncio
+import logging
+from typing import Dict, Any, Optional
+from aiohttp import web
+import json
+
+logger = logging.getLogger(__name__)
+
+class ComponentAPI:
+    def __init__(self, id: str):
+        self.id = id
+        self.local_events = []
+        self.external_events = []
+        self.local_queue = asyncio.Queue(maxsize=50)  # Límite para evitar acumulación
+
+    async def process_request(self, request_type: str, data: Dict[str, Any], source: str) -> Any:
+        raise NotImplementedError
+
+    async def on_local_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        self.local_events.append((event_type, data, source))
+
+    async def on_external_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        self.external_events.append((event_type, data, source))
+
+    async def listen_local(self):
+        while True:
+            try:
+                event_type, data, source = await asyncio.wait_for(self.local_queue.get(), timeout=2.0)
+                await self.on_local_event(event_type, data, source)
+                self.local_queue.task_done()
+            except asyncio.TimeoutError:
+                continue
+
+class GenesisHybridCoordinator:
+    def __init__(self, host: str = "localhost", port: int = 8080):
+        self.components: Dict[str, ComponentAPI] = {}
+        self.app = web.Application()
+        self.host = host
+        self.port = port
+        self.websocket_clients: Dict[str, web.WebSocketResponse] = {}
+        self.running = False
+        self.request_count = 0
+        self.local_event_count = 0
+        self.external_event_count = 0
+
+        self.app.add_routes([
+            web.get("/ws", self._external_websocket_handler),
+            web.post("/request/{target}", self._api_request_handler),
+        ])
+
+    def register_component(self, component_id: str, component: ComponentAPI) -> None:
+        if component_id in self.components:
+            logger.warning(f"Componente {component_id} ya registrado, reemplazando")
+        self.components[component_id] = component
+        asyncio.create_task(component.listen_local())
+        logger.debug(f"Componente {component_id} registrado")
+
+    async def request(self, target_id: str, request_type: str, data: Dict[str, Any], source: str) -> Optional[Any]:
+        if target_id not in self.components:
+            logger.error(f"Componente {target_id} no encontrado")
+            return None
+        try:
+            self.request_count += 1
+            return await asyncio.wait_for(
+                self.components[target_id].process_request(request_type, data, source),
+                timeout=2.0
+            )
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout en {target_id} para {request_type}")
+            return None
+        except Exception as e:
+            logger.error(f"Error en {target_id}: {e}")
+            return None
+
+    async def emit_local(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        if not self.running:
+            return
+        self.local_event_count += 1
+        tasks = [
+            component.local_queue.put((event_type, data, source))
+            for cid, component in self.components.items()
+            if cid != source
+        ]
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def emit_external(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        if not self.websocket_clients:
+            return
+        message = json.dumps({"type": event_type, "data": data, "source": source})
+        self.external_event_count += 1
+        tasks = [
+            ws.send_str(message)
+            for cid, ws in self.websocket_clients.items()
+            if cid != source and not ws.closed
+        ]
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _external_websocket_handler(self, request: web.Request) -> web.WebSocketResponse:
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+        component_id = request.query.get("id")
+        if component_id not in self.components:
+            await ws.close(code=1008, message="Componente no registrado")
+            return ws
+
+        self.websocket_clients[component_id] = ws
+        logger.info(f"WebSocket externo conectado para {component_id}")
+
+        try:
+            async for msg in ws:
+                if msg.type == web.WSMsgType.TEXT:
+                    data = json.loads(msg.data)
+                    await self.components[component_id].on_external_event(
+                        data.get("type"), data.get("data", {}), data.get("source", component_id)
+                    )
+        finally:
+            self.websocket_clients.pop(component_id, None)
+            logger.info(f"WebSocket externo desconectado para {component_id}")
+        return ws
+
+    async def _api_request_handler(self, request: web.Request) -> web.Response:
+        target_id = request.match_info["target"]
+        if target_id not in self.components:
+            return web.Response(status=404, text=f"Componente {target_id} no encontrado")
+        data = await request.json()
+        result = await self.request(
+            target_id, data.get("type"), data.get("data", {}), data.get("source", "external")
+        )
+        return web.json_response({"result": result})
+
+    async def start(self) -> None:
+        if self.running:
+            return
+        self.running = True
+        runner = web.AppRunner(self.app)
+        await runner.setup()
+        site = web.TCPSite(runner, self.host, self.port)
+        await site.start()
+        logger.info(f"Coordinador iniciado en {self.host}:{self.port}")
+        await asyncio.Future()
+
+    async def stop(self) -> None:
+        self.running = False
+        for ws in self.websocket_clients.values():
+            await ws.close()
+        await self.app.shutdown()
+        await self.app.cleanup()
+        logger.info(f"Detenido. Solicitudes: {self.request_count}, Local: {self.local_event_count}, Externo: {self.external_event_count}")
+
+# Ejemplo de componente
+class TestComponent(ComponentAPI):
+    async def process_request(self, request_type: str, data: Dict[str, Any], source: str) -> Optional[str]:
+        return f"Pong desde {self.id}" if request_type == "ping" else None
+
+# Prueba
+async def main():
+    logging.basicConfig(level=logging.DEBUG)
+    coordinator = GenesisHybridCoordinator()
+
+    comp1 = TestComponent("comp1")
+    comp2 = TestComponent("comp2")
+    coordinator.register_component("comp1", comp1)
+    coordinator.register_component("comp2", comp2)
+
+    await coordinator.start()
+
+    await asyncio.sleep(0.1)
+    response = await coordinator.request("comp2", "ping", {"data": "hello"}, "comp1")
+    print(f"Respuesta API: {response}")
+
+    await coordinator.emit_local("local_test", {"value": 42}, "comp1")
+    await asyncio.sleep(0.1)
+    print(f"Eventos locales en comp2: {comp2.local_events}")
+
+    async with websockets.connect("ws://localhost:8080/ws?id=comp2") as ws:
+        await coordinator.emit_external("external_test", {"value": 100}, "comp1")
+        await asyncio.sleep(0.1)
+        print(f"Eventos externos en comp2: {comp2.external_events}")
+
+    await coordinator.stop()
+
+if __name__ == "__main__":
+    asyncio.run(main())
