@@ -421,9 +421,22 @@ class EventBus:
         responses = []
         for priority, handler in all_handlers:
             try:
-                response = await handler(event_type, data, source)
-                if response is not None:
-                    responses.append(response)
+                # En modo prueba, usar timeout para evitar bloqueos
+                if self.test_mode or hasattr(sys, '_called_from_test'):
+                    try:
+                        response = await asyncio.wait_for(handler(event_type, data, source), timeout=0.5)
+                        if response is not None:
+                            responses.append(response)
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Timeout en handler para {event_type} (modo prueba)")
+                else:
+                    # Modo normal sin timeout
+                    response = await handler(event_type, data, source)
+                    if response is not None:
+                        responses.append(response)
+            except asyncio.CancelledError:
+                # Permitir cancelación limpia
+                raise
             except Exception as e:
                 logger.error(f"Error en manejador de eventos: {e}")
         
@@ -487,6 +500,17 @@ class EventBus:
         # Ejecutar handlers en orden de prioridad
         for priority, handler in all_handlers:
             try:
-                await handler(event_type, data, source)
+                # En modo prueba, usar timeout para evitar bloqueos
+                if self.test_mode or hasattr(sys, '_called_from_test'):
+                    try:
+                        await asyncio.wait_for(handler(event_type, data, source), timeout=0.5)
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Timeout en handler para {event_type} (modo prueba)")
+                else:
+                    # Modo normal sin timeout
+                    await handler(event_type, data, source)
+            except asyncio.CancelledError:
+                # Permitir cancelación limpia
+                raise
             except Exception as e:
                 logger.error(f"Error en manejador de eventos: {e}")

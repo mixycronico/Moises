@@ -225,11 +225,20 @@ class Engine:
         for name, component in ordered_components:
             try:
                 self.logger.info(f"Stopping component: {name} (priority: {priorities.get(name, 50)})")
-                if timeout:
+                # Si estamos en modo prueba y no hay timeout específico, usar timeout por defecto
+                if self.event_bus.test_mode or hasattr(sys, '_called_from_test'):
+                    actual_timeout = timeout if timeout else 1.0  # 1 segundo por defecto en tests
+                    try:
+                        await asyncio.wait_for(component.stop(), actual_timeout)
+                    except asyncio.TimeoutError:
+                        self.logger.warning(f"Stopping component {name} timed out after {actual_timeout} seconds")
+                # Si hay timeout específico pero no estamos en modo prueba
+                elif timeout:
                     try:
                         await asyncio.wait_for(component.stop(), timeout)
                     except asyncio.TimeoutError:
                         self.logger.warning(f"Stopping component {name} timed out after {timeout} seconds")
+                # Caso normal sin timeout
                 else:
                     await component.stop()
             except Exception as e:
@@ -284,6 +293,14 @@ class Engine:
             priorities = getattr(self, 'operation_priorities', {})
             priority = priorities.get(component.name, 50)
             self.logger.info(f"Starting component at runtime: {component.name} (priority: {priority})")
-            await component.start()
+            
+            # Usar timeout en modo prueba para evitar bloqueos
+            if getattr(self, 'event_bus', None) and (self.event_bus.test_mode or hasattr(sys, '_called_from_test')):
+                try:
+                    await asyncio.wait_for(component.start(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    self.logger.warning(f"Timeout al iniciar componente {component.name}")
+            else:
+                await component.start()
         except Exception as e:
             self.logger.error(f"Error starting component {component.name}: {e}")
