@@ -256,6 +256,10 @@ class GenesisHybridCoordinator:
             await asyncio.sleep(0.01 if self.mode != SystemMode.NORMAL else 0.03)
 
 class TestComponent(ComponentAPI):
+    def __init__(self, id: str, is_essential: bool = False):
+        super().__init__(id, is_essential)
+        self.processed_events = 0
+
     async def process_request(self, request_type: str, data: Dict[str, Any], source: str) -> Optional[str]:
         if request_type == "ping":
             if "fail" in data and random() < 0.5:
@@ -264,3 +268,7 @@ class TestComponent(ComponentAPI):
             await asyncio.sleep(0.002)
             return f"Pong desde {self.id}"
         return None
+
+    async def on_local_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
+        await super().on_local_event(event_type, data, source)
+        self.processed_events += 1
