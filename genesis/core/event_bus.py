@@ -106,34 +106,65 @@ class EventBus:
             self.process_task = None
     
     async def _process_events(self) -> None:
-        """Process events from the queue."""
+        """Process events from the queue in an optimized manner."""
         if not self.queue:
             raise RuntimeError("Event queue not initialized")
         
         while self.running:
             try:
+                # Obtener el próximo evento de la cola
                 event_type, data, source = await self.queue.get()
                 
+                # Usar el mismo patrón de recolección que en emit()
+                handlers_to_execute = []
+                
+                # 1. Listeners específicos (caso más común)
                 if event_type in self.subscribers:
-                    for handler in self.subscribers[event_type]:
-                        try:
-                            await handler(event_type, data, source)
-                        except Exception as e:
-                            logger.error(f"Error in event handler: {e}")
+                    handlers_to_execute.extend(self.subscribers[event_type])
                 
-                # Process 'all' event subscribers
+                # 2. Listeners de un solo uso
+                one_time_handlers = []
+                if event_type in self.one_time_listeners:
+                    one_time_handlers = self.one_time_listeners[event_type]
+                    del self.one_time_listeners[event_type]
+                
+                # 3. Listeners wildcard
+                wildcard_handlers = []
                 if '*' in self.subscribers:
-                    for handler in self.subscribers['*']:
-                        try:
-                            await handler(event_type, data, source)
-                        except Exception as e:
-                            logger.error(f"Error in wildcard event handler: {e}")
+                    wildcard_handlers = self.subscribers['*']
                 
+                # 4. Listeners de patrones (más costosos)
+                pattern_handlers = []
+                for pattern, handlers in self.subscribers.items():
+                    if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
+                        pattern_handlers.extend(handlers)
+                
+                # Combinar y ordenar todos los handlers por prioridad
+                all_handlers = handlers_to_execute + one_time_handlers + wildcard_handlers + pattern_handlers
+                all_handlers.sort(key=lambda x: x[0], reverse=True)
+                
+                # Ejecutar handlers en orden de prioridad
+                for priority, handler in all_handlers:
+                    try:
+                        await handler(event_type, data, source)
+                    except asyncio.CancelledError:
+                        # Permitir cancelación limpia
+                        raise
+                    except Exception as e:
+                        logger.error(f"Error en manejador de eventos: {e}")
+                
+                # Marcar la tarea como completada
                 self.queue.task_done()
+                
+                # Pequeña pausa para permitir que otros tasks se ejecuten
+                await asyncio.sleep(0)
+                
             except asyncio.CancelledError:
+                # Propagar cancelación para cerrar limpiamente
                 break
             except Exception as e:
-                logger.error(f"Error processing event: {e}")
+                logger.error(f"Error al procesar evento: {e}")
+                # Continuar con el próximo evento
     
     def subscribe(self, event_type: str, handler: EventHandler, priority: int = 50) -> None:
         """
@@ -269,6 +300,7 @@ class EventBus:
         Returns:
             True if the event type matches the pattern
         """
+        # Optimización: verificaciones rápidas primero
         if pattern == '*':
             return True
             
@@ -278,20 +310,20 @@ class EventBus:
         # Simple pattern matching with wildcards
         if pattern.startswith('*') and pattern.endswith('*'):
             # *contains*
-            return pattern[1:-1] in event_type
+            middle = pattern[1:-1]
+            return middle in event_type if middle else True
         elif pattern.startswith('*'):
             # *suffix
-            return event_type.endswith(pattern[1:])
+            suffix = pattern[1:]
+            return event_type.endswith(suffix) if suffix else True
         elif pattern.endswith('*'):
             # prefix*
-            return event_type.startswith(pattern[:-1])
+            prefix = pattern[:-1]
+            return event_type.startswith(prefix) if prefix else True
         else:
-            # Handle more complex patterns like "user.*" or "system.*"
-            parts = pattern.split('*')
-            if len(parts) == 2:
-                return event_type.startswith(parts[0]) and event_type.endswith(parts[1])
-                
-        return False
+            # Patrones simples con un solo comodín, como "user.*" o "system.*"
+            prefix, suffix = pattern.split('*', 1)
+            return event_type.startswith(prefix) and event_type.endswith(suffix)
     
     async def emit(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
@@ -302,66 +334,54 @@ class EventBus:
             data: Event data
             source: Source component of the event
         """
-        # Modo especial para pruebas: permitir emit aunque el bus no esté iniciado
-        # Esto es necesario para que las pruebas funcionen correctamente
+        # Auto-inicio para pruebas y casos especiales
         if not self.running:
-            # Durante pruebas, auto-iniciar el bus en modo directo
             self.running = True
             if hasattr(sys, '_called_from_test'):
                 logger.debug("EventBus: auto-inicio para pruebas")
             else:
                 logger.warning("Emitiendo eventos sin iniciar el bus formalmente")
         
-        # Intentar encolar el evento si tenemos una cola (modo normal de producción)
-        enqueued = False
-        if self.queue:
+        # Intentar encolar el evento (modo normal)
+        if self.queue and not self.test_mode:
             try:
                 await self.queue.put((event_type, data, source))
-                enqueued = True
+                return  # En modo normal, el procesador se encarga de ejecutar los handlers
             except Exception as e:
                 logger.error(f"Error al encolar evento: {e}")
+                # Continuar con procesamiento directo
         
-        # Para pruebas o cuando falla la cola: procesar eventos directamente
-        # Este modo de procesamiento directo asegura que:
-        # 1. Las pruebas ven resultado inmediato sin necesidad de esperar al ciclo de eventos
-        # 2. Los eventos se procesan aunque haya problemas con el bucle de eventos
+        # Procesamiento directo para pruebas o cuando falla la cola
+        # Recopilar listeners para un procesamiento más eficiente
+        handlers_to_execute = []
         
-        # Recopilar todos los listeners que deben ejecutarse
-        to_execute = []
+        # 1. Listeners específicos para el evento exacto (caso más común primero)
+        if event_type in self.subscribers:
+            handlers_to_execute.extend(self.subscribers[event_type])
         
-        # Procesar one-time listeners primero y luego eliminarlos
+        # 2. Listeners de un solo uso (para este evento específico)
+        one_time_handlers = []
         if event_type in self.one_time_listeners:
-            for priority, handler in self.one_time_listeners[event_type]:
-                to_execute.append((priority, handler))
-            # Eliminar después de recopilar
+            one_time_handlers = self.one_time_listeners[event_type]
             del self.one_time_listeners[event_type]
         
-        # Procesar suscriptores específicos (event_type exacto)
-        if event_type in self.subscribers:
-            for priority, handler in self.subscribers[event_type]:
-                to_execute.append((priority, handler))
-                
-        # Procesar suscriptores por patrón
-        for pattern, handlers in self.subscribers.items():
-            # Saltarse el caso exact-match (ya procesado) y el wildcard (se procesará después)
-            if pattern == event_type or pattern == '*':
-                continue
-                
-            # Comprobar si el patrón coincide con el tipo de evento
-            if self._matches_pattern(pattern, event_type):
-                for priority, handler in handlers:
-                    to_execute.append((priority, handler))
-        
-        # Procesar suscriptores wildcard ('*')
+        # 3. Listeners wildcard (casos más simples y comunes)
+        wildcard_handlers = []
         if '*' in self.subscribers:
-            for priority, handler in self.subscribers['*']:
-                to_execute.append((priority, handler))
-                
-        # Ordenar por prioridad y ejecutar
-        to_execute.sort(key=lambda x: x[0], reverse=True)
+            wildcard_handlers = self.subscribers['*']
         
-        # Ejecutar manejadores en orden de prioridad
-        for priority, handler in to_execute:
+        # 4. Listeners de patrones (más costosos, los dejamos para el final)
+        pattern_handlers = []
+        for pattern, handlers in self.subscribers.items():
+            if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
+                pattern_handlers.extend(handlers)
+        
+        # Combinar y ordenar todos los handlers por prioridad
+        all_handlers = handlers_to_execute + one_time_handlers + wildcard_handlers + pattern_handlers
+        all_handlers.sort(key=lambda x: x[0], reverse=True)
+        
+        # Ejecutar handlers en orden de prioridad
+        for priority, handler in all_handlers:
             try:
                 await handler(event_type, data, source)
             except Exception as e:

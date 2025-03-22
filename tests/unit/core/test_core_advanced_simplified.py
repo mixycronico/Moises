@@ -187,22 +187,29 @@ async def test_event_bus_message_ordering_simplified(event_bus):
 @pytest.mark.asyncio
 async def test_event_bus_pattern_matching_simplified(event_bus):
     """Versión simplificada de la prueba de coincidencia de patrones."""
-    # Contadores para diferentes patrones
+    # Contadores para diferentes patrones (con protección de concurrencia)
     specific_count = 0
     wildcard_count = 0
     prefix_count = 0
+    counter_lock = threading.Lock()
     
     async def specific_handler(event_type, data, source):
         nonlocal specific_count
-        specific_count += 1
+        with counter_lock:
+            specific_count += 1
     
     async def wildcard_handler(event_type, data, source):
         nonlocal wildcard_count
-        wildcard_count += 1
+        with counter_lock:
+            wildcard_count += 1
     
     async def prefix_handler(event_type, data, source):
         nonlocal prefix_count
-        prefix_count += 1
+        with counter_lock:
+            prefix_count += 1
+    
+    # Iniciar el bus explícitamente para evitar problemas
+    await event_bus.start()
     
     # Registrar listeners con diferentes patrones
     event_bus.register_listener("specific.event", specific_handler)
@@ -214,7 +221,13 @@ async def test_event_bus_pattern_matching_simplified(event_bus):
     await event_bus.emit("other.event", {}, "test")
     await event_bus.emit("prefix.something", {}, "test")
     
+    # Dar tiempo para que se procesen todos los eventos
+    await asyncio.sleep(0.1)
+    
+    # Detener el bus de eventos
+    await event_bus.stop()
+    
     # Verificar contadores
-    assert specific_count == 1
-    assert wildcard_count == 2  # specific.event y other.event
-    assert prefix_count == 1  # prefix.something
+    assert specific_count == 1, f"Expected specific_count=1, got {specific_count}"
+    assert wildcard_count == 2, f"Expected wildcard_count=2, got {wildcard_count}"  # specific.event y other.event
+    assert prefix_count == 1, f"Expected prefix_count=1, got {prefix_count}"  # prefix.something
