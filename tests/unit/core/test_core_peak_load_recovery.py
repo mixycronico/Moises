@@ -81,13 +81,6 @@ class LoadGeneratorComponent(Component):
         """
         self._engine = engine
         
-        # Referencia al motor
-        self._engine = None
-        
-    def set_engine(self, engine):
-        """Establecer referencia al motor de eventos."""
-        self._engine = engine
-        
     async def start(self) -> None:
         """Iniciar el componente."""
         logger.debug(f"LoadGeneratorComponent {self.name} iniciado")
