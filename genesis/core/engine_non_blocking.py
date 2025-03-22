@@ -138,6 +138,32 @@ class EngineNonBlocking:
         if name in self.operation_priorities:
             del self.operation_priorities[name]
     
+    def deregister_component(self, component: Component) -> None:
+        """
+        Deregister a component from the engine.
+        
+        This is an alias for remove_component that takes a component instance
+        instead of a name.
+        
+        Args:
+            component: Component to deregister
+        """
+        if not component or not hasattr(component, 'name'):
+            logger.error("Invalid component provided for deregistration")
+            return
+            
+        self.remove_component(component.name)
+        
+    @property
+    def is_running(self) -> bool:
+        """
+        Check if the engine is running.
+        
+        Returns:
+            True if the engine is running, False otherwise
+        """
+        return self.running
+    
     async def _start_component(self, component: Component) -> None:
         """
         Start a component with proper error handling.
