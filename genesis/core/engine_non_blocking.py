@@ -122,7 +122,7 @@ class EngineNonBlocking:
         """
         return list(self.components.values())
         
-    def remove_component(self, name: str) -> None:
+    async def remove_component(self, name: str) -> None:
         """
         Remove a component from the engine.
         
@@ -138,7 +138,7 @@ class EngineNonBlocking:
         if name in self.operation_priorities:
             del self.operation_priorities[name]
     
-    def deregister_component(self, component: Component) -> None:
+    async def deregister_component(self, component: Component) -> None:
         """
         Deregister a component from the engine.
         
@@ -152,7 +152,7 @@ class EngineNonBlocking:
             logger.error("Invalid component provided for deregistration")
             return
             
-        self.remove_component(component.name)
+        await self.remove_component(component.name)
         
     async def unregister_component(self, component_name: str) -> None:
         """
@@ -164,7 +164,7 @@ class EngineNonBlocking:
         Args:
             component_name: Name of the component to unregister
         """
-        self.remove_component(component_name)
+        await self.remove_component(component_name)
         
     @property
     def is_running(self) -> bool:
