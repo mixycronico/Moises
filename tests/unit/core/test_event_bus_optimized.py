@@ -10,8 +10,11 @@ import pytest
 from unittest.mock import AsyncMock
 
 # Nueva implementación simplificada del EventBus específica para pruebas
+# No es una clase de prueba real, solo una utilidad para las pruebas
+# pytest.mark.no_collect para evitar que pytest intente recopilarla como prueba
 class TestEventBus:
     """Versión simplificada del EventBus para pruebas."""
+    __test__ = False  # Esto informa a pytest que no es una clase de prueba
     
     def __init__(self):
         self.subscribers = {}
