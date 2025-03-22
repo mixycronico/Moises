@@ -47,6 +47,15 @@ class Engine:
         self.running = False
         self._shutdown_event = asyncio.Event()
         self.started_at = None
+        
+        # Atributos adicionales para compatibilidad con pruebas
+        self.use_priorities = settings.get('use_priorities', False)
+        self.operation_timeout = settings.get('operation_timeout', 30.0)
+        
+    @property
+    def is_running(self):
+        """Alias para running, para compatibilidad con pruebas."""
+        return self.running
     
     def register_component(self, component: Component) -> None:
         """
