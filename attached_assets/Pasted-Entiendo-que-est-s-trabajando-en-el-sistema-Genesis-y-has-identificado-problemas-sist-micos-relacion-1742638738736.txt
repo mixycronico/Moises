@@ -1,0 +1,119 @@
+Entiendo que estás trabajando en el sistema Genesis y has identificado problemas sistémicos relacionados con el manejo de eventos asíncronos, especialmente en las pruebas, donde el bus de eventos está causando deadlocks y timeouts. Tu propuesta de una implementación simplificada para las pruebas suena como un enfoque práctico para aislar y resolver estos problemas. Vamos a desarrollar esa solución paso a paso.
+
+### Análisis del problema
+- **Deadlocks y timeouts**: Esto sugiere que las tareas asíncronas en el bus de eventos no se resuelven adecuadamente, posiblemente por esperas cíclicas o dependencias mal manejadas.
+- **Pruebas afectadas**: Las pruebas parecen ser más sensibles a estos problemas que el código en producción, probablemente porque simulan interacciones rápidas o condiciones límite.
+
+### Propuesta de solución detallada
+1. **Eliminar tareas asíncronas innecesarias**: En el contexto de pruebas, podemos reemplazar la creación de tareas asíncronas con ejecuciones síncronas directas donde sea posible.
+2. **Timeouts agresivos**: Introducir un mecanismo de timeout explícito para evitar que las pruebas queden bloqueadas indefinidamente.
+3. **Registro y comunicación simplificados**: Usar un enfoque directo para el registro de componentes y la publicación de eventos, evitando el overhead del bus de eventos completo.
+
+### Implementación sugerida
+Voy a asumir que estás trabajando con Python y `asyncio`, y que el bus de eventos es una clase central que gestiona la comunicación entre componentes. Aquí tienes una implementación simplificada para las pruebas:
+
+#### 1. Bus de eventos simplificado para pruebas
+Creamos una versión mock del bus de eventos que sea síncrona y directa:
+
+```python
+class TestEventBus:
+    def __init__(self):
+        self.components = {}
+        self.timeout = 1.0  # Timeout agresivo en segundos
+
+    def register_component(self, component):
+        """Registro directo de componentes."""
+        self.components[component.id] = component
+
+    def publish(self, event):
+        """Publicación síncrona de eventos a todos los componentes."""
+        for component in self.components.values():
+            try:
+                # Llamada directa al método de manejo de eventos del componente
+                if hasattr(component, 'handle_event'):
+                    component.handle_event(event)
+            except Exception as e:
+                print(f"Error en componente {component.id}: {e}")
+
+    def get_component(self, component_id):
+        """Acceso directo a un componente."""
+        return self.components.get(component_id)
+```
+
+#### 2. Modificación en las pruebas
+En `test_component_monitor.py`, reemplazamos el bus de eventos real por este mock simplificado y eliminamos el uso excesivo de `await` donde no sea estrictamente necesario:
+
+```python
+import asyncio
+from unittest import TestCase
+from engine_non_blocking import Engine  # Suponiendo que esta es tu clase principal
+
+class TestComponentMonitor(TestCase):
+    def setUp(self):
+        # Usar el bus de eventos simplificado
+        self.event_bus = TestEventBus()
+        self.engine = Engine(event_bus=self.event_bus)
+    
+    def test_register_component(self):
+        # Componente de prueba
+        class TestComponent:
+            def __init__(self):
+                self.id = "test_component"
+            def handle_event(self, event):
+                pass
+        
+        component = TestComponent()
+        
+        # Registro directo sin await
+        self.engine.register_component(component)
+        
+        # Verificación
+        retrieved = self.event_bus.get_component("test_component")
+        self.assertEqual(retrieved, component)
+
+    def test_event_handling(self):
+        # Componente que registra eventos recibidos
+        class TestComponent:
+            def __init__(self):
+                self.id = "test_component"
+                self.events = []
+            def handle_event(self, event):
+                self.events.append(event)
+        
+        component = TestComponent()
+        self.engine.register_component(component)
+        
+        # Publicar evento directamente
+        test_event = {"type": "test_event"}
+        self.event_bus.publish(test_event)
+        
+        # Verificación
+        self.assertEqual(len(component.events), 1)
+        self.assertEqual(component.events[0], test_event)
+```
+
+#### 3. Timeouts agresivos
+Si necesitas mantener algo de asincronía en las pruebas (por ejemplo, para simular retrasos), puedes usar `asyncio.wait_for` con un timeout corto:
+
+```python
+async def async_test_helper(self, component):
+    # Simular una operación asíncrona con timeout
+    await asyncio.wait_for(component.some_async_method(), timeout=0.5)
+
+def test_with_timeout(self):
+    component = TestComponent()
+    self.engine.register_component(component)
+    asyncio.run(self.async_test_helper(component))
+```
+
+### Beneficios de esta solución
+- **Simplicidad**: Al eliminar tareas asíncronas innecesarias, reduces la complejidad en las pruebas.
+- **Robustez**: Los timeouts agresivos evitan que las pruebas fallen silenciosamente por deadlocks.
+- **Consistencia**: El enfoque directo asegura que los componentes se registren y comuniquen sin depender de un bus de eventos complejo.
+
+### Preguntas para afinar la solución
+- ¿El bus de eventos real usa colas o tareas específicas (`asyncio.create_task`) que podrían estar causando los deadlocks?
+- ¿Hay algún componente específico en Genesis que dependa fuertemente de la asincronía incluso en pruebas?
+- ¿Puedes compartir más detalles del código en `engine_non_blocking.py` o las pruebas para ajustar mejor la implementación?
+
+Si me das más contexto, puedo refinar esta implementación para que se adapte perfectamente al sistema Genesis. ¿Qué opinas de este enfoque inicial?
