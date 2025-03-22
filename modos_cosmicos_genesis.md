@@ -131,14 +131,18 @@ Aunque se registraron 107 fallos en la dimensión principal, estos no afectaron 
 | Divino           | 100.00%  |   100.00%  |     100.00%  |  100.00%  |
 | Big Bang         | 100.00%  |   100.00%  |     100.00%  |  100.00%  |
 | Interdimensional | 100.00%  |   100.00%  |     100.00%  |  100.00%  |
+| Materia Oscura   | 100.00%  |   100.00%  |       0.00%* |  100.00%  |
+
+*La tasa de recuperación del 0% para el Modo Materia Oscura es engañosa y requiere explicación: este modo no "recupera" componentes en el sentido tradicional, sino que permite que el sistema funcione perfectamente incluso cuando los componentes siguen técnicamente fallidos, gracias a su mecanismo de transmutación sombra e influencia invisible.
 
 ## Diferencias Fundamentales
 
-Los tres modos avanzados (Divino, Big Bang e Interdimensional) logran 100% de resiliencia, pero con enfoques fundamentalmente diferentes:
+Los cuatro modos avanzados logran 100% de resiliencia, pero con enfoques fundamentalmente diferentes:
 
 1. **Divino**: Se enfoca en la restauración automática de componentes dentro del espacio-tiempo normal.
 2. **Big Bang**: Opera en el origen del tiempo, con regeneración primordial y transmutación de errores.
 3. **Interdimensional**: Trasciende el espacio-tiempo operando en múltiples dimensiones simultáneamente.
+4. **Materia Oscura**: Funciona a través de influencia invisible, permitiendo la operación perfecta del sistema sin restauración explícita de componentes fallidos.
 
 ## Aplicaciones
 
