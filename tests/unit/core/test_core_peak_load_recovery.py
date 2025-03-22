@@ -304,6 +304,7 @@ class BurstMonitorComponent(Component):
         """
         super().__init__(name)
         self.load_generators = load_generators if load_generators is not None else []
+        self._engine = None  # Añadimos el atributo _engine inicializado
         self.threshold = threshold
         self.monitoring_active = False
         self.metrics_history = []
@@ -550,7 +551,12 @@ async def test_peak_load_recovery():
     y evalúa su capacidad para recuperarse después del pico.
     """
     # Crear motor con expansión dinámica para manejar picos
-    engine = DynamicExpansionEngine(min_blocks=2, max_blocks=8, scaling_threshold=0.7, cooldown_period=2.0)
+    engine = DynamicExpansionEngine(
+        min_concurrent_blocks=2,
+        max_concurrent_blocks=8,
+        expansion_threshold=0.7,
+        scale_cooldown=2.0
+    )
     
     # Función interna para la prueba
     async def run_peak_load_test(engine):
@@ -571,6 +577,8 @@ async def test_peak_load_recovery():
         
         # Registrar monitor de picos
         monitor = BurstMonitorComponent("load_monitor", generator_names)
+        # Establecer el motor en el monitor para las llamadas a emit_with_timeout
+        monitor._engine = engine
         await engine.register_component(monitor)
         
         logger.info(f"Registrados {len(load_generators)} generadores de carga y 1 monitor")
@@ -910,10 +918,10 @@ async def test_concurrent_load_distribution():
     """
     # Crear motor con configuración avanzada
     engine = DynamicExpansionEngine(
-        min_blocks=2,
-        max_blocks=6,
-        scaling_threshold=0.6,
-        cooldown_period=1.0
+        min_concurrent_blocks=2,
+        max_concurrent_blocks=6,
+        expansion_threshold=0.6,
+        scale_cooldown=1.0
     )
     
     # Función interna para la prueba
