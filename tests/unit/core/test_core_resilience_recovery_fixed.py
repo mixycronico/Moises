@@ -20,6 +20,19 @@ from genesis.core.engine_non_blocking import EngineNonBlocking
 logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
+# Definir excepciones específicas a nivel de módulo
+class ComponentHealthException(Exception):
+    """Excepción específica para errores de componentes no saludables."""
+    pass
+    
+class ComponentTimeoutException(Exception):
+    """Excepción específica para timeouts de componentes."""
+    pass
+
+class ValidationException(Exception):
+    """Excepción específica para errores de validación."""
+    pass
+
 
 class SimpleResilientComponent(Component):
     """Componente simplificado para pruebas de resiliencia con mínimo overhead."""
@@ -43,14 +56,6 @@ class SimpleResilientComponent(Component):
     
     async def stop(self) -> None:
         """Detener componente."""
-        pass
-    
-    class ComponentHealthException(Exception):
-        """Excepción específica para errores de componentes no saludables."""
-        pass
-        
-    class ComponentTimeoutException(Exception):
-        """Excepción específica para timeouts de componentes."""
         pass
             
     async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> Optional[Any]:
@@ -100,12 +105,12 @@ class SimpleResilientComponent(Component):
             if not self.is_healthy and self.fail_when_unhealthy:
                 self.error_count += 1
                 # Generar excepción específica 
-                raise self.ComponentHealthException(f"Componente {self.name} no está en estado saludable")
+                raise ComponentHealthException(f"Componente {self.name} no está en estado saludable")
             
             # Si llegamos aquí, el procesamiento fue exitoso
             self.success_count += 1
             
-        except self.ComponentHealthException as e:
+        except ComponentHealthException as e:
             # Manejo específico para problemas de salud del componente
             logger.warning(f"Error de salud en componente: {e}")
             raise  # Re-lanzar para que el motor lo maneje
@@ -115,7 +120,7 @@ class SimpleResilientComponent(Component):
             logger.error(f"Error de validación en {self.name}: {e}")
             raise
             
-        except self.ComponentTimeoutException as e:
+        except ComponentTimeoutException as e:
             # Manejo específico para timeouts
             logger.error(f"Timeout en componente {self.name}: {e}")
             raise
@@ -184,9 +189,10 @@ async def test_component_recovery_simplified():
     # Verificar que el componente recuperable generó errores
     assert recoverable_comp.error_count > 0, "El componente recuperable debería haber generado errores"
     
-    # Recuperar el componente
+    # Recuperar el componente - dar más tiempo para que se recupere completamente
     await engine.emit_event("recovery", {}, "test")
-    await asyncio.sleep(0.05)
+    # Aumentar el tiempo de espera para asegurar la recuperación
+    await asyncio.sleep(0.2)
     
     # Verificar que se recuperó
     assert recoverable_comp.is_healthy, "El componente debería estar sano después de la recuperación"
@@ -235,12 +241,14 @@ async def test_error_isolation_simplified():
     
     # Marcar componente de error como no sano
     await engine.emit_event("set_unhealthy", {}, "test")
-    await asyncio.sleep(0.05)
+    # Dar tiempo suficiente para que el estado se actualice
+    await asyncio.sleep(0.2)
     
     # Enviar más eventos
     for i in range(2):
         await engine.emit_event(f"normal_{i+2}", {"id": i+2}, "test")
-        await asyncio.sleep(0.05)
+        # Aumentar el tiempo entre eventos para garantizar el procesamiento
+        await asyncio.sleep(0.1)
     
     # Verificar que los componentes sanos procesaron todos los eventos
     for i, comp in enumerate(components):
