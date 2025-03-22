@@ -20,10 +20,12 @@ async def emit_with_timeout(
     event_type: str, 
     data: Dict[str, Any], 
     source: str, 
-    timeout: float = 5.0
+    timeout: float = 5.0,
+    retries: int = 0,
+    default_response: Optional[List[Dict[str, Any]]] = None
 ) -> List[Dict[str, Any]]:
     """
-    Emitir evento con timeout y manejo robusto de errores.
+    Emitir evento con timeout, reintentos y manejo robusto de errores.
     
     Args:
         engine: Instancia del motor de eventos
@@ -31,39 +33,94 @@ async def emit_with_timeout(
         data: Datos del evento
         source: Fuente del evento
         timeout: Tiempo máximo de espera en segundos
+        retries: Número de reintentos en caso de timeout (default: 0)
+        default_response: Respuesta por defecto si falla (default: None)
         
     Returns:
         Lista de respuestas o un objeto de error si falla
     """
-    try:
-        response = await asyncio.wait_for(
-            engine.emit_event_with_response(event_type, data, source),
-            timeout=timeout
-        )
-        
-        # Manejar el caso de respuesta None
-        if response is None:
-            logger.warning(f"No response for {event_type} from {source}")
+    # Asegurar que data sea un diccionario
+    if not isinstance(data, dict):
+        data = {"data": data}
+    
+    # Valor por defecto para respuesta en caso de error
+    error_response = default_response
+    if error_response is None:
+        error_response = [{"healthy": False, 
+                        "error": f"Error for {event_type} from {source}",
+                        "event": event_type, 
+                        "source": source}]
+    
+    # Realizar intentos
+    attempt = 0
+    last_error = None
+    
+    while attempt <= retries:
+        try:
+            # Ejecutar operación con timeout
+            response = await asyncio.wait_for(
+                engine.emit_event_with_response(event_type, data, source),
+                timeout=timeout
+            )
+            
+            # Manejar el caso de respuesta None
+            if response is None:
+                logger.warning(f"No response for {event_type} from {source}")
+                # Configurar error para este intento
+                error_response = [{"healthy": False, 
+                                  "error": f"No response for {event_type} from {source}",
+                                  "event": event_type, 
+                                  "source": source}]
+                
+                # Si hay más reintentos, continuar
+                if attempt < retries:
+                    attempt += 1
+                    logger.debug(f"Retrying {attempt}/{retries} for {event_type}")
+                    await asyncio.sleep(0.1)  # Pequeña pausa antes de reintentar
+                    continue
+                return error_response
+                
+            # Respuesta válida
+            return response
+            
+        except asyncio.TimeoutError:
+            last_error = "timeout"
+            logger.warning(f"Intento {attempt + 1}/{retries + 1}: Timeout de {timeout}s al emitir {event_type} desde {source}")
+            
+            # Si hay más reintentos, continuar
+            if attempt < retries:
+                attempt += 1
+                await asyncio.sleep(0.1)  # Pequeña pausa antes de reintentar
+                continue
+                
+            # Agotados los reintentos, devolver respuesta de error
             return [{"healthy": False, 
-                    "error": f"No response for {event_type} from {source}",
+                    "error": "timeout", 
                     "event": event_type, 
                     "source": source}]
-        
-        return response
-        
-    except asyncio.TimeoutError:
-        logger.warning(f"Timeout de {timeout}s al emitir {event_type} desde {source}")
-        return [{"healthy": False, 
-                "error": "timeout", 
-                "event": event_type, 
-                "source": source}]
+                    
+        except Exception as e:
+            last_error = str(e)
+            logger.error(f"Error inesperado en {event_type} desde {source}: {str(e)}")
+            
+            # Si hay más reintentos y no es un error fatal, continuar
+            if attempt < retries and not isinstance(e, (KeyboardInterrupt, SystemExit)):
+                attempt += 1
+                await asyncio.sleep(0.1)  # Pequeña pausa antes de reintentar
+                continue
                 
-    except Exception as e:
-        logger.error(f"Error inesperado en {event_type} desde {source}: {str(e)}")
-        return [{"healthy": False, 
-                "error": str(e), 
-                "event": event_type, 
-                "source": source}]
+            # Agotados los reintentos o error fatal, devolver respuesta de error
+            return [{"healthy": False, 
+                    "error": str(e), 
+                    "event": event_type, 
+                    "source": source}]
+    
+    # Este punto solo se alcanza si hay algún error en la lógica de reintentos
+    logger.error(f"Error inesperado en lógica de reintentos para {event_type}")
+    return [{"healthy": False, 
+            "error": last_error or "unknown error", 
+            "event": event_type, 
+            "source": source}]
 
 async def check_component_status(engine, component_id: str, timeout: float = 2.0) -> Dict[str, Any]:
     """
