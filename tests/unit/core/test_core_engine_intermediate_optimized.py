@@ -168,8 +168,7 @@ async def test_event_fan_out_and_fan_in(engine):
     component1 = engine.components["component1"]
     component2 = engine.components["component2"]
     
-    # Mockear handle_event para que devuelva una respuesta
-    original_handle_event = component1.handle_event
+    # Crear handlers específicos para este evento
     async def component1_handler(event_type, data, source):
         print(f"Component1 received event: {event_type} from {source}")
         if event_type == "task_request":
@@ -177,10 +176,8 @@ async def test_event_fan_out_and_fan_in(engine):
             processed = [item * 2 for item in data["items"][:3]]
             print(f"Component1 returning: {processed}")
             return {"processed": processed, "component": "component1"}
-        return await original_handle_event(event_type, data, source)
-    component1.handle_event = component1_handler
+        return None
     
-    original_handle_event2 = component2.handle_event
     async def component2_handler(event_type, data, source):
         print(f"Component2 received event: {event_type} from {source}")
         if event_type == "task_request":
@@ -188,8 +185,11 @@ async def test_event_fan_out_and_fan_in(engine):
             processed = [item * 3 for item in data["items"][3:]]
             print(f"Component2 returning: {processed}")
             return {"processed": processed, "component": "component2"}
-        return await original_handle_event2(event_type, data, source)
-    component2.handle_event = component2_handler
+        return None
+    
+    # Registrar estos handlers específicamente para "task_request" con alta prioridad
+    engine.event_bus.subscribe("task_request", component1_handler, priority=100)
+    engine.event_bus.subscribe("task_request", component2_handler, priority=100)
     
     # Emitir el evento desde un origen neutro (no desde un componente)
     responses = await engine.event_bus.emit_with_response("task_request", task_data, "system")
