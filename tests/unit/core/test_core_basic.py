@@ -244,6 +244,9 @@ async def test_engine_event_propagation(engine, test_component, event_bus):
     # Iniciar el motor
     await engine.start()
     
+    # Limpiar eventos previos (como system.started) para la prueba
+    test_component.events_received.clear()
+    
     # Emitir un evento
     await event_bus.emit("test_event", {"message": "Via engine"}, "test_source")
     
