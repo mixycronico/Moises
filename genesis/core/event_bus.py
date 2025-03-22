@@ -422,6 +422,16 @@ class EventBus:
         responses = []
         for priority, handler in all_handlers:
             try:
+                # Obtener el nombre del componente del handler
+                component_name = getattr(handler, '__self__', None)
+                if component_name:
+                    component_name = getattr(component_name, 'name', None)
+                
+                # Evitar enviar eventos a la misma fuente que los generó
+                if component_name and component_name == source:
+                    logger.debug(f"Omitiendo envío de evento {event_type} al componente {source} (origen del evento)")
+                    continue
+                
                 # En modo prueba, usar timeout para evitar bloqueos
                 if self.test_mode or hasattr(sys, '_called_from_test'):
                     try:
@@ -485,6 +495,16 @@ class EventBus:
         # Ejecutar handlers en orden de prioridad
         for priority, handler in all_handlers:
             try:
+                # Obtener el nombre del componente del handler
+                component_name = getattr(handler, '__self__', None)
+                if component_name:
+                    component_name = getattr(component_name, 'name', None)
+                
+                # Evitar enviar eventos a la misma fuente que los generó
+                if component_name and component_name == source:
+                    logger.debug(f"Omitiendo envío de evento {event_type} al componente {source} (origen del evento)")
+                    continue
+                    
                 # En modo prueba, usar timeout para evitar bloqueos
                 if self.test_mode or hasattr(sys, '_called_from_test'):
                     try:
