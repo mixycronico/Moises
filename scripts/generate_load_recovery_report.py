@@ -93,10 +93,10 @@ class LoadRecoveryReportGenerator:
             
             # Test de recuperación de picos
             engine = DynamicExpansionEngine(
-                min_blocks=2,
-                max_blocks=8,
-                scaling_threshold=0.7,
-                cooldown_period=2.0
+                min_concurrent_blocks=2,
+                max_concurrent_blocks=8,
+                expansion_threshold=0.7,
+                scale_cooldown=2.0
             )
             
             try:
@@ -104,7 +104,7 @@ class LoadRecoveryReportGenerator:
                 result = await run_test_with_timing(
                     engine,
                     "test_peak_load_recovery",
-                    lambda e: test_peak_load_recovery(e)
+                    test_peak_load_recovery
                 )
                 peak_recovery_results.append(result)
                 logger.info(f"Prueba completada en {result.get('test_duration', 0):.2f}s")
@@ -116,10 +116,10 @@ class LoadRecoveryReportGenerator:
             
             # Test de distribución de carga
             engine = DynamicExpansionEngine(
-                min_blocks=2,
-                max_blocks=6,
-                scaling_threshold=0.6,
-                cooldown_period=1.0
+                min_concurrent_blocks=2,
+                max_concurrent_blocks=6,
+                expansion_threshold=0.6,
+                scale_cooldown=1.0
             )
             
             try:
@@ -127,7 +127,7 @@ class LoadRecoveryReportGenerator:
                 result = await run_test_with_timing(
                     engine,
                     "test_concurrent_load_distribution",
-                    lambda e: test_concurrent_load_distribution(e)
+                    test_concurrent_load_distribution
                 )
                 distribution_results.append(result)
                 logger.info(f"Prueba completada en {result.get('test_duration', 0):.2f}s")
