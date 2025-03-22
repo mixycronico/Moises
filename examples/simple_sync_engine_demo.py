@@ -12,10 +12,8 @@ import logging
 import threading
 from typing import Dict, Any, Optional, List
 
-# Agregar directorio raíz al path para importar módulos de Genesis
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-from genesis.core.synchronous_engine import SynchronousEngine
+# Usar la implementación simplificada del motor síncrono
+from examples.simple_synchronous_engine import SimpleSynchronousEngine
 
 # Configurar logging
 logging.basicConfig(
@@ -73,7 +71,7 @@ class BasicComponent:
 class DataProcessor(BasicComponent):
     """Componente que procesa datos y emite resultados."""
     
-    def __init__(self, component_id: str, engine: SynchronousEngine):
+    def __init__(self, component_id: str, engine: SimpleSynchronousEngine):
         super().__init__(component_id)
         self.engine = engine
         self.processed_count = 0
@@ -140,7 +138,7 @@ def run_demo():
     logger.info("Iniciando demostración del motor síncrono Genesis")
     
     # Crear motor con tick rate más alto para mayor capacidad de respuesta
-    engine = SynchronousEngine(tick_rate=0.02)
+    engine = SimpleSynchronousEngine(tick_rate=0.02)
     
     # Crear componentes
     component_a = BasicComponent("ComponentA")

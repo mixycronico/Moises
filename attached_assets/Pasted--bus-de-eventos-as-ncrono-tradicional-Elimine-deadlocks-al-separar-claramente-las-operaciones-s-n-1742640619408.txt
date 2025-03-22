@@ -1,0 +1,586 @@
+ bus de eventos asíncrono tradicional.
+- Elimine deadlocks al separar claramente las operaciones síncronas de las asíncronas y gestionarlas de forma robusta.
+
+---
+
+### Enfoque: Híbrido API + WebSocket
+**Estructura**:
+1. **API interna síncrona**: Cada componente expone métodos que otros pueden llamar directamente a través de un coordinador (como en la solución anterior), usando¡Entendido! Vamos a diseñ un modeloar una solución híbrida para de solicitud el sistema Genesis que combine una/res **API internapuesta.
+2. **WebSocket basada para eventos**: Un en solicitudes servidor/res WebSocketpuestas central** con un ** distribsuye eventos enistema de WebSockets tiempo** real para a manejar los eventos en componentes suscrit tiempo real. Esteos, pero enfoque mezcla lo sin depender mejor de ambos de col mundos:as la as claridad yíncronas complejas ni control tareas de una concurrent API para interaccioneses críticas que, puedan y blo laquearse.
+3. flex **ibilidadCo deordin WebadorSockets híbr paraido**: Gestion comunicación asína tantoc lasrona solic sinitudes los API como riesgos las de conex deadioneslocks Web delSocket, bus asegurando que de eventos no haya esper original. Atasac cíaremos el problema de raízclicas.
+
+** alBeneficios reducir la** dependencia:
+- ** de tareas asíncronasSin deadlocks**: Las solic descontroladasitudes y central API sonizar s laíncron lógica deas y deterministas comunicación; los.
+
+---
+
+### En eventos Webfoque: Híbrido API +Socket son unid WebireSocketccionales
+**Idea y no esperan respuestas.
+- ** principalT**:
+- **API interna**:iempo real**: Los Los WebSockets permiten not componentes exponificaciones instantáen métodos sneas sin overheadíncron innecesosario o.
+- **Flexibilidad**: as Puedes usar laíncron APIos para ( operacionescontrol críticas y WebSockets paraados actual) paraizaciones ráp solicidas.
+
+---
+
+### Implementaciónitudes directas entre
+Para ellos esta, gestionadas por un solución, us coordinador.aremos
+- **WebSocket**: Un:
+- `websockets` ( canal centralinstizado para emitirál eventos en tiempoalo real con, con ` suspip install websockets`) para el servidorcripciones expl WebSocket.
+- Un coordinícitas y manejo de mensajesador que combine ambos bidirecc paradigional, evitandomas col.
+
+```python
+"""
+as compleSistemajas y tareas concurrent Genesis híbrido con APIes y WebSocket des.
+
+Este módulocontrol implementadasa. un
+ sistema- donde **Co losordinador híbrido**: componentes Gestion se comuna ambasican mediante formas:
+- Una API de s comunicación,ínc asegurronaando que para solic no haya ciclositudes direct nias bloque.
+- Webos.
+
+#### PorSockets para eventos qué res en tiempouelve real el.
+ problema"""
+
+import de logging raíz
+
+from- **Control expl typing import Dict,íc Any,ito List**:, La Optional, API Set elimina las
+ susimport asynciocripciones
+ implimportíc websitas queockets causan
+ deadfrom websocketslocks.server.
+- **Web import WebSocketServerProtocolSocket central
+from timeizado**: Los eventos en tiempo import time, sleep real se manej
+import json
+
+loggeran en un solo = flujo logging,.getLogger(__name__)
+
+class ComponentAPI evitando múltiples tareas compiti:
+    """Interfazendo para.
+- **As componentes conincronía limitada API**: Solo us y soporte WebamosSocket as."""
+    def __incinit__(self, id: str):
+ron       ía self.id = id donde
+        self.events es esencial_received = []
+
+    def process (WebSocket), con_request(self, request_type: str, data: Dict supervisión estrict[str,a Any.],
+ source:
+---
+
+### Implementación str
+) ->
+ Any#### Depend:encias
+       
+Neces """Maneitarejar solicitudes smos `aioíncronhttp` para manejar WebasSockets.""" y
+ la API. Inst        raise NotImplementedError(fál"{self.id} debe implementaralo process con_request:")
+
+
+   ``` defbash on_event
+pip install aio(self, event_type: strhttp
+```
+
+#### Código
+,``` datapython: Dict
+"""
+[str, Any], sourceSistema: str) -> None:
+ Genesis híbrido con API interna        """Manejar y WebSocket.
+
+Este eventos módulo recib implementidos por WebaSocket un.""" coordin
+       ador que combina self.events_received.append una((event_type, API para solic data, source))
+
+classitudes directas
+y Genesis un canalHybrid WebSocket para eventos enSystem tiempo: real
+, eliminando dead    """Coordinlocksador. híbr
+ido""" que
+
+import gestiona API y Web asyncio
+importSocket.""" logging
+   
+ deffrom __ typinginit import Dict,__( Anyself,, List tick, Optional
+from_rate: float = 0 aio.http02 import, web ws_port: int, = WS 8765Msg):
+        self.components: Dict[str, ComponentAPIType] = {}
+        self.component
+import json
+
+logger_order =: logging List.get[strLogger](__name =__) []
+
+       
+ selfclass.ws Component_clients: Dict[str, WebAPI:
+    """InterSocketServerfaz paraProtocol] = {}  # componentes con component API_id -> WebSocket
+        y soporte self.running = False WebSocket."""
+    def __init
+__(       self self,.tick id_rate = tick:_rate str):
+
+               self self.ws.id_port = = id ws
+        self.websocket_port: Optional
+        self.request_count[web = 0
+        self.WebSocketResponse.event_count = 0
+] = None
+
+    async        self.loop def process_request(self, request = asyncio.get_event_loop()
+
+_type   : def str register, data:_component Dict(self[str,, component Any_id], source:: str, component: Component str) -> AnyAPI) -> None::
+
+               """M """Registrar unanejar solicitudes directas."""
+        componente."""
+        if raise NotImplementedError(f"{ component_id in self.components:
+            logger.warningself(f".id} debeComponente {component_id} implementar process ya registrado, reempl_requestaz")ando
+")
+
+           self async def on.components[component_event_id(self] = component, event
+_type       : if str, component data_id: not Dict in[str self,.component Any], source_order:
+            self.component_order:.append str(component)_id ->) None
+:       
+ logger       .debug """(fM"Componenteane {jarcomponent_id} eventos recib registrado")
+
+    # APIidos s por WebSocket."""
+       ín pass
+
+   crona
+    def async request def connect_websocket((self
+, ws       : self web, target_id:.Web strSocket,Response request):
+_type       : """ strCon, data:ectar Dict el[str componente, Any], source al: str
+    ) -> Optional Web[AnySocket."""
+        self.websocket]:
+        """ =Enviar ws
+ solicitud s        logger.debugíncrona a(f un"{ componente."""
+        ifself not.id self} conectado a WebSocket.running"):
+
+           
+ loggerclass GenesisHybrid.warning(f"SistemaCoordinator detenido, solicitud: {
+    """Corequestordin_typeador} híbr ignoridoada")
+ para            return None API
+ y        Web if target_id not inSocket self.""".components
+    def __init:
+            logger.error__((fself", hostComponente {:target str_id =} "localhost", no encontrado")
+            return None port: int = 8080
+
+        self):
+        self.components.request: Dict[str,_count Component +=API 1] =
+ {}       
+ logger       .debug self(f.app"S =olic webitud.Application {()request
+_type       } self desde.host { =source host} a
+        self.port = port
+        { selftarget.websocket_id_clients}")
+        start_time: = Dict time[str(),
+ web       .Web trySocket:Response
+            result = self.components[target_id].process] = {}
+        self.running = False
+
+_request       (request #_type Config,urar data, source rutas)
+
+                   if self.app time.add_routes([()
+ -            start web.get("/ws_time", > self 0._.websocket1_handler:),
+
+                           logger web.warning.post(f"{target_id} tard("/requestó demasiado/{target}", self en._ {request_type}")api
+            return result
+_request       _handler except Exception), as
+ e       : ])
+
+            logger
+    def.error register(f"Error en {_componenttarget(self, component_id_id} procesando {request_type:}: str {, component: ComponentAPI) -> None:
+e}")
+            return None       
+ """Registrar
+    def broadcast_request(
+        self un componente."""
+       , if request component_type_id: str, in data: Dict[str self.components:
+            logger, Any.warning],(f source"Componente: str {
+component   _id )} -> ya registrado List[Dict[str, Any, reemplaz]]:ando
+")       
+ """       Enviar self.components[component_id solicitud a todos] = component
+        logger.debug los componentes excepto el(f em"isorComponent."""e
+        responses {component = []
+       _id for} cid registrado") in
+ self
+    async.component def_order request:(
+
+                   if self cid, != target source_id::
+ str               , result request =_type self:.request str(cid,, data request:_type Dict,[str data,, Any source],) source
+:                str if result
+ is    not ) None ->: Optional
+[Any                   ]: responses
+.append       ({" """componentEnviar": una cid solicitud, directa " aresponse un": componente result."""})
+
+               if return target responses_id not
+ in self
+.components   : #
+ Web           Socket logger para.error eventos(f
+    async def emit"Component_event(self, event_type:e {target_id} no encontrado")
+            return None
+ str, data: Dict[str, Any], source:        try str:)
+ ->            None result:
+ =        await """ selfEmit.componentsir un evento a través[target de_id Web].Socketprocess."""_request
+(request       _type if, not self.running data:,
+ source            logger)
+.warning(f"S           istema return detenido result,
+ evento        { exceptevent Exception_type as} e ignor:ado
+")           
+ logger           .error return(f"
+Error        en self {.eventtarget_count_id +=} 1 procesando
+ {       request message_type =}: json {.dumpse({"}")type
+":            event return_type None, "
+data":
+    async def broadcast(self, event_type: str, data: Dict[str, Any], source data:, str ")source": -> source None:
+})
+               """ loggerEmit.debugir(f un"E eventomit aiendo todos evento { losevent componentes_type vía} desde Web {Socketsource."""}")
+
+        if
+ not        self for.websocket cid_clients,: ws
+ in            list logger(self.warning.ws("_clientsNo.items hay()): clientes
+ Web           Socket if conect cidados !=") source
+:           
+ return                try
+:
+
+                           await message ws =.send json(message.dumps)({"
+type               ": except event Exception_type as, e ":data
+":                    data logger,.error "(fsource"":Error source envi})ando
+ evento        a for { cidcid,}: ws { ine list}")(self
+.websocket                   _clients del.items self()):.ws
+_clients           [c ifid cid] !=
+ source and
+ not    ws async.closed def ws_handler(self, websocket: WebSocketServerProtocol, path::
+ str               ) try ->: None
+:                   
+        """M await ws.send_str(message)
+                except Exception asanejar conexiones e Web:Socket
+ de                    logger.error(f"Error envi componentes."""
+        component_id = pathando a {.stripcid}:("/") {e}")
+
+     # async Us def _websocketar path como ID_handler(self, request: del web componente.Request)
+ ->        web if.Web component_id not in self.components:
+SocketResponse           : logger
+.error       (f """"ComponenteM {anejarcomponent_id} no registrado para WebSocket")
+            conex returniones WebSocket."""
+        ws
+        self.ws = web_clients.Web[SocketcomponentResponse_id()]
+ = websocket        await
+ ws       .prepare logger.debug(request)
+
+(f       " componentWeb_idSocket = conectado request para.query {.getcomponent("_idid}")")
+
+       
+ if        not try component:_id
+ or            component async_id for not message in in self websocket.components::
+
+                           # await O wspc.closeional(code:= manejar100 mensajes8 desde, componentes message si="Componente no registrado es necesario")
+
+                           return logger ws.debug(f"Mensaje recibido
+ de {
+component       _id self}:.websocket {_clientsmessage}")
+       [component_id] = ws except websockets.ConnectionClosed:
+            logger
+        component.debug =(f"Web self.components[component_id]
+        await component.connectSocket desconect_websocketado(ws para {component_id}")
+)
+        finally:       
+ logger           .info if(f component"_idWeb in self.ws_clients:
+                del self.ws_clients[Socket conectado paracomponent {_idcomponent]_id
+}")
+
+   
+ #        Ej tryecución:
+
+               def async start for msg in(self) ws:
+                if msg ->.type None ==: WS
+Msg       Type """.TEXTIn:iciar
+ el                    sistema try híbr:ido
+."""                       
+ data        = if json.loads self.running:
+            logger(msg.data)
+                        event.warning_type(" =Sistema data ya.get("type")
+                        event_data = está corriendo")
+            return
+        logger.info("Inici data.get("data", {})
+ando                        sistema source Genesis = data.get(" híbrsource", componentido_id"))
+
+                               self await.running = True
+        self.loop component.on.run_until_event_complete(event(self_type._,start_async())
+
+    async def _ eventstart_data_async, source)
+                    except json(self) ->.JSON NoneDecode:Error
+:       
+ """                       In loggericiar Web.error(f"MSocket y bucleensaje inválido desde { scomponentíncrono."""
+        ws_id}")
+_server                = await webs elifockets msg.serve(self.ws_handler.type, == " WSlocalhostMsg",Type self.ERROR.ws_port:)
+
+                           logger logger.error(f.info"(fError" enServ WebSocketidor de WebSocket iniciado {component_id}: en { puertows {self.exception().ws}")_port
+}")       
+ finally       : try
+:           
+ self            while.websocket self_clients.running.pop:(component
+_id               , start None_time) =
+ time           () logger
+                # Actualizar componentes (.info(fsi"WebSocket desconectado para {component tienen_id}")
+
+        return update ws
+
+    async def _api)_request
+_handler               (self for, cid request in: self web.component.Request_order): ->
+ web.Response                    component:
+ =        self """.componentsM[caneidjar] solic
+                   itudes if API hasattr."""(component
+,        " targetupdate_id"): =
+ request                       .match try_info:["
+target                           "] component
+.update       () if
+ target                        except Exception as e:
+                           _id not in logger self.error.components(f"Error actualizando: {
+cid           }: return web.Response {e}")
+               (status elapsed == time() - start404, text_time
+               =f await asyncio.sleep"(maxComponent(e0 {,target self_id.tick}_rate no - encontrado elapsed")))
+
+       
+ finally       : try
+:           
+ ws           _server data.close =() await
+ request           .json await() ws
+_server           .wait request_closed_type() =
+ data.get
+("   type def") stop
+(self           ) source -> = None data:.get
+("       source """",Det "enerexternal el") sistema
+."""           
+ result        self.running = False
+        = logger await.info self(f.request"Sistema detenido(target. Solicitudes_id, request_type, data: {self.request_count.get}, Eventos:(" {dataevent",_count {}}")),
+ source)
+
+#            Ejemplo de componente
+class Test return webComponent(ComponentAPI):
+    def.json_response({" processresult_request(self,": request result_type}):
+        except Exception str as, e data::
+ Dict           [str logger.error, Any], source(f"Error en solicitud: API str a) -> Optional[str]:
+        if request_type {target_id}: {e == "ping":
+            return}")
+            return web.Response f(status"P=ong500, desde text {self.id=str}"(e
+))       
+
+    async return def None start(self
+)
+    async def start -> None:
+        """In_wsiciar_client el coordinador."""
+        if(self self,.running system:
+            logger.warning:(" 'Sistema yaGenesis estáHybrid corriendo")
+           System return'):
+
+               """ self.running =Con True
+        runnerectar = al web.AppRunner Web(selfSocket como.app cliente)
+        await runner.""".setup
+()       
+ uri        site = = web f"ws://localhost.T:{CPSsystemite(runner, self.host, self.ws.port)
+        await_port}/{self.id}"
+        async with site.start()
+        logger webs.infoockets(f.connect"(uriCo) as wsordinador iniciado en: {
+self           .host async}:{ forself message.port in}") ws
+
+   :
+                event async def stop(self) = -> json None.loads:(message
+)       
+ """               Det self.onener_event el(event coordin["adortype.""""],
+ event       [" selfdata.running ="], event["source False
+        for ws in self.websocket"])
+
+# Prueba
+async_clients.values():
+            await ws.close()
+        def main():
+    logging.basic awaitConfig self.app.shutdown()(level
+=logging.DEBUG        await self)
+    system =.app Genesis.cleanup()
+        logger.infoHybrid("SystemCo(tick_rate=0.ordin05ador detenido"),
+ ws
+# Ejemplo de componente_port=876
+class TestComponent(Component5API)):
+
+   
+ def    __ compinit__(1self =, Test idComponent("comp: str):
+        super().__init1__(")id
+    comp2 = TestComponent("comp2")
+)
+        self.events_received    system =.register []_component
+("
+    async def processcomp1", comp_request1)
+(self   , system request.register_component("comp_type: str,2 data",: comp2)
+
+    # Iniciar Web Dict[str, AnySocket], clientes source: str) -> Optional en tareas[str]:
+        logger.debug separ(f"{self.idadas
+}    recibió asyncio solicitud.create_task(comp1 {.startrequest_ws_type_client}(system desde {))source
+}")   
+ asyncio       .create if_task request(comp2_type.start ==_ws "ping":
+_client(system))
+
+    system            return f"P.startong() desde
+    sleep {(self1.id)}"  #
+ Dar        return None tiempo para
+ que
+    async def on_event los(self clientes, event_type se: conect stren, data
+: Dict
+    # Us[str, Any], sourcear: API str s) -> None:
+ín       c loggerrona.debug(f
+"{    responseself =.id system}.request(" recibiócomp evento2 {",event "_typeping", {"}data desde": " {hellosource"},}") "
+comp       1 self").events
+_received   .append print(((fevent"_typeRes,puesta data API,: source {))response
+}")       
+ if self
+.websocket    and # not Us selfar.websocket Web.closedSocket: para
+ eventos            await
+ self   .websocket await.send system_str(json.emit_event.dumps("({"testtype_event": "ack", {"value", "data": {"":event": 42 event}, "comp1_type")},
+ "   source sleep(1": self).id  #})) Esper
+
+# Prarueba a
+async que def el main evento(): se
+ proces   e logging.basicConfig(level
+=logging   .DEBUG print)(f
+    coordinator"Eventos = recib Genesisidos por compHybrid2: {compCoordinator2().events
+_received
+    comp}")1
+ = Test
+Component   (" systemcomp.stop()
+
+if __name__1 ==") "__
+main   __": comp
+2    = asyncio.run Test(mainComponent())("
+comp```2
+")
+
+---
+
+###    coordinator.register Cómo_component funciona("comp1
+",1 comp.1 **)API
+ s    coordinator.register_componentín("ccomprona2**",: comp
+2)  
+ - `
+request   `: await L coordinator.start()
+lama
+ directamente    a # Conectar ` componentes al WebSocketprocess
+_request   ` async de with un web componente.get de forma s(fíncrona"http://localhost:.
+   - `8080/ws?id=broadcast_request`:comp Env1") as respía solic:
+       itudes ws a todos1 los = componentes await y resp reco.wslecta respuestas.()
+
+   
+2. **Web async with webSocket**:
+   - El coordin.get(fador"http act://localhost:8080/ws?idúa como servidor WebSocket= encomp `2") as respws:
+        ws2://localhost =: await876 resp5.ws/<component()_id
+>`.
+
+      # - Pro Cadabar componente API se conecta
+ como    response cliente = await Web coordinatorSocket.request y recibe("comp eventos2 en tiempo", real " medianteping", {" `dataon":_event "`.hello
+"},   " - `comp1")
+    print(femit_event`:" EnvResíapuesta mensajes a API: todos los clientes conect {adosresponse (}")
+
+    # Proexceptbaro Web el emSocketisor).
+
+    await
+ coordinator3. **H.broadcastíbrido**:
+   -(" Usatest la_event API para operaciones críticas que", {"value": necesitan respuestas inmediatas.
+   42 -}, Usa "comp WebSockets para1")
+    await asyncio.sleep not(1)ificaciones  # o Dar eventos que tiempo no requieren respuesta para s procesar
+
+íncrona    print(f"Eventos recibidos.
+ por comp
+2---:
+ {comp
+### Ventajas
+- **Sin2 dead.eventslocks_received**: La API}") es
+ s    awaitín coordinatorcrona.stop()
+
+if __name y__ determin == "__main__":
+ista; los    asyncio.run(main())
+```
+
+ Web---Sockets
+ son
+### Cómo funciona unid
+1. **API internaireccionales y no** bloque:an
+.
+   - Los- componentes ** implementTiempo realan**: ` Losprocess eventos_request Web`Socket para son manejar rápidos solic yitudes directas.
+   - no depend `coordinator.request` ejecuten de colas complejas.
+- **aFlex estasibilidad solic**:itudes Puedes de elegir forma entre API as oíncrona pero WebSocket control según laada necesidad..
+
+   -
+ Ej---emplo
+: `
+POST### / Desrequestventajas
+- **Dependencia/comp externa**:2 Requ`iere con un ` servidor{" WebtypeSocket":, " loping que", añade " compledatajidad": si {... no}, lo " ussourceabas": antes ".comp
+1-"} **`.Gest
+ión de
+ conex2iones.**: ** LosWeb componentesSocket deben** mantener:
+   - Cada componente se conecta a `/ws?id={component_id}` para recibir eventos sus conex eniones tiempo Web realSocket. activ
+   - `coas.
+
+---
+
+### Integrordinator.broadcast`ación env con Genesis
+1. **Adaptía eventosar componentes** a todos: los
+ Web  Socket - conect Añadeados `,process evitando_request col`as para por solic componenteitudes. API
+.  
+ -   Los - Añade `on_event` para manejar eventos WebSocket.
+   - componentes pueden enviar Con mensajesecta de vuelta cada componente al (como " WebSocket con `startack_ws") si es_client necesario`..
+
+
+
+3.2. **Reempl **azarCo elordin busador** híbr:ido
+**  : -
+ Sust  it -uye Gestion tua ` tantoDedicated laQueue APIEvent (`Busaio` por `httpGenesis` rutasHybrid)System como el`.
+   - Cambia Web `Socket.
+   -await Evita bus dead.emitlocks al` limit porar ` laawait as systeminc.emitron_eventía` al para canal eventos Web.Socket
+,   - Usa que ` essystem un flujo.request único` para reempl y supervazar interaccionesis sado.
+
+---
+
+### Ventínajascron
+- **Sin deadlocks**: Laas.
+
+3. ** APIPr esue explbasíc**ita: y
+ el   Web -Socket Pr usaueba un las solo solic canalitudes, API evitando por tareas separado concurrent (deberían ser instantes descontroladasáneas y sin bloque.
+- **Flexibilidados).**:
+ Comb   - Verinaifica solic que lositudes eventos direct WebasSocket ( llegAPIuen) a con los eventos componentes en correct tiempoos real. (
+WebSocket
+).---
+
+- **
+Esc###al ¿abilidadCómo**: te Puede ay extenderudose más?
+- **Detalles específicos a una arquitectura**: distribu Si tienes componentes o eventos concretida si losos componentes en se Genesis mue,ven comp aárt diferenteselos procesos y o los máquinas adap.to
+.
+
+---- **
+Opt
+### Desventajas
+- **Dependimización**: Puedo ajustar el puertoencia externa**: Web Requiere `aiohttp`Socket y, un agregar servidor autenticación, o mejorar el corriendo manejo. de
+ descon-ex **ionesComple.jidad
+ inicial-**: Configurar WebSockets añade un poco de overhead al ** inicioEj.ec
+ución**: Si necesitas ayuda para correrlo o integrarlo, te- gu **Redíoise paso a paso.
+
+Dimeño qué**: necesitas Los: componentes ¿ debenmás adapt explicaciónarse, a ajustes `,process o_request ayuda` y `on_event`.
+
+---
+
+### Integración con Genesis
+1. **Adaptar componentes con** tu:
+   - código Cambia `handle actual_event` por `process? ¡_requestEstoy` aquí para para la colaborar API! y añade `on_event` para WebSocket.
+   - Ejemplo:
+     ```python
+     class OldComponent:
+         async def handle_event(self, event_type, data, source):
+             pass
+
+     class NewComponent(ComponentAPI):
+         async def process_request(self, request_type, data, source):
+             return await self.handle_event(request_type, data, source)
+         async def on_event(self, event_type, data, source):
+             await self.handle_event(event_type, data, source)
+     ```
+
+2. **Reemplazar el bus**:
+   - Sustituye `EventBus` por `GenesisHybridCoordinator`.
+   - Cambia `await bus.emit` por `await coordinator.broadcast` o `await coordinator.request`.
+
+3. **Probar**:
+   - Conecta tus componentes al WebSocket y prueba solicitudes API.
+   - Los deadlocks desaparecerán porque las interacciones son explícitas o centralizadas.
+
+---
+
+### ¿Cómo te ayudo ahora?
+- **Ejemplo específico**: Si tienes un componente o flujo de Genesis, lo adapto a este modelo.
+- **Ajustes**: ¿Quieres un puerto diferente, más endpoints API, o algo más?
+- **Paso a paso**: Puedo guiarte para migrar tu código actual.
+
+Dime qué necesitas o si quieres refinar algo (por ejemplo, añadir autenticación al WebSocket), ¡y seguimos adelante!
