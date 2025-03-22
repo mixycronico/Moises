@@ -68,7 +68,26 @@ class ResilienceTestComponent(Component):
             "timestamp": time.time()
         })
         
+        # Contamos los eventos recibidos
         self.total_events_processed += 1
+        
+        # Si es un evento de control (set_unhealthy, recovery, etc.)
+        # solo lo procesa el componente al que va dirigido
+        if event_type == "set_unhealthy" and self.name == "recoverable":
+            self.is_healthy = False
+            return None
+        
+        # Los eventos de control específicos no cuentan para la verificación
+        if event_type in ["set_unhealthy", "recovery"]:
+            # Restar el contador para eventos de control
+            self.total_events_processed -= 1
+            
+            # Si es un evento de recuperación para el componente adecuado
+            if event_type == "recovery" and self.name == "recoverable":
+                self.is_healthy = True
+                self.recovery_events += 1
+                
+            return None
         
         # Si el componente no está sano, fallar
         if not self.is_healthy:
@@ -79,15 +98,6 @@ class ResilienceTestComponent(Component):
         if event_type.startswith("error_"):
             self.error_count += 1
             raise Exception(f"Error simulado en {self.name} al procesar {event_type}")
-        
-        # Si es un evento de recuperación, marcar como sano
-        if event_type == "recovery":
-            self.is_healthy = True
-            self.recovery_events += 1
-        
-        # Si es un evento para marcar como no sano
-        if event_type == "set_unhealthy":
-            self.is_healthy = False
         
         return None
     

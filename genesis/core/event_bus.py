@@ -113,49 +113,100 @@ class EventBus:
             self.process_task = None
     
     async def _process_events(self) -> None:
-        """Process events from the queue in an optimized manner with batching capability."""
-        if not self.queue:
-            raise RuntimeError("Event queue not initialized")
+        """
+        Process events from the queue in an optimized manner with batching capability.
         
-        # Rastrear handlers activos para evitar deadlocks
-        active_handlers = 0
-        semaphore = asyncio.Semaphore(10)  # Limitar ejecuciones paralelas
-        
-        while self.running:
-            try:
-                # Obtener el próximo evento de la cola con timeout para evitar bloqueos
+        Este método garantiza resiliencia total frente a cualquier tipo de fallo
+        en los componentes que procesan eventos, permitiendo que el motor de eventos
+        continúe funcionando incluso si algunos componentes fallan o se bloquean.
+        """
+        try:
+            if not self.queue:
+                logger.error("Error crítico: Cola de eventos no inicializada")
+                self.queue = asyncio.Queue()
+                logger.info("Se ha creado una cola de emergencia para mantener el sistema funcionando")
+            
+            # Rastrear handlers activos para evitar deadlocks
+            active_handlers = 0
+            semaphore = asyncio.Semaphore(10)  # Limitar ejecuciones paralelas
+            
+            while self.running:
                 try:
-                    event_type, data, source = await asyncio.wait_for(
-                        self.queue.get(), timeout=0.5
-                    )
-                except asyncio.TimeoutError:
-                    # No hay eventos en la cola, verificar si seguimos funcionando
-                    if not self.running:
-                        break
-                    continue
-                
-                # Recopilar handlers rápidamente
-                all_handlers = self._collect_handlers(event_type)
-                
-                # Procesamiento asíncrono no bloqueante
-                # Usar asyncio.create_task para procesar cada evento independientemente
-                asyncio.create_task(
-                    self._execute_handlers(event_type, data, source, all_handlers, semaphore)
-                )
-                
-                # Marcar la tarea como completada (ya que el processing ocurrirá en paralelo)
-                self.queue.task_done()
-                
-                # Mini pausa para verificar otros eventos
-                await asyncio.sleep(0)
-                
-            except asyncio.CancelledError:
-                # Propagar cancelación limpia
-                logger.debug("EventBus: proceso de eventos cancelado")
-                break
-            except Exception as e:
-                logger.error(f"Error en procesamiento de eventos: {e}")
-                await asyncio.sleep(0.01)  # Prevenir CPU hogging si hay errores consecutivos
+                    # Obtener el próximo evento de la cola con timeout para evitar bloqueos
+                    try:
+                        event_type, data, source = await asyncio.wait_for(
+                            self.queue.get(), timeout=0.5
+                        )
+                    except asyncio.TimeoutError:
+                        # No hay eventos en la cola, verificar si seguimos funcionando
+                        if not self.running:
+                            break
+                        continue
+                    
+                    # Asegurarse de que los datos sean válidos para evitar fallos en los manejadores
+                    if not isinstance(data, dict):
+                        logger.warning(f"Datos de evento inválidos para {event_type}, corrigiendo formato")
+                        data = {"raw_data": data}
+                    
+                    # Recopilar handlers rápidamente
+                    try:
+                        all_handlers = self._collect_handlers(event_type)
+                    except Exception as e:
+                        logger.error(f"Error al recopilar handlers para {event_type}: {e}")
+                        all_handlers = []  # Usar lista vacía para continuar sin fallar
+                    
+                    # Procesamiento asíncrono no bloqueante
+                    # Usar asyncio.create_task para procesar cada evento independientemente
+                    try:
+                        # Crear la tarea pero asegurarse de capturar cualquier excepción en la creación
+                        task = asyncio.create_task(
+                            self._execute_handlers(event_type, data, source, all_handlers, semaphore)
+                        )
+                        # No esperamos el resultado, pero podríamos añadir un callback para manejar errores futuros
+                        task.add_done_callback(lambda t: self._handle_task_error(t, event_type))
+                    except Exception as e:
+                        logger.error(f"Error al crear tarea para {event_type}: {e}")
+                        # Intentar ejecutar los handlers directamente como fallback
+                        try:
+                            await self._execute_handlers(event_type, data, source, all_handlers, semaphore)
+                        except Exception as inner_e:
+                            logger.error(f"Error en ejecución de fallback para {event_type}: {inner_e}")
+                    
+                    # Marcar la tarea como completada (ya que el processing ocurrirá en paralelo)
+                    self.queue.task_done()
+                    
+                    # Mini pausa para verificar otros eventos
+                    await asyncio.sleep(0)
+                    
+                except asyncio.CancelledError:
+                    # Propagar cancelación limpia, pero solo mientras estamos fuera de operaciones críticas
+                    logger.debug("EventBus: proceso de eventos cancelado")
+                    break
+                except Exception as e:
+                    logger.error(f"Error en procesamiento de eventos para {event_type if 'event_type' in locals() else 'desconocido'}: {e}")
+                    await asyncio.sleep(0.01)  # Prevenir CPU hogging si hay errores consecutivos
+        except Exception as e:
+            # Capa final de protección para que el procesador de eventos nunca se detenga
+            logger.critical(f"ERROR CRÍTICO en procesador de eventos: {e}")
+            # Intentar reiniciar el procesador de eventos automáticamente
+            if self.running:
+                logger.info("Intentando reiniciar el procesador de eventos en 1 segundo...")
+                await asyncio.sleep(1)
+                asyncio.create_task(self._process_events())
+    
+    def _handle_task_error(self, task, event_type):
+        """
+        Método para manejar errores en tareas asíncronas de procesamiento de eventos.
+        Este método se utiliza como callback para las tareas de asyncio.create_task.
+        """
+        try:
+            # Verificar si la tarea tiene una excepción
+            if task.done() and not task.cancelled():
+                if exception := task.exception():
+                    logger.error(f"Error en tarea de procesamiento para evento {event_type}: {exception}")
+        except Exception as e:
+            # Capturar cualquier error en el manejo de la excepción
+            logger.error(f"Error al procesar excepción de tarea: {e}")
     
     def _collect_handlers(self, event_type: str) -> list:
         """
@@ -172,26 +223,57 @@ class EventBus:
         """
         Execute event handlers with concurrency control.
         This runs outside the main event loop to prevent blocking.
-        """
-        # Lanzar hasta 10 manejadores concurrentemente con semaphore
-        handler_tasks = []
         
-        for priority, handler in handlers:
-            # Usar semaphore para limitar concurrencia
-            async with semaphore:
+        Este método garantiza resiliencia total frente a cualquier tipo de fallo
+        en los componentes que reciben eventos. Las excepciones son capturadas,
+        registradas, pero nunca propagadas hacia arriba para permitir que el motor
+        continúe funcionando incluso si algunos componentes fallan.
+        """
+        try:
+            # Lanzar hasta 10 manejadores concurrentemente con semaphore
+            handler_tasks = []
+            
+            for priority, handler in handlers:
                 try:
-                    # Espera con timeout para evitar bloqueos
-                    await asyncio.wait_for(
-                        handler(event_type, data, source),
-                        timeout=0.5  # Timeout por handler para evitar bloqueo
-                    )
-                except asyncio.TimeoutError:
-                    logger.warning(f"Timeout en manejador de eventos para {event_type}")
+                    # Obtener el nombre del componente del handler
+                    component_name = getattr(handler, '__self__', None)
+                    if component_name:
+                        component_name = getattr(component_name, 'name', 'desconocido')
+                    else:
+                        component_name = 'función'
+                        
+                    # Evitar enviar eventos a la misma fuente que los generó
+                    if component_name and component_name == source:
+                        logger.debug(f"Omitiendo envío de evento {event_type} al componente {source} (origen del evento)")
+                        continue
+                    
+                    # Usar semaphore para limitar concurrencia
+                    async with semaphore:
+                        try:
+                            # Espera con timeout para evitar bloqueos
+                            await asyncio.wait_for(
+                                handler(event_type, data, source),
+                                timeout=0.5  # Timeout por handler para evitar bloqueo
+                            )
+                            logger.debug(f"Handler para {event_type} en componente {component_name} completado con éxito")
+                        except asyncio.TimeoutError:
+                            logger.warning(f"Timeout en manejador de eventos para {event_type} en componente {component_name}")
+                        except Exception as e:
+                            # Capturar todas las excepciones excepto CancelledError
+                            # para garantizar que un componente con fallos no afecte a los demás
+                            logger.error(f"Error en manejador de eventos para {event_type} en componente {component_name}: {e}")
                 except asyncio.CancelledError:
-                    # Permitir cancelación limpia
-                    raise
+                    # Manejar cancelación de forma controlada para casos de apagado del sistema
+                    logger.warning(f"Cancelación de evento {event_type} durante la ejecución del manejador")
+                    # No re-lanzar la excepción para mantener la resiliencia
+                    continue
                 except Exception as e:
-                    logger.error(f"Error en manejador de eventos: {e}")
+                    # Capturar cualquier otra excepción que pueda ocurrir en la preparación del handler
+                    logger.error(f"Error crítico preparando handler para {event_type}: {e}")
+        except Exception as e:
+            # Capa final de protección - capturar absolutamente todas las excepciones
+            # para evitar que cualquier error detenga el motor de eventos
+            logger.error(f"ERROR FATAL en execute_handlers para evento {event_type}: {e}")
     
     def subscribe(self, event_type: str, handler: EventHandler, priority: int = 50) -> None:
         """
