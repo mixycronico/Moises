@@ -27,4 +27,5 @@ dependencies = [
     "pytest-asyncio>=0.25.3",
     "pytest-mock>=3.14.0",
     "pytest>=8.3.5",
+    "typing-extensions>=4.12.2",
 ]

@@ -84,7 +84,7 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
                    f"event={component_event_timeout}s, "
                    f"emit={event_timeout}s")
     
-    async def _start_component(self, component: Component) -> bool:
+    async def _start_component(self, component: Component) -> None:
         """
         Iniciar componente con timeout configurable.
         
@@ -92,7 +92,7 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
             component: Componente a iniciar
             
         Returns:
-            True si el componente se inició correctamente, False en caso contrario
+            None
         """
         start_time = time.time()
         
@@ -109,7 +109,6 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
             self._performance_metrics["component_start_times"].append(elapsed)
             
             logger.debug(f"Componente {component.name} iniciado en {elapsed:.3f}s")
-            return True
             
         except asyncio.TimeoutError:
             # Registrar timeout
@@ -118,12 +117,10 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
             
             logger.warning(f"Timeout al iniciar componente {component.name} "
                           f"después de {elapsed:.3f}s (límite: {self._component_start_timeout}s)")
-            return False
             
         except Exception as e:
             # Registrar error
             logger.error(f"Error al iniciar componente {component.name}: {str(e)}")
-            return False
     
     async def _stop_component(self, component: Component) -> bool:
         """
@@ -167,7 +164,7 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
             return False
     
     async def emit_event(self, event_type: str, data: Optional[Dict[str, Any]] = None, 
-                         source: str = "system") -> bool:
+                         source: str = "system") -> None:
         """
         Emitir evento con timeout configurable.
         
@@ -177,11 +174,11 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
             source: Origen del evento (por defecto: "system")
             
         Returns:
-            True si el evento se emitió correctamente, False en caso contrario
+            None
         """
         if not self.running:
             logger.warning(f"Intento de emitir evento {event_type} con motor detenido")
-            return False
+            return
             
         start_time = time.time()
         event_data = data or {}
@@ -220,7 +217,6 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
             elapsed = time.time() - start_time
             
             logger.debug(f"Evento {event_type} emitido en {elapsed:.3f}s")
-            return True
             
         except Exception as e:
             # Registrar error global
@@ -228,7 +224,6 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
             elapsed = time.time() - start_time
             
             logger.error(f"Error al emitir evento {event_type}: {str(e)} ({elapsed:.3f}s)")
-            return False
     
     def get_timeout_stats(self) -> Dict[str, Dict[str, int]]:
         """

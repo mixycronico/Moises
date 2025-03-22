@@ -1444,6 +1444,7 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sqlalchemy" },
+    { name = "typing-extensions" },
     { name = "uvicorn" },
 ]
 
@@ -1471,6 +1472,7 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.6.1" },
     { name = "scipy", specifier = ">=1.15.2" },
     { name = "sqlalchemy", specifier = ">=2.0.39" },
+    { name = "typing-extensions", specifier = ">=4.12.2" },
     { name = "uvicorn", specifier = ">=0.34.0" },
 ]
 
