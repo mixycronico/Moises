@@ -4,7 +4,7 @@ Base module with abstract base classes for the Genesis system components.
 
 import abc
 import asyncio
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
 from genesis.core.event_bus import EventBus
 
@@ -40,10 +40,36 @@ class Component(abc.ABC):
             raise RuntimeError(f"Component {self.name} not attached to event bus")
         
         await self.event_bus.emit(event_type, data, self.name)
+        
+    async def emit_event_with_response(self, event_type: str, data: Dict[str, Any]) -> List[Any]:
+        """
+        Emit an event to the event bus and collect responses.
+        
+        Args:
+            event_type: Type of the event
+            data: Event data
+            
+        Returns:
+            List of responses from all handlers that returned a value
+        """
+        if not self.event_bus:
+            raise RuntimeError(f"Component {self.name} not attached to event bus")
+        
+        return await self.event_bus.emit_with_response(event_type, data, self.name)
     
     @abc.abstractmethod
-    async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """Handle an event from the event bus."""
+    async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> Any:
+        """
+        Handle an event from the event bus.
+        
+        Args:
+            event_type: Type of the event
+            data: Event data
+            source: Source component of the event
+            
+        Returns:
+            Optional response data. If not None, it will be collected by emit_with_response.
+        """
         pass
 
 
