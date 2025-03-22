@@ -20,8 +20,16 @@ class Component(abc.ABC):
         self.loop: Optional[asyncio.AbstractEventLoop] = None
     
     def attach_event_bus(self, event_bus: EventBus) -> None:
-        """Attach a reference to the event bus."""
+        """
+        Attach a reference to the event bus and register this component's handle_event method.
+        
+        This ensures the component will receive events as soon as it's attached to the event bus.
+        """
         self.event_bus = event_bus
+        
+        # Registrar automáticamente el método handle_event del componente
+        if self.event_bus and hasattr(self, 'handle_event'):
+            self.event_bus.subscribe('*', self.handle_event)
     
     @abc.abstractmethod
     async def start(self) -> None:
