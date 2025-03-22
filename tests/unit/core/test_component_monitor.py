@@ -195,8 +195,8 @@ async def engine_with_monitor():
     )
     
     # Registrar monitor
-    # register_component no es async, así que lo llamamos directamente sin await
-    engine.register_component(monitor)
+    # register_component es async, utilizamos await
+    await engine.register_component(monitor)
     
     # Iniciar el monitor
     await monitor.start()
