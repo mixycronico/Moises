@@ -936,9 +936,16 @@ async def engine_fixture():
     try:
         # Desregistrar todos los componentes
         if hasattr(engine, 'components') and engine.components:
-            for component_name in list(engine.components.keys()):
+            component_names = list(engine.components.keys())
+            for component_name in component_names:
                 try:
-                    await engine.unregister_component(component_name)
+                    # Usar remove_component si existe, sino unregister_component
+                    if hasattr(engine, 'remove_component'):
+                        await engine.remove_component(component_name)
+                    elif hasattr(engine, 'unregister_component'):
+                        await engine.unregister_component(component_name)
+                    else:
+                        logger.warning(f"No se pudo desregistrar {component_name}: método no encontrado")
                 except Exception as e:
                     logger.warning(f"Error al desregistrar componente {component_name}: {str(e)}")
         
