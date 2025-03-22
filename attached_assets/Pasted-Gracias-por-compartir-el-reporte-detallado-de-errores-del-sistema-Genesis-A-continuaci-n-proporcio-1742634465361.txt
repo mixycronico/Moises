@@ -1,0 +1,268 @@
+Gracias por compartir el reporte detallado de errores del sistema Genesis. A continuación, proporcionaré un análisis estructurado y soluciones específicas para abordar cada categoría de errores, siguiendo la priorización establecida. Incluyo ejemplos de código concretos para las correcciones más críticas y un plan para resolver los problemas pendientes.
+
+---
+
+### Plan de Acción
+
+#### 1. Errores de Importación (Alta Prioridad)
+Estos errores impiden la ejecución básica del sistema y deben resolverse primero.
+
+##### 1.1 Clase `EnginePriorityBlocks` vs `PriorityBlockEngine`
+- **Estado**: Según el reporte, ya se corrigió en algunos archivos clave.
+- **Acción**: Completar la estandarización en los archivos mencionados.
+- **Solución**:
+  - En `scripts/run_stress_tests.py`:
+    ```python
+    # Antes
+    from genesis.core import EnginePriorityBlocks
+    engine = EnginePriorityBlocks()
+
+    # Después
+    from genesis.core import PriorityBlockEngine
+    engine = PriorityBlockEngine()
+    ```
+  - En `tests/unit/core/test_core_stress_tests.py`:
+    ```python
+    # Antes
+    from genesis.core import EnginePriorityBlocks
+
+    # Después
+    from genesis.core import PriorityBlockEngine
+    ```
+  - En `tests/unit/core/conftest.py`:
+    - Busca el comentario y actualízalo: 
+      ```python
+      # Antes: "Fixture para EnginePriorityBlocks"
+      # Después: "Fixture para PriorityBlockEngine"
+      ```
+
+##### 1.2 Errores de Módulos No Encontrados
+- **Acción**: Asegurar que las dependencias estén instaladas y las rutas de importación sean correctas.
+- **Solución**:
+  1. **Módulos Estándar** (`pytest`, `numpy`, `pandas`):
+     - Instala las dependencias:
+       ```bash
+       pip install pytest numpy pandas
+       ```
+     - Verifica que las pruebas las importen correctamente:
+       ```python
+       import pytest
+       import numpy as np
+       import pandas as pd
+       ```
+  2. **Módulos Internos** (`genesis.data.*`, etc.):
+     - Confirma la estructura del proyecto y ajusta las importaciones. Ejemplo para `tests/unit/data/test_data_manager_advanced.py`:
+       ```python
+       # Antes (si falla)
+       from genesis.data import DataManager
+
+       # Después (ajusta según la ubicación real)
+       from genesis.data.data_manager import DataManager  # Ejemplo hipotético
+       ```
+     - Si el módulo no existe, crea un archivo placeholder o corrige la referencia al módulo correcto.
+
+---
+
+#### 2. Errores de Tipo (Media/Alta Prioridad)
+Estos errores afectan la robustez del código y pueden causar fallos en runtime.
+
+##### 2.1 Problemas con Valores `None`
+- **Acción**: Agregar tipado opcional y manejo defensivo para evitar asignaciones inválidas.
+- **Solución**: Ejemplo para `test_core_extreme_scenarios_optimized.py`, línea 44:
+  ```python
+  # Antes
+  def some_function(param: List[str] = None):
+      pass
+
+  # Después
+  from typing import List, Optional
+  def some_function(param: Optional[List[str]] = None):
+      param = param if param is not None else []  # Valor por defecto seguro
+      # Lógica adicional
+  ```
+
+##### 2.2 Incompatibilidad de Tipos en Métodos Sobrescritos
+- **Acción**: Alinear los tipos de retorno con la clase base (espera `None`).
+- **Solución**: Para `test_core_intermediate.py`:
+  ```python
+  # Antes
+  def start(self) -> Literal[True]:
+      return True
+
+  # Después
+  def start(self) -> None:
+      # Lógica de inicio
+      pass
+  ```
+
+##### 2.3 Errores en Tipos de Argumentos
+- **Acción**: Asegurar que las clases hereden de la interfaz correcta y los tipos coincidan.
+- **Solución**:
+  - Para `test_engine_start_stop.py`:
+    ```python
+    # Antes
+    class SimpleComponent:
+        pass
+    engine.add_component(SimpleComponent())
+
+    # Después
+    from genesis.core import Component
+    class SimpleComponent(Component):
+        pass
+    engine.add_component(SimpleComponent())
+    ```
+  - Para `test_core_stress_tests.py`, línea 820:
+    ```python
+    # Antes
+    some_function(value=3.14)
+
+    # Después
+    some_function(value=int(3.14))  # Convertir a int
+    ```
+
+---
+
+#### 3. Errores de Acceso a Miembros (Alta Prioridad)
+Los accesos a miembros de objetos `None` son críticos y deben manejarse.
+
+##### 3.1 Objetos `None` Usados Incorrectamente
+- **Acción**: Agregar verificaciones de nulidad antes de acceder a miembros.
+- **Solución**:
+  - Para `genesis/core/event_bus.py`, línea 186:
+    ```python
+    # Antes
+    if event_type:
+        # Lógica
+
+    # Después
+    if event_type is not None:
+        # Lógica
+    else:
+        logger.warning("event_type es None, omitiendo operación")
+    ```
+  - Para `test_core_advanced.py`, línea 65:
+    ```python
+    # Antes
+    engine.emit("event", {})
+
+    # Después
+    if engine is not None:
+        engine.emit("event", {})
+    else:
+        pytest.fail("Engine no inicializado")
+    ```
+  - Para `test_core_event_bus_simplified.py`, línea 44:
+    ```python
+    # Antes
+    status = response["healthy"]
+
+    # Después
+    status = response["healthy"] if response is not None else False
+    ```
+
+##### 3.2 Miembros No Reconocidos en Clases
+- **Acción**: Verificar que los miembros existan o corregir las referencias.
+- **Solución**:
+  - Para `test_core_priority_alternative.py`, líneas 82-84:
+    ```python
+    # Antes
+    assert handler.call_count > 0
+
+    # Después (usar un mock)
+    from unittest.mock import Mock
+    handler = Mock()
+    # Lógica
+    assert handler.call_count > 0
+    ```
+  - Para `test_core_extreme_optimized.py`:
+    - Si `enable_advanced_recovery` no existe en `ConfigurableTimeoutEngine`, verifica la clase y añádelo si es necesario:
+      ```python
+      class ConfigurableTimeoutEngine:
+          def enable_advanced_recovery(self):
+              self.advanced_recovery = True
+      ```
+
+---
+
+#### 4. Errores de Parámetros (Media Prioridad)
+Estos errores afectan la configuración y deben ajustarse.
+
+##### 4.1 Parámetros No Reconocidos
+- **Acción**: Actualizar las definiciones para incluir los parámetros faltantes.
+- **Solución**: Para `conftest.py`, líneas 49-51:
+  ```python
+  # Antes
+  class ConfigurableTimeoutEngine:
+      def __init__(self):
+          pass
+
+  # Después
+  class ConfigurableTimeoutEngine:
+      def __init__(self, default_timeout=1.0, handler_timeout=2.0, recovery_timeout=3.0):
+          self.default_timeout = default_timeout
+          self.handler_timeout = handler_timeout
+          self.recovery_timeout = recovery_timeout
+  ```
+
+##### 4.2 Errores en Número de Argumentos
+- **Acción**: Ajustar las llamadas a las firmas correctas.
+- **Solución**: Para `generate_load_recovery_report.py`, línea 107:
+  ```python
+  # Antes
+  generate_report(data, output_file)
+
+  # Después (ajustar según definición real)
+  generate_report()  # Si no toma argumentos
+  ```
+
+---
+
+### Ejemplo Integrado: Corrección Completa
+Para `tests/unit/core/test_core_extreme_scenarios_optimized.py`:
+```python
+import pytest
+import asyncio
+from typing import Optional, List
+from genesis.core import PriorityBlockEngine, Component
+
+@pytest.fixture
+async def engine():
+    engine = PriorityBlockEngine(default_timeout=1.0)
+    yield engine
+    await engine.stop()
+
+async def test_cascading_failures(engine):
+    class TestComponent(Component):
+        async def start(self) -> None:
+            pass
+        async def stop(self) -> None:
+            pass
+
+    comp_a = TestComponent()
+    engine.add_component(comp_a)
+
+    response = await asyncio.wait_for(
+        engine.emit_event_with_response("check_status", {}, "comp_a"),
+        timeout=2.0
+    ) if engine is not None else None
+
+    status = response[0]["healthy"] if response and len(response) > 0 else False
+    assert not status, "comp_a debería estar no-sano"
+```
+
+---
+
+### Resumen de Pasos Inmediatos
+1. **Alta Prioridad**:
+   - Completar la corrección de importaciones (`PriorityBlockEngine`, módulos faltantes).
+   - Agregar verificaciones de `None` en `event_bus.py` y pruebas críticas.
+2. **Media Prioridad**:
+   - Ajustar tipos en métodos sobrescritos y parámetros.
+   - Corregir accesos a miembros no reconocidos.
+3. **Baja Prioridad**:
+   - Actualizar comentarios y revisar parámetros opcionales después de estabilizar.
+
+---
+
+### Conclusión
+Este plan aborda los errores de manera sistemática, priorizando los que bloquean la ejecución y afectan la estabilidad. Si necesitas ayuda con un archivo específico o más detalles sobre alguna corrección, no dudes en pedírmelo. ¿Qué te gustaría abordar primero o hay algún error en particular en el que quieras enfocarte? ¡Estoy aquí para ayudarte!

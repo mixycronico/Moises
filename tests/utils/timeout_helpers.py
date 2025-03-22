@@ -122,6 +122,39 @@ async def emit_with_timeout(
             "event": event_type, 
             "source": source}]
 
+def safe_get_response(response, key_path, default=None):
+    """
+    Obtener un valor de forma segura usando una ruta de claves anidadas.
+    
+    Args:
+        response: Respuesta de un evento
+        key_path: String o lista de claves (p. ej., "status.healthy" o ["status", "healthy"])
+        default: Valor por defecto si no existe
+        
+    Returns:
+        Valor o default si no existe
+    """
+    if not response or not isinstance(response, list) or len(response) == 0:
+        return default
+    
+    current = response[0]
+    if not isinstance(current, dict):
+        return default
+    
+    # Manejar key_path como string con notación de punto (ej: "status.healthy")
+    if isinstance(key_path, str):
+        keys = key_path.split(".")
+    else:
+        keys = key_path
+    
+    # Navegar por la estructura anidada
+    for key in keys:
+        if not isinstance(current, dict) or key not in current:
+            return default
+        current = current[key]
+    
+    return current
+
 async def check_component_status(engine, component_id: str, timeout: float = 2.0) -> Dict[str, Any]:
     """
     Verificar el estado de un componente con timeout.
@@ -135,9 +168,14 @@ async def check_component_status(engine, component_id: str, timeout: float = 2.0
         Diccionario con el estado del componente
     """
     resp = await emit_with_timeout(engine, "check_status", {}, component_id, timeout=timeout)
+    
+    # Usar safe_get_response para verificar si hay respuesta válida
+    is_healthy = safe_get_response(resp, "healthy", False)
+    
     # Extraer el primer elemento si es una lista, o usar un valor por defecto
     if isinstance(resp, list) and len(resp) > 0:
         return resp[0]
+    
     return {"healthy": False, "error": f"Respuesta inválida de {component_id}"}
 
 async def run_test_with_timing(engine, test_name: str, test_func: Callable[[Any], Coroutine[Any, Any, T]]) -> T:

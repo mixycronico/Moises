@@ -184,7 +184,13 @@ class EventBus:
                     break
                 except Exception as e:
                     # Verificar que event_type exista en el contexto local antes de usarlo
-                    event_type_str = event_type if 'event_type' in locals() and event_type is not None else 'desconocido'
+                    # Definimos una variable para el tipo de evento por defecto
+                    event_type_str = 'desconocido'
+                    # Solo asignamos event_type si está definido en el contexto actual
+                    if 'event_type' in locals():
+                        if event_type is not None:
+                            event_type_str = event_type
+                    
                     logger.error(f"Error en procesamiento de eventos para {event_type_str}: {e}")
                     await asyncio.sleep(0.01)  # Prevenir CPU hogging si hay errores consecutivos
         except Exception as e:
