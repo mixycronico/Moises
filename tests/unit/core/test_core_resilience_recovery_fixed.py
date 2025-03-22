@@ -45,6 +45,14 @@ class SimpleResilientComponent(Component):
         """Detener componente."""
         pass
     
+    class ComponentHealthException(Exception):
+        """Excepción específica para errores de componentes no saludables."""
+        pass
+        
+    class ComponentTimeoutException(Exception):
+        """Excepción específica para timeouts de componentes."""
+        pass
+            
     async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> Optional[Any]:
         """
         Procesar evento con lógica simplificada.
@@ -58,7 +66,9 @@ class SimpleResilientComponent(Component):
             None
             
         Raises:
-            Exception: Si el componente no está sano y debe fallar
+            ComponentHealthException: Si el componente no está sano
+            ComponentTimeoutException: Si el procesamiento excede el timeout
+            ValueError: Si los parámetros son inválidos
         """
         try:
             # Incrementar contador general
@@ -82,18 +92,39 @@ class SimpleResilientComponent(Component):
                 self.recovery_count += 1
                 return None
                 
+            # Validación básica de parámetros
+            if not isinstance(data, dict):
+                raise ValueError(f"Data debe ser un diccionario, recibido: {type(data)}")
+                
             # Fallo cuando no está healthy
             if not self.is_healthy and self.fail_when_unhealthy:
                 self.error_count += 1
-                # Generar excepción pero no hacer cosas pesadas 
-                raise Exception(f"Simple failure in {self.name}")
+                # Generar excepción específica 
+                raise self.ComponentHealthException(f"Componente {self.name} no está en estado saludable")
             
-            # Si no hubo excepciones, registramos un procesamiento exitoso
+            # Si llegamos aquí, el procesamiento fue exitoso
             self.success_count += 1
+            
+        except self.ComponentHealthException as e:
+            # Manejo específico para problemas de salud del componente
+            logger.warning(f"Error de salud en componente: {e}")
+            raise  # Re-lanzar para que el motor lo maneje
+            
+        except ValueError as e:
+            # Manejo específico para errores de validación
+            logger.error(f"Error de validación en {self.name}: {e}")
+            raise
+            
+        except self.ComponentTimeoutException as e:
+            # Manejo específico para timeouts
+            logger.error(f"Timeout en componente {self.name}: {e}")
+            raise
+            
         except Exception as e:
-            # Podríamos hacer algo más con la excepción aquí como registrarla
-            # o realizar alguna acción de recuperación específica
-            raise  # Re-lanzar la excepción para que el motor la maneje
+            # Capturar cualquier otra excepción no prevista
+            logger.critical(f"Error inesperado en {self.name}: {e}")
+            raise
+            
         finally:
             # Este código se ejecuta siempre, haya o no excepción
             self.finally_count += 1
