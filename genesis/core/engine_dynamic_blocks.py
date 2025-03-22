@@ -19,6 +19,25 @@ from genesis.core.component import Component
 # Configurar logging
 logger = logging.getLogger(__name__)
 
+# Función auxiliar para garantizar que los parámetros nunca sean None
+def safe_handle_event_params(event_type, event_data, source):
+    """
+    Asegura que los parámetros para handle_event nunca sean None.
+    
+    Args:
+        event_type: Tipo de evento o None
+        event_data: Datos del evento o None
+        source: Fuente del evento o None
+        
+    Returns:
+        Tuple con valores seguros (nunca None)
+    """
+    return (
+        event_type or "",
+        event_data or {},
+        source or ""
+    )
+
 class EventPriority:
     """Niveles de prioridad para eventos."""
     CRITICAL = 0   # Inmediato (stop-loss, límites de riesgo)
@@ -728,10 +747,12 @@ class DynamicExpansionEngine:
             for name, component in self.components.items():
                 if name in self.safe_components:
                     try:
-                        logger.info(f"Enviando evento {event_type} a componente SEGURO {name}")
+                        # Asegurar que los parámetros nunca sean None
+                        evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, source)
+                        logger.info(f"Enviando evento {evt_type} a componente SEGURO {name}")
                         safe_tasks.append(asyncio.create_task(
                             asyncio.wait_for(
-                                component.handle_event(event_type, event_data, source),
+                                component.handle_event(evt_type, evt_data, evt_source),
                                 timeout=self.timeout
                             )
                         ))
@@ -746,10 +767,12 @@ class DynamicExpansionEngine:
             for name, component in self.components.items():
                 if name in self.expansion_components:
                     try:
-                        logger.info(f"Enviando evento {event_type} a componente EXPANSIÓN {name}")
+                        # Asegurar que los parámetros nunca sean None
+                        evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, source)
+                        logger.info(f"Enviando evento {evt_type} a componente EXPANSIÓN {name}")
                         expansion_tasks.append(asyncio.create_task(
                             asyncio.wait_for(
-                                component.handle_event(event_type, event_data, source),
+                                component.handle_event(evt_type, evt_data, evt_source),
                                 timeout=self.timeout
                             )
                         ))
@@ -760,10 +783,12 @@ class DynamicExpansionEngine:
             for name, component in self.components.items():
                 if name not in self.safe_components and name not in self.expansion_components:
                     try:
-                        logger.info(f"Enviando evento {event_type} a componente REGULAR {name}")
+                        # Asegurar que los parámetros nunca sean None
+                        evt_type, evt_data, evt_source = safe_handle_event_params(event_type, event_data, source)
+                        logger.info(f"Enviando evento {evt_type} a componente REGULAR {name}")
                         regular_tasks.append(asyncio.create_task(
                             asyncio.wait_for(
-                                component.handle_event(event_type, event_data, source),
+                                component.handle_event(evt_type, evt_data, evt_source),
                                 timeout=self.timeout
                             )
                         ))
