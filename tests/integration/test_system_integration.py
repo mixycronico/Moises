@@ -1413,4 +1413,3 @@ async def test_database_integration(
 
 if __name__ == "__main__":
     pytest.main(["-xvs", __file__])
-"""

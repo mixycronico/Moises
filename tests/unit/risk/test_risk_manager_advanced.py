@@ -1282,4 +1282,3 @@ async def test_risk_manager_zero_division_protection(advanced_risk_manager):
     
     # Verificar que manejó el caso sin error
     assert size is not None, "Falló al manejar precio cero"
-"""

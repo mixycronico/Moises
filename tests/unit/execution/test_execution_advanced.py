@@ -1125,4 +1125,3 @@ async def test_execution_performance_benchmark(execution_manager):
     
     assert max_throughput > baseline_throughput, \
         f"El throughput no mejoró con la concurrencia: {max_throughput:.2f} vs {baseline_throughput:.2f}"
-"""
