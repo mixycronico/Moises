@@ -490,9 +490,9 @@ class Settings:
         if schema.get("type") != "object":
             raise ValueError("Schema must have type 'object'")
             
-        # Check required properties
+        # Check required top-level properties
         for req in schema.get("required", []):
-            if self.get(req) is None:  # Use is None instead of not get() to allow falsy values
+            if not self.__contains__(req):  # Use our fixed __contains__ method
                 raise ValueError(f"Required property '{req}' is missing")
                 
         # Validate properties
@@ -503,6 +503,19 @@ class Settings:
             if value is None and prop_name not in schema.get("required", []):
                 continue
                 
+            # If property is required but it's None or empty dict, fail validation
+            if prop_name in schema.get("required", []):
+                if value is None:
+                    raise ValueError(f"Required property '{prop_name}' is missing")
+                
+                # If it's an object type with required fields, check those required fields exist
+                if prop_schema.get("type") == "object" and isinstance(value, dict):
+                    for req_field in prop_schema.get("required", []):
+                        # We need to check if each required field in this object exists
+                        field_path = f"{prop_name}.{req_field}"
+                        if not self.__contains__(field_path):
+                            raise ValueError(f"Required property '{field_path}' is missing")
+            
             # Validate type
             prop_type = prop_schema.get("type")
             if prop_type == "integer" and not isinstance(value, int):
@@ -557,7 +570,17 @@ class Settings:
         Returns:
             True if the key exists
         """
-        return self.get(key) is not None
+        # For containment check, we need to explicitly check if the key exists
+        # and not just if the value is not None
+        keys = key.split(".")
+        current = self._settings
+        
+        for k in keys:
+            if not isinstance(current, dict) or k not in current:
+                return False
+            current = current[k]
+        
+        return True
         
     def __len__(self) -> int:
         """Get the number of top-level settings."""
