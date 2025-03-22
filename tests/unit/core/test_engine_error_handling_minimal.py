@@ -100,8 +100,20 @@ async def test_engine_error_handling_minimal(engine, event_bus):
     assert component2.started
     assert component3.started
     
-    # Emitir un evento (usando el bus directamente para tener más control)
-    await event_bus.emit("test_event", {"message": "Test"}, "test_source")
+    # Limpiar los eventos recibidos hasta ahora (system.started)
+    component1.events_received.clear()
+    component2.events_received.clear()
+    component3.events_received.clear()
+    
+    # Usar el bus del motor para enviar el evento
+    # Primero verificamos qué bus está usando el motor
+    motor_bus = engine.event_bus
+    print(f"EventBus del motor: {motor_bus}")
+    print(f"EventBus de prueba: {event_bus}")
+    print(f"¿Son el mismo objeto? {motor_bus is event_bus}")
+    
+    # Emitir evento a través del bus del motor
+    await motor_bus.emit("test_event", {"message": "Test"}, "test_source")
     
     # Verificar que los componentes sin error recibieron el evento
     assert len(component1.events_received) == 1

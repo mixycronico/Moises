@@ -38,13 +38,14 @@ class EventBusMinimal:
         """Detener el bus de eventos."""
         self.running = False
     
-    def subscribe(self, event_type: str, handler: EventHandler):
+    def subscribe(self, event_type: str, handler: EventHandler, priority: int = 50):
         """
         Suscribir un manejador a un tipo de evento.
         
         Args:
             event_type: Tipo de evento
             handler: Función manejadora
+            priority: Prioridad del manejador (no se usa en esta implementación minimalista)
         """
         if event_type not in self.subscribers:
             self.subscribers[event_type] = []
@@ -76,10 +77,14 @@ class EventBusMinimal:
             self.logger.warning(f"Evento {event_type} ignorado, bus no está en ejecución")
             return
         
-        # Recopilar handlers para este evento
+        # Recopilar handlers para este evento y para "*" (eventos globales)
         handlers = []
         if event_type in self.subscribers:
-            handlers = self.subscribers[event_type]
+            handlers.extend(self.subscribers[event_type])
+            
+        # Agregar manejadores de comodín "*" que deben recibir todos los eventos
+        if "*" in self.subscribers:
+            handlers.extend(self.subscribers["*"])
         
         # Ejecutar handlers
         for handler in handlers:
