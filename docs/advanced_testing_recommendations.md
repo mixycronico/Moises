@@ -1,109 +1,256 @@
-# Recomendaciones para Pruebas Avanzadas del Core de Genesis
+# Recomendaciones para Pruebas Avanzadas en Genesis
 
 ## Introducción
 
-Este documento presenta las conclusiones del análisis exhaustivo del core del sistema Genesis mediante pruebas avanzadas y recomendaciones para futuras mejoras basadas en los resultados obtenidos.
+Este documento proporciona recomendaciones específicas para implementar pruebas avanzadas en el sistema Genesis, basadas en los hallazgos y lecciones aprendidas durante el desarrollo y prueba del motor central. Estas recomendaciones están diseñadas para mejorar la confiabilidad, rendimiento y capacidad de mantenimiento de las pruebas.
 
-## Pruebas Realizadas
+## Estructuración de Pruebas por Módulos
 
-Hemos desarrollado y ejecutado las siguientes categorías de pruebas avanzadas:
+### 1. Organización por Áreas Funcionales
 
-1. **Pruebas de Carga y Concurrencia**
-   - Alta carga de eventos en un solo componente
-   - Alta carga distribuida entre múltiples componentes
-   - Ráfagas de eventos de alta intensidad
-   - Componentes con diferentes tiempos de procesamiento
+Recomendamos estructurar las pruebas siguiendo esta jerarquía:
 
-2. **Pruebas de Resiliencia y Recuperación**
-   - Componentes que fallan al iniciar
-   - Componentes que fallan al procesar eventos
-   - Componentes que se bloquean completamente
-   - Recuperación después de fallos
+```
+tests/
+├── unit/
+│   ├── core/               # Componentes centrales y motor
+│   ├── data/               # Gestión de datos de mercado
+│   ├── risk/               # Gestión de riesgo
+│   ├── strategies/         # Estrategias de trading
+│   ├── execution/          # Ejecución de órdenes
+│   └── performance/        # Análisis de rendimiento
+├── integration/            # Pruebas de integración entre módulos
+└── system/                 # Pruebas de sistema completo
+```
 
-3. **Pruebas de Manejo de Datos Anómalos**
-   - Validación de datos con diferentes formatos
-   - Manejo de datos no estructurados
-   - Referencias circulares y datos malformados
-   - Conversión automática de tipos
+### 2. Clasificación por Complejidad
 
-4. **Pruebas de Escenarios Extremos**
-   - Fallos en cascada entre componentes
-   - Cambios rápidos de configuración
-   - Simulación de condiciones de red variables
-   - Operación bajo recursos limitados
+Para cada área funcional, estructurar las pruebas en tres niveles de complejidad:
 
-## Resultados Principales
+1. **Basic**: Pruebas simples y directas de funcionalidad fundamental
+2. **Intermediate**: Pruebas moderadamente complejas con múltiples componentes
+3. **Advanced**: Pruebas exhaustivas de escenarios complejos y casos límite
 
-### Fortalezas del Sistema
+## Estrategias para Pruebas Avanzadas
 
-1. **Manejo Robusto de Errores**
-   - El `EngineNonBlocking` aísla efectivamente los fallos de componentes individuales
-   - Los timeouts evitan bloqueos indefinidos
-   - El sistema continúa funcionando incluso cuando algunos componentes fallan
+### 1. Enfoque de Complejidad Incremental
 
-2. **Escalabilidad**
-   - El core puede manejar centenares de eventos en pocos segundos
-   - El rendimiento es predecible y escalable con el número de componentes
+Implementar pruebas en orden de complejidad, siguiendo estos pasos:
 
-3. **Flexibilidad**
-   - El sistema se adapta a diferentes tipos de componentes y comportamientos
-   - La arquitectura orientada a eventos facilita la extensibilidad
+1. **Pruebas directas** de componentes aislados (verificar comportamiento básico)
+2. **Pruebas de integración simple** entre 2-3 componentes relacionados
+3. **Pruebas con carga moderada** (10-20 componentes, 100-200 eventos)
+4. **Pruebas de límites** con cargas extremas (solo en módulos críticos)
 
-### Áreas de Mejora
+### 2. Pruebas de Resistencia
 
-1. **Manejo de Casos Extremos**
-   - Algunas pruebas de condiciones extremas provocan timeouts
-   - Las referencias circulares pueden causar problemas
-   - Los componentes que se bloquean por largo tiempo pueden afectar el rendimiento global
+Para componentes críticos, implementar pruebas específicas de resistencia:
 
-2. **Consistencia de Eventos**
-   - En situaciones de alta carga, puede haber discrepancias en el conteo de eventos
-   - Los componentes pueden recibir eventos duplicados en ciertas condiciones
+- **Pruebas de inyección de fallas**: Introducir fallas selectivas para verificar recuperación
+- **Pruebas de carga sostenida**: Mantener carga alta por períodos prolongados
+- **Pruebas de condiciones extremas**: Memoria baja, CPU alta, red inestable
 
-3. **Monitoreo y Observabilidad**
-   - Faltan métricas detalladas para diagnóstico en tiempo real
-   - El monitoreo de salud de componentes podría mejorarse
+### 3. Pruebas Asincrónicas
 
-## Recomendaciones
+Para código asíncrono, seguir estas pautas:
 
-### Mejoras Inmediatas
+- Usar `asyncio.wait_for()` con timeouts explícitos
+- Implementar esperas dinámicas en lugar de tiempos fijos
+- Verificar estado final en lugar de pasos intermedios cuando sea posible
 
-1. **Robustez Mejorada**
-   - Implementar un sistema de "circuit breaker" para componentes problemáticos
-   - Añadir reinicio automático de componentes que fallan repetidamente
-   - Mejorar el manejo de referencias circulares en datos de eventos
+## Optimización de Pruebas
 
-2. **Monitoreo Avanzado**
-   - Añadir registro detallado de métricas de rendimiento
-   - Implementar dashboard para visualizar el estado del sistema
-   - Crear alertas para situaciones anómalas
+### 1. Gestión de Timeouts
 
-3. **Optimización de Rendimiento**
-   - Ajustar los timeouts por tipo de componente o evento
-   - Implementar priorización dinámica de eventos
-   - Optimizar el manejo de memoria y recursos
+El sistema de timeouts configurables debería usarse con los siguientes valores iniciales:
 
-### Cambios Arquitectónicos
+| Operación | Tiempo normal | Tiempo máximo | Escenarios extremos |
+|-----------|--------------|--------------|-------------------|
+| Inicio de componente | 0.5s | 2.0s | 5.0s |
+| Parada de componente | 0.5s | 1.0s | 3.0s |
+| Procesamiento de evento | 0.2s | 0.5s | 1.0s |
+| Emisión de evento global | 1.0s | 3.0s | 10.0s |
 
-1. **Tolerancia a Fallos Mejorada**
-   - Implementar patrón Bulkhead para aislar completamente los subsistemas
-   - Añadir una cola de eventos persistente para garantizar la entrega
-   - Desarrollar un mecanismo de "dead letter queue" para eventos no procesables
+### 2. Agrupamiento de Pruebas
 
-2. **Escalabilidad Horizontal**
-   - Diseñar una versión distribuida del bus de eventos
-   - Permitir que los componentes se ejecuten en diferentes procesos o máquinas
-   - Implementar balanceo de carga entre instancias de componentes
+Para optimizar tiempos de ejecución:
 
-3. **Observabilidad Profunda**
-   - Implementar trazado distribuido (distributed tracing)
-   - Añadir profiling de rendimiento por componente
-   - Crear un sistema centralizado de registro y análisis de logs
+- Ejecutar pruebas básicas en cada commit
+- Ejecutar pruebas intermedias diariamente
+- Ejecutar pruebas avanzadas semanalmente o antes de releases importantes
+
+### 3. Paralelización
+
+Implementar ejecución paralela de pruebas con estas consideraciones:
+
+- Configurar grupos de pruebas independientes
+- Utilizar bases de datos temporales separadas para cada grupo de pruebas
+- Gestionar recursos compartidos con semáforos
+
+## Técnicas de Mockeo Avanzado
+
+### 1. Componentes Simulados
+
+Para pruebas de integración, crear componentes simulados que:
+
+- Respondan en tiempos predecibles (configurable)
+- Generen comportamientos realistas pero deterministas
+- Permitan simulación de escenarios complejos de mercado
+
+### 2. Mockeo de Datos Externos
+
+Implementar estrategias de mockeo para:
+
+- Datos de mercado históricos (OHLCV)
+- Órdenes y ejecuciones de exchanges
+- Eventos de websocket de mercado
+
+### 3. Generación de Datos Sintéticos
+
+Utilizar generadores de datos para:
+
+- Grandes conjuntos de datos de prueba
+- Escenarios específicos de mercado (tendencias, volatilidad, etc.)
+- Condiciones límite y casos extremos
+
+## Monitoreo Avanzado
+
+### 1. Métricas de Calidad de Pruebas
+
+Implementar seguimiento de:
+
+- Cobertura de código (mínimo 80%)
+- Cobertura de caminos de ejecución
+- Tiempo de ejecución de pruebas
+
+### 2. Observabilidad
+
+Para depuración avanzada, incorporar:
+
+- Trazas detalladas en pruebas que fallan
+- Capturas del estado del sistema en puntos clave
+- Grabación de secuencias de eventos para reproducción
+
+## Ejemplos de Pruebas Avanzadas
+
+### Prueba de Resiliencia del Motor
+
+```python
+async def test_engine_resilience_under_load():
+    """Prueba la resiliencia del motor bajo carga elevada con componentes fallidos."""
+    # Configurar motor con timeouts adaptados a la prueba
+    engine = ConfigurableTimeoutEngine(
+        component_start_timeout=1.0,
+        component_event_timeout=0.8,
+        event_timeout=3.0
+    )
+    
+    # Mezcla de componentes normales, lentos y con fallos
+    components = [
+        NormalComponent(f"normal_{i}") for i in range(20)
+    ] + [
+        SlowComponent(f"slow_{i}", event_delay=0.5) for i in range(5)
+    ] + [
+        FailingComponent(f"failing_{i}", failure_rate=0.3) for i in range(3)
+    ]
+    
+    # Registrar componentes
+    for comp in components:
+        engine.register_component(comp)
+    
+    # Iniciar motor
+    await engine.start()
+    
+    # Generar carga de eventos
+    total_events = 100
+    for i in range(total_events):
+        await engine.emit_event(f"test.event.{i%10}", {"id": i}, "test")
+        if i % 20 == 0:
+            await asyncio.sleep(0.1)  # Pausa ocasional
+    
+    # Esperar procesamiento (tiempo adaptativo)
+    wait_time = min(1.0, total_events * 0.01)
+    await asyncio.sleep(wait_time)
+    
+    # Verificar estadísticas
+    timeout_stats = engine.get_timeout_stats()
+    
+    # Verificar que el sistema sigue funcionando a pesar de los errores
+    assert engine.running, "El motor debería seguir ejecutándose"
+    
+    # Verificar que los componentes normales procesaron eventos
+    for comp in components:
+        if isinstance(comp, NormalComponent):
+            assert comp.events_processed > 0, f"Componente {comp.name} debería haber procesado eventos"
+    
+    # Verificar que se registraron algunos timeouts
+    assert timeout_stats["timeouts"]["component_event"] > 0, "Deberían haberse registrado timeouts"
+    
+    # Detener motor
+    await engine.stop()
+```
+
+### Prueba de Adaptación a Condiciones Cambiantes
+
+```python
+async def test_engine_adaptation_to_changing_conditions():
+    """Prueba que el motor se adapta a condiciones cambiantes."""
+    # Crear motor con adaptación automática
+    engine = AdaptiveEngine(initial_timeout=0.5)
+    
+    # Componentes con comportamiento variable
+    components = [
+        VariableDelayComponent(f"var_{i}", 
+                              initial_delay=0.1,
+                              max_delay=0.8,
+                              acceleration=0.05) for i in range(10)
+    ]
+    
+    # Registrar componentes
+    for comp in components:
+        engine.register_component(comp)
+    
+    # Iniciar motor
+    await engine.start()
+    
+    # Ejecutar en fases con diferentes condiciones
+    phases = 5
+    events_per_phase = 20
+    
+    for phase in range(phases):
+        # Emitir eventos en esta fase
+        for i in range(events_per_phase):
+            await engine.emit_event(f"phase.{phase}.event.{i}", 
+                                   {"phase": phase, "index": i}, 
+                                   "test")
+            
+            # Espera breve entre eventos
+            await asyncio.sleep(0.01)
+        
+        # Capturar estadísticas de esta fase
+        phase_stats = engine.get_current_stats()
+        
+        # Aumentar el retraso en los componentes para la siguiente fase
+        for comp in components:
+            comp.increase_delay()
+        
+        # Esperar adaptación
+        await asyncio.sleep(0.5)
+    
+    # Verificar que el motor se adaptó (timeouts ajustados)
+    final_timeout = engine.get_current_timeout()
+    assert final_timeout > 0.5, "El timeout debería haberse incrementado"
+    
+    # Verificar procesamiento exitoso a pesar de las condiciones cambiantes
+    for comp in components:
+        successful_events = comp.get_successful_events_count()
+        assert successful_events > events_per_phase * phases * 0.7, \
+            f"Componente {comp.name} debería haber procesado al menos 70% de eventos"
+    
+    # Detener motor
+    await engine.stop()
+```
 
 ## Conclusiones
 
-El core del sistema Genesis demuestra un diseño robusto y una gran capacidad para manejar situaciones complejas. La implementación del `EngineNonBlocking` ha resuelto los problemas principales de timeouts y bloqueos, proporcionando una base sólida para el sistema.
-
-Las pruebas avanzadas han demostrado que el sistema puede operar de manera confiable en una amplia gama de condiciones, pero también han identificado áreas donde se pueden realizar mejoras para aumentar aún más su robustez y rendimiento.
-
-Recomendamos implementar las mejoras inmediatas para resolver los problemas identificados, y considerar los cambios arquitectónicos sugeridos para futuras versiones del sistema que requieran mayor escalabilidad y tolerancia a fallos.
+Siguiendo estas recomendaciones, el sistema de pruebas de Genesis puede evolucionar para proporcionar una cobertura más completa, mejor capacidad de detección de problemas y mayor confiabilidad. La clave es implementar un enfoque incremental y adaptativo, utilizando las herramientas especializadas desarrolladas como el motor configurable y las técnicas de mockeo avanzado.

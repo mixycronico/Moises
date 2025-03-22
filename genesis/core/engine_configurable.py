@@ -1,393 +1,291 @@
 """
-Implementación configurable del motor del sistema Genesis.
+Motor configurable con timeouts personalizables.
 
-Esta versión extiende el EngineNonBlocking para permitir
-timeouts configurables y mejor manejo de condiciones extremas.
+Este módulo implementa una versión mejorada del motor no bloqueante
+que permite configurar los tiempos máximos para diferentes operaciones,
+optimizando la ejecución de pruebas y mejorando la robustez del sistema.
 """
 
 import asyncio
-import time
 import logging
-from typing import Dict, Any, Optional, Union, List
+import time
+from typing import Dict, List, Any, Optional, Tuple, Set, Callable
 
-from genesis.core.engine_non_blocking import EngineNonBlocking
 from genesis.core.component import Component
 from genesis.core.event_bus import EventBus
+from genesis.core.engine_non_blocking import EngineNonBlocking
 
+logger = logging.getLogger(__name__)
 
 class ConfigurableTimeoutEngine(EngineNonBlocking):
     """
-    Motor con timeouts configurables para mejor adaptación a diferentes escenarios.
+    Motor asíncrono con timeouts configurables para cada tipo de operación.
     
-    Esta implementación permite ajustar los timeouts para diferentes operaciones
-    y proporciona mejores mecanismos para manejar componentes lentos o con fallas.
+    Esta implementación extiende el motor no bloqueante básico añadiendo
+    la capacidad de configurar tiempos máximos específicos para:
+    - Inicio de componentes
+    - Parada de componentes
+    - Procesamiento de eventos
+    - Emisión de eventos
+    
+    También registra estadísticas de timeouts para análisis y ajuste.
     """
     
-    def __init__(
-        self,
-        event_bus_or_name: Union[EventBus, str, None] = None,
-        test_mode: bool = False,
-        component_start_timeout: float = 0.5,
-        component_stop_timeout: float = 0.5,
-        event_timeout: float = 0.5,
-        component_event_timeout: float = 0.5
-    ):
+    def __init__(self, 
+                 component_start_timeout: float = 0.5,
+                 component_stop_timeout: float = 0.5,
+                 component_event_timeout: float = 0.3,
+                 event_timeout: float = 1.0,
+                 test_mode: bool = False):
         """
-        Inicializar el motor configurable.
+        Inicializar motor configurable.
         
         Args:
-            event_bus_or_name: Instancia de EventBus o nombre para crear uno nuevo
-            test_mode: Si True, habilitará comportamiento optimizado para pruebas
-            component_start_timeout: Timeout para inicio de componentes (en segundos)
-            component_stop_timeout: Timeout para detención de componentes (en segundos)
-            event_timeout: Timeout para emisión de eventos (en segundos)
-            component_event_timeout: Timeout para manejadores de eventos (en segundos)
+            component_start_timeout: Tiempo máximo en segundos para inicio de componente
+            component_stop_timeout: Tiempo máximo en segundos para parada de componente
+            component_event_timeout: Tiempo máximo en segundos para procesamiento de evento
+            event_timeout: Tiempo máximo en segundos para emisión de evento
+            test_mode: Modo de prueba (controles adicionales)
         """
-        # Inicializar clase base
-        super().__init__(event_bus_or_name, test_mode)
+        super().__init__()
         
-        # Configurar timeouts personalizados
-        self.component_start_timeout = component_start_timeout
-        self.component_stop_timeout = component_stop_timeout
-        self.event_timeout = event_timeout
-        self.component_event_timeout = component_event_timeout
+        self._component_start_timeout = component_start_timeout
+        self._component_stop_timeout = component_stop_timeout
+        self._component_event_timeout = component_event_timeout
+        self._event_timeout = event_timeout
+        self._test_mode = test_mode
         
-        # Contadores para diagnóstico
-        self.timeouts_occurred = {
-            "component_start": 0,
-            "component_stop": 0,
-            "event_emission": 0,
-            "component_event": 0
+        # Estadísticas para análisis
+        self._timeout_stats = {
+            "timeouts": {
+                "component_start": 0,
+                "component_stop": 0,
+                "component_event": 0,
+                "event": 0
+            },
+            "successes": {
+                "component_start": 0,
+                "component_stop": 0,
+                "component_event": 0,
+                "event": 0
+            }
         }
         
-        # Flag para modo de recuperación avanzada
-        self.advanced_recovery = False
+        # Métricas de rendimiento
+        self._performance_metrics = {
+            "component_start_times": [],
+            "component_stop_times": [],
+            "event_processing_times": []
+        }
         
-        # Registro de componentes con timeouts frecuentes
-        self.problem_components = {}
-        
-        logging.getLogger(__name__).debug(
-            f"ConfigurableTimeoutEngine inicializado con timeouts: "
-            f"start={component_start_timeout}s, stop={component_stop_timeout}s, "
-            f"event={event_timeout}s, component_event={component_event_timeout}s"
-        )
+        logger.info(f"Motor configurable inicializado con timeouts: "
+                   f"start={component_start_timeout}s, "
+                   f"stop={component_stop_timeout}s, "
+                   f"event={component_event_timeout}s, "
+                   f"emit={event_timeout}s")
     
-    def enable_advanced_recovery(self, enabled: bool = True) -> None:
+    async def _start_component(self, component: Component) -> bool:
         """
-        Habilitar o deshabilitar el modo de recuperación avanzada.
-        
-        En este modo, el motor intenta recuperar componentes que fallan 
-        automáticamente y aplica estrategias adaptativas para timeouts.
-        
-        Args:
-            enabled: True para habilitar, False para deshabilitar
-        """
-        self.advanced_recovery = enabled
-        logging.getLogger(__name__).info(
-            f"Modo de recuperación avanzada: {'habilitado' if enabled else 'deshabilitado'}"
-        )
-    
-    async def _start_component(self, component: Component) -> None:
-        """
-        Iniciar un componente con timeout configurable.
+        Iniciar componente con timeout configurable.
         
         Args:
             component: Componente a iniciar
-        """
-        try:
-            # Usar timeout configurable
-            timeout_value = self.component_start_timeout
-            await asyncio.wait_for(component.start(), timeout=timeout_value)
-        except asyncio.TimeoutError:
-            self.timeouts_occurred["component_start"] += 1
-            logging.getLogger(__name__).warning(
-                f"Timeout iniciando componente {component.name} "
-                f"después de {timeout_value}s"
-            )
-            
-            # Registrar componente problemático
-            if component.name not in self.problem_components:
-                self.problem_components[component.name] = {"start_timeouts": 0, "stop_timeouts": 0, "event_timeouts": 0}
-            self.problem_components[component.name]["start_timeouts"] += 1
-            
-        except Exception as e:
-            logging.getLogger(__name__).error(f"Error iniciando componente {component.name}: {e}")
-    
-    async def start_component(self, name: str) -> bool:
-        """
-        Iniciar un componente específico por nombre.
-        
-        Args:
-            name: Nombre del componente a iniciar
             
         Returns:
             True si el componente se inició correctamente, False en caso contrario
         """
-        if name not in self.components:
-            logging.getLogger(__name__).warning(f"Componente {name} no encontrado, no se puede iniciar")
-            return False
-            
-        component = self.components[name]
+        start_time = time.time()
+        
         try:
-            # Usar timeout configurable
-            await asyncio.wait_for(component.start(), timeout=self.component_start_timeout)
-            return True
-        except asyncio.TimeoutError:
-            self.timeouts_occurred["component_start"] += 1
-            logging.getLogger(__name__).warning(
-                f"Timeout iniciando componente {name} después de {self.component_start_timeout}s"
+            # Usar wait_for con timeout configurable
+            await asyncio.wait_for(
+                component.start(),
+                timeout=self._component_start_timeout
             )
             
-            # Registrar componente problemático
-            if name not in self.problem_components:
-                self.problem_components[name] = {"start_timeouts": 0, "stop_timeouts": 0, "event_timeouts": 0}
-            self.problem_components[name]["start_timeouts"] += 1
+            # Registrar éxito
+            self._timeout_stats["successes"]["component_start"] += 1
+            elapsed = time.time() - start_time
+            self._performance_metrics["component_start_times"].append(elapsed)
             
+            logger.debug(f"Componente {component.name} iniciado en {elapsed:.3f}s")
+            return True
+            
+        except asyncio.TimeoutError:
+            # Registrar timeout
+            self._timeout_stats["timeouts"]["component_start"] += 1
+            elapsed = time.time() - start_time
+            
+            logger.warning(f"Timeout al iniciar componente {component.name} "
+                          f"después de {elapsed:.3f}s (límite: {self._component_start_timeout}s)")
             return False
+            
         except Exception as e:
-            logging.getLogger(__name__).error(f"Error iniciando componente {name}: {e}")
+            # Registrar error
+            logger.error(f"Error al iniciar componente {component.name}: {str(e)}")
             return False
     
-    async def stop_component(self, name: str) -> bool:
+    async def _stop_component(self, component: Component) -> bool:
         """
-        Detener un componente específico por nombre.
+        Detener componente con timeout configurable.
         
         Args:
-            name: Nombre del componente a detener
+            component: Componente a detener
             
         Returns:
             True si el componente se detuvo correctamente, False en caso contrario
         """
-        if name not in self.components:
-            logging.getLogger(__name__).warning(f"Componente {name} no encontrado, no se puede detener")
-            return False
-            
-        component = self.components[name]
+        start_time = time.time()
+        
         try:
-            # Usar timeout configurable
-            await asyncio.wait_for(component.stop(), timeout=self.component_stop_timeout)
+            # Usar wait_for con timeout configurable
+            await asyncio.wait_for(
+                component.stop(),
+                timeout=self._component_stop_timeout
+            )
+            
+            # Registrar éxito
+            self._timeout_stats["successes"]["component_stop"] += 1
+            elapsed = time.time() - start_time
+            self._performance_metrics["component_stop_times"].append(elapsed)
+            
+            logger.debug(f"Componente {component.name} detenido en {elapsed:.3f}s")
             return True
+            
         except asyncio.TimeoutError:
-            self.timeouts_occurred["component_stop"] += 1
-            logging.getLogger(__name__).warning(
-                f"Timeout deteniendo componente {name} después de {self.component_stop_timeout}s"
-            )
+            # Registrar timeout
+            self._timeout_stats["timeouts"]["component_stop"] += 1
+            elapsed = time.time() - start_time
             
-            # Registrar componente problemático
-            if name not in self.problem_components:
-                self.problem_components[name] = {"start_timeouts": 0, "stop_timeouts": 0, "event_timeouts": 0}
-            self.problem_components[name]["stop_timeouts"] += 1
-            
+            logger.warning(f"Timeout al detener componente {component.name} "
+                          f"después de {elapsed:.3f}s (límite: {self._component_stop_timeout}s)")
             return False
+            
         except Exception as e:
-            logging.getLogger(__name__).error(f"Error deteniendo componente {name}: {e}")
+            # Registrar error
+            logger.error(f"Error al detener componente {component.name}: {str(e)}")
             return False
     
-    async def start(self) -> None:
+    async def emit_event(self, event_type: str, data: Optional[Dict[str, Any]] = None, 
+                         source: str = "system") -> bool:
         """
-        Iniciar el motor y todos los componentes registrados.
-        
-        Esta implementación usa timeouts configurables para evitar bloqueos.
-        """
-        if self.running:
-            logging.getLogger(__name__).warning("Motor ya en ejecución")
-            return
-            
-        logging.getLogger(__name__).info("Iniciando motor configurable Genesis")
-        
-        # Asegurar que el event bus esté iniciado
-        await self._ensure_event_bus_started()
-            
-        # Ordenar componentes por prioridad (mayor prioridad primero para iniciar)
-        ordered_components = sorted(
-            self.components.items(),
-            key=lambda x: self.operation_priorities.get(x[0], 50),
-            reverse=True  # Mayor prioridad primero
-        )
-        
-        # Iniciar los componentes usando timeouts configurables
-        for name, component in ordered_components:
-            try:
-                # Usar un timeout configurable
-                await asyncio.wait_for(component.start(), timeout=self.component_start_timeout)
-            except asyncio.TimeoutError:
-                self.timeouts_occurred["component_start"] += 1
-                logging.getLogger(__name__).warning(
-                    f"Timeout al iniciar componente {name} después de {self.component_start_timeout}s"
-                )
-                
-                # Registrar componente problemático
-                if name not in self.problem_components:
-                    self.problem_components[name] = {"start_timeouts": 0, "stop_timeouts": 0, "event_timeouts": 0}
-                self.problem_components[name]["start_timeouts"] += 1
-                
-            except Exception as e:
-                logging.getLogger(__name__).error(f"Error iniciando componente {name}: {e}")
-        
-        # Marcar como iniciado 
-        self.running = True
-        self.started_at = time.time()
-        logging.getLogger(__name__).info("Motor configurable Genesis iniciado")
-        
-        # Emitir evento con timeout configurable
-        try:
-            await asyncio.wait_for(
-                self.event_bus.emit(
-                    "system.started",
-                    {"components": list(self.components.keys())},
-                    "engine"
-                ),
-                timeout=self.event_timeout
-            )
-        except asyncio.TimeoutError:
-            self.timeouts_occurred["event_emission"] += 1
-            logging.getLogger(__name__).warning(
-                f"Timeout al emitir evento system.started después de {self.event_timeout}s"
-            )
-        except Exception as e:
-            logging.getLogger(__name__).error(f"Error al emitir evento system.started: {e}")
-            
-    async def stop(self, timeout: Optional[float] = None) -> None:
-        """
-        Detener el motor y todos los componentes registrados.
-        
-        Args:
-            timeout: Tiempo máximo (en segundos) para esperar que los componentes se detengan
-        """
-        if not self.running:
-            logging.getLogger(__name__).warning("Motor no está en ejecución")
-            return
-        
-        logging.getLogger(__name__).info("Deteniendo motor configurable Genesis")
-        
-        # Usar timeout configurable o el proporcionado
-        actual_timeout = timeout if timeout is not None else self.component_stop_timeout
-            
-        # Ordenar componentes por prioridad (menor prioridad primero para detener)
-        ordered_components = sorted(
-            self.components.items(),
-            key=lambda x: self.operation_priorities.get(x[0], 50)  # Menor prioridad primero
-        )
-        
-        # Detener componentes usando timeouts configurables
-        for name, component in ordered_components:
-            try:
-                await asyncio.wait_for(component.stop(), timeout=actual_timeout)
-            except asyncio.TimeoutError:
-                self.timeouts_occurred["component_stop"] += 1
-                logging.getLogger(__name__).warning(
-                    f"Timeout al detener componente {name} después de {actual_timeout}s"
-                )
-                
-                # Registrar componente problemático
-                if name not in self.problem_components:
-                    self.problem_components[name] = {"start_timeouts": 0, "stop_timeouts": 0, "event_timeouts": 0}
-                self.problem_components[name]["stop_timeouts"] += 1
-                
-            except Exception as e:
-                logging.getLogger(__name__).error(f"Error al detener componente {name}: {e}")
-        
-        # Solo detener el EventBus si no estamos en modo prueba
-        if not self.test_mode:
-            try:
-                await asyncio.wait_for(self.event_bus.stop(), timeout=self.event_timeout)
-            except asyncio.TimeoutError:
-                self.timeouts_occurred["event_emission"] += 1
-                logging.getLogger(__name__).warning(
-                    f"Timeout al detener event_bus después de {self.event_timeout}s"
-                )
-            except Exception as e:
-                logging.getLogger(__name__).error(f"Error al detener event_bus: {e}")
-        
-        # Marcar como detenido
-        self.running = False
-        logging.getLogger(__name__).info("Motor configurable Genesis detenido")
-            
-    async def emit_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
-        Emitir un evento a través del bus con timeout configurable.
+        Emitir evento con timeout configurable.
         
         Args:
             event_type: Tipo de evento
-            data: Datos del evento
-            source: Componente de origen
-        """
-        # Asegurar que el event bus está iniciado
-        await self._ensure_event_bus_started()
-        
-        # Emitir evento con timeout configurable
-        try:
-            await asyncio.wait_for(
-                self.event_bus.emit(event_type, data, source),
-                timeout=self.event_timeout
-            )
-        except asyncio.TimeoutError:
-            self.timeouts_occurred["event_emission"] += 1
-            logging.getLogger(__name__).warning(
-                f"Timeout al emitir evento {event_type} después de {self.event_timeout}s"
-            )
-        except Exception as e:
-            logging.getLogger(__name__).error(f"Error al emitir evento {event_type}: {e}")
-    
-    async def emit_event_with_response(
-        self, event_type: str, data: Dict[str, Any], source: str
-    ) -> List[Any]:
-        """
-        Emitir un evento y esperar respuestas con timeout configurable.
-        
-        Args:
-            event_type: Tipo de evento
-            data: Datos del evento
-            source: Componente de origen
+            data: Datos del evento (opcional)
+            source: Origen del evento (por defecto: "system")
             
         Returns:
-            Lista de respuestas de los manejadores
+            True si el evento se emitió correctamente, False en caso contrario
         """
-        # Asegurar que el event bus está iniciado
-        await self._ensure_event_bus_started()
+        if not self.running:
+            logger.warning(f"Intento de emitir evento {event_type} con motor detenido")
+            return False
+            
+        start_time = time.time()
+        event_data = data or {}
         
-        # Emitir evento con timeout configurable
         try:
-            return await asyncio.wait_for(
-                self.event_bus.emit_with_response(event_type, data, source),
-                timeout=self.event_timeout
-            )
-        except asyncio.TimeoutError:
-            self.timeouts_occurred["event_emission"] += 1
-            logging.getLogger(__name__).warning(
-                f"Timeout al esperar respuestas del evento {event_type} después de {self.event_timeout}s"
-            )
-            return []
+            # Implementar versión simplificada de emisión de evento
+            # Esto es más simple que la versión original y evita bloqueos
+            for component in self._components.values():
+                if not component:
+                    continue
+                    
+                try:
+                    # Usar gather con timeout para manejar múltiples componentes
+                    # pero tratar cada uno individualmente para evitar que uno lento
+                    # bloquee a los demás
+                    await asyncio.wait_for(
+                        component.handle_event(event_type, event_data, source),
+                        timeout=self._component_event_timeout
+                    )
+                    
+                    # Registrar éxito
+                    self._timeout_stats["successes"]["component_event"] += 1
+                    
+                except asyncio.TimeoutError:
+                    # Registrar timeout pero continuar con otros componentes
+                    self._timeout_stats["timeouts"]["component_event"] += 1
+                    logger.warning(f"Timeout al enviar evento {event_type} a {component.name} "
+                                  f"(límite: {self._component_event_timeout}s)")
+                    
+                except Exception as e:
+                    # Registrar error pero continuar con otros componentes
+                    logger.error(f"Error al enviar evento {event_type} a {component.name}: {str(e)}")
+            
+            # Registrar éxito global
+            self._timeout_stats["successes"]["event"] += 1
+            elapsed = time.time() - start_time
+            
+            logger.debug(f"Evento {event_type} emitido en {elapsed:.3f}s")
+            return True
+            
         except Exception as e:
-            logging.getLogger(__name__).error(f"Error al emitir evento con respuesta {event_type}: {e}")
-            return []
+            # Registrar error global
+            self._timeout_stats["timeouts"]["event"] += 1
+            elapsed = time.time() - start_time
+            
+            logger.error(f"Error al emitir evento {event_type}: {str(e)} ({elapsed:.3f}s)")
+            return False
     
-    def get_timeout_stats(self) -> Dict[str, Any]:
+    def get_timeout_stats(self) -> Dict[str, Dict[str, int]]:
         """
         Obtener estadísticas de timeouts.
         
         Returns:
-            Diccionario con contadores de timeouts por categoría
+            Diccionario con estadísticas de timeouts y éxitos
         """
-        return {
-            "timeouts": dict(self.timeouts_occurred),
-            "problem_components": self.problem_components
-        }
+        return self._timeout_stats.copy()
     
-    def adjust_timeouts_based_on_stats(self, factor: float = 1.5) -> None:
+    def get_performance_metrics(self) -> Dict[str, List[float]]:
         """
-        Ajustar timeouts automáticamente basado en estadísticas.
+        Obtener métricas de rendimiento.
         
-        Esta función aumenta los timeouts si se han producido demasiados timeouts.
+        Returns:
+            Diccionario con tiempos de ejecución de diferentes operaciones
+        """
+        return self._performance_metrics.copy()
+    
+    def adjust_timeouts_based_on_stats(self, factor: float = 1.5, 
+                                      min_failures: int = 3) -> None:
+        """
+        Ajustar timeouts basados en estadísticas recientes.
+        
+        Esta función aumenta los timeouts para operaciones que han experimentado
+        múltiples fallos, mejorando la adaptabilidad del sistema.
         
         Args:
-            factor: Factor de multiplicación para los timeouts actuales
+            factor: Factor de multiplicación para timeouts (default: 1.5)
+            min_failures: Mínimo de fallos para aplicar ajuste (default: 3)
         """
-        if sum(self.timeouts_occurred.values()) > 5:
-            logging.getLogger(__name__).info(
-                f"Ajustando timeouts automáticamente (factor={factor})"
-            )
-            self.component_start_timeout *= factor
-            self.component_stop_timeout *= factor
-            self.event_timeout *= factor
-            self.component_event_timeout *= factor
+        timeouts = self._timeout_stats["timeouts"]
+        
+        # Ajustar timeout de inicio de componente
+        if timeouts["component_start"] >= min_failures:
+            old_timeout = self._component_start_timeout
+            self._component_start_timeout *= factor
+            logger.info(f"Timeout de inicio ajustado: {old_timeout:.3f}s → {self._component_start_timeout:.3f}s")
+        
+        # Ajustar timeout de parada de componente
+        if timeouts["component_stop"] >= min_failures:
+            old_timeout = self._component_stop_timeout
+            self._component_stop_timeout *= factor
+            logger.info(f"Timeout de parada ajustado: {old_timeout:.3f}s → {self._component_stop_timeout:.3f}s")
+        
+        # Ajustar timeout de procesamiento de evento
+        if timeouts["component_event"] >= min_failures:
+            old_timeout = self._component_event_timeout
+            self._component_event_timeout *= factor
+            logger.info(f"Timeout de procesamiento ajustado: {old_timeout:.3f}s → {self._component_event_timeout:.3f}s")
+        
+        # Ajustar timeout de emisión de evento
+        if timeouts["event"] >= min_failures:
+            old_timeout = self._event_timeout
+            self._event_timeout *= factor
+            logger.info(f"Timeout de emisión ajustado: {old_timeout:.3f}s → {self._event_timeout:.3f}s")
+        
+        # Reiniciar contadores de timeouts
+        for key in timeouts:
+            timeouts[key] = 0
