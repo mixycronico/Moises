@@ -186,7 +186,8 @@ class ConfigurableTimeoutEngine(EngineNonBlocking):
         try:
             # Implementar versión simplificada de emisión de evento
             # Esto es más simple que la versión original y evita bloqueos
-            for component in self._components.values():
+            components = getattr(self, '_components', {})
+            for component in components.values():
                 if not component:
                     continue
                     

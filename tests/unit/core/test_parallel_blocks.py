@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class ComponentForTesting(Component):
     """Componente de prueba con comportamiento configurable."""
     
-    def __init__(self, name: str, delay: float = 0.1, fail_on: Set[str] = None):
+    def __init__(self, name: str, delay: float = 0.1, fail_on: Optional[Set[str]] = None):
         """
         Inicializar componente de prueba.
         

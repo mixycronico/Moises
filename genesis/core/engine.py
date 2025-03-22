@@ -271,9 +271,12 @@ class Engine:
             self.logger.warning(f"Timeout global al detener componentes ({global_timeout}s)")
         
         # Detener el event bus con timeout
+        bus_timeout = 5.0  # Valor por defecto
         try:
-            bus_timeout = 1.0 if self.event_bus.test_mode or hasattr(sys, '_called_from_test') else 5.0
-            await asyncio.wait_for(self.event_bus.stop(), timeout=bus_timeout)
+            # Redefinimos solo si podemos acceder a las propiedades necesarias
+            if hasattr(self, 'event_bus') and self.event_bus is not None:
+                bus_timeout = 1.0 if (hasattr(self.event_bus, 'test_mode') and self.event_bus.test_mode) or hasattr(sys, '_called_from_test') else 5.0
+                await asyncio.wait_for(self.event_bus.stop(), timeout=bus_timeout)
         except asyncio.TimeoutError:
             self.logger.warning(f"Timeout al detener event_bus ({bus_timeout}s)")
         except Exception as e:

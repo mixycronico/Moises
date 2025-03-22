@@ -25,7 +25,7 @@ class EngineOptimized:
     y timeouts en las pruebas.
     """
     
-    def __init__(self, event_bus_or_name: Union[EventBus, str] = None, test_mode: bool = False):
+    def __init__(self, event_bus_or_name: Optional[Union[EventBus, str]] = None, test_mode: bool = False):
         """
         Inicializar el motor del sistema.
         
