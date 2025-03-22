@@ -69,7 +69,7 @@ class EngineNonBlocking:
             except Exception as e:
                 logger.error(f"Error al iniciar event_bus: {e}")
     
-    def register_component(self, component: Component, priority: int = 50) -> None:
+    async def register_component(self, component: Component, priority: int = 50) -> None:
         """
         Register a component with the engine.
         
@@ -99,7 +99,7 @@ class EngineNonBlocking:
         
         # Si el motor ya está ejecutándose, iniciar también el componente
         if self.running and hasattr(component, 'start'):
-            asyncio.create_task(self._start_component(component))
+            await self._start_component(component)
     
     def get_component(self, name: str) -> Optional[Component]:
         """
