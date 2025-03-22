@@ -452,7 +452,7 @@ async def test_dynamic_engine_stress():
     # Crear solo 3 componentes 
     components = []
     for i in range(3):  # Solo 3 componentes
-        comp = TestComponent(f"comp{i}", delay=0.01)
+        comp = ComponentForTesting(f"comp{i}", delay=0.01)
         components.append(comp)
         
         # Un componente de cada tipo
