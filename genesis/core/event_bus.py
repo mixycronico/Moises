@@ -35,7 +35,11 @@ class EventBus:
         # Almacenar suscriptores con sus prioridades
         # {event_type: [(priority, handler)]}
         self.subscribers: Dict[str, list] = {}
-        self.one_time_listeners: Dict[str, list] = {}  # Para listeners de una sola vez
+        
+        # Este atributo está en desuso y se mantiene solo por compatibilidad
+        # Los listeners de una sola vez ahora se manejan con wrappers usando subscribe_once
+        self.one_time_listeners: Dict[str, list] = {}
+        
         self.running = False
         self.queue: Optional[asyncio.Queue] = None
         self.process_task: Optional[asyncio.Task] = None
@@ -164,11 +168,9 @@ class EventBus:
         if event_type in self.subscribers:
             handlers.extend(self.subscribers[event_type])
         
-        # 2. Listeners de un solo uso
+        # 2. Listeners de un solo uso (ya no se usa, pero se mantiene por compatibilidad)
+        # Nota: subscribe_once es el método oficial para listeners de un solo uso ahora
         one_time = []
-        if event_type in self.one_time_listeners:
-            one_time = self.one_time_listeners[event_type]
-            del self.one_time_listeners[event_type]
         
         # 3. Listeners wildcard (simples)
         wildcard = []
@@ -371,6 +373,47 @@ class EventBus:
             prefix, suffix = pattern.split('*', 1)
             return event_type.startswith(prefix) and event_type.endswith(suffix)
     
+    def _collect_all_handlers_for_event(self, event_type: str) -> list:
+        """
+        Recopila todos los handlers que deben recibir un evento específico.
+        
+        Método centralizado para recolectar handlers de diferentes tipos:
+        - Handlers específicos para el evento exacto
+        - Handlers de wildcard (*) que reciben todos los eventos
+        - Handlers con patrones de coincidencia (como "user.*")
+        
+        Args:
+            event_type: Tipo de evento para el que recopilar handlers
+            
+        Returns:
+            Lista de tuplas (prioridad, handler) ordenadas por prioridad
+        """
+        # Recopilar listeners para un procesamiento más eficiente
+        handlers_to_execute = []
+        
+        # 1. Listeners específicos para el evento exacto (caso más común primero)
+        if event_type in self.subscribers:
+            handlers_to_execute.extend(self.subscribers[event_type])
+        
+        # 2. Listeners wildcard (todos los eventos)
+        wildcard_handlers = []
+        if '*' in self.subscribers:
+            wildcard_handlers = self.subscribers['*']
+        
+        # 3. Listeners con patrones (como "user.*")
+        pattern_handlers = []
+        for pattern, handlers in self.subscribers.items():
+            if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
+                pattern_handlers.extend(handlers)
+        
+        # Combinar todos los handlers
+        all_handlers = handlers_to_execute + wildcard_handlers + pattern_handlers
+        
+        # Ordenar por prioridad (más alta primero)
+        all_handlers.sort(key=lambda x: x[0], reverse=True)
+        
+        return all_handlers
+        
     async def emit_with_response(self, event_type: str, data: Dict[str, Any], source: str) -> list:
         """
         Emit an event to subscribers and collect their responses.
@@ -386,38 +429,16 @@ class EventBus:
         # Auto-inicio para pruebas y casos especiales
         if not self.running:
             self.running = True
-            if hasattr(sys, '_called_from_test'):
-                logger.debug("EventBus: auto-inicio para pruebas")
+            if self.test_mode:
+                logger.debug("EventBus: auto-inicio para pruebas (modo test)")
+            elif hasattr(sys, '_called_from_test') or 'pytest' in sys.modules:
+                logger.debug("EventBus: auto-inicio para pruebas (pytest detectado)")
+                self.test_mode = True  # Forzar modo prueba si es detectado durante ejecución
             else:
                 logger.warning("Emitiendo eventos sin iniciar el bus formalmente")
         
-        # Recopilar listeners para un procesamiento más eficiente
-        handlers_to_execute = []
-        
-        # 1. Listeners específicos para el evento exacto (caso más común primero)
-        if event_type in self.subscribers:
-            handlers_to_execute.extend(self.subscribers[event_type])
-        
-        # 2. Listeners de un solo uso (para este evento específico)
-        one_time_handlers = []
-        if event_type in self.one_time_listeners:
-            one_time_handlers = self.one_time_listeners[event_type]
-            del self.one_time_listeners[event_type]
-        
-        # 3. Listeners wildcard (casos más simples y comunes)
-        wildcard_handlers = []
-        if '*' in self.subscribers:
-            wildcard_handlers = self.subscribers['*']
-        
-        # 4. Listeners de patrones (más costosos, los dejamos para el final)
-        pattern_handlers = []
-        for pattern, handlers in self.subscribers.items():
-            if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
-                pattern_handlers.extend(handlers)
-        
-        # Combinar y ordenar todos los handlers por prioridad
-        all_handlers = handlers_to_execute + one_time_handlers + wildcard_handlers + pattern_handlers
-        all_handlers.sort(key=lambda x: x[0], reverse=True)
+        # Recopilar handlers para el evento usando el método centralizado
+        all_handlers = self._collect_all_handlers_for_event(event_type)
         
         # Ejecutar handlers en orden de prioridad y recopilar respuestas
         responses = []
@@ -480,33 +501,8 @@ class EventBus:
             logger.debug(f"Cola no inicializada, procesando evento {event_type} directamente")
         
         # Procesamiento directo para pruebas o cuando falla la cola
-        # Recopilar listeners para un procesamiento más eficiente
-        handlers_to_execute = []
-        
-        # 1. Listeners específicos para el evento exacto (caso más común primero)
-        if event_type in self.subscribers:
-            handlers_to_execute.extend(self.subscribers[event_type])
-        
-        # 2. Listeners de un solo uso (para este evento específico)
-        one_time_handlers = []
-        if event_type in self.one_time_listeners:
-            one_time_handlers = self.one_time_listeners[event_type]
-            del self.one_time_listeners[event_type]
-        
-        # 3. Listeners wildcard (casos más simples y comunes)
-        wildcard_handlers = []
-        if '*' in self.subscribers:
-            wildcard_handlers = self.subscribers['*']
-        
-        # 4. Listeners de patrones (más costosos, los dejamos para el final)
-        pattern_handlers = []
-        for pattern, handlers in self.subscribers.items():
-            if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
-                pattern_handlers.extend(handlers)
-        
-        # Combinar y ordenar todos los handlers por prioridad
-        all_handlers = handlers_to_execute + one_time_handlers + wildcard_handlers + pattern_handlers
-        all_handlers.sort(key=lambda x: x[0], reverse=True)
+        # Recopilar handlers para el evento usando el método centralizado
+        all_handlers = self._collect_all_handlers_for_event(event_type)
         
         # Ejecutar handlers en orden de prioridad
         for priority, handler in all_handlers:
