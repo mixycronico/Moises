@@ -187,22 +187,29 @@ class Settings:
             "API_DEBUG": "api.debug"
         }
         
-        # Process known mappings
-        for env_var, setting_key in env_mappings.items():
-            if env_var in os.environ and os.environ[env_var]:
-                # Get environment value and convert to appropriate type
-                env_value = os.environ[env_var]
-                typed_value = self._convert_env_value(env_value)
-                
-                # Set value with proper type
-                self.set(setting_key, typed_value)
+        # Process known mappings - only if no prefix is provided
+        if not prefix:
+            for env_var, setting_key in env_mappings.items():
+                if env_var in os.environ and os.environ[env_var]:
+                    # Get environment value and convert to appropriate type
+                    env_value = os.environ[env_var]
+                    typed_value = self._convert_env_value(env_value)
+                    
+                    # Set value with proper type
+                    self.set(setting_key, typed_value)
             
         # Process variables with custom prefix
         if prefix:
             for key, value in os.environ.items():
                 if key.startswith(prefix) and value:  # Skip empty values
                     # Remove prefix and convert to setting key style
-                    setting_key = key[len(prefix):].lower().replace("_", ".")
+                    key_without_prefix = key[len(prefix):]
+                    
+                    # Handle the root level keys without underscores
+                    if "_" not in key_without_prefix:
+                        setting_key = key_without_prefix.lower()
+                    else:
+                        setting_key = key_without_prefix.lower().replace("_", ".")
                     
                     try:
                         # Convert to appropriate type
@@ -394,6 +401,15 @@ class Settings:
             json.JSONDecodeError: If the file contains invalid JSON
         """
         self._load_from_file(filepath)
+        
+    def load_from_env(self, prefix: str = "") -> None:
+        """
+        Load settings from environment variables.
+        
+        Args:
+            prefix: Optional prefix for environment variables
+        """
+        self._load_from_env(prefix)
         
     def merge(self, settings: Dict[str, Any]) -> None:
         """
