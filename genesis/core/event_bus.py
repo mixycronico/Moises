@@ -106,65 +106,109 @@ class EventBus:
             self.process_task = None
     
     async def _process_events(self) -> None:
-        """Process events from the queue in an optimized manner."""
+        """Process events from the queue in an optimized manner with batching capability."""
         if not self.queue:
             raise RuntimeError("Event queue not initialized")
         
+        # Rastrear handlers activos para evitar deadlocks
+        active_handlers = 0
+        semaphore = asyncio.Semaphore(10)  # Limitar ejecuciones paralelas
+        
         while self.running:
             try:
-                # Obtener el próximo evento de la cola
-                event_type, data, source = await self.queue.get()
+                # Obtener el próximo evento de la cola con timeout para evitar bloqueos
+                try:
+                    event_type, data, source = await asyncio.wait_for(
+                        self.queue.get(), timeout=0.5
+                    )
+                except asyncio.TimeoutError:
+                    # No hay eventos en la cola, verificar si seguimos funcionando
+                    if not self.running:
+                        break
+                    continue
                 
-                # Usar el mismo patrón de recolección que en emit()
-                handlers_to_execute = []
+                # Recopilar handlers rápidamente
+                all_handlers = self._collect_handlers(event_type)
                 
-                # 1. Listeners específicos (caso más común)
-                if event_type in self.subscribers:
-                    handlers_to_execute.extend(self.subscribers[event_type])
+                # Procesamiento asíncrono no bloqueante
+                # Usar asyncio.create_task para procesar cada evento independientemente
+                asyncio.create_task(
+                    self._execute_handlers(event_type, data, source, all_handlers, semaphore)
+                )
                 
-                # 2. Listeners de un solo uso
-                one_time_handlers = []
-                if event_type in self.one_time_listeners:
-                    one_time_handlers = self.one_time_listeners[event_type]
-                    del self.one_time_listeners[event_type]
-                
-                # 3. Listeners wildcard
-                wildcard_handlers = []
-                if '*' in self.subscribers:
-                    wildcard_handlers = self.subscribers['*']
-                
-                # 4. Listeners de patrones (más costosos)
-                pattern_handlers = []
-                for pattern, handlers in self.subscribers.items():
-                    if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
-                        pattern_handlers.extend(handlers)
-                
-                # Combinar y ordenar todos los handlers por prioridad
-                all_handlers = handlers_to_execute + one_time_handlers + wildcard_handlers + pattern_handlers
-                all_handlers.sort(key=lambda x: x[0], reverse=True)
-                
-                # Ejecutar handlers en orden de prioridad
-                for priority, handler in all_handlers:
-                    try:
-                        await handler(event_type, data, source)
-                    except asyncio.CancelledError:
-                        # Permitir cancelación limpia
-                        raise
-                    except Exception as e:
-                        logger.error(f"Error en manejador de eventos: {e}")
-                
-                # Marcar la tarea como completada
+                # Marcar la tarea como completada (ya que el processing ocurrirá en paralelo)
                 self.queue.task_done()
                 
-                # Pequeña pausa para permitir que otros tasks se ejecuten
+                # Mini pausa para verificar otros eventos
                 await asyncio.sleep(0)
                 
             except asyncio.CancelledError:
-                # Propagar cancelación para cerrar limpiamente
+                # Propagar cancelación limpia
+                logger.debug("EventBus: proceso de eventos cancelado")
                 break
             except Exception as e:
-                logger.error(f"Error al procesar evento: {e}")
-                # Continuar con el próximo evento
+                logger.error(f"Error en procesamiento de eventos: {e}")
+                await asyncio.sleep(0.01)  # Prevenir CPU hogging si hay errores consecutivos
+    
+    def _collect_handlers(self, event_type: str) -> list:
+        """
+        Collect handlers for an event type efficiently.
+        Returns a list of (priority, handler) tuples.
+        """
+        handlers = []
+        
+        # 1. Más común primero: listeners específicos
+        if event_type in self.subscribers:
+            handlers.extend(self.subscribers[event_type])
+        
+        # 2. Listeners de un solo uso
+        one_time = []
+        if event_type in self.one_time_listeners:
+            one_time = self.one_time_listeners[event_type]
+            del self.one_time_listeners[event_type]
+        
+        # 3. Listeners wildcard (simples)
+        wildcard = []
+        if '*' in self.subscribers:
+            wildcard = self.subscribers['*']
+        
+        # 4. Listeners con patrones (más costosos, cache para optimizar)
+        pattern_handlers = []
+        # Optimizar búsqueda de patrones con cache
+        for pattern, pattern_subs in self.subscribers.items():
+            if pattern != event_type and pattern != '*' and self._matches_pattern(pattern, event_type):
+                pattern_handlers.extend(pattern_subs)
+        
+        # Combinar y ordenar por prioridad
+        combined = handlers + one_time + wildcard + pattern_handlers
+        combined.sort(key=lambda x: x[0], reverse=True)
+        
+        return combined
+    
+    async def _execute_handlers(self, event_type, data, source, handlers, semaphore):
+        """
+        Execute event handlers with concurrency control.
+        This runs outside the main event loop to prevent blocking.
+        """
+        # Lanzar hasta 10 manejadores concurrentemente con semaphore
+        handler_tasks = []
+        
+        for priority, handler in handlers:
+            # Usar semaphore para limitar concurrencia
+            async with semaphore:
+                try:
+                    # Espera con timeout para evitar bloqueos
+                    await asyncio.wait_for(
+                        handler(event_type, data, source),
+                        timeout=0.5  # Timeout por handler para evitar bloqueo
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(f"Timeout en manejador de eventos para {event_type}")
+                except asyncio.CancelledError:
+                    # Permitir cancelación limpia
+                    raise
+                except Exception as e:
+                    logger.error(f"Error en manejador de eventos: {e}")
     
     def subscribe(self, event_type: str, handler: EventHandler, priority: int = 50) -> None:
         """

@@ -38,14 +38,13 @@ class LoadTestComponent(Component):
         self.is_running = False
         self.events_queue = asyncio.Queue()
     
-    async def start(self):
+    async def start(self) -> None:
         """Iniciar el componente y su procesador de eventos."""
         self.is_running = True
         # Iniciar tarea de procesamiento
         asyncio.create_task(self._process_events())
-        return True
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Detener el componente."""
         self.is_running = False
         # Esperar a que se vacíe la cola
@@ -54,7 +53,6 @@ class LoadTestComponent(Component):
                 await asyncio.wait_for(self.events_queue.join(), timeout=1.0)
             except asyncio.TimeoutError:
                 pass
-        return True
     
     async def emit_events(self):
         """Emitir múltiples eventos para pruebas de carga."""
@@ -119,13 +117,13 @@ class StatefulComponent(Component):
         self.state_changes = []
         self.recovery_attempts = 0
     
-    async def start(self):
+    async def start(self) -> None:
         """Iniciar el componente."""
-        return True
+        pass
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Detener el componente."""
-        return True
+        pass
     
     async def handle_event(self, event_type, data, source):
         """Manejar eventos que modifican el estado."""
@@ -168,17 +166,15 @@ class FaultInjectionComponent(Component):
         self.successful_events = 0
         self.last_event = None
     
-    async def start(self):
+    async def start(self) -> None:
         """Iniciar el componente con posibilidad de fallo."""
         if random.random() < self.fault_rate:
             raise Exception(f"Simulated start failure in {self.name}")
-        return True
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Detener el componente con posibilidad de fallo."""
         if random.random() < self.fault_rate:
             raise Exception(f"Simulated stop failure in {self.name}")
-        return True
     
     async def handle_event(self, event_type, data, source):
         """Manejar evento con posibilidad de fallo."""
@@ -412,15 +408,13 @@ async def test_engine_deadlock_prevention(engine):
             self.delay = delay
             self.lock = asyncio.Lock()
         
-        async def start(self):
+        async def start(self) -> None:
             async with self.lock:
                 await asyncio.sleep(self.delay)
-            return True
         
-        async def stop(self):
+        async def stop(self) -> None:
             async with self.lock:
                 await asyncio.sleep(self.delay / 2)
-            return True
         
         async def handle_event(self, event_type, data, source):
             if event_type == "lock_test":
