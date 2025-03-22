@@ -571,5 +571,3 @@ async def test_event_bus_backpressure(event_bus):
     assert slow_processed > 0
     # Verificar que se gestionaron todos los eventos (procesados + rechazados)
     assert slow_processed + slow_rejected == 50
-
-"""

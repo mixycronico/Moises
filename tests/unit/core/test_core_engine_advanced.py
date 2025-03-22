@@ -429,5 +429,3 @@ async def test_component_priority_based_execution(advanced_engine):
     
     # Detener el motor
     await new_engine.stop()
-
-"""
