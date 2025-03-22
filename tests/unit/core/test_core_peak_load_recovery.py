@@ -69,6 +69,18 @@ class LoadGeneratorComponent(Component):
         self.burst_mode = False
         self.burst_recovery = False
         
+        # Referencia al motor (añadido para resolver problema de registro)
+        self._engine = None
+        
+    def set_engine(self, engine):
+        """
+        Establecer referencia al motor.
+        
+        Args:
+            engine: Motor a asociar con este componente
+        """
+        self._engine = engine
+        
         # Referencia al motor
         self._engine = None
         

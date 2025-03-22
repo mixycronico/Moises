@@ -154,6 +154,18 @@ class EngineNonBlocking:
             
         self.remove_component(component.name)
         
+    async def unregister_component(self, component_name: str) -> None:
+        """
+        Unregister a component from the engine asynchronously.
+        
+        This is an asynchronous version of remove_component for compatibility
+        with test code that expects an async method.
+        
+        Args:
+            component_name: Name of the component to unregister
+        """
+        self.remove_component(component_name)
+        
     @property
     def is_running(self) -> bool:
         """
