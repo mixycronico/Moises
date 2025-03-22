@@ -30,17 +30,15 @@ class SimpleComponent(Component):
         self.startup_time = None
         self.shutdown_time = None
     
-    async def start(self):
+    async def start(self) -> None:
         """Iniciar el componente y registrar la llamada."""
         self.start_called = True
         self.startup_time = time.time()
-        return True
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Detener el componente y registrar la llamada."""
         self.stop_called = True
         self.shutdown_time = time.time()
-        return True
     
     async def handle_event(self, event_type, data, source):
         """Manejar un evento y registrarlo."""
@@ -62,15 +60,13 @@ class CounterComponent(Component):
         self.stop_count = 0
         self.event_count = 0
     
-    async def start(self):
+    async def start(self) -> None:
         """Incrementar contador de inicio."""
         self.start_count += 1
-        return True
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Incrementar contador de parada."""
         self.stop_count += 1
-        return True
     
     async def handle_event(self, event_type, data, source):
         """Incrementar contador de eventos."""

@@ -29,17 +29,15 @@ class TestComponent(Component):
         self.events_received = []
         self.is_started = False
     
-    async def start(self):
+    async def start(self) -> None:
         """Iniciar el componente y registrar la llamada."""
         self.start_count += 1
         self.is_started = True
-        return True
     
-    async def stop(self):
+    async def stop(self) -> None:
         """Detener el componente y registrar la llamada."""
         self.stop_count += 1
         self.is_started = False
-        return True
     
     async def handle_event(self, event_type, data, source):
         """Manejar un evento y registrarlo."""
@@ -174,14 +172,12 @@ async def test_component_basic(test_component):
     assert test_component.stop_count == 0
     
     # Iniciar el componente
-    result = await test_component.start()
-    assert result is True
+    await test_component.start()
     assert test_component.start_count == 1
     assert test_component.is_started is True
     
     # Detener el componente
-    result = await test_component.stop()
-    assert result is True
+    await test_component.stop()
     assert test_component.stop_count == 1
     assert test_component.is_started is False
     
