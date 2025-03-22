@@ -198,6 +198,27 @@ class EventBus:
             # Clean up empty subscriber lists
             if not self.subscribers[event_type]:
                 del self.subscribers[event_type]
+                
+    def subscribe_once(self, event_type: str, handler: EventHandler, priority: int = 50) -> None:
+        """
+        Subscribe to an event type for a single execution.
+        
+        The handler will be automatically unregistered after being called once.
+        
+        Args:
+            event_type: The event type to subscribe to, or '*' for all events
+            handler: Async callback function to handle the event
+            priority: Priority level (higher values = higher priority, executed first)
+        """
+        # Crear un wrapper que se auto-desregistre
+        async def one_time_wrapper(evt_type, data, source):
+            # Llamar al handler original
+            await handler(evt_type, data, source)
+            # Auto-desregistrarse después de la primera ejecución
+            self.unsubscribe(event_type, one_time_wrapper)
+        
+        # Registrar el wrapper
+        self.subscribe(event_type, one_time_wrapper, priority)
     
     def unregister_listener(self, *args):
         """

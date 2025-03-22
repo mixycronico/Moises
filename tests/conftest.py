@@ -111,3 +111,13 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "asyncio: marca pruebas asíncronas que utilizan asyncio"
     )
+    
+    # Configurar variables de entorno para todas las pruebas
+    # Esta es la manera recomendada de configurar variables de entorno en lugar
+    # de usar la sección "env" en pytest.ini, que está obsoleta
+    if not os.environ.get("TEST_DB_URL"):
+        os.environ["TEST_DB_URL"] = "sqlite:///:memory:"
+    if not os.environ.get("LOG_LEVEL"):
+        os.environ["LOG_LEVEL"] = "INFO"
+    if not os.environ.get("TEST_MODE"):
+        os.environ["TEST_MODE"] = "True"
