@@ -1,0 +1,182 @@
+Claro, voy a diseñar un test completo y detallado para detectar problemas en el `EventBus`, asumiendo que es un componente central en tu sistema que maneja eventos asíncronos. Este test estará orientado a verificar varios aspectos clave: inicialización, registro/desregistro de componentes, manejo de eventos, finalización adecuada y detección de bloqueos o tareas pendientes. Como no tengo el código exacto del `EventBus`, haré suposiciones razonables sobre su interfaz (basadas en sistemas asíncronos típicos con `asyncio`), y tú puedes adaptarlo según tu implementación.
+
+El test usará `pytest` con soporte para `asyncio` (`pytest-asyncio`), ya que parece que estás trabajando en un entorno asíncrono. También incluiré logging para rastrear el flujo y detectar dónde podrían estar ocurriendo problemas.
+
+### Código del test
+
+```python
+import asyncio
+import logging
+import pytest
+from unittest.mock import AsyncMock, Mock
+
+# Configuración básica de logging para depuración
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+# Suponiendo que estas son las clases de tu sistema
+from your_module import EngineNonBlocking, EventBus, LoadGeneratorComponent
+
+# Marcamos el módulo como compatible con asyncio
+pytest.mark.asyncio
+
+# Fixture para crear un motor limpio con EventBus
+@pytest.fixture
+async def engine_with_eventbus():
+    engine = EngineNonBlocking()
+    event_bus = EventBus()  # Ajusta según cómo se inicializa tu EventBus
+    engine.event_bus = event_bus  # Suponiendo que el motor tiene un EventBus
+    yield engine
+    # Limpieza explícita
+    await engine.shutdown()  # Asegúrate de que tengas un método shutdown o similar
+    logger.debug("Motor cerrado tras la prueba")
+
+# Fixture para un componente de prueba
+@pytest.fixture
+def test_component():
+    component = LoadGeneratorComponent()
+    component.handle_event = AsyncMock()  # Mock para simular manejo de eventos
+    return component
+
+# Test completo para el EventBus
+async def test_eventbus_full_lifecycle(engine_with_eventbus, test_component):
+    """
+    Prueba exhaustiva del EventBus: registro, envío de eventos, desregistro y cierre.
+    Detecta bloqueos, tareas pendientes o problemas de concurrencia.
+    """
+    engine = engine_with_eventbus
+    event_bus = engine.event_bus
+    component = test_component
+
+    # Paso 1: Verificar inicialización del EventBus
+    logger.debug("Iniciando prueba de EventBus")
+    assert event_bus is not None, "EventBus no inicializado"
+    assert not event_bus.is_closed(), "EventBus está cerrado al inicio"
+
+    # Paso 2: Registrar un componente
+    logger.debug("Registrando componente en el motor")
+    await engine.register_component(component)
+    component.set_engine(engine)  # Asegura que el componente tenga referencia al motor
+    assert component in event_bus.listeners, "Componente no registrado en EventBus"
+
+    # Paso 3: Enviar un evento y verificar que se maneja
+    logger.debug("Enviando evento de prueba")
+    test_event = {"type": "TEST_EVENT", "data": "prueba"}
+    await event_bus.publish(test_event)
+    await asyncio.sleep(0.1)  # Dar tiempo al ciclo de eventos para procesar
+    component.handle_event.assert_called_once_with(test_event)
+    logger.debug("Evento manejado correctamente")
+
+    # Paso 4: Probar concurrencia con múltiples eventos
+    logger.debug("Probando concurrencia con 100 eventos")
+    async def flood_events():
+        for i in range(100):
+            await event_bus.publish({"type": "FLOOD_EVENT", "id": i})
+    await asyncio.gather(flood_events(), asyncio.sleep(0.5))
+    assert component.handle_event.call_count >= 101, "No se manejaron todos los eventos"
+    logger.debug(f"Total de eventos manejados: {component.handle_event.call_count}")
+
+    # Paso 5: Desregistrar el componente
+    logger.debug("Desregistrando componente")
+    await engine.unregister_component(component)
+    assert component not in event_bus.listeners, "Componente no desregistrado correctamente"
+
+    # Paso 6: Verificar que no se procesan eventos tras desregistro
+    logger.debug("Enviando evento tras desregistro")
+    component.handle_event.reset_mock()  # Reiniciar el mock
+    await event_bus.publish({"type": "POST_UNREGISTER_EVENT", "data": "post"})
+    await asyncio.sleep(0.1)
+    component.handle_event.assert_not_called()
+    logger.debug("Ningún evento manejado tras desregistro")
+
+    # Paso 7: Verificar cierre del EventBus
+    logger.debug("Cerrando EventBus")
+    await event_bus.close()  # Ajusta según el método real de cierre
+    assert event_bus.is_closed(), "EventBus no se cerró correctamente"
+
+    # Paso 8: Detectar tareas pendientes
+    pending = asyncio.all_tasks()
+    if pending:
+        logger.warning(f"Tareas pendientes detectadas: {len(pending)}")
+        for task in pending:
+            logger.warning(f"Tarea pendiente: {task}")
+        assert not pending, "Hay tareas pendientes tras cerrar el EventBus"
+
+# Test para simular fallo en el desregistro
+async def test_eventbus_registration_failure(engine_with_eventbus, test_component):
+    """
+    Prueba el manejo de errores al desregistrar un componente no registrado.
+    """
+    engine = engine_with_eventbus
+    event_bus = engine.event_bus
+
+    logger.debug("Intentando desregistrar componente no registrado")
+    try:
+        await engine.unregister_component(test_component)
+        logger.debug("Desregistro de componente no registrado no falló como se esperaba")
+    except ValueError:
+        logger.debug("Error manejado correctamente al desregistrar componente no registrado")
+
+# Test para detectar bloqueos en el EventBus
+async def test_eventbus_deadlock_detection(engine_with_eventbus, test_component):
+    """
+    Prueba para detectar posibles bloqueos o tiempos de espera en el EventBus.
+    """
+    engine = engine_with_eventbus
+    event_bus = engine.event_bus
+
+    logger.debug("Registrando componente y enviando evento masivo")
+    await engine.register_component(test_component)
+    test_component.set_engine(engine)
+
+    # Simular carga pesada
+    async def heavy_load():
+        for _ in range(1000):
+            await event_bus.publish({"type": "HEAVY_EVENT"})
+
+    # Ejecutar con timeout para detectar bloqueos
+    try:
+        await asyncio.wait_for(heavy_load(), timeout=2.0)
+        logger.debug("Carga pesada completada sin bloqueos")
+    except asyncio.TimeoutError:
+        pytest.fail("Timeout detectado: posible bloqueo en el EventBus")
+
+    # Verificar limpieza
+    await engine.unregister_component(test_component)
+
+if __name__ == "__main__":
+    pytest.main(["-v", "--asyncio-mode=auto"])
+```
+
+### Explicación de los componentes del test
+
+1. **Fixture `engine_with_eventbus`:**
+   - Crea un motor limpio con un `EventBus` asociado y asegura su cierre al final de cada prueba.
+   - Ajusta la inicialización según cómo se construye tu `EventBus`.
+
+2. **Fixture `test_component`:**
+   - Usa un `LoadGeneratorComponent` con un mock asíncrono para simular el manejo de eventos.
+
+3. **`test_eventbus_full_lifecycle`:**
+   - Prueba el ciclo completo: inicialización, registro, publicación de eventos, concurrencia, desregistro y cierre.
+   - Verifica que no queden tareas pendientes (`asyncio.all_tasks()`), lo cual es clave para detectar bloqueos.
+
+4. **`test_eventbus_registration_failure`:**
+   - Prueba el manejo de errores, como intentar desregistrar un componente que no está registrado.
+
+5. **`test_eventbus_deadlock_detection`:**
+   - Simula una carga pesada con un timeout para detectar bloqueos o problemas de rendimiento en el `EventBus`.
+
+### Cómo usar este test
+1. **Ajusta las importaciones:** Cambia `your_module` por el módulo real donde están `EngineNonBlocking`, `EventBus` y `LoadGeneratorComponent`.
+2. **Adapta la interfaz del `EventBus`:** Si tu `EventBus` tiene métodos diferentes (por ejemplo, `subscribe` en lugar de `listeners`, o `stop` en lugar de `close`), modifica el código en consecuencia.
+3. **Ejecuta el test:** Usa `pytest -v --asyncio-mode=auto` para correrlo con soporte asíncrono.
+4. **Revisa los logs:** El logging te ayudará a rastrear el flujo y detectar dónde falla.
+
+### Qué detectará este test
+- **Bloqueos:** Si el `EventBus` se atasca bajo carga o durante el desregistro.
+- **Tareas pendientes:** Si hay operaciones asíncronas que no se completan.
+- **Inconsistencias:** Problemas en el registro/desregistro o en el manejo de eventos.
+- **Tiempos de espera:** Si alguna operación excede el timeout esperado.
+
+Si me das más detalles sobre la implementación del `EventBus` (por ejemplo, cómo publica eventos o cómo maneja suscriptores), puedo refinar aún más el test. ¿Qué te parece este enfoque? ¿Quieres que lo ajustemos antes de probarlo?
