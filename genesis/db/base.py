@@ -5,14 +5,12 @@ Este módulo proporciona la clase Base para todos los modelos SQLAlchemy
 con capacidades trascendentales para operaciones resilientes.
 """
 
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import registry
-
-# Crear mapeador con capacidades trascendentales
-mapper_registry = registry()
+from sqlalchemy.orm import DeclarativeBase
 
 # Clase base para todos los modelos trascendentales
-Base = mapper_registry.generate_base()
+class Base(DeclarativeBase):
+    """Clase base para todos los modelos con capacidades trascendentales."""
+    pass
 
 # Metadatos compartidos para todas las tablas
 metadata = Base.metadata
