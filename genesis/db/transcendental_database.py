@@ -300,7 +300,7 @@ class TranscendentalDatabase:
     
     async def execute_query(
         self, 
-        query_func: Callable[..., Tuple[str, List[Any]]], 
+        query_func: Callable[..., Union[Tuple[str, List[Any]], Any]], 
         *args, 
         max_retries: int = 3,
         use_cache: bool = True,
@@ -312,7 +312,7 @@ class TranscendentalDatabase:
         Ejecutar consulta SQL con toda la resiliencia del sistema trascendental.
         
         Args:
-            query_func: Función que genera la consulta SQL y parámetros
+            query_func: Función que genera la consulta SQL y parámetros o un objeto SQLAlchemy
             *args: Argumentos para query_func
             max_retries: Reintentos máximos
             use_cache: Si se debe usar el cache
@@ -335,7 +335,18 @@ class TranscendentalDatabase:
                 return cached_result
         
         # Preparar consulta
-        sql, params = query_func(*args, **kwargs)
+        query_result = query_func(*args, **kwargs)
+        
+        # Determinar si es una consulta SQLAlchemy o una tupla (sql, params)
+        if isinstance(query_result, tuple) and len(query_result) == 2:
+            # Es una tupla (sql, params)
+            sql, params = query_result
+            use_text = True
+        else:
+            # Es un objeto SQLAlchemy
+            sql = query_result
+            params = {}
+            use_text = False
         
         # Implementar reintentos con backoff exponencial
         for retry in range(max_retries + 1):
@@ -344,15 +355,27 @@ class TranscendentalDatabase:
                 # Obtener una sesión
                 session = await get_db_session()
                 
-                # Ejecutar consulta
-                result = await session.execute(text(sql), params)
+                # Ejecutar consulta según su tipo
+                if use_text:
+                    result = await session.execute(text(sql), params)
+                    
+                    # Determinar el tipo de operación
+                    is_select = sql.strip().lower().startswith("select")
+                    is_modify = sql.strip().lower().startswith(("insert", "update", "delete"))
+                else:
+                    # Es un objeto SQLAlchemy, ejecutarlo directamente
+                    result = await session.execute(sql)
+                    
+                    # Intentar determinar tipo de operación por el tipo de objeto
+                    is_select = hasattr(sql, "is_select") and getattr(sql, "is_select")
+                    is_modify = hasattr(sql, "is_dml") and getattr(sql, "is_dml")
                 
                 # Si es una operación que modifica datos, hacer commit
-                if sql.strip().lower().startswith(("insert", "update", "delete")):
+                if is_modify:
                     await session.commit()
                 
                 # Procesar resultado según tipo de consulta
-                if sql.strip().lower().startswith("select"):
+                if is_select:
                     final_result = result.fetchall()
                 else:
                     final_result = result.rowcount
@@ -421,10 +444,25 @@ class TranscendentalDatabase:
                     
                     try:
                         for query_func, args, kwargs in queries:
-                            sql, params = query_func(*args, **kwargs)
-                            result = await session.execute(text(sql), params)
+                            query_result = query_func(*args, **kwargs)
                             
-                            if sql.strip().lower().startswith("select"):
+                            # Determinar si es una consulta SQLAlchemy o una tupla (sql, params)
+                            if isinstance(query_result, tuple) and len(query_result) == 2:
+                                # Es una tupla (sql, params)
+                                sql, params = query_result
+                                result = await session.execute(text(sql), params)
+                                
+                                # Determinar el tipo de operación
+                                is_select = sql.strip().lower().startswith("select")
+                            else:
+                                # Es un objeto SQLAlchemy, ejecutarlo directamente
+                                sql = query_result
+                                result = await session.execute(sql)
+                                
+                                # Intentar determinar tipo de operación por el tipo de objeto
+                                is_select = hasattr(sql, "is_select") and getattr(sql, "is_select")
+                            
+                            if is_select:
                                 results.append(result.fetchall())
                             else:
                                 results.append(result.rowcount)
