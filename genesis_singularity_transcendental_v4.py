@@ -2472,7 +2472,21 @@ class TranscendentalAPI:
                 
         return stats
 
-
+    async def fetch_data(self, endpoint: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Obtiene datos de un endpoint específico.
+        
+        Args:
+            endpoint: Endpoint de destino
+            params: Parámetros de consulta
+            
+        Returns:
+            Datos obtenidos
+        """
+        if params is None:
+            params = {}
+            
+        return await self.send_request(endpoint, params, method="GET")
 
     async def process_api_data(self, data: Dict) -> Dict:
         """Procesa datos API con densidad infinita."""
