@@ -464,31 +464,36 @@ class QuantumTimeV4:
     async def _activate_temporal_nullification(self):
         """Activa la nullificación temporal."""
         try:
-            # Implementación práctica: establecer factor extremo, pero con protección
-            # para evitar "Numerical result out of range"
-            self.time_dilation_factor = 1e-12  # Valor extremadamente pequeño pero no cero
+            # Implementación mejorada: usar valores seguros desde el principio
+            # evitando completamente el "Numerical result out of range"
+            safe_dilation = 1e-6  # Valor seguro que simula efecto casi nulo
+            
+            # Establecer factor de dilatación seguro
+            self.time_dilation_factor = safe_dilation
             
             # Registrar operación
             self.temporal_flux_state = {
                 "nullification_active": True,
                 "start_time": time.time(),
-                "dilation_factor": self.time_dilation_factor
+                "dilation_factor": self.time_dilation_factor,
+                "intensity_adjusted": True
             }
             
             # Tiempo mínimo para operación (simulado)
             await asyncio.sleep(0.00001)
             
-            self.logger.debug(f"Nullificación temporal activada con factor {self.time_dilation_factor}")
+            self.logger.debug(f"Nullificación temporal activada con factor seguro {self.time_dilation_factor}")
         
         except Exception as e:
             self.logger.warning(f"Ajuste durante activación de nullificación temporal: {str(e)}")
-            # Asegurar valores seguros
-            self.time_dilation_factor = 1e-6
+            # Plan de respaldo adicional si aún hay problemas
+            self.time_dilation_factor = 0.001  # Valor extremadamente seguro
             self.temporal_flux_state = {
                 "nullification_active": True,
                 "start_time": time.time(),
                 "dilation_factor": self.time_dilation_factor,
-                "safe_mode": True
+                "safe_mode": True,
+                "emergency_adjusted": True
             }
     
     async def _restore_temporal_state(self, prev_dilation: float):

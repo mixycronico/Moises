@@ -4,707 +4,707 @@
   "iterations": 100,
   "success_count": 100,
   "success_rate": 1.0,
-  "total_time": 0.6629354953765869,
-  "avg_time": 0.00658515453338623,
+  "total_time": 0.6085715293884277,
+  "avg_time": 0.006024181842803955,
   "detailed_results": [
     {
       "iteration": 0,
       "status": "success",
-      "time": 0.005920886993408203,
-      "data_size": 121,
+      "time": 0.005456447601318359,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 1,
       "status": "success",
-      "time": 0.006138801574707031,
+      "time": 0.005101442337036133,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 2,
       "status": "success",
-      "time": 0.014139175415039062,
-      "data_size": 118,
+      "time": 0.0053446292877197266,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 3,
       "status": "success",
-      "time": 0.009585142135620117,
-      "data_size": 121,
+      "time": 0.005197048187255859,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 4,
       "status": "success",
-      "time": 0.014513969421386719,
-      "data_size": 119,
+      "time": 0.0052394866943359375,
+      "data_size": 118,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 5,
       "status": "success",
-      "time": 0.005581855773925781,
-      "data_size": 121,
+      "time": 0.005120038986206055,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 6,
       "status": "success",
-      "time": 0.00561213493347168,
+      "time": 0.005263328552246094,
       "data_size": 119,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 7,
       "status": "success",
-      "time": 0.0064733028411865234,
+      "time": 0.00523066520690918,
       "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 8,
       "status": "success",
-      "time": 0.007814407348632812,
+      "time": 0.005589723587036133,
       "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 9,
       "status": "success",
-      "time": 0.008435487747192383,
+      "time": 0.006405830383300781,
       "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 10,
       "status": "success",
-      "time": 0.005234241485595703,
+      "time": 0.006185293197631836,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 11,
       "status": "success",
-      "time": 0.00666046142578125,
+      "time": 0.0062656402587890625,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 12,
       "status": "success",
-      "time": 0.006304502487182617,
+      "time": 0.009785890579223633,
       "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 13,
       "status": "success",
-      "time": 0.007694244384765625,
+      "time": 0.00677943229675293,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 14,
       "status": "success",
-      "time": 0.005470991134643555,
-      "data_size": 118,
+      "time": 0.0053675174713134766,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 15,
       "status": "success",
-      "time": 0.005300283432006836,
+      "time": 0.00554347038269043,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 16,
       "status": "success",
-      "time": 0.006535768508911133,
-      "data_size": 121,
+      "time": 0.0060634613037109375,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 17,
       "status": "success",
-      "time": 0.0065538883209228516,
-      "data_size": 121,
+      "time": 0.006391048431396484,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 18,
       "status": "success",
-      "time": 0.008707284927368164,
-      "data_size": 121,
+      "time": 0.006124258041381836,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 19,
       "status": "success",
-      "time": 0.005619525909423828,
+      "time": 0.0061664581298828125,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 20,
       "status": "success",
-      "time": 0.008155345916748047,
-      "data_size": 120,
+      "time": 0.005117654800415039,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 21,
       "status": "success",
-      "time": 0.009016275405883789,
-      "data_size": 121,
+      "time": 0.006263017654418945,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 22,
       "status": "success",
-      "time": 0.006467342376708984,
-      "data_size": 121,
+      "time": 0.006323814392089844,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 23,
       "status": "success",
-      "time": 0.005443096160888672,
+      "time": 0.0057451725006103516,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 24,
       "status": "success",
-      "time": 0.009117841720581055,
-      "data_size": 121,
+      "time": 0.006360530853271484,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 25,
       "status": "success",
-      "time": 0.006253719329833984,
-      "data_size": 120,
+      "time": 0.006346225738525391,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 26,
       "status": "success",
-      "time": 0.005724668502807617,
-      "data_size": 121,
+      "time": 0.0051801204681396484,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 27,
       "status": "success",
-      "time": 0.0066721439361572266,
+      "time": 0.006302356719970703,
       "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 28,
       "status": "success",
-      "time": 0.006242990493774414,
+      "time": 0.00522923469543457,
       "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 29,
       "status": "success",
-      "time": 0.006539583206176758,
-      "data_size": 121,
+      "time": 0.005084991455078125,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 30,
       "status": "success",
-      "time": 0.006229877471923828,
-      "data_size": 120,
+      "time": 0.005263566970825195,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 31,
       "status": "success",
-      "time": 0.0052242279052734375,
+      "time": 0.006231784820556641,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 32,
       "status": "success",
-      "time": 0.006608486175537109,
-      "data_size": 120,
+      "time": 0.006178855895996094,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 33,
       "status": "success",
-      "time": 0.0051081180572509766,
-      "data_size": 121,
+      "time": 0.011693477630615234,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 34,
       "status": "success",
-      "time": 0.006250858306884766,
+      "time": 0.00534367561340332,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 35,
       "status": "success",
-      "time": 0.00670313835144043,
-      "data_size": 121,
+      "time": 0.006459951400756836,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 36,
       "status": "success",
-      "time": 0.006293296813964844,
+      "time": 0.005218029022216797,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 37,
       "status": "success",
-      "time": 0.005903482437133789,
+      "time": 0.0052318572998046875,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 38,
       "status": "success",
-      "time": 0.005191802978515625,
-      "data_size": 120,
+      "time": 0.006146669387817383,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 39,
       "status": "success",
-      "time": 0.005122661590576172,
+      "time": 0.006425619125366211,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 40,
       "status": "success",
-      "time": 0.006250619888305664,
+      "time": 0.005155801773071289,
       "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 41,
       "status": "success",
-      "time": 0.005555629730224609,
+      "time": 0.006188392639160156,
       "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 42,
       "status": "success",
-      "time": 0.006613731384277344,
+      "time": 0.006242513656616211,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 43,
       "status": "success",
-      "time": 0.0063097476959228516,
-      "data_size": 121,
+      "time": 0.005097150802612305,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 44,
       "status": "success",
-      "time": 0.005595207214355469,
-      "data_size": 120,
+      "time": 0.00626683235168457,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 45,
       "status": "success",
-      "time": 0.006526470184326172,
-      "data_size": 121,
+      "time": 0.006315708160400391,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 46,
       "status": "success",
-      "time": 0.0064508914947509766,
-      "data_size": 121,
+      "time": 0.0061817169189453125,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 47,
       "status": "success",
-      "time": 0.0073053836822509766,
+      "time": 0.0064487457275390625,
       "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 48,
       "status": "success",
-      "time": 0.006023883819580078,
-      "data_size": 121,
+      "time": 0.006300687789916992,
+      "data_size": 119,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 49,
       "status": "success",
-      "time": 0.006539821624755859,
+      "time": 0.006203174591064453,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 50,
       "status": "success",
-      "time": 0.005687236785888672,
-      "data_size": 122,
+      "time": 0.006329774856567383,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 51,
       "status": "success",
-      "time": 0.005763530731201172,
+      "time": 0.006356000900268555,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 52,
       "status": "success",
-      "time": 0.005431652069091797,
-      "data_size": 119,
+      "time": 0.006139993667602539,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 53,
       "status": "success",
-      "time": 0.00784754753112793,
+      "time": 0.006339311599731445,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 54,
       "status": "success",
-      "time": 0.006338834762573242,
-      "data_size": 120,
+      "time": 0.005129575729370117,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 55,
       "status": "success",
-      "time": 0.0065310001373291016,
-      "data_size": 119,
+      "time": 0.004381418228149414,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 56,
       "status": "success",
-      "time": 0.006560325622558594,
-      "data_size": 122,
+      "time": 0.007058143615722656,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 57,
       "status": "success",
-      "time": 0.00513911247253418,
-      "data_size": 121,
+      "time": 0.005238056182861328,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 58,
       "status": "success",
-      "time": 0.0061948299407958984,
-      "data_size": 121,
+      "time": 0.006500720977783203,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 59,
       "status": "success",
-      "time": 0.007622957229614258,
-      "data_size": 122,
+      "time": 0.00635981559753418,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 60,
       "status": "success",
-      "time": 0.004632711410522461,
-      "data_size": 120,
+      "time": 0.00674128532409668,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 61,
       "status": "success",
-      "time": 0.007025480270385742,
-      "data_size": 121,
+      "time": 0.006600379943847656,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 62,
       "status": "success",
-      "time": 0.00870203971862793,
+      "time": 0.005090475082397461,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 63,
       "status": "success",
-      "time": 0.006499767303466797,
-      "data_size": 122,
+      "time": 0.0051953792572021484,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 64,
       "status": "success",
-      "time": 0.0063076019287109375,
-      "data_size": 122,
+      "time": 0.006173133850097656,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 65,
       "status": "success",
-      "time": 0.005034923553466797,
-      "data_size": 120,
+      "time": 0.006463527679443359,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 66,
       "status": "success",
-      "time": 0.007472991943359375,
-      "data_size": 120,
+      "time": 0.005294084548950195,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 67,
       "status": "success",
-      "time": 0.006444215774536133,
-      "data_size": 122,
+      "time": 0.005305290222167969,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 68,
       "status": "success",
-      "time": 0.006554603576660156,
-      "data_size": 120,
+      "time": 0.005293607711791992,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 69,
       "status": "success",
-      "time": 0.0065174102783203125,
+      "time": 0.005136728286743164,
       "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 70,
       "status": "success",
-      "time": 0.005099296569824219,
-      "data_size": 120,
+      "time": 0.006148576736450195,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 71,
       "status": "success",
-      "time": 0.006243467330932617,
-      "data_size": 121,
+      "time": 0.006132602691650391,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 72,
       "status": "success",
-      "time": 0.006894588470458984,
+      "time": 0.005173683166503906,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 73,
       "status": "success",
-      "time": 0.006216287612915039,
+      "time": 0.006317853927612305,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 74,
       "status": "success",
-      "time": 0.0067119598388671875,
-      "data_size": 120,
+      "time": 0.00672602653503418,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 75,
       "status": "success",
-      "time": 0.0062978267669677734,
-      "data_size": 121,
+      "time": 0.006946563720703125,
+      "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 76,
       "status": "success",
-      "time": 0.006396770477294922,
+      "time": 0.0064237117767333984,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 77,
       "status": "success",
-      "time": 0.006340980529785156,
+      "time": 0.00664830207824707,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 78,
       "status": "success",
-      "time": 0.006363391876220703,
-      "data_size": 121,
+      "time": 0.006585836410522461,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 79,
       "status": "success",
-      "time": 0.0062749385833740234,
-      "data_size": 121,
+      "time": 0.005398750305175781,
+      "data_size": 119,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 80,
       "status": "success",
-      "time": 0.006513833999633789,
-      "data_size": 122,
+      "time": 0.005635976791381836,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 81,
       "status": "success",
-      "time": 0.006360769271850586,
-      "data_size": 121,
+      "time": 0.006210803985595703,
+      "data_size": 119,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 82,
       "status": "success",
-      "time": 0.006312131881713867,
-      "data_size": 120,
+      "time": 0.006099700927734375,
+      "data_size": 119,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 83,
       "status": "success",
-      "time": 0.0062596797943115234,
-      "data_size": 119,
+      "time": 0.007452249526977539,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 84,
       "status": "success",
-      "time": 0.00531005859375,
-      "data_size": 122,
+      "time": 0.006241798400878906,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 85,
       "status": "success",
-      "time": 0.006284952163696289,
-      "data_size": 121,
+      "time": 0.006180763244628906,
+      "data_size": 119,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 86,
       "status": "success",
-      "time": 0.006377458572387695,
+      "time": 0.00538182258605957,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 87,
       "status": "success",
-      "time": 0.005556821823120117,
+      "time": 0.005164384841918945,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 88,
       "status": "success",
-      "time": 0.006365299224853516,
-      "data_size": 120,
+      "time": 0.005054950714111328,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 89,
       "status": "success",
-      "time": 0.0069332122802734375,
-      "data_size": 120,
+      "time": 0.007483482360839844,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 90,
       "status": "success",
-      "time": 0.006844282150268555,
-      "data_size": 120,
+      "time": 0.005218505859375,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 91,
       "status": "success",
-      "time": 0.0057528018951416016,
-      "data_size": 122,
+      "time": 0.005154848098754883,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 92,
       "status": "success",
-      "time": 0.005523204803466797,
+      "time": 0.00514984130859375,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 93,
       "status": "success",
-      "time": 0.008451461791992188,
+      "time": 0.006216526031494141,
       "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 94,
       "status": "success",
-      "time": 0.006348371505737305,
-      "data_size": 120,
+      "time": 0.00812983512878418,
+      "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 95,
       "status": "success",
-      "time": 0.005326509475708008,
-      "data_size": 119,
+      "time": 0.005261421203613281,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 96,
       "status": "success",
-      "time": 0.007573366165161133,
+      "time": 0.006258964538574219,
       "data_size": 122,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 97,
       "status": "success",
-      "time": 0.007592678070068359,
+      "time": 0.006150960922241211,
       "data_size": 121,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 98,
       "status": "success",
-      "time": 0.006376981735229492,
-      "data_size": 121,
+      "time": 0.006207942962646484,
+      "data_size": 120,
       "complexity": 100000000000000000000
     },
     {
       "iteration": 99,
       "status": "success",
-      "time": 0.005566596984863281,
-      "data_size": 122,
+      "time": 0.006966352462768555,
+      "data_size": 121,
       "complexity": 100000000000000000000
     }
   ]
