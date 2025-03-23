@@ -22,6 +22,15 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql+asyncpg://postgres:pos
 
 # Convertir URL síncrona a asíncrona si es necesario
 if DATABASE_URL.startswith("postgresql://"):
+    # Primero, manejar el parámetro sslmode que no es compatible directamente con asyncpg
+    if "sslmode=require" in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("?sslmode=require", "")
+        # Usaremos ssl=True como alternativa más adelante
+        ssl_required = True
+    else:
+        ssl_required = False
+    
+    # Luego convertir a asyncpg
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 
@@ -50,6 +59,13 @@ class DatabaseManager:
     def setup(self):
         """Configurar el motor de base de datos y fábrica de sesiones."""
         if self.engine is None:
+            # Diccionario de parámetros de conexión
+            connect_args = {}
+            
+            # Agregar SSL si es necesario
+            if 'ssl_required' in globals() and ssl_required:
+                connect_args["ssl"] = True
+            
             self.engine = create_async_engine(
                 self.connection_url,
                 echo=False,  # No mostrar consultas SQL (producción)
@@ -57,6 +73,7 @@ class DatabaseManager:
                 max_overflow=self.max_overflow,
                 pool_recycle=self.pool_recycle,
                 pool_pre_ping=True,  # Verificar conexiones antes de usarlas
+                connect_args=connect_args
             )
             
             self.async_session_factory = async_sessionmaker(
