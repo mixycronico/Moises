@@ -52,15 +52,19 @@ class AdaptiveScalingStrategy(BaseStrategy):
             config: Configuración adicional
             db: Conexión a base de datos transcendental
         """
-        super().__init__(
-            strategy_id=strategy_id or f"adaptive_scaling_{generate_id()}",
-            name=name
-        )
+        # Llamar al constructor de la clase base solo con el nombre
+        super().__init__(name=name)
+        
+        # Guardar el ID de estrategia
+        self.strategy_id = strategy_id or f"adaptive_scaling_{generate_id()}"
         
         self.logger = logging.getLogger(f'genesis.strategies.adaptive_scaling')
         self.config = config or {}
         self.symbols = symbols or []
         self.db = db
+        
+        # Inicializar atributo required_components
+        self.required_components = {}
         
         # Componentes internos
         self.engine: Optional[PredictiveScalingEngine] = None
