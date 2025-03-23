@@ -1183,7 +1183,7 @@ class ReinforcementEnsembleStrategy(Strategy):
                 high=high,
                 low=low,
                 close=close,
-                window=14
+                period=14
             )
             
             # Calcular VWAP
