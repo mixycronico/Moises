@@ -90,6 +90,7 @@ def run_async_function(coro_func):
                   Ejemplo: lambda: refresh_classification()
     """
     def wrapper():
+        # Crear un nuevo loop para este hilo
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
@@ -102,19 +103,38 @@ def run_async_function(coro_func):
             logger.error(f"Error en ejecución asincrónica: {e}")
             return None
         finally:
-            # Cerrar todas las tareas pendientes
-            pending = asyncio.all_tasks(loop=loop)
-            for task in pending:
-                task.cancel()
-            
-            # Ejecutar las tareas canceladas hasta que terminen
-            if pending:
-                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                
-            loop.close()
+            try:
+                # Asegurarnos de que el loop esté detenido y todas las tareas canceladas
+                if not loop.is_closed():
+                    # Obtener tareas pendientes solo para el loop actual
+                    pending = asyncio.all_tasks(loop=loop)
+                    
+                    # Cancelar tareas y esperar a que finalicen
+                    if pending:
+                        for task in pending:
+                            if not task.done() and not task.cancelled():
+                                task.cancel()
+                        
+                        # Esperar a que las tareas se cancelen, con timeout
+                        try:
+                            loop.run_until_complete(
+                                asyncio.wait_for(
+                                    asyncio.gather(*pending, return_exceptions=True), 
+                                    timeout=2.0
+                                )
+                            )
+                        except (asyncio.TimeoutError, Exception) as e:
+                            logger.warning(f"Timeout esperando la cancelación de tareas: {e}")
+                    
+                    # Cerrar el loop
+                    loop.run_until_complete(loop.shutdown_asyncgens())
+                    loop.close()
+            except Exception as e:
+                logger.warning(f"Error al cerrar el loop de eventos: {e}")
     
+    # Crear y ejecutar el hilo
     thread = threading.Thread(target=wrapper)
-    thread.daemon = True
+    thread.daemon = True  # El hilo se cerrará cuando el programa principal termine
     thread.start()
     return thread
 
