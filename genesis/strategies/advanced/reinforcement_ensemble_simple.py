@@ -3,6 +3,9 @@ Estrategia avanzada basada en Reinforcement Learning con ensemble de modelos (ve
 
 Esta implementación es una versión simplificada que no depende de las bibliotecas
 gymnasium o stable-baselines3, permitiendo el funcionamiento básico sin estas dependencias.
+
+Incorpora además integración con DeepSeek para análisis avanzado y mejora del proceso
+de toma de decisiones mediante técnicas de Large Language Models.
 """
 import logging
 import asyncio
@@ -13,6 +16,14 @@ import time
 import json
 import os
 from datetime import datetime
+
+# Importar componentes de DeepSeek si están disponibles
+try:
+    from genesis.lsml.deepseek_integrator import DeepSeekIntegrator
+    DEEPSEEK_AVAILABLE = True
+except ImportError:
+    DEEPSEEK_AVAILABLE = False
+    logging.warning("Módulo DeepSeek no encontrado. La estrategia funcionará sin capacidades avanzadas de análisis.")
 
 # Componentes del Sistema Genesis
 from genesis.strategies.base import Strategy
@@ -43,7 +54,7 @@ class ReinforcementEnsembleStrategy(Strategy):
         super().__init__(config)
         
         self.name = "Reinforcement Ensemble Strategy"
-        self.description = "Estrategia avanzada que combina RL, indicadores técnicos y sentimiento"
+        self.description = "Estrategia avanzada que combina RL, indicadores técnicos, sentimiento y análisis DeepSeek"
         
         # Parámetros de configuración
         self.symbols = config.get('symbols', ['BTC/USDT', 'ETH/USDT', 'ADA/USDT'])
@@ -53,6 +64,12 @@ class ReinforcementEnsembleStrategy(Strategy):
         self.risk_per_trade = config.get('risk_per_trade', 0.02)  # 2% del capital
         self.meta_learning_enabled = config.get('meta_learning_enabled', True)
         self.voting_threshold = config.get('voting_threshold', 0.67)  # 2/3 para consenso
+        
+        # Configuración de DeepSeek
+        self.use_deepseek = config.get('use_deepseek', DEEPSEEK_AVAILABLE)
+        self.deepseek_api_key = config.get('deepseek_api_key', None)
+        self.deepseek_intelligence_factor = config.get('deepseek_intelligence_factor', 1.0)
+        self.deepseek_integrator = None
         
         # Métricas de rendimiento
         self.performance_metrics = {
@@ -86,7 +103,22 @@ class ReinforcementEnsembleStrategy(Strategy):
             "sac": {"weight": 0.3, "success_rate": 0.55}
         }
         
-        logger.info(f"Estrategia {self.name} (versión simplificada) creada con {len(self.symbols)} símbolos")
+        # Inicializar DeepSeek si está disponible
+        if self.use_deepseek and DEEPSEEK_AVAILABLE:
+            try:
+                self.deepseek_integrator = DeepSeekIntegrator(
+                    api_key=self.deepseek_api_key,
+                    intelligence_factor=self.deepseek_intelligence_factor
+                )
+                logger.info(f"Integrador DeepSeek inicializado para la estrategia {self.name}")
+            except Exception as e:
+                logger.warning(f"No se pudo inicializar DeepSeek: {str(e)}. La estrategia funcionará sin análisis avanzado.")
+                self.use_deepseek = False
+        
+        log_msg = f"Estrategia {self.name} (versión simplificada) creada con {len(self.symbols)} símbolos"
+        if self.use_deepseek:
+            log_msg += " y capacidades DeepSeek activadas"
+        logger.info(log_msg)
     
     async def initialize(self) -> bool:
         """
@@ -109,11 +141,29 @@ class ReinforcementEnsembleStrategy(Strategy):
                     "models": self.models,
                     "symbols": self.symbols,
                     "timeframe": self.timeframe,
-                    "meta_learning_enabled": self.meta_learning_enabled
+                    "meta_learning_enabled": self.meta_learning_enabled,
+                    "use_deepseek": self.use_deepseek
                 }, f)
             
+            # Inicializar DeepSeek si está configurado
+            if self.use_deepseek and DEEPSEEK_AVAILABLE and self.deepseek_integrator:
+                try:
+                    logger.info("Inicializando integrador DeepSeek...")
+                    deepseek_initialized = await self.deepseek_integrator.initialize()
+                    if not deepseek_initialized:
+                        logger.warning("No se pudo inicializar el integrador DeepSeek. La estrategia funcionará sin capacidades avanzadas de análisis.")
+                        self.use_deepseek = False
+                    else:
+                        logger.info("Integrador DeepSeek inicializado correctamente.")
+                except Exception as e:
+                    logger.warning(f"Error al inicializar DeepSeek: {str(e)}. La estrategia funcionará sin capacidades avanzadas de análisis.")
+                    self.use_deepseek = False
+            
             self.is_initialized = True
-            logger.info(f"Estrategia {self.name} (versión simplificada) inicializada correctamente")
+            log_msg = f"Estrategia {self.name} (versión simplificada) inicializada correctamente"
+            if self.use_deepseek:
+                log_msg += " con integración DeepSeek"
+            logger.info(log_msg)
             return True
             
         except Exception as e:
