@@ -1,456 +1,682 @@
 """
-Gestor principal del Pipeline Transcendental de Genesis.
+Administrador de pipelines de trading para el sistema Genesis.
 
-Este módulo coordina todas las etapas del pipeline, desde la adquisición
-de datos hasta la ejecución de operaciones y distribución de ganancias,
-con mecanismos de resiliencia extrema.
+Este módulo orquesta el flujo completo de datos y decisiones de trading,
+integrando todos los componentes: datos de mercado, análisis técnico,
+análisis de sentimiento, análisis on-chain, ML/RL, y ejecución de órdenes.
 """
-import asyncio
+
+import numpy as np
+import pandas as pd
 import logging
 import time
-from typing import Dict, Any, List, Optional, Tuple, Union, Callable
-from datetime import datetime
+import os
+import json
+import asyncio
+from typing import Dict, List, Any, Optional, Tuple, Union, Callable
+from datetime import datetime, timedelta
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
-from genesis.base import GenesisComponent, GenesisSingleton, validate_mode
-from genesis.db.transcendental_database import TranscendentalDatabase
-
-# Configuración de logging
-logger = logging.getLogger("genesis.pipeline.manager")
-
-class PipelineStage:
-    """Etapa del pipeline con capacidades de procesamiento trascendental."""
-    
-    def __init__(self, stage_id: str, stage_name: str, stage_order: int):
-        """
-        Inicializar etapa del pipeline.
-        
-        Args:
-            stage_id: Identificador único de la etapa
-            stage_name: Nombre descriptivo de la etapa
-            stage_order: Orden de ejecución (menor = primero)
-        """
-        self.stage_id = stage_id
-        self.stage_name = stage_name
-        self.stage_order = stage_order
-        self.creation_time = time.time()
-        self.last_execution = 0
-        self.execution_count = 0
-        self.error_count = 0
-        self.total_execution_time = 0.0
-        self.processor: Optional[Callable] = None
-        
-    async def process(self, data: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Procesar datos en esta etapa.
-        
-        Args:
-            data: Datos a procesar
-            context: Contexto de ejecución
-            
-        Returns:
-            Datos procesados
-        """
-        if not self.processor:
-            logger.warning(f"Etapa {self.stage_id} no tiene procesador configurado")
-            return data
-            
-        start_time = time.time()
-        self.last_execution = start_time
-        self.execution_count += 1
-        
-        try:
-            result = await self.processor(data, context)
-            execution_time = time.time() - start_time
-            self.total_execution_time += execution_time
-            
-            # Registrar métricas
-            avg_time = self.total_execution_time / self.execution_count
-            logger.debug(f"Etapa {self.stage_id} completada en {execution_time:.4f}s (promedio: {avg_time:.4f}s)")
-            
-            return result
-        except Exception as e:
-            self.error_count += 1
-            error_rate = self.error_count / self.execution_count
-            logger.error(f"Error en etapa {self.stage_id}: {str(e)}, tasa de error: {error_rate:.2%}")
-            # En caso de error, continuamos con los datos originales para mantener resilencia
-            return data
-    
-    def register_processor(self, processor_func: Callable[[Dict[str, Any], Dict[str, Any]], Dict[str, Any]]) -> None:
-        """
-        Registrar función de procesamiento para esta etapa.
-        
-        Args:
-            processor_func: Función que procesará los datos
-        """
-        self.processor = processor_func
-        logger.info(f"Procesador registrado para etapa {self.stage_id}: {processor_func.__name__}")
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """
-        Obtener estadísticas de esta etapa.
-        
-        Returns:
-            Diccionario con estadísticas
-        """
-        uptime = time.time() - self.creation_time
-        
-        return {
-            "stage_id": self.stage_id,
-            "stage_name": self.stage_name,
-            "stage_order": self.stage_order,
-            "uptime": uptime,
-            "last_execution": self.last_execution,
-            "execution_count": self.execution_count,
-            "error_count": self.error_count,
-            "error_rate": self.error_count / max(1, self.execution_count),
-            "avg_execution_time": self.total_execution_time / max(1, self.execution_count),
-            "total_execution_time": self.total_execution_time,
-            "has_processor": self.processor is not None
-        }
-
-class TranscendentalPipeline(GenesisComponent, GenesisSingleton):
+class PipelineManager:
     """
-    Gestor del pipeline trascendental de Genesis con capacidades de 
-    resiliencia extrema y procesamiento multi-dimensional.
+    Administrador de pipelines para el Sistema Genesis.
+    
+    Coordina el flujo de datos entre los diferentes componentes:
+    1. Recolección de datos (mercado, sentimiento, on-chain)
+    2. Procesamiento y análisis
+    3. Generación de señales
+    4. Ejecución de órdenes
+    5. Análisis post-trade
     """
     
-    def __init__(self, mode: str = "SINGULARITY_V4"):
-        """
-        Inicializar pipeline trascendental.
+    def __init__(self):
+        """Inicializar administrador de pipelines."""
+        self.logger = logging.getLogger(__name__)
         
-        Args:
-            mode: Modo trascendental
-        """
-        super().__init__("trascendental_pipeline", mode)
-        self.stages: Dict[str, PipelineStage] = {}
-        self.stages_order: List[str] = []
-        self.db = TranscendentalDatabase()
-        self.context: Dict[str, Any] = {
-            "start_time": time.time(),
-            "last_execution": 0,
-            "pipeline_runs": 0,
-            "current_run_metrics": {},
-            "accumulated_metrics": {},
-            "is_running": False
+        # Componentes del pipeline
+        self.components = {}
+        
+        # Estado del pipeline
+        self.pipeline_running = False
+        self.pipeline_thread = None
+        
+        # Lock para operaciones thread-safe
+        self.lock = threading.RLock()
+        
+        # Configuración
+        self.config = {
+            'interval': 60,  # Intervalo en segundos
+            'market_data_weight': 0.4,
+            'sentiment_weight': 0.3,
+            'onchain_weight': 0.3,
+            'use_reinforcement_learning': True,
+            'risk_management_enabled': True,
+            'adaptive_scaling_enabled': True
         }
-        self.checkpoint_interval = 10  # Guardar estado cada 10 ejecuciones
-        logger.info(f"Pipeline Trascendental inicializado en modo {mode}")
+        
+        # Estado de pipeline
+        self.pipeline_state = {
+            'last_run': None,
+            'components_status': {},
+            'signals': {},
+            'errors': {}
+        }
+        
+        self.logger.info("PipelineManager inicializado")
     
-    def register_stage(self, stage_id: str, stage_name: str, stage_order: int) -> PipelineStage:
+    def register_component(self, component_type: str, component: Any) -> bool:
         """
-        Registrar una nueva etapa en el pipeline.
+        Registrar un componente en el pipeline.
         
         Args:
-            stage_id: Identificador único de la etapa
-            stage_name: Nombre descriptivo de la etapa
-            stage_order: Orden de ejecución (menor = primero)
+            component_type: Tipo de componente
+            component: Instancia del componente
             
         Returns:
-            Instancia de la etapa creada
+            True si se registró correctamente
         """
-        if stage_id in self.stages:
-            logger.warning(f"La etapa {stage_id} ya está registrada, actualizando")
-        
-        stage = PipelineStage(stage_id, stage_name, stage_order)
-        self.stages[stage_id] = stage
-        
-        # Reordenar etapas según stage_order
-        self._reorder_stages()
-        
-        logger.info(f"Etapa {stage_id} ({stage_name}) registrada con orden {stage_order}")
-        return stage
+        with self.lock:
+            self.components[component_type] = component
+            self.pipeline_state['components_status'][component_type] = 'registered'
+            self.logger.info(f"Componente registrado: {component_type}")
+            return True
     
-    def _reorder_stages(self) -> None:
-        """Reordenar etapas según su stage_order."""
-        # Convertir a lista de tuplas (stage_id, stage_order)
-        stage_items = [(stage_id, stage.stage_order) for stage_id, stage in self.stages.items()]
-        # Ordenar por stage_order
-        stage_items.sort(key=lambda x: x[1])
-        # Extraer solo los stage_id en el orden correcto
-        self.stages_order = [item[0] for item in stage_items]
-    
-    async def restore_from_checkpoint(self) -> bool:
+    def unregister_component(self, component_type: str) -> bool:
         """
-        Restaurar estado desde el último checkpoint.
+        Eliminar un componente del pipeline.
+        
+        Args:
+            component_type: Tipo de componente
+            
+        Returns:
+            True si se eliminó correctamente
+        """
+        with self.lock:
+            if component_type in self.components:
+                del self.components[component_type]
+                self.pipeline_state['components_status'][component_type] = 'unregistered'
+                self.logger.info(f"Componente eliminado: {component_type}")
+                return True
+            return False
+    
+    def get_component(self, component_type: str) -> Optional[Any]:
+        """
+        Obtener un componente registrado.
+        
+        Args:
+            component_type: Tipo de componente
+            
+        Returns:
+            Instancia del componente o None si no existe
+        """
+        with self.lock:
+            return self.components.get(component_type)
+    
+    def update_config(self, config_updates: Dict[str, Any]) -> bool:
+        """
+        Actualizar configuración del pipeline.
+        
+        Args:
+            config_updates: Diccionario con actualizaciones
+            
+        Returns:
+            True si se actualizó correctamente
+        """
+        with self.lock:
+            for key, value in config_updates.items():
+                if key in self.config:
+                    self.config[key] = value
+                    self.logger.info(f"Configuración actualizada: {key}={value}")
+                else:
+                    self.logger.warning(f"Configuración desconocida: {key}")
+            
+            # Normalizar pesos si se actualizaron
+            self._normalize_weights()
+            
+            return True
+    
+    def _normalize_weights(self) -> None:
+        """Normalizar pesos de análisis para que sumen 1.0."""
+        weight_keys = ['market_data_weight', 'sentiment_weight', 'onchain_weight']
+        
+        # Calcular suma actual
+        total_weight = sum(self.config[k] for k in weight_keys)
+        
+        # Normalizar si es necesario
+        if abs(total_weight - 1.0) > 1e-6:
+            for key in weight_keys:
+                self.config[key] /= total_weight
+    
+    def start_pipeline(self) -> bool:
+        """
+        Iniciar el pipeline de procesamiento.
         
         Returns:
-            True si se restauró correctamente
+            True si se inició correctamente
         """
-        try:
-            pipeline_state = await self.db.retrieve("pipeline_state", "latest")
-            if not pipeline_state:
-                logger.warning("No hay checkpoint disponible para restaurar")
+        with self.lock:
+            if self.pipeline_running:
+                self.logger.warning("Pipeline ya está en ejecución")
                 return False
             
-            # Restaurar contexto
-            for key, value in pipeline_state.get("context", {}).items():
-                if key in self.context:
-                    self.context[key] = value
+            # Verificar componentes requeridos
+            required_components = ['market_data', 'signals', 'orders']
+            for comp in required_components:
+                if comp not in self.components:
+                    self.logger.error(f"Componente requerido no registrado: {comp}")
+                    return False
             
-            # Restaurar métricas acumuladas
-            self.context["accumulated_metrics"] = pipeline_state.get("accumulated_metrics", {})
+            # Iniciar pipeline en thread separado
+            self.pipeline_running = True
+            self.pipeline_thread = threading.Thread(target=self._pipeline_loop)
+            self.pipeline_thread.daemon = True
+            self.pipeline_thread.start()
             
-            logger.info(f"Pipeline restaurado desde checkpoint (run #{self.context['pipeline_runs']})")
+            self.logger.info("Pipeline iniciado")
             return True
-        except Exception as e:
-            logger.error(f"Error al restaurar desde checkpoint: {str(e)}")
-            return False
     
-    async def save_checkpoint(self) -> bool:
+    def stop_pipeline(self) -> bool:
         """
-        Guardar estado actual como checkpoint.
+        Detener el pipeline de procesamiento.
         
         Returns:
-            True si se guardó correctamente
+            True si se detuvo correctamente
         """
-        try:
-            pipeline_state = {
-                "timestamp": time.time(),
-                "context": self.context,
-                "accumulated_metrics": self.context.get("accumulated_metrics", {}),
-                "stages": {stage_id: stage.get_stats() for stage_id, stage in self.stages.items()}
-            }
+        with self.lock:
+            if not self.pipeline_running:
+                self.logger.warning("Pipeline no está en ejecución")
+                return False
             
-            # Guardar en base de datos trascendental
-            await self.db.store("pipeline_state", "latest", pipeline_state)
-            logger.debug(f"Checkpoint guardado (run #{self.context['pipeline_runs']})")
+            # Detener pipeline
+            self.pipeline_running = False
+            
+            # Esperar a que el thread termine
+            if self.pipeline_thread and self.pipeline_thread.is_alive():
+                self.pipeline_thread.join(timeout=5.0)
+            
+            self.logger.info("Pipeline detenido")
             return True
-        except Exception as e:
-            logger.error(f"Error al guardar checkpoint: {str(e)}")
-            return False
     
-    async def execute(self, initial_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _pipeline_loop(self) -> None:
+        """Loop principal del pipeline."""
+        self.logger.info("Pipeline loop iniciado")
+        
+        while self.pipeline_running:
+            try:
+                # Ejecutar un ciclo del pipeline
+                asyncio.run(self._execute_pipeline_cycle())
+                
+                # Actualizar estado
+                with self.lock:
+                    self.pipeline_state['last_run'] = datetime.now().isoformat()
+                
+            except Exception as e:
+                self.logger.error(f"Error en ciclo de pipeline: {str(e)}")
+                with self.lock:
+                    self.pipeline_state['errors']['pipeline_cycle'] = str(e)
+            
+            # Esperar hasta el próximo ciclo
+            time.sleep(self.config['interval'])
+        
+        self.logger.info("Pipeline loop terminado")
+    
+    async def _execute_pipeline_cycle(self) -> None:
+        """Ejecutar un ciclo completo del pipeline."""
+        # 1. Obtener datos de mercado
+        market_data = await self._fetch_market_data()
+        
+        # 2. Obtener análisis de sentimiento si está disponible
+        sentiment_data = await self._fetch_sentiment_data()
+        
+        # 3. Obtener análisis on-chain si está disponible
+        onchain_data = await self._fetch_onchain_data()
+        
+        # 4. Procesar datos y generar señales
+        signals = await self._generate_signals(market_data, sentiment_data, onchain_data)
+        
+        # 5. Aplicar gestión de riesgos
+        risk_adjusted_signals = await self._apply_risk_management(signals)
+        
+        # 6. Ejecutar órdenes basadas en señales
+        execution_results = await self._execute_orders(risk_adjusted_signals)
+        
+        # 7. Actualizar estado del portfolio
+        await self._update_portfolio_state(execution_results)
+        
+        # 8. Aplicar escalado adaptativo si está habilitado
+        if self.config['adaptive_scaling_enabled']:
+            await self._apply_adaptive_scaling()
+    
+    async def _fetch_market_data(self) -> Dict[str, Any]:
         """
-        Ejecutar pipeline completo con el conjunto de datos inicial.
+        Obtener datos de mercado de los diferentes exchanges.
+        
+        Returns:
+            Diccionario con datos de mercado
+        """
+        market_data_component = self.get_component('market_data')
+        if market_data_component is None:
+            self.logger.error("Componente market_data no registrado")
+            raise ValueError("Componente market_data no disponible")
+        
+        try:
+            # Obtener datos de mercado
+            market_data = await market_data_component.get_market_data()
+            
+            with self.lock:
+                self.pipeline_state['components_status']['market_data'] = 'ok'
+            
+            return market_data
+            
+        except Exception as e:
+            self.logger.error(f"Error obteniendo datos de mercado: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['components_status']['market_data'] = 'error'
+                self.pipeline_state['errors']['market_data'] = str(e)
+            
+            # Devolver datos vacíos
+            return {}
+    
+    async def _fetch_sentiment_data(self) -> Optional[Dict[str, Any]]:
+        """
+        Obtener análisis de sentimiento.
+        
+        Returns:
+            Diccionario con datos de sentimiento o None si no está disponible
+        """
+        sentiment_component = self.get_component('sentiment')
+        if sentiment_component is None:
+            self.logger.info("Componente sentiment no registrado")
+            return None
+        
+        try:
+            # Obtener análisis de sentimiento
+            sentiment_data = await sentiment_component.get_sentiment_data()
+            
+            with self.lock:
+                self.pipeline_state['components_status']['sentiment'] = 'ok'
+            
+            return sentiment_data
+            
+        except Exception as e:
+            self.logger.error(f"Error obteniendo datos de sentimiento: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['components_status']['sentiment'] = 'error'
+                self.pipeline_state['errors']['sentiment'] = str(e)
+            
+            # Devolver None
+            return None
+    
+    async def _fetch_onchain_data(self) -> Optional[Dict[str, Any]]:
+        """
+        Obtener análisis on-chain.
+        
+        Returns:
+            Diccionario con datos on-chain o None si no está disponible
+        """
+        onchain_component = self.get_component('onchain')
+        if onchain_component is None:
+            self.logger.info("Componente onchain no registrado")
+            return None
+        
+        try:
+            # Obtener análisis on-chain
+            onchain_data = await onchain_component.get_onchain_data()
+            
+            with self.lock:
+                self.pipeline_state['components_status']['onchain'] = 'ok'
+            
+            return onchain_data
+            
+        except Exception as e:
+            self.logger.error(f"Error obteniendo datos on-chain: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['components_status']['onchain'] = 'error'
+                self.pipeline_state['errors']['onchain'] = str(e)
+            
+            # Devolver None
+            return None
+    
+    async def _generate_signals(self, 
+                              market_data: Dict[str, Any],
+                              sentiment_data: Optional[Dict[str, Any]] = None,
+                              onchain_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Generar señales de trading combinando diferentes fuentes.
         
         Args:
-            initial_data: Datos iniciales para el pipeline
+            market_data: Datos de mercado
+            sentiment_data: Datos de sentimiento (opcional)
+            onchain_data: Datos on-chain (opcional)
             
         Returns:
-            Resultado final del pipeline
+            Diccionario con señales de trading
         """
-        if self.context["is_running"]:
-            logger.warning("Pipeline ya está en ejecución, esperando...")
-            # Esperar a que termine la ejecución actual (máximo 60 segundos)
-            for _ in range(60):
-                await asyncio.sleep(1)
-                if not self.context["is_running"]:
-                    break
+        signals_component = self.get_component('signals')
+        if signals_component is None:
+            self.logger.error("Componente signals no registrado")
+            raise ValueError("Componente signals no disponible")
+        
+        # Preparar datos para generar señales
+        input_data = {
+            'market_data': market_data,
+            'sentiment_data': sentiment_data,
+            'onchain_data': onchain_data,
+            'weights': {
+                'market_data': self.config['market_data_weight'],
+                'sentiment': self.config['sentiment_weight'],
+                'onchain': self.config['onchain_weight']
+            }
+        }
+        
+        try:
+            # Añadir datos de RL si está habilitado
+            if self.config['use_reinforcement_learning']:
+                rl_component = self.get_component('reinforcement_learning')
+                if rl_component is not None:
+                    rl_signals = await rl_component.get_signals(market_data)
+                    input_data['rl_signals'] = rl_signals
+            
+            # Generar señales
+            signals = await signals_component.generate_signals(input_data)
+            
+            with self.lock:
+                self.pipeline_state['components_status']['signals'] = 'ok'
+                self.pipeline_state['signals'] = signals
+            
+            return signals
+            
+        except Exception as e:
+            self.logger.error(f"Error generando señales: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['components_status']['signals'] = 'error'
+                self.pipeline_state['errors']['signals'] = str(e)
+            
+            # Devolver señales vacías
+            return {}
+    
+    async def _apply_risk_management(self, signals: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Aplicar gestión de riesgos a las señales.
+        
+        Args:
+            signals: Señales de trading
+            
+        Returns:
+            Señales ajustadas según riesgo
+        """
+        if not self.config['risk_management_enabled']:
+            return signals
+        
+        risk_component = self.get_component('risk_management')
+        if risk_component is None:
+            self.logger.info("Componente risk_management no registrado")
+            return signals
+        
+        try:
+            # Aplicar gestión de riesgos
+            adjusted_signals = await risk_component.adjust_signals(signals)
+            
+            with self.lock:
+                self.pipeline_state['components_status']['risk_management'] = 'ok'
+            
+            return adjusted_signals
+            
+        except Exception as e:
+            self.logger.error(f"Error aplicando gestión de riesgos: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['components_status']['risk_management'] = 'error'
+                self.pipeline_state['errors']['risk_management'] = str(e)
+            
+            # Devolver señales originales
+            return signals
+    
+    async def _execute_orders(self, signals: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ejecutar órdenes basadas en señales.
+        
+        Args:
+            signals: Señales de trading
+            
+        Returns:
+            Resultados de ejecución
+        """
+        orders_component = self.get_component('orders')
+        if orders_component is None:
+            self.logger.error("Componente orders no registrado")
+            raise ValueError("Componente orders no disponible")
+        
+        try:
+            # Ejecutar órdenes
+            execution_results = await orders_component.execute_orders(signals)
+            
+            with self.lock:
+                self.pipeline_state['components_status']['orders'] = 'ok'
+            
+            return execution_results
+            
+        except Exception as e:
+            self.logger.error(f"Error ejecutando órdenes: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['components_status']['orders'] = 'error'
+                self.pipeline_state['errors']['orders'] = str(e)
+            
+            # Devolver resultados vacíos
+            return {}
+    
+    async def _update_portfolio_state(self, execution_results: Dict[str, Any]) -> None:
+        """
+        Actualizar estado del portfolio después de ejecutar órdenes.
+        
+        Args:
+            execution_results: Resultados de ejecución
+        """
+        portfolio_component = self.get_component('portfolio')
+        if portfolio_component is None:
+            self.logger.info("Componente portfolio no registrado")
+            return
+        
+        try:
+            # Actualizar portfolio
+            await portfolio_component.update_state(execution_results)
+            
+            with self.lock:
+                self.pipeline_state['components_status']['portfolio'] = 'ok'
+                
+        except Exception as e:
+            self.logger.error(f"Error actualizando portfolio: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['components_status']['portfolio'] = 'error'
+                self.pipeline_state['errors']['portfolio'] = str(e)
+    
+    async def _apply_adaptive_scaling(self) -> None:
+        """Aplicar escalado adaptativo al sistema."""
+        scaling_component = self.get_component('adaptive_scaling')
+        if scaling_component is None:
+            self.logger.info("Componente adaptive_scaling no registrado")
+            return
+        
+        try:
+            # Obtener estado del portfolio
+            portfolio_component = self.get_component('portfolio')
+            if portfolio_component is None:
+                return
+            
+            portfolio_state = await portfolio_component.get_state()
+            
+            # Aplicar escalado adaptativo
+            scaling_result = await scaling_component.adjust_allocation(portfolio_state)
+            
+            with self.lock:
+                self.pipeline_state['components_status']['adaptive_scaling'] = 'ok'
+                
+        except Exception as e:
+            self.logger.error(f"Error aplicando escalado adaptativo: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['components_status']['adaptive_scaling'] = 'error'
+                self.pipeline_state['errors']['adaptive_scaling'] = str(e)
+    
+    def get_pipeline_state(self) -> Dict[str, Any]:
+        """
+        Obtener estado actual del pipeline.
+        
+        Returns:
+            Diccionario con estado del pipeline
+        """
+        with self.lock:
+            # Copia del estado para evitar modificaciones externas
+            return json.loads(json.dumps(self.pipeline_state))
+    
+    def run_manual_cycle(self) -> Dict[str, Any]:
+        """
+        Ejecutar un ciclo de pipeline manualmente.
+        
+        Returns:
+            Estado resultante del pipeline
+        """
+        try:
+            # Ejecutar ciclo
+            asyncio.run(self._execute_pipeline_cycle())
+            
+            # Devolver estado actualizado
+            return self.get_pipeline_state()
+            
+        except Exception as e:
+            self.logger.error(f"Error en ciclo manual: {str(e)}")
+            
+            with self.lock:
+                self.pipeline_state['errors']['manual_cycle'] = str(e)
+            
+            return self.get_pipeline_state()
+    
+    async def integrate_sentiment_onchain(self, symbols: List[str]) -> Dict[str, Dict[str, Any]]:
+        """
+        Integrar análisis de sentimiento y on-chain para símbolos específicos.
+        
+        Args:
+            symbols: Lista de símbolos a analizar
+            
+        Returns:
+            Diccionario con análisis integrado por símbolo
+        """
+        # Verificar componentes
+        sentiment_component = self.get_component('sentiment')
+        onchain_component = self.get_component('onchain')
+        
+        if sentiment_component is None and onchain_component is None:
+            self.logger.warning("Componentes sentiment y onchain no disponibles")
+            return {}
+        
+        # Resultados por símbolo
+        results = {}
+        
+        # Procesar cada símbolo
+        for symbol in symbols:
+            symbol_result = {'symbol': symbol}
+            
+            # Obtener análisis de sentimiento
+            if sentiment_component is not None:
+                try:
+                    sentiment_data = await sentiment_component.analyze_social_sentiment(symbol)
+                    symbol_result['sentiment'] = {
+                        'score': sentiment_data.get('weighted_sentiment_score', 0),
+                        'label': sentiment_data.get('sentiment_label', 'neutral'),
+                        'distribution': sentiment_data.get('sentiment_distribution', {})
+                    }
+                except Exception as e:
+                    self.logger.error(f"Error en análisis de sentimiento para {symbol}: {str(e)}")
+                    symbol_result['sentiment'] = {
+                        'score': 0,
+                        'label': 'neutral',
+                        'error': str(e)
+                    }
+            
+            # Obtener análisis on-chain
+            if onchain_component is not None:
+                try:
+                    onchain_data = await onchain_component.analyze_onchain_data(symbol)
+                    symbol_result['onchain'] = {
+                        'combined_signal': onchain_data.get('signals', {}).get('combined', 0),
+                        'label': onchain_data.get('signals', {}).get('label', 'neutral'),
+                        'key_metrics': onchain_data.get('key_metrics', {})
+                    }
+                except Exception as e:
+                    self.logger.error(f"Error en análisis on-chain para {symbol}: {str(e)}")
+                    symbol_result['onchain'] = {
+                        'combined_signal': 0,
+                        'label': 'neutral',
+                        'error': str(e)
+                    }
+            
+            # Calcular señal combinada de sentimiento y on-chain
+            sentiment_score = symbol_result.get('sentiment', {}).get('score', 0)
+            onchain_signal = symbol_result.get('onchain', {}).get('combined_signal', 0)
+            
+            # Ponderación
+            sentiment_weight = self.config['sentiment_weight'] / (self.config['sentiment_weight'] + self.config['onchain_weight'])
+            onchain_weight = 1.0 - sentiment_weight
+            
+            # Señal combinada normalizada entre -1 y 1
+            combined_signal = sentiment_score * sentiment_weight + onchain_signal * onchain_weight
+            
+            # Determinar etiqueta
+            if combined_signal > 0.2:
+                combined_label = 'bullish'
+            elif combined_signal < -0.2:
+                combined_label = 'bearish'
             else:
-                logger.error("Timeout esperando fin de ejecución anterior")
-                return {"error": "Timeout waiting for previous execution", "status": "error"}
-        
-        self.context["is_running"] = True
-        self.context["last_execution"] = time.time()
-        self.context["pipeline_runs"] += 1
-        self.context["current_run_metrics"] = {}
-        run_id = f"run_{int(time.time())}"
-        
-        logger.info(f"Iniciando pipeline run #{self.context['pipeline_runs']} ({run_id})")
-        
-        # Datos de trabajo que van pasando por cada etapa
-        working_data = initial_data.copy()
-        
-        # Contexto para esta ejecución específica
-        execution_context = {
-            "run_id": run_id,
-            "start_time": time.time(),
-            "run_number": self.context["pipeline_runs"],
-            "metrics": {},
-            "errors": []
-        }
-        
-        try:
-            # Ejecutar cada etapa en orden
-            for stage_id in self.stages_order:
-                stage = self.stages[stage_id]
-                logger.debug(f"Ejecutando etapa: {stage.stage_name} ({stage_id})")
-                
-                # Procesar datos en esta etapa
-                working_data = await stage.process(working_data, execution_context)
-                
-                # Actualizar métricas
-                execution_context["metrics"][stage_id] = {
-                    "execution_time": stage.total_execution_time / max(1, stage.execution_count),
-                    "error_rate": stage.error_count / max(1, stage.execution_count)
-                }
+                combined_label = 'neutral'
             
-            # Guardar métricas de esta ejecución
-            execution_context["end_time"] = time.time()
-            execution_context["duration"] = execution_context["end_time"] - execution_context["start_time"]
-            self.context["current_run_metrics"] = execution_context["metrics"]
-            
-            # Actualizar métricas acumuladas
-            self._update_accumulated_metrics(execution_context["metrics"])
-            
-            # Guardar checkpoint periódicamente
-            if self.context["pipeline_runs"] % self.checkpoint_interval == 0:
-                await self.save_checkpoint()
-            
-            # Generar reporte de esta ejecución
-            report = self._generate_execution_report(execution_context, working_data)
-            working_data["execution_report"] = report
-            
-            logger.info(f"Pipeline completado: run #{self.context['pipeline_runs']} en {execution_context['duration']:.2f}s")
-            return working_data
-        
-        except Exception as e:
-            logger.error(f"Error en pipeline: {str(e)}")
-            execution_context["errors"].append(str(e))
-            execution_context["end_time"] = time.time()
-            execution_context["duration"] = execution_context["end_time"] - execution_context["start_time"]
-            
-            # Intentar guardar checkpoint incluso en caso de error
-            await self.save_checkpoint()
-            
-            return {
-                "error": str(e),
-                "stage": stage_id if 'stage_id' in locals() else "unknown",
-                "execution_context": execution_context,
-                "status": "error"
+            # Añadir resultado combinado
+            symbol_result['combined'] = {
+                'signal': combined_signal,
+                'label': combined_label
             }
-        finally:
-            self.context["is_running"] = False
+            
+            # Añadir al resultado
+            results[symbol] = symbol_result
+        
+        return results
     
-    def _update_accumulated_metrics(self, current_metrics: Dict[str, Any]) -> None:
+    def get_component_status(self, component_type: str) -> Dict[str, Any]:
         """
-        Actualizar métricas acumuladas con los resultados de la ejecución actual.
+        Obtener estado de un componente específico.
         
         Args:
-            current_metrics: Métricas de la ejecución actual
-        """
-        if "accumulated_metrics" not in self.context:
-            self.context["accumulated_metrics"] = {}
-        
-        for stage_id, metrics in current_metrics.items():
-            if stage_id not in self.context["accumulated_metrics"]:
-                self.context["accumulated_metrics"][stage_id] = {
-                    "total_time": 0,
-                    "count": 0,
-                    "error_count": 0
-                }
-            
-            # Actualizar acumulados
-            acc = self.context["accumulated_metrics"][stage_id]
-            acc["total_time"] += metrics.get("execution_time", 0)
-            acc["count"] += 1
-            acc["error_count"] += int(metrics.get("error_rate", 0) > 0)
-            
-            # Calcular promedios
-            acc["avg_time"] = acc["total_time"] / acc["count"]
-            acc["error_rate"] = acc["error_count"] / acc["count"]
-    
-    def _generate_execution_report(self, context: Dict[str, Any], results: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Generar reporte de ejecución del pipeline.
-        
-        Args:
-            context: Contexto de ejecución
-            results: Resultados del pipeline
+            component_type: Tipo de componente
             
         Returns:
-            Reporte de ejecución
+            Diccionario con estado del componente
         """
-        now = datetime.now()
+        component = self.get_component(component_type)
+        if component is None:
+            return {'status': 'not_registered'}
         
-        report = {
-            "pipeline_run_id": context["run_id"],
-            "run_number": context["run_number"],
-            "timestamp": now.strftime("%Y-%m-%d %H:%M:%S"),
-            "duration_seconds": context["duration"],
-            "status": "error" if context.get("errors") else "success",
-            "stages_executed": len(self.stages_order),
-            "metrics": context["metrics"],
-            "errors": context.get("errors", []),
-            "summary": {
-                "total_stages": len(self.stages),
-                "start_time": datetime.fromtimestamp(context["start_time"]).strftime("%Y-%m-%d %H:%M:%S"),
-                "end_time": datetime.fromtimestamp(context["end_time"]).strftime("%Y-%m-%d %H:%M:%S")
-            }
-        }
+        with self.lock:
+            status = self.pipeline_state['components_status'].get(component_type, 'unknown')
+            error = self.pipeline_state['errors'].get(component_type)
         
-        # Agregar métricas específicas según los resultados
-        if "profit" in results:
-            report["financial_metrics"] = {
-                "profit": results["profit"],
-                "profit_percentage": results.get("profit_percentage", 0),
-                "balance": results.get("balance", 0)
-            }
+        result = {'status': status}
         
-        return report
-    
-    def get_stats(self) -> Dict[str, Any]:
-        """
-        Obtener estadísticas completas del pipeline.
+        if error:
+            result['error'] = error
         
-        Returns:
-            Diccionario con estadísticas
-        """
-        stats = super().get_stats()
+        # Obtener información adicional del componente si tiene método get_status
+        if hasattr(component, 'get_status') and callable(component.get_status):
+            try:
+                component_status = component.get_status()
+                result['details'] = component_status
+            except Exception as e:
+                self.logger.error(f"Error obteniendo estado del componente {component_type}: {str(e)}")
+                result['details_error'] = str(e)
         
-        # Agregar estadísticas específicas del pipeline
-        pipeline_stats = {
-            "total_stages": len(self.stages),
-            "stage_order": self.stages_order,
-            "pipeline_runs": self.context["pipeline_runs"],
-            "last_execution": self.context["last_execution"],
-            "uptime": time.time() - self.context["start_time"],
-            "is_running": self.context["is_running"],
-            "stages": {stage_id: stage.get_stats() for stage_id, stage in self.stages.items()},
-            "accumulated_metrics": self.context.get("accumulated_metrics", {})
-        }
-        
-        stats.update(pipeline_stats)
-        return stats
-    
-    async def initialize(self) -> bool:
-        """
-        Inicializar pipeline completo, incluyendo todas las etapas.
-        
-        Returns:
-            True si se inicializó correctamente
-        """
-        logger.info(f"Inicializando Pipeline Trascendental en modo {self.mode}")
-        
-        try:
-            # Restaurar estado desde checkpoint si existe
-            restored = await self.restore_from_checkpoint()
-            if not restored:
-                logger.info("No se encontró checkpoint, inicializando desde cero")
-            
-            # Registrar etapas estándar si no existen
-            if len(self.stages) == 0:
-                self._register_standard_stages()
-            
-            logger.info(f"Pipeline inicializado con {len(self.stages)} etapas")
-            return True
-        except Exception as e:
-            logger.error(f"Error al inicializar pipeline: {str(e)}")
-            return False
-    
-    def _register_standard_stages(self) -> None:
-        """Registrar etapas estándar del pipeline."""
-        standard_stages = [
-            # Formato: (id, nombre, orden)
-            ("data_acquisition", "Adquisición de Datos", 10),
-            ("data_validation", "Validación de Datos", 20),
-            ("data_preprocessing", "Preprocesamiento", 30),
-            ("feature_engineering", "Ingeniería de Características", 40),
-            ("model_prediction", "Predicción del Modelo", 50),
-            ("signal_generation", "Generación de Señales", 60),
-            ("risk_assessment", "Evaluación de Riesgo", 70),
-            ("order_creation", "Creación de Órdenes", 80),
-            ("execution", "Ejecución de Órdenes", 90),
-            ("performance_tracking", "Seguimiento de Rendimiento", 100),
-            ("profit_distribution", "Distribución de Ganancias", 110),
-            ("capital_management", "Gestión de Capital", 120),
-            ("reporting", "Generación de Informes", 130)
-        ]
-        
-        for stage_id, stage_name, stage_order in standard_stages:
-            self.register_stage(stage_id, stage_name, stage_order)
-        
-        logger.info(f"Registradas {len(standard_stages)} etapas estándar")
-
-# Instancia global (singleton)
-pipeline = TranscendentalPipeline()
+        return result
