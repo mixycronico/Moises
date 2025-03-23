@@ -368,7 +368,7 @@ class TranscendentalCryptoClassifier:
         # Obtener todas las criptomonedas activas
         def get_active_cryptos_query():
             return (
-                "SELECT * FROM cryptocurrency WHERE is_active = :is_active ORDER BY market_cap DESC",
+                "SELECT * FROM cryptocurrencies WHERE is_active = :is_active ORDER BY market_cap DESC",
                 {"is_active": True}
             )
         
@@ -528,7 +528,7 @@ class TranscendentalCryptoClassifier:
         # Obtener criptomoneda y métricas
         async def get_crypto_query():
             return (
-                "SELECT * FROM cryptocurrency WHERE symbol = :symbol",
+                "SELECT * FROM cryptocurrencies WHERE symbol = :symbol",
                 {"symbol": symbol}
             )
         
