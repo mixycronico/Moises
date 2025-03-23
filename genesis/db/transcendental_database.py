@@ -17,6 +17,9 @@ import logging
 import json
 import time
 import random
+import os
+import threading
+import psycopg2
 from typing import Dict, Any, List, Optional, Tuple, Union, Callable, TypeVar, Generic, Set
 
 import sqlalchemy
@@ -313,9 +316,52 @@ class TranscendentalDatabase:
         self.pool_pre_ping = pool_pre_ping
         self._intensity = 1.0
         
-        # Inicializar tablas necesarias
-        asyncio.create_task(self.initialize_tables())
+        # Inicializar tablas necesarias - versión síncrona para el constructor
+        self.sync_initialize_tables()
         
+    def sync_initialize_tables(self) -> None:
+        """Inicializar tablas necesarias de manera sincrónica (para constructor)."""
+        try:
+            # Utilizamos asyncio.run en un hilo aparte para ejecutar código asíncrono desde código síncrono
+            import threading
+            
+            def run_async_init():
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    # Crear tabla gen_key_value
+                    conn = psycopg2.connect(os.environ.get("DATABASE_URL"))
+                    conn.autocommit = True
+                    cursor = conn.cursor()
+                    
+                    # Crear tabla gen_key_value si no existe
+                    query = """
+                    CREATE TABLE IF NOT EXISTS gen_key_value (
+                        key TEXT PRIMARY KEY,
+                        value TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
+                    cursor.execute(query)
+                    logger.info("Tabla gen_key_value inicializada correctamente (modo síncrono)")
+                    
+                    cursor.close()
+                    conn.close()
+                except Exception as e:
+                    logger.error(f"Error inicializando tablas (modo síncrono): {e}")
+                finally:
+                    loop.close()
+            
+            # Ejecutar en thread para no bloquear
+            init_thread = threading.Thread(target=run_async_init)
+            init_thread.daemon = True
+            init_thread.start()
+            
+        except Exception as e:
+            logger.error(f"Error general en sync_initialize_tables: {e}")
+            # No propagamos la excepción para evitar fallos en la inicialización
+    
     async def initialize_tables(self) -> None:
         """Inicializar tablas necesarias para el funcionamiento."""
         try:
@@ -346,7 +392,7 @@ class TranscendentalDatabase:
         self._last_ping = 0
         self._ping_lock = asyncio.Lock()
         
-        logger.info(f"TranscendentalDatabase inicializada con capacidades de Singularidad V4, pool_size={pool_size}")
+        logger.info(f"TranscendentalDatabase inicializada con capacidades de Singularidad V4, pool_size={self.pool_size}")
     
     async def execute_query(
         self, 
