@@ -81,21 +81,37 @@ def init_genesis_components():
 # Inicializar componentes
 init_components_success = init_genesis_components()
 
-def run_async_function(coro):
-    """Ejecutar una función asincrónica en un hilo separado."""
+def run_async_function(coro_func):
+    """
+    Ejecutar una función asincrónica en un hilo separado.
+    
+    Args:
+        coro_func: Una función que RETORNA una corutina, no la corutina directamente
+                  Ejemplo: lambda: refresh_classification()
+    """
     def wrapper():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
         try:
+            # Obtener la corutina llamando a la función
+            coro = coro_func()
             result = loop.run_until_complete(coro)
+            return result
         except Exception as e:
             logger.error(f"Error en ejecución asincrónica: {e}")
-            result = None
+            return None
         finally:
-            loop.close()
+            # Cerrar todas las tareas pendientes
+            pending = asyncio.all_tasks(loop=loop)
+            for task in pending:
+                task.cancel()
             
-        return result
+            # Ejecutar las tareas canceladas hasta que terminen
+            if pending:
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                
+            loop.close()
     
     thread = threading.Thread(target=wrapper)
     thread.daemon = True
@@ -178,7 +194,7 @@ async def initialize_genesis():
             logger.info("Sistema Genesis inicializado correctamente")
             
             # Ejecutar clasificación inicial en otro hilo
-            run_async_function(refresh_classification())
+            run_async_function(lambda: refresh_classification())
             
             return True
         else:
@@ -263,7 +279,7 @@ async def update_performance_data():
 
 # Inicializar sistema en un hilo separado al iniciar la aplicación
 def start_system_initialization():
-    run_async_function(initialize_genesis())
+    run_async_function(lambda: initialize_genesis())
 
 # Iniciar inicialización tras un retraso mínimo
 timer = threading.Timer(1.0, start_system_initialization)
@@ -387,7 +403,7 @@ def hot_cryptos():
     if (not last_classification_time or 
         datetime.now() - last_classification_time > timedelta(minutes=15)):
         
-        run_async_function(refresh_classification())
+        run_async_function(lambda: refresh_classification())
         
         # Devolver datos actuales mientras se actualiza
         if not crypto_hot_cache:
