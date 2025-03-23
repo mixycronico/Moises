@@ -10,9 +10,31 @@ import asyncio
 import json
 from typing import Dict, List, Any, Optional, Set, Union
 from datetime import datetime, timedelta
+from enum import Enum, auto
 
 from genesis.core.base import Component
 from genesis.utils.helpers import generate_id, format_timestamp
+
+class AlertType(Enum):
+    """Tipos de alertas disponibles en el sistema."""
+    PRICE = auto()          # Alertas basadas en precio
+    VOLUME = auto()         # Alertas basadas en volumen
+    TREND = auto()          # Alertas de cambio de tendencia
+    INDICATOR = auto()      # Alertas basadas en indicadores técnicos
+    VOLATILITY = auto()     # Alertas de volatilidad
+    PATTERN = auto()        # Alertas de patrones de velas
+    ARBITRAGE = auto()      # Alertas de oportunidades de arbitraje
+    STRATEGY = auto()       # Alertas relacionadas con estrategias
+    SYSTEM = auto()         # Alertas del sistema
+    CUSTOM = auto()         # Alertas personalizadas
+
+class AlertStatus(Enum):
+    """Estados posibles para las alertas."""
+    ACTIVE = auto()         # Alerta activa
+    TRIGGERED = auto()      # Alerta disparada
+    DISABLED = auto()       # Alerta desactivada
+    EXPIRED = auto()        # Alerta expirada
+    PENDING = auto()        # Alerta pendiente de activación
 
 class AlertCondition:
     """
@@ -25,31 +47,92 @@ class AlertCondition:
     def __init__(
         self,
         name: str,
-        symbol: str,
-        condition_type: str,
-        params: Dict[str, Any],
-        message_template: str
+        description: str = "",
+        alert_type: AlertType = AlertType.PRICE,
+        threshold: float = 0.0,
+        comparison: str = ">",
+        timeframe: str = "1h",
+        symbols: List[str] = None,
+        symbol: str = "",
+        condition_type: str = "",
+        params: Dict[str, Any] = None,
+        message_template: str = "",
+        strategy_id: str = ""
     ):
         """
         Inicializar una condición de alerta.
         
         Args:
             name: Nombre de la alerta
-            symbol: Símbolo de trading
-            condition_type: Tipo de condición (precio, indicador, etc.)
-            params: Parámetros específicos para la condición
+            description: Descripción de la alerta
+            alert_type: Tipo de alerta (enum AlertType)
+            threshold: Umbral para la condición
+            comparison: Tipo de comparación (">", "<", "==", etc.)
+            timeframe: Marco temporal (1m, 5m, 15m, 1h, 4h, 1d, etc.)
+            symbols: Lista de símbolos para la alerta (para alertas multi-símbolo)
+            symbol: Símbolo de trading (para compatibilidad)
+            condition_type: Tipo de condición (para compatibilidad)
+            params: Parámetros específicos para la condición (para compatibilidad)
             message_template: Plantilla para el mensaje de alerta
+            strategy_id: ID de la estrategia (para alertas de tipo STRATEGY)
         """
         self.id = generate_id()
         self.name = name
+        self.description = description
+        self.alert_type = alert_type
+        
+        # Compatibilidad con versión anterior
+        if not symbol and symbols and len(symbols) > 0:
+            symbol = symbols[0]
         self.symbol = symbol
+        
+        # Determinar condition_type basado en alert_type si no se proporciona
+        if not condition_type:
+            if alert_type == AlertType.PRICE:
+                condition_type = "price"
+            elif alert_type == AlertType.VOLUME:
+                condition_type = "volume"
+            elif alert_type == AlertType.TREND:
+                condition_type = "trend"
+            elif alert_type == AlertType.INDICATOR:
+                condition_type = "indicator"
+            else:
+                condition_type = alert_type.name.lower()
         self.condition_type = condition_type
+        
+        # Construir parámetros
+        if params is None:
+            params = {
+                "threshold": threshold,
+                "comparison": comparison,
+                "timeframe": timeframe
+            }
+            if symbols:
+                params["symbols"] = symbols
+            if strategy_id:
+                params["strategy_id"] = strategy_id
+                
         self.params = params
+        
+        # Crear un mensaje por defecto si no se proporciona
+        if not message_template:
+            if alert_type == AlertType.PRICE:
+                symbol_str = symbols[0] if symbols else symbol if symbol else "crypto"
+                message_template = f"Alerta de precio para {symbol_str}: precio {{price}} {comparison} {threshold}"
+            elif alert_type == AlertType.TREND:
+                symbol_str = symbols[0] if symbols else symbol if symbol else "mercado"
+                message_template = f"Cambio de tendencia detectado para {symbol_str}"
+            elif alert_type == AlertType.STRATEGY:
+                message_template = f"Señal de estrategia {strategy_id}: {{message}}"
+            else:
+                message_template = f"Alerta: {{message}}"
+                
         self.message_template = message_template
         self.enabled = True
         self.created_at = datetime.now()
         self.last_triggered = None
         self.trigger_count = 0
+        self.status = AlertStatus.ACTIVE
         
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -100,6 +183,14 @@ class AlertManager(Component):
         # Conjunto para evitar alertas duplicadas en corto tiempo
         self.recent_alerts: Set[str] = set()
         
+        # Contadores para estadísticas
+        self.alert_stats = {
+            "alerts_added": 0,
+            "alerts_triggered": 0,
+            "alerts_updated": 0,
+            "alerts_deleted": 0
+        }
+        
     async def start(self) -> None:
         """Iniciar el gestor de alertas."""
         await super().start()
@@ -109,6 +200,42 @@ class AlertManager(Component):
         """Detener el gestor de alertas."""
         await super().stop()
         self.logger.info("Gestor de alertas detenido")
+        
+    async def add_condition(self, condition: AlertCondition) -> Dict[str, Any]:
+        """
+        Añadir una nueva condición de alerta.
+        
+        Args:
+            condition: Condición de alerta a añadir
+            
+        Returns:
+            Resultado de la operación con ID de la condición
+        """
+        if not condition.id:
+            condition.id = generate_id()
+            
+        # Guardar condición
+        self.conditions[condition.id] = condition
+        
+        # Actualizar estadísticas
+        self.alert_stats["alerts_added"] += 1
+        
+        self.logger.info(f"Condición de alerta añadida: {condition.name} (ID: {condition.id})")
+        
+        return {
+            "success": True,
+            "condition_id": condition.id,
+            "condition": condition.to_dict()
+        }
+    
+    async def get_condition_count(self) -> int:
+        """
+        Obtener número total de condiciones registradas.
+        
+        Returns:
+            Número de condiciones
+        """
+        return len(self.conditions)
         
     async def handle_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
         """
