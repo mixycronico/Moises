@@ -1,0 +1,31 @@
+{
+    "system": {
+        "name": "Genesis Transcendental",
+        "version": "2.0.0",
+        "environment": "development",
+        "log_level": "INFO"
+    },
+    "classifier": {
+        "capital_inicial": 10000.0,
+        "exchanges": ["binance", "kucoin", "okx", "bybit", "coinbase"],
+        "update_interval_minutes": 15,
+        "hot_threshold": 0.75
+    },
+    "risk_manager": {
+        "capital_inicial": 10000.0,
+        "max_drawdown_permitido": 0.15,
+        "volatilidad_base": 0.02,
+        "capital_allocation_method": "adaptive"
+    },
+    "performance_tracker": {
+        "capital_inicial": 10000.0,
+        "benchmark": "crypto_top10",
+        "track_attribution": true
+    },
+    "database": {
+        "cache_lifetime": 10,
+        "pool_size": 20,
+        "max_overflow": 40,
+        "pool_recycle": 300
+    }
+}
