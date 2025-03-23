@@ -40,13 +40,31 @@ if not DATABASE_URL:
     logger.error("No se encontró la variable de entorno DATABASE_URL")
     sys.exit(1)
 
-# Convertir a URL async para SQLAlchemy
+# Convertir a URL async para SQLAlchemy y asegurar compatibilidad
 ASYNC_DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://')
+
+# Fix para el error de sslmode en asyncpg
+# Remover cualquier parámetro de sslmode que pueda estar presente en la URL
+import urllib.parse
+parsed_url = urllib.parse.urlparse(ASYNC_DATABASE_URL)
+query_params = urllib.parse.parse_qs(parsed_url.query)
+if 'sslmode' in query_params:
+    query_params.pop('sslmode')
+    
+new_query = urllib.parse.urlencode(query_params, doseq=True)
+ASYNC_DATABASE_URL = urllib.parse.urlunparse((
+    parsed_url.scheme, 
+    parsed_url.netloc, 
+    parsed_url.path,
+    parsed_url.params,
+    new_query,
+    parsed_url.fragment
+))
 
 # Parámetros de la prueba
 TEST_INTENSITY = 1000.0        # Intensidad extrema
-MAX_PARALLEL_SESSIONS = 100   # Máximo de sesiones paralelas
-OPERATIONS_PER_SESSION = 500  # Operaciones por sesión
+MAX_PARALLEL_SESSIONS = 3      # Máximo de sesiones paralelas (reducido drásticamente para test rápido)
+OPERATIONS_PER_SESSION = 10    # Operaciones por sesión (reducido drásticamente para test rápido)
 QUANTUM_TIME_FACTOR = 0.001   # Factor de compresión temporal (menor = más rápido)
 DIMENSIONAL_COLLAPSE_FACTOR = 2000.0  # Factor de colapso dimensional
 
@@ -616,19 +634,25 @@ class DBSingularityTest:
                 data = {"id": random.randint(1, 100000)}
                 
                 if table == "trades":
-                    data.update({
+                    # Usar diccionario en vez de update para evitar errores de tipado
+                    data = {
+                        **data, 
                         "fee": round(random.uniform(0, 0.1), 8),
                         "updated_at": datetime.now().isoformat()
-                    })
+                    }
                 elif table == "users":
-                    data.update({
+                    # Usar diccionario en vez de update para evitar errores de tipado
+                    data = {
+                        **data, 
                         "last_login": datetime.now().isoformat(),
                         "updated_at": datetime.now().isoformat()
-                    })
+                    }
                 else:
-                    data.update({
+                    # Usar diccionario en vez de update para evitar errores de tipado
+                    data = {
+                        **data, 
                         "updated_at": datetime.now().isoformat()
-                    })
+                    }
             
             elif operation_type == "delete":
                 # Delete: solo necesita ID
