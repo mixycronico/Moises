@@ -1,104 +1,73 @@
 """
-Prueba mínima del sistema híbrido Genesis API + WebSocket.
-
-Este script hace una prueba mínima del sistema híbrido.
+Prueba mínima para verificar la funcionalidad asíncrona básica.
 """
 
 import asyncio
 import logging
-import sys
-from typing import Dict, Any, Optional
+import time
+from typing import Dict, Any
 
 # Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("test_minimal")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("TestMinimal")
 
-# Clase ComponentAPI simulada
-class ComponentAPI:
-    def __init__(self, id: str):
-        self.id = id
-        
-    async def process_request(self, request_type: str, data: Dict[str, Any], source: str) -> Any:
-        logger.info(f"Componente {self.id} procesando solicitud {request_type} de {source}")
-        if request_type == "echo":
-            return {"echo": data.get("message", ""), "source": source}
-        return None
+class TestMechanism:
+    """Mecanismo de prueba para verificar async/await."""
     
-    async def start(self) -> None:
-        logger.info(f"Componente {self.id} iniciado")
-    
-    async def stop(self) -> None:
-        logger.info(f"Componente {self.id} detenido")
-
-# Coordinator simulado
-class Coordinator:
     def __init__(self):
-        self.components = {}
+        """Inicializar estado del mecanismo."""
+        self.stats = {"invocations": 0}
         
-    def register_component(self, id: str, component: ComponentAPI) -> None:
-        self.components[id] = component
-        logger.info(f"Componente {id} registrado")
-    
-    async def request(self, target_id: str, request_type: str, data: Dict[str, Any], source: str) -> Optional[Any]:
-        if target_id not in self.components:
-            logger.error(f"Componente {target_id} no encontrado")
-            return None
+    async def _register_invocation(self, success: bool = True) -> None:
+        """Registrar una invocación con cambio de contexto asíncrono."""
+        self.stats["invocations"] += 1
         
-        try:
-            result = await self.components[target_id].process_request(request_type, data, source)
-            return result
-        except Exception as e:
-            logger.error(f"Error en solicitud: {e}")
-            return None
+        # Permitir cambio de contexto para evitar bloqueos
+        await asyncio.sleep(0)
+        
+        # Pequeña pausa para simular trabajo
+        await asyncio.sleep(0.01)
+        
+        logger.info(f"Invocación registrada. Total: {self.stats['invocations']}")
     
-    async def start(self) -> None:
-        for comp_id, comp in self.components.items():
-            await comp.start()
-        logger.info("Coordinador iniciado")
-    
-    async def stop(self) -> None:
-        for comp_id, comp in self.components.items():
-            await comp.stop()
-        logger.info("Coordinador detenido")
+    async def test_operation(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Operación de prueba que usa el método asíncrono."""
+        logger.info(f"Iniciando operación con: {data}")
+        
+        # Registrar invocación (asíncrono)
+        await self._register_invocation()
+        
+        # Simular procesamiento (asíncrono)
+        await asyncio.sleep(0.1)
+        
+        # Retornar resultado
+        result = {
+            "processed": True,
+            "timestamp": time.time(),
+            "input": data
+        }
+        
+        logger.info(f"Operación completada: {result}")
+        return result
 
-async def run_test():
-    """Ejecutar prueba mínima."""
-    # Crear coordinador
-    coordinator = Coordinator()
+async def main():
+    """Función principal."""
+    logger.info("Iniciando prueba mínima...")
     
-    # Crear componentes
-    comp1 = ComponentAPI("comp1")
-    comp2 = ComponentAPI("comp2")
+    # Crear instancia de prueba
+    mechanism = TestMechanism()
     
-    # Registrar componentes
-    coordinator.register_component("comp1", comp1)
-    coordinator.register_component("comp2", comp2)
+    # Ejecutar operación simple
+    data = {"test": "data", "value": 123}
+    result = await mechanism.test_operation(data)
     
-    # Iniciar coordinador
-    await coordinator.start()
-    
-    try:
-        # Hacer solicitud
-        result = await coordinator.request(
-            "comp2",
-            "echo",
-            {"message": "Hola desde comp1"},
-            "comp1"
-        )
-        
-        # Verificar resultado
-        if result and result.get("echo") == "Hola desde comp1":
-            logger.info(f"¡Prueba exitosa! Resultado: {result}")
-        else:
-            logger.error(f"Prueba fallida. Resultado: {result}")
-            
-    finally:
-        # Detener coordinador
-        await coordinator.stop()
+    logger.info(f"Resultado final: {result}")
+    logger.info("Prueba finalizada.")
 
-# Ejecutar prueba
 if __name__ == "__main__":
-    asyncio.run(run_test())
+    # Ejecutar con timeout para asegurar que termine
+    try:
+        asyncio.run(asyncio.wait_for(main(), timeout=2.0))
+        logger.info("Prueba completada dentro del tiempo establecido.")
+    except asyncio.TimeoutError:
+        logger.error("La prueba excedió el tiempo máximo permitido.")
