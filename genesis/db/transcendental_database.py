@@ -422,7 +422,7 @@ class TranscendentalDatabase:
                     try:
                         for query_func, args, kwargs in queries:
                             sql, params = query_func(*args, **kwargs)
-                            result = await session.execute(sql, params)
+                            result = await session.execute(text(sql), params)
                             
                             if sql.strip().lower().startswith("select"):
                                 results.append(result.fetchall())
