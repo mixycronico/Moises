@@ -23,16 +23,50 @@ except ImportError:
     logging.warning("NumPy no encontrado. Algunas funciones no estarán disponibles.")
     # Crear un módulo alternativo mínimo para np
     class NumpyReplacement:
+        # Constantes
+        inf = float('inf')
+        nan = float('nan')
+        
+        # Tipos de datos
+        float32 = float
+        float64 = float
+        int32 = int
+        int64 = int
+        
         def __init__(self):
             pass
         
         def array(self, data, dtype=None):
             return data
             
+        def astype(self, dtype):
+            """Método para simular conversión de tipos."""
+            return self
+            
         def zeros_like(self, data):
             if isinstance(data, list):
                 return [0] * len(data)
             return 0
+            
+        def zeros(self, shape):
+            """Crear array de ceros."""
+            if isinstance(shape, tuple):
+                if len(shape) == 1:
+                    return [0] * shape[0]
+                # Simplificado para arrays 2D
+                return [[0] * shape[1] for _ in range(shape[0])]
+            else:
+                return [0] * shape
+                
+        def ones(self, shape):
+            """Crear array de unos."""
+            if isinstance(shape, tuple):
+                if len(shape) == 1:
+                    return [1] * shape[0]
+                # Simplificado para arrays 2D
+                return [[1] * shape[1] for _ in range(shape[0])]
+            else:
+                return [1] * shape
             
         def mean(self, data):
             if not data:
@@ -49,7 +83,7 @@ except ImportError:
         def diff(self, data):
             return [data[i+1] - data[i] for i in range(len(data)-1)]
             
-        def concatenate(self, arrays):
+        def concatenate(self, arrays, axis=0):
             result = []
             for arr in arrays:
                 if isinstance(arr, list):
@@ -82,6 +116,30 @@ except ImportError:
             
         def sqrt(self, value):
             return value ** 0.5
+            
+        def convolve(self, a, v, mode='full'):
+            """Implementación básica de convolución."""
+            return a  # Simplificado
+            
+        # Clase random para generar números aleatorios
+        class random:
+            @staticmethod
+            def normal(loc=0.0, scale=1.0, size=None):
+                import random
+                if size is None:
+                    return random.normalvariate(loc, scale)
+                if isinstance(size, int):
+                    return [random.normalvariate(loc, scale) for _ in range(size)]
+                return [random.normalvariate(loc, scale) for _ in range(size[0])]
+                    
+            @staticmethod
+            def uniform(low=0.0, high=1.0, size=None):
+                import random
+                if size is None:
+                    return random.uniform(low, high)
+                if isinstance(size, int):
+                    return [random.uniform(low, high) for _ in range(size)]
+                return [random.uniform(low, high) for _ in range(size[0])]
             
         def random(self):
             class RandomGen:
@@ -294,7 +352,7 @@ except ImportError:
             "close": close
         }
         
-    def calculate_directional_movement_index(high, low, close, window=14):
+    def calculate_directional_movement_index(high, low, close, window=14, period=14):
         """Función de reemplazo para DMI."""
         return {
             "adx": [0] * len(close),
