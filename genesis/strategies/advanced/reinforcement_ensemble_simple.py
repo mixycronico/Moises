@@ -176,6 +176,9 @@ class ReinforcementEnsembleStrategy(Strategy):
         """
         Generar señal de trading basada en el estado actual del mercado.
         
+        Utiliza una combinación de análisis técnico tradicional, ensemble de agentes RL
+        y análisis avanzado mediante DeepSeek si está disponible.
+        
         Args:
             symbol: Símbolo de trading
             data: Datos del mercado actual (OHLCV, indicadores, etc.)
@@ -193,6 +196,7 @@ class ReinforcementEnsembleStrategy(Strategy):
         try:
             # Extraer OHLCV
             ohlcv = data.get('ohlcv', {})
+            news_data = data.get('news', [])
             
             # Calcular indicadores avanzados
             ichimoku = await self._calculate_ichimoku(symbol, ohlcv)
@@ -214,11 +218,86 @@ class ReinforcementEnsembleStrategy(Strategy):
             # Evaluar riesgo (simulación simplificada)
             risk_assessment = self._assess_risk_simple(symbol, consensus_signal, confidence, ohlcv)
             
+            # Integración con DeepSeek si está disponible
+            deepseek_analysis = None
+            if self.use_deepseek and DEEPSEEK_AVAILABLE and self.deepseek_integrator:
+                try:
+                    # Preparar datos para análisis DeepSeek
+                    market_data = {
+                        'symbol': symbol,
+                        'ohlcv': ohlcv,
+                        'indicators': {
+                            'ichimoku': ichimoku,
+                            'bollinger': bollinger,
+                            'dmi': dmi
+                        },
+                        'technical_analysis': analysis_results,
+                        'agent_predictions': agent_predictions,
+                        'consensus': {
+                            'signal': consensus_signal,
+                            'confidence': confidence
+                        }
+                    }
+                    
+                    # Solicitar análisis avanzado a DeepSeek
+                    logger.info(f"Solicitando análisis DeepSeek para {symbol}")
+                    deepseek_analysis = await self.deepseek_integrator.analyze_trading_opportunities(
+                        market_data=market_data,
+                        news_data=news_data
+                    )
+                    
+                    # Mejorar señales con DeepSeek
+                    if deepseek_analysis and 'error' not in deepseek_analysis:
+                        # Transformar la decisión original a formato de señal
+                        original_signal = [{
+                            'symbol': symbol,
+                            'signal': consensus_signal,
+                            'confidence': confidence,
+                            'risk_assessment': risk_assessment
+                        }]
+                        
+                        # Obtener señales mejoradas
+                        enhanced_signals = await self.deepseek_integrator.enhance_trading_signals(
+                            signals=original_signal,
+                            market_data=market_data
+                        )
+                        
+                        if enhanced_signals and len(enhanced_signals) > 0:
+                            # Usar la primera señal mejorada (solo tenemos una)
+                            enhanced = enhanced_signals[0]
+                            logger.info(f"DeepSeek mejoró la señal para {symbol}: confianza ajustada de {confidence} a {enhanced.get('deepseek_confidence', confidence)}")
+                            
+                            # Actualizar con las mejoras de DeepSeek
+                            consensus_signal = enhanced.get('signal', consensus_signal)
+                            confidence = enhanced.get('deepseek_confidence', confidence)
+                            
+                            # Considerar niveles mejorados en la evaluación de riesgo
+                            if 'enhanced_stop_loss' in enhanced or 'enhanced_take_profit' in enhanced:
+                                risk_assessment = self._adjust_risk_with_deepseek(
+                                    risk_assessment, 
+                                    enhanced.get('enhanced_stop_loss'), 
+                                    enhanced.get('enhanced_take_profit')
+                                )
+                    else:
+                        logger.warning(f"Análisis DeepSeek no disponible o con error: {deepseek_analysis.get('error', 'Error desconocido')}")
+                    
+                except Exception as e:
+                    logger.warning(f"Error en análisis DeepSeek para {symbol}: {str(e)}")
+                    # Continuar con la estrategia normal si falla DeepSeek
+            
             # Tomar decisión final
             final_decision = self._make_final_decision(
                 {"signal": consensus_signal, "confidence": confidence},
                 risk_assessment
             )
+            
+            # Añadir información de DeepSeek si está disponible
+            if deepseek_analysis and 'error' not in deepseek_analysis:
+                final_decision['deepseek'] = {
+                    'analysis': deepseek_analysis.get('market_analysis', {}),
+                    'sentiment': deepseek_analysis.get('sentiment_analysis', {}),
+                    'recommendations': deepseek_analysis.get('combined_recommendations', [])
+                }
             
             # Registrar para análisis posterior
             self._update_metrics(final_decision)
@@ -227,7 +306,8 @@ class ReinforcementEnsembleStrategy(Strategy):
             self.agent_predictions_history.append({
                 'timestamp': datetime.now().timestamp(),
                 'symbol': symbol,
-                'predictions': agent_predictions
+                'predictions': agent_predictions,
+                'deepseek_enhanced': deepseek_analysis is not None
             })
             
             return final_decision
@@ -545,6 +625,52 @@ class ReinforcementEnsembleStrategy(Strategy):
             'take_profit': take_profit_pct,
             'volatility': volatility
         }
+    
+    def _adjust_risk_with_deepseek(self, 
+                           risk_assessment: Dict[str, Any],
+                           enhanced_stop_loss: Optional[float] = None,
+                           enhanced_take_profit: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Ajustar la evaluación de riesgo con recomendaciones de DeepSeek.
+        
+        Args:
+            risk_assessment: Evaluación de riesgo original
+            enhanced_stop_loss: Nivel de stop loss mejorado por DeepSeek (opcional)
+            enhanced_take_profit: Nivel de take profit mejorado por DeepSeek (opcional)
+            
+        Returns:
+            Evaluación de riesgo ajustada
+        """
+        # Crear una copia para no modificar el original directamente
+        adjusted_risk = risk_assessment.copy()
+        
+        # Aplicar ajustes si están disponibles
+        if enhanced_stop_loss is not None:
+            adjusted_risk['stop_loss'] = enhanced_stop_loss
+            logger.info(f"Stop loss ajustado a {enhanced_stop_loss} por recomendación de DeepSeek")
+            
+        if enhanced_take_profit is not None:
+            adjusted_risk['take_profit'] = enhanced_take_profit
+            logger.info(f"Take profit ajustado a {enhanced_take_profit} por recomendación de DeepSeek")
+            
+        # Si se ajustaron los niveles, posiblemente ajustar también el tamaño de posición
+        if enhanced_stop_loss is not None and enhanced_take_profit is not None:
+            # Calcular nuevo ratio riesgo/recompensa
+            original_risk = risk_assessment.get('stop_loss', 0)
+            original_reward = risk_assessment.get('take_profit', 0)
+            
+            if original_risk > 0 and original_reward > 0:
+                original_rr_ratio = original_reward / original_risk
+                new_rr_ratio = enhanced_take_profit / enhanced_stop_loss
+                
+                # Si el nuevo ratio es mejor, podemos ajustar el tamaño
+                if new_rr_ratio > original_rr_ratio:
+                    # Ajustar tamaño de posición manteniendo el mismo riesgo absoluto
+                    position_adjustment = min(1.2, max(0.8, new_rr_ratio / original_rr_ratio))
+                    adjusted_risk['max_position_size'] = risk_assessment.get('max_position_size', 0) * position_adjustment
+                    logger.info(f"Tamaño de posición ajustado por factor {position_adjustment:.2f} debido a mejor ratio riesgo/recompensa")
+        
+        return adjusted_risk
     
     def _make_final_decision(self, prediction: Dict[str, Any], 
                            risk_assessment: Dict[str, Any]) -> Dict[str, Any]:
