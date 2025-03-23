@@ -1,44 +1,67 @@
-# Sistema Genesis
+# Sistema Genesis - Estructura de Directorio Principal
 
-Este directorio contiene el núcleo del Sistema Genesis, una plataforma avanzada de trading con capacidades transcendentales de procesamiento y resiliencia.
+Este directorio contiene los componentes principales del Sistema Genesis.
 
-## Estructura de Directorios
+## Estructura de Directorio
 
-- **accounting/**: Módulos para gestión de capital y contabilidad
-- **alerts/**: Sistema de alertas y notificaciones
-- **analysis/**: Clasificadores y análisis de criptomonedas
-- **analytics/**: Seguimiento de rendimiento y métricas
-- **api/**: Endpoints API para integración externa
-- **backtesting/**: Infraestructura para pruebas retrospectivas
-- **config/**: Archivos de configuración del sistema
-- **core/**: Componentes centrales del sistema
-- **data/**: Gestión de datos y almacenamiento
-- **data_import/**: Scripts para importación de datos
-- **db/**: Adaptadores y gestión de bases de datos
-- **exchanges/**: Integraciones con exchanges de criptomonedas
-- **indicators/**: Indicadores técnicos para análisis
-- **init/**: Módulos de inicialización del sistema
-- **modes/**: Implementaciones de modos transcendentales
-- **notifications/**: Servicios de notificación
-- **reporting/**: Generación de informes
-- **risk/**: Gestión de riesgo adaptativa
-- **security/**: Componentes de seguridad
-- **signals/**: Generación y procesamiento de señales
-- **strategies/**: Estrategias de trading
-- **trading/**: Módulos para ejecución de operaciones
-- **utils/**: Utilidades y herramientas comunes
-- **web/**: Interfaz web
-- **workers/**: Trabajadores en segundo plano
+### /genesis/accounting
+Componentes relacionados con la contabilidad y gestión de capital.
+- `capital_scaling.py`: Gestión de escalabilidad de capital
+- `predictive_scaling.py`: Motor predictivo de escalabilidad
+- `allocation_optimizer.py`: Optimización de asignación de capital
 
-## Capacidades Transcendentales
+### /genesis/analytics
+Componentes para análisis y medición de rendimiento.
+- `performance_tracker.py`: Seguimiento de métricas de rendimiento
+- `metrics_calculator.py`: Cálculos de métricas financieras
+- `transcendental_performance_tracker.py`: Versión trascendental con capacidades especiales
 
-El Sistema Genesis implementa varios modos de operación transcendental que permiten alcanzar tasas de éxito superiores al 99.9%, incluso bajo condiciones extremas:
+### /genesis/analysis 
+Componentes para análisis de mercado y señales.
+- `indicators.py`: Indicadores técnicos avanzados
+- `signal_generator.py`: Generación de señales de trading
+- `crypto_classifier.py`: Clasificador transcendental de criptomonedas
 
-- Singularidad V4
-- Modo Luz
-- Materia Oscura
-- Modo Divino
-- Modo Big Bang
-- Modo Interdimensional
+### /genesis/core
+Componentes centrales del sistema.
+- `circuit_breaker.py`: Implementación de patrón circuit breaker
+- `retry_adaptive.py`: Sistema de reintentos adaptativos
+- `checkpoint_recovery.py`: Sistema de checkpoints y recuperación
 
-Cada modo utiliza algoritmos avanzados para asegurar la resiliencia y eficiencia del sistema.
+### /genesis/db
+Componentes para la gestión de bases de datos.
+- `base.py`: Clases base para la gestión de bases de datos
+- `transcendental_database.py`: DB con capacidades transcendentales
+- `divine_database.py`: DB con capacidades divinas (resiliencia extrema)
+- `initializer.py`: Inicializador central para bases de datos
+
+### /genesis/init
+Componentes para la inicialización del sistema.
+- `__init__.py`: Inicializador principal
+- `init_scaling.py`: Inicialización del sistema de escalabilidad
+- `scaling_initializer.py`: Inicializador específico para el subsistema de escalabilidad
+
+### /genesis/modes
+Implementaciones de modos transcendentales.
+- `singularity_v4.py`: Implementación del modo Singularidad V4
+- `light_mode.py`: Implementación del modo Luz
+- `dark_matter.py`: Implementación del modo Materia Oscura
+- `divine_mode.py`: Implementación del modo Divino
+
+### /genesis/risk
+Componentes para la gestión de riesgo.
+- `adaptive_risk_manager.py`: Gestor de riesgo adaptativo
+- `risk_calculator.py`: Cálculos de riesgo avanzados
+- `risk_profiles.py`: Perfiles de riesgo configurables
+
+### /genesis/strategies
+Estrategias de trading implementadas.
+- `adaptive_scaling.py`: Estrategia con escalabilidad adaptativa
+- `smart_rebalance.py`: Estrategia de rebalanceo inteligente
+- `dynamic_allocation.py`: Estrategia de asignación dinámica
+
+### /genesis/temporal
+Componentes para la sincronización y manejo temporal.
+- `atemporal_synchronizer.py`: Sincronizador atemporal
+- `temporal_anomaly_handler.py`: Manejo de anomalías temporales
+- `time_quantum.py`: Implementación de tiempo cuántico
