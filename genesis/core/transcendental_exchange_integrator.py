@@ -49,6 +49,25 @@ class TranscendentalExchangeIntegrator:
         self.operation_count = 0
         self.error_count = 0
         self.transmuted_count = 0
+        self.initialized = False
+        
+    async def initialize(self) -> Dict[str, Any]:
+        """
+        Inicializar el integrador y prepararlo para su uso.
+        
+        Returns:
+            Dict con resultado de la inicialización
+        """
+        self.logger.info("Inicializando TranscendentalExchangeIntegrator...")
+        
+        # Inicialización interna
+        self.initialized = True
+        
+        return {
+            "success": True,
+            "message": "Integrador inicializado correctamente",
+            "exchange_count": len(self.exchanges)
+        }
     
     async def add_exchange(self, exchange_id: str) -> Dict[str, Any]:
         """

@@ -441,21 +441,38 @@ class TranscendentalWebSocketAdapter:
 
 # Enum para identificadores de exchanges
 class ExchangeID:
-    """Identificadores estándar para exchanges."""
-    BINANCE = "BINANCE"
-    BITFINEX = "BITFINEX"
-    BITMEX = "BITMEX"
-    BYBIT = "BYBIT"
-    COINBASE = "COINBASE"
-    DERIBIT = "DERIBIT"
-    FTX = "FTX"
-    KRAKEN = "KRAKEN"
-    KUCOIN = "KUCOIN"
-    OKEX = "OKEX"
-    BITSTAMP = "BITSTAMP"
-    HUOBI = "HUOBI"
-    GEMINI = "GEMINI"
-    POLONIEX = "POLONIEX"
+    """
+    Identificadores estándar para exchanges.
+    
+    Categorías:
+    - Spot y Futures: Exchanges que ofrecen ambos mercados
+    - Principalmente Spot: Exchanges con enfoque principal en trading Spot
+    - Históricos: Exchanges que ya no operan pero se mantienen para compatibilidad
+    """
+    # === Spot y Futures ===
+    BINANCE = "BINANCE"    # Líder en ambos mercados
+    BYBIT = "BYBIT"        # Famoso por contratos perpetuos
+    OKEX = "OKEX"          # Jugador importante en ambos mercados
+    HUOBI = "HUOBI"        # Contratos de futuros con diferentes plazos
+    KUCOIN = "KUCOIN"      # Con productos de futuros en expansión
+    GATEIO = "GATEIO"      # Mercado diversificado en Spot y Futures
+    MEXC = "MEXC"          # Mercado de futuros bastante activo
+    BITFINEX = "BITFINEX"  # Ofrece algunos contratos derivados
+    BITMEX = "BITMEX"      # Especializado en derivados
+    DERIBIT = "DERIBIT"    # Especializado en opciones y futuros
+    KRAKEN = "KRAKEN"      # Ofrece Spot y Futures
+    
+    # === Principalmente Spot ===
+    COINBASE = "COINBASE"  # Orientado al mercado Spot
+    BITSTAMP = "BITSTAMP"  # Enfoque en operaciones Spot tradicionales
+    BITTREX = "BITTREX"    # Principalmente enfocado en Spot
+    GEMINI = "GEMINI"      # Especializado en Spot
+    CRYPTO_COM = "CRYPTO_COM" # Fuerte en Spot
+    BITMART = "BITMART"    # Enfocado en mercado Spot
+    POLONIEX = "POLONIEX"  # Mercado Spot tradicional
+    
+    # === Históricos (No operativos) ===
+    FTX = "FTX"            # Dejó de operar, mantenido para compatibilidad
 
 # Función auxiliar para pruebas
 async def test_adapter():

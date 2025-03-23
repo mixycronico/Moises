@@ -12,10 +12,8 @@ import time
 import json
 from typing import Dict, Any, List, Optional
 
-from genesis.core.transcendental_exchange_integrator import (
-    TranscendentalExchangeIntegrator,
-    ExchangeID
-)
+from genesis.core.transcendental_exchange_integrator import TranscendentalExchangeIntegrator
+from genesis.core.transcendental_ws_adapter import ExchangeID
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
