@@ -2,8 +2,8 @@
 Indicadores técnicos avanzados para análisis de mercado.
 
 Este módulo implementa indicadores técnicos avanzados como Ichimoku Kinko Hyo,
-Bollinger Bands dinámicas, Market Profile, y otros indicadores adaptados para
-trading de criptomonedas.
+Bollinger Bands dinámicas, DMI/ADX, Market Profile, y otros indicadores adaptados para
+trading de criptomonedas con soporte para el sistema Genesis.
 """
 
 import numpy as np
@@ -13,6 +13,313 @@ from typing import Dict, List, Any, Optional, Tuple, Union, Callable
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
+
+# Funciones auxiliares para el cálculo de indicadores avanzados
+def calculate_ichimoku_cloud(high: np.ndarray, low: np.ndarray, close: np.ndarray,
+                            tenkan_period: int = 9, kijun_period: int = 26, 
+                            senkou_span_b_period: int = 52, displacement: int = 26) -> Dict[str, Any]:
+    """
+    Calcular Ichimoku Cloud para los datos proporcionados.
+    
+    Args:
+        high: Array de precios máximos
+        low: Array de precios mínimos
+        close: Array de precios de cierre
+        tenkan_period: Período para Tenkan-sen (línea de conversión)
+        kijun_period: Período para Kijun-sen (línea base)
+        senkou_span_b_period: Período para Senkou Span B
+        displacement: Período de desplazamiento hacia adelante
+        
+    Returns:
+        Diccionario con componentes de Ichimoku Cloud
+    """
+    if len(high) < max(tenkan_period, kijun_period, senkou_span_b_period) + displacement:
+        return {
+            'tenkan_sen': None,
+            'kijun_sen': None,
+            'senkou_span_a': None,
+            'senkou_span_b': None,
+            'chikou_span': None,
+            'cloud_green': False,
+            'price_above_cloud': False,
+            'tk_cross': 0
+        }
+    
+    # Convertir a arrays de numpy si no lo son
+    high = np.array(high)
+    low = np.array(low)
+    close = np.array(close)
+    
+    # Tenkan-sen (línea de conversión)
+    period_high = np.array([high[max(0, i - tenkan_period + 1):i + 1].max() 
+                           for i in range(len(high))])
+    period_low = np.array([low[max(0, i - tenkan_period + 1):i + 1].min() 
+                          for i in range(len(low))])
+    tenkan_sen = (period_high + period_low) / 2
+    
+    # Kijun-sen (línea base)
+    period_high = np.array([high[max(0, i - kijun_period + 1):i + 1].max() 
+                           for i in range(len(high))])
+    period_low = np.array([low[max(0, i - kijun_period + 1):i + 1].min() 
+                          for i in range(len(low))])
+    kijun_sen = (period_high + period_low) / 2
+    
+    # Senkou Span A (línea adelantada A)
+    senkou_span_a = (tenkan_sen + kijun_sen) / 2
+    
+    # Senkou Span B (línea adelantada B)
+    period_high = np.array([high[max(0, i - senkou_span_b_period + 1):i + 1].max() 
+                           for i in range(len(high))])
+    period_low = np.array([low[max(0, i - senkou_span_b_period + 1):i + 1].min() 
+                          for i in range(len(low))])
+    senkou_span_b = (period_high + period_low) / 2
+    
+    # Chikou Span (línea rezagada)
+    chikou_span = close
+    
+    # Detección de cruce TK
+    tk_cross = np.zeros(len(close))
+    for i in range(1, len(close)):
+        if tenkan_sen[i] > kijun_sen[i] and tenkan_sen[i-1] <= kijun_sen[i-1]:
+            tk_cross[i] = 1  # Bullish cross
+        elif tenkan_sen[i] < kijun_sen[i] and tenkan_sen[i-1] >= kijun_sen[i-1]:
+            tk_cross[i] = -1  # Bearish cross
+    
+    # Verificar si el precio está por encima de la nube
+    current_close = close[-1]
+    current_span_a = senkou_span_a[-displacement] if len(senkou_span_a) > displacement else None
+    current_span_b = senkou_span_b[-displacement] if len(senkou_span_b) > displacement else None
+    
+    price_above_cloud = False
+    if current_span_a is not None and current_span_b is not None:
+        upper_cloud = max(current_span_a, current_span_b)
+        price_above_cloud = current_close > upper_cloud
+    
+    # Verificar si la nube es verde (bullish)
+    cloud_green = False
+    if current_span_a is not None and current_span_b is not None:
+        cloud_green = current_span_a > current_span_b
+    
+    return {
+        'tenkan_sen': tenkan_sen,
+        'kijun_sen': kijun_sen,
+        'senkou_span_a': senkou_span_a,
+        'senkou_span_b': senkou_span_b,
+        'chikou_span': chikou_span,
+        'cloud_green': cloud_green,
+        'price_above_cloud': price_above_cloud,
+        'tk_cross': tk_cross[-1]
+    }
+
+def calculate_dynamic_bollinger_bands(close: np.ndarray, window: int = 20, 
+                                    num_std_dev: float = 2.0, adaptive: bool = True) -> Dict[str, Any]:
+    """
+    Calcular Bandas de Bollinger dinámicas que se adaptan a las condiciones del mercado.
+    
+    Args:
+        close: Array de precios de cierre
+        window: Tamaño de la ventana para la media móvil
+        num_std_dev: Número de desviaciones estándar
+        adaptive: Si es True, ajusta las bandas según volatilidad relativa
+        
+    Returns:
+        Diccionario con componentes de Bollinger Bands
+    """
+    if len(close) < window:
+        return {
+            'middle': None,
+            'upper': None,
+            'lower': None,
+            'bandwidth': None,
+            'percent_b': None,
+            'signal': 0
+        }
+    
+    # Convertir a array de numpy si no lo es
+    close = np.array(close)
+    
+    # Calcular media móvil
+    sma = np.array([close[max(0, i - window + 1):i + 1].mean() 
+                   for i in range(len(close))])
+    
+    # Calcular desviación estándar
+    std = np.array([close[max(0, i - window + 1):i + 1].std() 
+                   for i in range(len(close))])
+    
+    # Ajustar según volatilidad si es adaptativo
+    if adaptive:
+        # Calcular rendimientos logarítmicos
+        log_returns = np.diff(np.log(close))
+        log_returns = np.insert(log_returns, 0, 0)
+        
+        # Calcular volatilidad histórica móvil
+        volatility = np.array([log_returns[max(0, i - window*2 + 1):i + 1].std() * np.sqrt(252)
+                              for i in range(len(log_returns))])
+        
+        # Calcular ratio de volatilidad
+        vol_sma = np.array([volatility[max(0, i - window*5 + 1):i + 1].mean()
+                           for i in range(len(volatility))])
+        
+        vol_ratio = np.divide(volatility, vol_sma, out=np.ones_like(volatility), 
+                             where=vol_sma!=0)
+        
+        # Limitar ratio para evitar bandas extremas
+        vol_ratio = np.clip(vol_ratio, 0.5, 2.0)
+        
+        # Ajustar multiplicador
+        multiplier = num_std_dev * vol_ratio
+    else:
+        multiplier = np.ones(len(close)) * num_std_dev
+    
+    # Calcular bandas
+    upper = sma + std * multiplier
+    lower = sma - std * multiplier
+    
+    # Calcular anchos de banda normalizados
+    bandwidth = (upper - lower) / sma
+    
+    # Calcular %B (ubicación del precio en las bandas)
+    percent_b = np.zeros(len(close))
+    for i in range(len(close)):
+        if upper[i] != lower[i]:
+            percent_b[i] = (close[i] - lower[i]) / (upper[i] - lower[i])
+        else:
+            percent_b[i] = 0.5
+    
+    # Calcular señales
+    signal = np.zeros(len(close))
+    for i in range(1, len(close)):
+        if close[i] > upper[i]:
+            signal[i] = 1  # Sobre la banda superior
+        elif close[i] < lower[i]:
+            signal[i] = -1  # Bajo la banda inferior
+    
+    return {
+        'middle': sma,
+        'upper': upper,
+        'lower': lower,
+        'bandwidth': bandwidth,
+        'percent_b': percent_b,
+        'signal': signal[-1]
+    }
+
+def calculate_directional_movement_index(high: np.ndarray, low: np.ndarray, 
+                                       close: np.ndarray, period: int = 14) -> Dict[str, Any]:
+    """
+    Calcular Directional Movement Index (DMI) y Average Directional Index (ADX).
+    
+    Args:
+        high: Array de precios máximos
+        low: Array de precios mínimos
+        close: Array de precios de cierre
+        period: Período para el cálculo
+        
+    Returns:
+        Diccionario con componentes de DMI y ADX
+    """
+    if len(high) < period + 1:
+        return {
+            'plus_di': None,
+            'minus_di': None,
+            'adx': None,
+            'trend_strength': 0,
+            'trend_direction': 0
+        }
+    
+    # Convertir a arrays de numpy si no lo son
+    high = np.array(high)
+    low = np.array(low)
+    close = np.array(close)
+    
+    # Calcular True Range (TR)
+    tr1 = high[1:] - low[1:]
+    tr2 = np.abs(high[1:] - close[:-1])
+    tr3 = np.abs(low[1:] - close[:-1])
+    tr = np.vstack([tr1, tr2, tr3]).max(axis=0)
+    tr = np.insert(tr, 0, tr[0])  # Añadir el primer valor duplicado para mantener longitud
+    
+    # Calcular directional movement
+    up_move = high[1:] - high[:-1]
+    down_move = low[:-1] - low[1:]
+    
+    # Plus Directional Movement (+DM)
+    plus_dm = np.zeros(len(high))
+    plus_dm[1:] = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
+    
+    # Minus Directional Movement (-DM)
+    minus_dm = np.zeros(len(high))
+    minus_dm[1:] = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+    
+    # Calcular True Range suavizado
+    smoothed_tr = np.zeros(len(tr))
+    smoothed_tr[period-1] = tr[:period].sum()
+    for i in range(period, len(tr)):
+        smoothed_tr[i] = smoothed_tr[i-1] - (smoothed_tr[i-1] / period) + tr[i]
+    
+    # Calcular Plus DM suavizado
+    smoothed_plus_dm = np.zeros(len(plus_dm))
+    smoothed_plus_dm[period-1] = plus_dm[:period].sum()
+    for i in range(period, len(plus_dm)):
+        smoothed_plus_dm[i] = smoothed_plus_dm[i-1] - (smoothed_plus_dm[i-1] / period) + plus_dm[i]
+    
+    # Calcular Minus DM suavizado
+    smoothed_minus_dm = np.zeros(len(minus_dm))
+    smoothed_minus_dm[period-1] = minus_dm[:period].sum()
+    for i in range(period, len(minus_dm)):
+        smoothed_minus_dm[i] = smoothed_minus_dm[i-1] - (smoothed_minus_dm[i-1] / period) + minus_dm[i]
+    
+    # Calcular Plus Directional Indicator (+DI)
+    plus_di = np.zeros(len(high))
+    plus_di[period-1:] = 100 * (smoothed_plus_dm[period-1:] / smoothed_tr[period-1:])
+    
+    # Calcular Minus Directional Indicator (-DI)
+    minus_di = np.zeros(len(high))
+    minus_di[period-1:] = 100 * (smoothed_minus_dm[period-1:] / smoothed_tr[period-1:])
+    
+    # Calcular Directional Index (DX)
+    dx = np.zeros(len(high))
+    for i in range(period-1, len(high)):
+        if (plus_di[i] + minus_di[i]) > 0:
+            dx[i] = 100 * (np.abs(plus_di[i] - minus_di[i]) / (plus_di[i] + minus_di[i]))
+        else:
+            dx[i] = 0
+    
+    # Calcular ADX (Average Directional Index)
+    adx = np.zeros(len(high))
+    adx[2*period-2] = dx[period-1:2*period-1].mean()
+    for i in range(2*period-1, len(high)):
+        adx[i] = ((adx[i-1] * (period - 1)) + dx[i]) / period
+    
+    # Determinar fuerza de la tendencia
+    trend_strength = 0
+    if len(adx) > 0:
+        current_adx = adx[-1]
+        if not np.isnan(current_adx):
+            if current_adx > 50:
+                trend_strength = 3  # Muy fuerte
+            elif current_adx > 30:
+                trend_strength = 2  # Fuerte
+            elif current_adx > 20:
+                trend_strength = 1  # Moderada
+    
+    # Determinar dirección de la tendencia
+    trend_direction = 0
+    if len(plus_di) > 0 and len(minus_di) > 0:
+        current_plus_di = plus_di[-1]
+        current_minus_di = minus_di[-1]
+        if not np.isnan(current_plus_di) and not np.isnan(current_minus_di):
+            if current_plus_di > current_minus_di:
+                trend_direction = 1  # Hacia arriba
+            elif current_minus_di > current_plus_di:
+                trend_direction = -1  # Hacia abajo
+    
+    return {
+        'plus_di': plus_di,
+        'minus_di': minus_di,
+        'adx': adx,
+        'trend_strength': trend_strength,
+        'trend_direction': trend_direction
+    }
 
 class AdvancedIndicators:
     """

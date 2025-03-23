@@ -1,8 +1,11 @@
 """
 Strategies module for trading algorithms.
 
-This module contains various trading strategies that can be used
-for automated trading decision-making.
+Este módulo contiene diversas estrategias de trading que pueden usarse
+para la toma de decisiones automatizada en el sistema Genesis.
+Incluye estrategias básicas así como estrategias avanzadas basadas en
+aprendizaje por refuerzo, indicadores técnicos avanzados, análisis de sentimiento, 
+datos on-chain y simulaciones de Monte Carlo.
 """
 
 from genesis.strategies.base import Strategy, SignalType
@@ -12,7 +15,15 @@ from genesis.strategies.sentiment_based import SentimentStrategy, SocialVolumeSt
 from genesis.strategies.orchestrator import StrategyOrchestrator
 from genesis.strategies.adaptive_scaling_strategy import AdaptiveScalingStrategy, CapitalScalingManager
 
+# Importar estrategias avanzadas
+from genesis.strategies.advanced import (
+    ReinforcementEnsembleStrategy,
+    get_advanced_strategy,
+    list_advanced_strategies
+)
+
 __all__ = [
+    # Estrategias básicas
     "Strategy",
     "SignalType",
     "RSIStrategy",
@@ -23,5 +34,10 @@ __all__ = [
     "SocialVolumeStrategy",
     "StrategyOrchestrator",
     "AdaptiveScalingStrategy",
-    "CapitalScalingManager"
+    "CapitalScalingManager",
+    
+    # Estrategias avanzadas
+    "ReinforcementEnsembleStrategy",
+    "get_advanced_strategy",
+    "list_advanced_strategies"
 ]
