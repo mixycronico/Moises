@@ -13,7 +13,7 @@ import json
 from typing import Dict, Any, List, Optional
 
 from genesis.core.transcendental_exchange_integrator import (
-    MultiExchangeTranscendentalIntegrator,
+    TranscendentalExchangeIntegrator,
     ExchangeID
 )
 
@@ -25,16 +25,15 @@ async def test_exchange_connections():
     """Probar conexiones a múltiples exchanges simultáneamente."""
     logger.info("=== INICIANDO PRUEBA DE CONEXIÓN A EXCHANGES ===")
     
-    # Crear integrador para un subconjunto de exchanges (para prueba rápida)
-    exchanges = [
-        ExchangeID.BINANCE,
-        ExchangeID.COINBASE,
-        ExchangeID.KRAKEN,
-        ExchangeID.BITFINEX,
-        ExchangeID.HUOBI
-    ]
+    # Crear integrador para múltiples exchanges
+    integrador = TranscendentalExchangeIntegrator()
     
-    integrador = MultiExchangeTranscendentalIntegrator(exchanges)
+    # Añadir los exchanges que queremos probar
+    await integrador.add_exchange(ExchangeID.BINANCE)
+    await integrador.add_exchange(ExchangeID.COINBASE)
+    await integrador.add_exchange(ExchangeID.KRAKEN)
+    await integrador.add_exchange(ExchangeID.BITFINEX)
+    await integrador.add_exchange(ExchangeID.HUOBI)
     
     # Inicializar integrador
     init_result = await integrador.initialize()
