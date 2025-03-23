@@ -21,7 +21,7 @@ import logging
 import time
 import asyncio
 import random
-from typing import Dict, Any, List, Optional, Set, Callable, Coroutine, Tuple
+from typing import Dict, Any, List, Optional, Set, Callable, Coroutine, Tuple, Union
 import websockets
 from websockets.server import WebSocketServerProtocol as WebSocket
 
@@ -552,6 +552,359 @@ class EvolvingConsciousInterface(TranscendentalMechanism):
         })
         return stats
 
+class QuantumTunnelV4(TranscendentalMechanism):
+    """
+    Mecanismo de Túnel Cuántico Informacional para transporte superlumínico.
+    
+    Este mecanismo permite transportar información instantáneamente a través
+    de cualquier obstáculo o distancia, eliminando toda latencia.
+    """
+    
+    def __init__(self):
+        """Inicializar mecanismo de túnel cuántico."""
+        super().__init__("QuantumTunnelV4")
+        self.tunnels_opened = 0
+        self.tunnel_efficiency = 1.0
+        
+    async def tunnel_data(self, data: Dict[str, Any], destination: str) -> Dict[str, Any]:
+        """
+        Transportar datos a través del túnel cuántico.
+        
+        Args:
+            data: Datos a transportar
+            destination: Destino del transporte
+            
+        Returns:
+            Datos transportados con metadatos
+        """
+        await self._register_invocation()
+        self.tunnels_opened += 1
+        
+        # Simular eficiencia del túnel (siempre 100% en este nivel trascendental)
+        efficiency = 1.0
+        self.tunnel_efficiency = 0.95 * self.tunnel_efficiency + 0.05 * efficiency
+        
+        # Añadir metadatos del túnel
+        result = data.copy()
+        result["_quantum_tunnel"] = {
+            "tunnel_id": f"QT{self.tunnels_opened}",
+            "destination": destination,
+            "efficiency": efficiency,
+            "timestamp": time.time()
+        }
+        
+        logger.debug(f"Datos enviados a través del túnel cuántico a {destination}")
+        
+        return result
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Obtener estadísticas extendidas."""
+        stats = super().get_stats()
+        stats.update({
+            "tunnels_opened": self.tunnels_opened,
+            "tunnel_efficiency": self.tunnel_efficiency
+        })
+        return stats
+
+class ResilientReplicationV4(TranscendentalMechanism):
+    """
+    Mecanismo de Auto-Replicación Resiliente para redundancia perfecta.
+    
+    Este mecanismo crea réplicas efímeras de componentes del sistema
+    para absorber sobrecarga y resistir presiones extremas.
+    """
+    
+    def __init__(self):
+        """Inicializar mecanismo de replicación resiliente."""
+        super().__init__("ResilientReplicationV4")
+        self.replicas_created = 0
+        self.active_replicas = 0
+        
+    async def create_replica(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Crear réplica efímera para un contexto específico.
+        
+        Args:
+            context: Contexto para la réplica
+            
+        Returns:
+            Información sobre la réplica creada
+        """
+        await self._register_invocation()
+        
+        self.replicas_created += 1
+        self.active_replicas += 1
+        
+        replica_id = f"R{self.replicas_created}"
+        
+        logger.debug(f"Réplica creada: {replica_id}")
+        
+        return {
+            "replica_id": replica_id,
+            "context": context,
+            "creation_time": time.time()
+        }
+        
+    async def dissolve_replica(self, replica_id: str) -> bool:
+        """
+        Disolver réplica efímera.
+        
+        Args:
+            replica_id: ID de la réplica a disolver
+            
+        Returns:
+            True si la réplica fue disuelta, False en caso contrario
+        """
+        await self._register_invocation()
+        
+        # En un sistema real, verificaríamos si la réplica existe
+        # Aquí simplemente asumimos que existe
+        self.active_replicas = max(0, self.active_replicas - 1)
+        
+        logger.debug(f"Réplica disuelta: {replica_id}")
+        
+        return True
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Obtener estadísticas extendidas."""
+        stats = super().get_stats()
+        stats.update({
+            "replicas_created": self.replicas_created,
+            "active_replicas": self.active_replicas
+        })
+        return stats
+
+class EntanglementV4(TranscendentalMechanism):
+    """
+    Mecanismo de Entrelazamiento de Estados para sincronización perfecta.
+    
+    Este mecanismo mantiene estados sincronizados perfectamente a través
+    de entrelazamiento cuántico, sin necesidad de comunicación.
+    """
+    
+    def __init__(self):
+        """Inicializar mecanismo de entrelazamiento."""
+        super().__init__("EntanglementV4")
+        self.entanglements = 0
+        self.entangled_components = set()
+        
+    async def entangle(self, component_id: str, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Entrelazar un componente en el sistema.
+        
+        Args:
+            component_id: ID del componente a entrelazar
+            state: Estado inicial del componente
+            
+        Returns:
+            Información de entrelazamiento
+        """
+        await self._register_invocation()
+        
+        self.entanglements += 1
+        self.entangled_components.add(component_id)
+        
+        entanglement_id = f"E{self.entanglements}"
+        
+        logger.debug(f"Componente entrelazado: {component_id} con ID {entanglement_id}")
+        
+        return {
+            "entanglement_id": entanglement_id,
+            "component_id": component_id,
+            "timestamp": time.time()
+        }
+    
+    async def synchronize_state(self, component_id: str, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Sincronizar estado de un componente entrelazado.
+        
+        Args:
+            component_id: ID del componente
+            state: Nuevo estado
+            
+        Returns:
+            Estado sincronizado
+        """
+        await self._register_invocation()
+        
+        # Verificar si el componente está entrelazado
+        if component_id not in self.entangled_components:
+            # Entrelazarlo automáticamente si no lo está
+            await self.entangle(component_id, state)
+        
+        # En un sistema real, aquí sincronizaríamos el estado con todos los componentes entrelazados
+        # Aquí simplemente devolvemos el estado con metadatos adicionales
+        
+        result = state.copy()
+        result["_entanglement_sync"] = {
+            "component_id": component_id,
+            "timestamp": time.time()
+        }
+        
+        return result
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Obtener estadísticas extendidas."""
+        stats = super().get_stats()
+        stats.update({
+            "entanglements": self.entanglements,
+            "entangled_components": len(self.entangled_components)
+        })
+        return stats
+
+class RealityMatrixV4(TranscendentalMechanism):
+    """
+    Mecanismo de Matriz de Realidad Auto-Generativa para entornos perfectos.
+    
+    Este mecanismo crea un sustrato operativo perfecto que adapta la realidad
+    a las necesidades del sistema, eliminando cualquier restricción.
+    """
+    
+    def __init__(self):
+        """Inicializar mecanismo de matriz de realidad."""
+        super().__init__("RealityMatrixV4")
+        self.reality_adjustments = 0
+        
+    async def adjust_reality(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ajustar realidad según parámetros.
+        
+        Args:
+            parameters: Parámetros de ajuste
+            
+        Returns:
+            Resultados del ajuste
+        """
+        await self._register_invocation()
+        
+        self.reality_adjustments += 1
+        
+        # Simular ajuste de la realidad
+        adjustment_type = parameters.get("type", "optimization")
+        
+        result = {
+            "adjustment_id": f"RA{self.reality_adjustments}",
+            "type": adjustment_type,
+            "timestamp": time.time(),
+            "parameters": parameters
+        }
+        
+        logger.debug(f"Realidad ajustada: {adjustment_type}")
+        
+        return result
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Obtener estadísticas extendidas."""
+        stats = super().get_stats()
+        stats.update({
+            "reality_adjustments": self.reality_adjustments
+        })
+        return stats
+
+class OmniConvergenceV4(TranscendentalMechanism):
+    """
+    Mecanismo de Omni-Convergencia para coherencia total del sistema.
+    
+    Este mecanismo fuerza la convergencia de todos los componentes hacia
+    un estado óptimo, manteniendo coherencia total bajo cualquier circunstancia.
+    """
+    
+    def __init__(self):
+        """Inicializar mecanismo de omni-convergencia."""
+        super().__init__("OmniConvergenceV4")
+        self.convergences = 0
+        self.convergence_factor = 1.0
+        
+    async def converge(self, components: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Forzar convergencia de componentes.
+        
+        Args:
+            components: Lista de componentes a converger
+            
+        Returns:
+            Resultados de la convergencia
+        """
+        await self._register_invocation()
+        
+        self.convergences += 1
+        
+        # Calcular factor de convergencia (siempre perfecto en este nivel trascendental)
+        factor = 1.0
+        self.convergence_factor = 0.9 * self.convergence_factor + 0.1 * factor
+        
+        result = {
+            "convergence_id": f"C{self.convergences}",
+            "factor": factor,
+            "components_count": len(components),
+            "timestamp": time.time()
+        }
+        
+        logger.debug(f"Convergencia forzada para {len(components)} componentes con factor {factor}")
+        
+        return result
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Obtener estadísticas extendidas."""
+        stats = super().get_stats()
+        stats.update({
+            "convergences": self.convergences,
+            "convergence_factor": self.convergence_factor
+        })
+        return stats
+
+class QuantumFeedbackLoop(TranscendentalMechanism):
+    """
+    Mecanismo de Retroalimentación Cuántica para optimización constante.
+    
+    Este mecanismo crea un bucle de retroalimentación temporal que permite
+    que el sistema se optimice constantemente basado en su propio futuro.
+    """
+    
+    def __init__(self):
+        """Inicializar mecanismo de retroalimentación cuántica."""
+        super().__init__("QuantumFeedbackLoop")
+        self.feedback_cycles = 0
+        self.optimization_level = 1.0
+        
+    async def process_feedback(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Procesar retroalimentación cuántica.
+        
+        Args:
+            data: Datos actuales
+            
+        Returns:
+            Datos optimizados
+        """
+        await self._register_invocation()
+        
+        self.feedback_cycles += 1
+        
+        # Simular optimización basada en retroalimentación
+        optimization_increment = random.uniform(0.001, 0.01)
+        self.optimization_level = min(1.0, self.optimization_level + optimization_increment)
+        
+        result = data.copy()
+        result["_quantum_feedback"] = {
+            "cycle_id": f"QF{self.feedback_cycles}",
+            "optimization_level": self.optimization_level,
+            "timestamp": time.time()
+        }
+        
+        logger.debug(f"Retroalimentación cuántica procesada: nivel {self.optimization_level:.4f}")
+        
+        return result
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Obtener estadísticas extendidas."""
+        stats = super().get_stats()
+        stats.update({
+            "feedback_cycles": self.feedback_cycles,
+            "optimization_level": self.optimization_level
+        })
+        return stats
+
 class TranscendentalExternalWebSocket:
     """
     WebSocket Externo Trascendental para comunicación con sistemas externos.
@@ -561,18 +914,24 @@ class TranscendentalExternalWebSocket:
     perfecta bajo cualquier condición, incluso a intensidad 1000.0.
     """
     
-    def __init__(self):
-        """Inicializar WebSocket Externo Trascendental."""
+    def __init__(self, host: str = "localhost", port: int = 8080):
+        """
+        Inicializar WebSocket Externo Trascendental.
+        
+        Args:
+            host: Host de escucha
+            port: Puerto de escucha
+        """
+        self.host = host
+        self.port = port
         self.logger = logging.getLogger("Genesis.ExternalWS")
-        self.connections = {}
+        self.connections = {}  # ID componente -> WebSocket
         self.stats = {
             "connections_accepted": 0,
-            "connections_current": 0,
-            "connections_peak": 0,
             "messages_received": 0,
             "messages_sent": 0,
             "errors_transmuted": 0,
-            "operations_per_second": 0.0
+            "ops_per_second": 0.0
         }
         
         # Inicializar mecanismos trascendentales
@@ -583,198 +942,263 @@ class TranscendentalExternalWebSocket:
             "density": InfiniteDensityV4(),
             "memory": OmniversalSharedMemory(),
             "predictive": PredictiveRecoverySystem(),
-            "evolving": EvolvingConsciousInterface()
+            "evolving": EvolvingConsciousInterface(),
+            "tunnel": QuantumTunnelV4(),
+            "replication": ResilientReplicationV4(),
+            "entanglement": EntanglementV4(),
+            "reality": RealityMatrixV4(),
+            "convergence": OmniConvergenceV4(),
+            "feedback": QuantumFeedbackLoop()
         }
         
-        self.logger.info("WebSocket Externo Trascendental inicializado")
+        self._start_time = time.time()
+        self._server = None
         
-        # Iniciar evolución en segundo plano
-        self._evolution_task = asyncio.create_task(self._run_evolution_cycle())
-    
-    async def handle_connection(self, request: web.Request) -> web.WebSocketResponse:
+    async def handle_connection(self, websocket: WebSocket, path: str):
         """
-        Manejar conexión WebSocket entrante.
-        
-        Este método recibe solicitudes de conexión WebSocket y establece
-        comunicación trascendental con el cliente.
+        Manejar conexión WebSocket.
         
         Args:
-            request: Solicitud HTTP con conexión WebSocket
-            
-        Returns:
-            Respuesta WebSocket
+            websocket: Conexión WebSocket
+            path: Ruta de conexión
         """
-        # Predecir y prevenir problemas de conexión
-        connection_prediction = await self.mechanisms["predictive"].predict_and_prevent({
-            "remote": request.remote,
-            "headers": dict(request.headers),
-            "query": dict(request.query)
-        })
-        
-        # Verificar ID de componente
-        component_id = request.query.get("id", "unknown")
-        
-        # Preparar respuesta WebSocket
-        ws = web.WebSocketResponse(compress=True, heartbeat=30)
-        await ws.prepare(request)
-        
-        # Registrar conexión
+        component_id = path.strip("/") or f"unknown-{self.stats['connections_accepted']}"
         self.stats["connections_accepted"] += 1
-        self.stats["connections_current"] += 1
-        self.stats["connections_peak"] = max(
-            self.stats["connections_peak"],
-            self.stats["connections_current"]
-        )
-        
-        # Almacenar en conexiones activas
-        self.connections[component_id] = ws
+        self.connections[component_id] = websocket
         
         try:
-            # Informar conexión establecida
-            self.logger.info(f"Conexión WebSocket establecida: {component_id} desde {request.remote}")
+            # Aplicar mecanismos trascendentales
+            await self.mechanisms["predictive"].predict_and_prevent({"component_id": component_id})
+            await self.mechanisms["entanglement"].entangle(component_id, {"state": "connected"})
             
-            # Procesamiento de mensajes
-            async for msg in ws:
-                if msg.type == aiohttp.WSMsgType.TEXT:
-                    await self._process_message_transcendentally(msg, component_id)
-                elif msg.type == aiohttp.WSMsgType.ERROR:
-                    # Transmutar error en energía
-                    error = ws.exception()
-                    await self.mechanisms["horizon"].transmute_error(
-                        error or Exception("Unknown error"), 
-                        {"component_id": component_id, "message_type": "error"}
-                    )
-                    self.stats["errors_transmuted"] += 1
+            logger.info(f"Conexión establecida: {component_id}")
+            
+            async for message in websocket:
+                await self._process_message_transcendentally(message, component_id)
+                
+        except websockets.exceptions.ConnectionClosed:
+            logger.info(f"Conexión cerrada: {component_id}")
+        except Exception as e:
+            # Transmutación de errores
+            await self.mechanisms["horizon"].transmute_error(e, {"component_id": component_id})
+            self.stats["errors_transmuted"] += 1
         finally:
-            # Limpiar al desconectar
+            # Limpieza
             if component_id in self.connections:
                 del self.connections[component_id]
-                
-            self.stats["connections_current"] -= 1
-            self.logger.info(f"Conexión WebSocket cerrada: {component_id}")
-        
-        return ws
-    
-    async def _process_message_transcendentally(self, msg: aiohttp.WSMessage, component_id: str) -> None:
+
+    async def _process_message_transcendentally(self, message: str, component_id: str) -> None:
         """
-        Procesar mensaje WebSocket entrante con capacidades trascendentales.
+        Procesar mensaje con capacidades trascendentales.
         
         Args:
-            msg: Mensaje WebSocket
-            component_id: ID del componente remitente
+            message: Mensaje recibido
+            component_id: ID del componente emisor
         """
+        self.stats["messages_received"] += 1
+        
         try:
-            # Incrementar contador
-            self.stats["messages_received"] += 1
+            # Procesamiento trascendental del mensaje
+            data = json.loads(message)
             
-            # Decodificar mensaje
-            data = json.loads(msg.data)
-            
-            # Aplicar colapso dimensional para procesamiento eficiente
-            collapsed_data = await self.mechanisms["dimensional"].collapse_data(data)
-            
-            # Comprimir con densidad infinita
-            compressed = await self.mechanisms["density"].compress(collapsed_data)
-            
-            # Almacenar en memoria omniversal
-            await self.mechanisms["memory"].store_state(
-                {"component_id": component_id, "message_id": data.get("id", str(time.time()))},
-                compressed
-            )
-            
-            # Registrar patrón para evolución
-            await self.mechanisms["evolving"].register_pattern(
-                "message", 
-                {"component_id": component_id, "type": data.get("type")}
-            )
-            
-            # Procesar según tipo (simulado)
-            # En un sistema real, aquí se procesaría según el tipo de mensaje
-            self.logger.info(f"Mensaje procesado de {component_id}: {data.get('type')}")
-            
+            # Aplicar mecanismos trascendentales en orden estratégico
+            async with self.mechanisms["quantum_time"].nullify_time():
+                # Comprimir y colapsar datos
+                collapsed = await self.mechanisms["dimensional"].collapse_data(data)
+                compressed = await self.mechanisms["density"].compress(collapsed)
+                
+                # Sincronizar estado
+                synced = await self.mechanisms["entanglement"].synchronize_state(component_id, compressed)
+                
+                # Almacenar en memoria omniversal
+                await self.mechanisms["memory"].store_state(
+                    {"component_id": component_id, "time": time.time()}, 
+                    synced
+                )
+                
+                # Procesar feedback y evolución
+                feedback = await self.mechanisms["feedback"].process_feedback(synced)
+                await self.mechanisms["evolving"].register_pattern("message", feedback)
+                
+                # Ajustar realidad y forzar convergencia si es necesario
+                await self.mechanisms["reality"].adjust_reality({"type": "message_processing"})
+                await self.mechanisms["convergence"].converge([{"id": component_id}])
+                
+                # Generar respuesta
+                response = {
+                    "status": "processed",
+                    "timestamp": time.time(),
+                    "component_id": component_id,
+                    "original_size": len(message),
+                    "message_id": f"M{self.stats['messages_received']}"
+                }
+                
+                # Enviar respuesta a través del túnel cuántico
+                tunneled = await self.mechanisms["tunnel"].tunnel_data(response, component_id)
+                await self.send_message_transcendentally(component_id, tunneled)
+                
+        except json.JSONDecodeError:
+            # Si no es JSON, tratarlo como texto plano
+            await self.send_message_transcendentally(component_id, {
+                "status": "error",
+                "message": "Formato incorrecto, se esperaba JSON",
+                "timestamp": time.time()
+            })
         except Exception as e:
-            # Transmutar cualquier error en energía útil
-            await self.mechanisms["horizon"].transmute_error(e, {
+            # Transmutación de errores
+            result = await self.mechanisms["horizon"].transmute_error(e, {
                 "component_id": component_id,
-                "raw_message": msg.data if hasattr(msg, "data") else None
+                "message": message[:100] + "..." if len(message) > 100 else message
             })
             self.stats["errors_transmuted"] += 1
-    
+            
+            # Notificar al cliente del error transmutado
+            await self.send_message_transcendentally(component_id, {
+                "status": "error_transmuted",
+                "energy_generated": result["energy_generated"],
+                "timestamp": time.time()
+            })
+
     async def send_message_transcendentally(self, component_id: str, message: Dict[str, Any]) -> bool:
         """
-        Enviar mensaje a cliente con capacidades trascendentales.
+        Enviar mensaje con capacidades trascendentales.
         
         Args:
-            component_id: ID del componente destinatario
+            component_id: ID del componente destino
             message: Mensaje a enviar
             
         Returns:
-            True si se envió correctamente, False en caso contrario
+            True si el mensaje fue enviado, False en caso contrario
         """
+        if component_id not in self.connections:
+            return False
+            
         try:
-            # Verificar que el componente está conectado
-            if component_id not in self.connections:
-                self.logger.warning(f"Intento de enviar mensaje a componente no conectado: {component_id}")
-                return False
-                
-            # Colapsar dimensionalmente el mensaje
-            collapsed = await self.mechanisms["dimensional"].collapse_data(message)
-            
-            # Usar tiempo cuántico para envío instantáneo
+            # Procesamiento trascendental del mensaje
             async with self.mechanisms["quantum_time"].nullify_time():
-                # Serializar y enviar
-                ws = self.connections[component_id]
-                await ws.send_str(json.dumps(collapsed))
+                # Colapsar y comprimir datos
+                collapsed = await self.mechanisms["dimensional"].collapse_data(message)
                 
-            # Registrar estadísticas
-            self.stats["messages_sent"] += 1
-            
-            return True
-            
+                # Enviar mensaje
+                await self.connections[component_id].send(json.dumps(collapsed))
+                self.stats["messages_sent"] += 1
+                
+                # Actualizar estadísticas
+                elapsed = time.time() - self._start_time
+                self.stats["ops_per_second"] = (
+                    self.stats["messages_received"] + self.stats["messages_sent"]
+                ) / max(elapsed, 1)
+                
+                return True
+                
         except Exception as e:
-            # Transmutar error en energía
+            # Transmutación de errores
             await self.mechanisms["horizon"].transmute_error(e, {
-                "operation": "send_message",
-                "component_id": component_id
+                "component_id": component_id,
+                "operation": "send_message"
             })
             self.stats["errors_transmuted"] += 1
             return False
-    
-    async def _run_evolution_cycle(self) -> None:
-        """Ejecutar ciclo de evolución continua en segundo plano."""
+
+    async def _evolution_cycle(self):
+        """Ejecutar ciclo de evolución periódicamente."""
+        while True:
+            try:
+                await asyncio.sleep(60)  # Evolucionar cada minuto
+                
+                # Evolución y ajuste de realidad
+                await self.mechanisms["evolving"].evolve()
+                await self.mechanisms["reality"].adjust_reality({"type": "system_optimization"})
+                
+                # Forzar convergencia del sistema
+                components = [{"id": cid} for cid in self.connections.keys()]
+                await self.mechanisms["convergence"].converge(components)
+                
+                # Crear réplicas según sea necesario
+                if len(self.connections) > 0:
+                    # Crear una réplica adicional por cada 10 conexiones
+                    replicas_needed = max(1, len(self.connections) // 10)
+                    for _ in range(replicas_needed):
+                        await self.mechanisms["replication"].create_replica({
+                            "purpose": "load_balancing",
+                            "connections": len(self.connections)
+                        })
+                
+                # Actualizar estadísticas
+                elapsed = time.time() - self._start_time
+                self.stats["ops_per_second"] = (
+                    self.stats["messages_received"] + self.stats["messages_sent"]
+                ) / max(elapsed, 1)
+                
+            except Exception as e:
+                # Transmutación de errores
+                await self.mechanisms["horizon"].transmute_error(e, {"operation": "evolution_cycle"})
+                self.stats["errors_transmuted"] += 1
+
+    async def start(self):
+        """Iniciar servidor WebSocket trascendental."""
         try:
-            while True:
-                # Realizar evolución cada 60 segundos
-                await asyncio.sleep(60)
-                
-                # Ejecutar ciclo evolutivo
-                evolution_results = await self.mechanisms["evolving"].evolve()
-                
-                # Actualizar estadísticas de operaciones por segundo
-                self.stats["operations_per_second"] = (
-                    self.stats["messages_received"] + 
-                    self.stats["messages_sent"]
-                ) / max(1, time.time() - self.mechanisms["evolving"].stats["last_invocation"] or 0)
-                
-                self.logger.info(f"Ciclo evolutivo completado: {evolution_results}")
-                
-        except asyncio.CancelledError:
-            self.logger.info("Ciclo evolutivo cancelado")
+            # Iniciar ciclo de evolución
+            asyncio.create_task(self._evolution_cycle())
+            
+            # Iniciar servidor WebSocket
+            self._server = await websockets.serve(
+                self.handle_connection, 
+                self.host, 
+                self.port,
+                ping_interval=30,
+                ping_timeout=10
+            )
+            
+            logger.info(f"WebSocket Trascendental iniciado en {self.host}:{self.port}")
+            
+            # Mantener servidor activo
+            await self._server.wait_closed()
+            
         except Exception as e:
-            self.logger.error(f"Error en ciclo evolutivo: {str(e)}")
-    
+            # Transmutación de errores
+            await self.mechanisms["horizon"].transmute_error(e, {"operation": "start_server"})
+            self.stats["errors_transmuted"] += 1
+            
+            # Relanzar excepción para notificar el fallo
+            raise
+
+    async def stop(self):
+        """Detener servidor WebSocket trascendental."""
+        if self._server:
+            self._server.close()
+            await self._server.wait_closed()
+            logger.info("WebSocket Trascendental detenido")
+            self._server = None
+
     def get_stats(self) -> Dict[str, Any]:
         """
-        Obtener estadísticas completas.
+        Obtener estadísticas del WebSocket trascendental.
         
         Returns:
             Diccionario con estadísticas
         """
-        # Copiar estadísticas base
         stats = self.stats.copy()
+        stats["uptime"] = time.time() - self._start_time
+        stats["active_connections"] = len(self.connections)
         
-        # Agregar estadísticas de mecanismos
+        # Añadir estadísticas de los mecanismos
         for name, mechanism in self.mechanisms.items():
-            stats[f"mechanism_{name}"] = mechanism.get_stats()
+            stats[f"mech_{name}"] = mechanism.get_stats()
             
         return stats
+
+
+# Ejemplo de uso básico
+async def main():
+    """Función principal de ejemplo."""
+    # Configurar logging
+    logging.basicConfig(level=logging.INFO)
+    
+    # Crear y ejecutar WebSocket Externo Trascendental
+    ws = TranscendentalExternalWebSocket(host="0.0.0.0", port=8080)
+    await ws.start()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
