@@ -1676,6 +1676,15 @@ class TranscendentalWebSocket:
             self.running = True
             while self.running:
                 try:
+                    # Verificar que tenemos una conexión activa
+                    if not self.websocket:
+                        self.logger.warning("WebSocket no conectado, intentando reconectar...")
+                        await self.connect()
+                        if not self.websocket:
+                            self.logger.error("No se pudo reconectar, esperando...")
+                            await asyncio.sleep(0.1)
+                            continue
+                    
                     # Tiempo de espera infinitesimal
                     raw_message = await asyncio.wait_for(self.websocket.recv(), timeout=1e-12)
                     
@@ -1686,8 +1695,9 @@ class TranscendentalWebSocket:
                     # Procesar con todos los mecanismos trascendentales
                     result = await self.process_message(message)
                     
-                    # Enviar respuesta
-                    await self.websocket.send(json.dumps(result))
+                    # Enviar respuesta si aún estamos conectados
+                    if self.websocket:
+                        await self.websocket.send(json.dumps(result))
                     
                 except asyncio.TimeoutError:
                     # Sin datos disponibles, continuar
@@ -1695,6 +1705,7 @@ class TranscendentalWebSocket:
                     
                 except Exception as e:
                     # Absorber error y transmutarlo en mejora
+                    self.logger.debug(f"Error capturado y transmutado: {e}")
                     await self.mechanisms["horizon"].absorb_and_improve([{"type": "processing_error", "intensity": 5.0}])
                     
         except Exception as e:
@@ -1702,7 +1713,10 @@ class TranscendentalWebSocket:
             
         finally:
             if self.websocket:
-                await self.websocket.close()
+                try:
+                    await self.websocket.close()
+                except Exception as e:
+                    self.logger.debug(f"Error al cerrar websocket: {e}")
             self.running = False
 
 class TranscendentalAPI:
