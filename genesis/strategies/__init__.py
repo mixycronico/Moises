@@ -10,6 +10,7 @@ from genesis.strategies.mean_reversion import RSIStrategy, BollingerBandsStrateg
 from genesis.strategies.trend_following import MovingAverageCrossover, MACDStrategy
 from genesis.strategies.sentiment_based import SentimentStrategy, SocialVolumeStrategy
 from genesis.strategies.orchestrator import StrategyOrchestrator
+from genesis.strategies.adaptive_scaling_strategy import AdaptiveScalingStrategy, CapitalScalingManager
 
 __all__ = [
     "Strategy",
@@ -20,5 +21,7 @@ __all__ = [
     "MACDStrategy",
     "SentimentStrategy",
     "SocialVolumeStrategy",
-    "StrategyOrchestrator"
+    "StrategyOrchestrator",
+    "AdaptiveScalingStrategy",
+    "CapitalScalingManager"
 ]
