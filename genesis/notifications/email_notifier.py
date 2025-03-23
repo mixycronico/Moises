@@ -63,7 +63,12 @@ class EmailNotifier(Component, NotificationChannel):
     def __init__(
         self,
         name: str = "email_notifier",
-        config: Optional[EmailConfig] = None
+        config: Optional[EmailConfig] = None,
+        sender_email: Optional[str] = None,
+        sender_password: Optional[str] = None,
+        smtp_server: str = "smtp.gmail.com",
+        smtp_port: int = 587,
+        use_tls: bool = True
     ):
         """
         Inicializar el notificador de email.
@@ -71,12 +76,29 @@ class EmailNotifier(Component, NotificationChannel):
         Args:
             name: Nombre del componente
             config: Configuración del servidor SMTP
+            sender_email: Correo electrónico del remitente
+            sender_password: Contraseña del remitente
+            smtp_server: Servidor SMTP
+            smtp_port: Puerto SMTP
+            use_tls: Usar TLS para la conexión
         """
         Component.__init__(self, name)
         NotificationChannel.__init__(self, name)
         
         self.logger = logging.getLogger(__name__)
-        self.config = config or EmailConfig()
+        
+        # Si se proporcionan parámetros directos, crear un EmailConfig
+        if sender_email or sender_password or smtp_server or smtp_port:
+            self.config = EmailConfig(
+                host=smtp_server,
+                port=smtp_port,
+                username=sender_email,
+                password=sender_password,
+                use_tls=use_tls,
+                default_sender=sender_email
+            )
+        else:
+            self.config = config or EmailConfig()
         
         # Variables para control de tasa de envío
         self.sent_count = 0
