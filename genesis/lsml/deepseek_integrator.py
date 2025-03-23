@@ -10,11 +10,13 @@ import os
 import json
 import logging
 import asyncio
+import time
 from typing import Dict, Any, List, Optional, Tuple, Union
 from datetime import datetime
 
 from genesis.lsml.deepseek_model import DeepSeekModel
 from genesis.db.transcendental_database import TranscendentalDatabase
+from genesis.lsml import deepseek_config
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,25 @@ class DeepSeekIntegrator:
         if self.initialized:
             return True
         
+        # Verificar si DeepSeek está habilitado
+        if not deepseek_config.is_enabled():
+            logger.info("DeepSeek está desactivado en la configuración, no se inicializará")
+            return False
+        
         try:
+            # Cargar configuración actual
+            config = deepseek_config.get_config()
+            
+            # Actualizar parámetros desde la configuración
+            self.intelligence_factor = config.get("intelligence_factor", self.intelligence_factor)
+            
+            # Si hay cambio de versión del modelo, actualizar
+            current_model = self.deepseek_model.model_version
+            config_model = config.get("model_version")
+            if config_model and config_model != current_model:
+                logger.info(f"Actualizando versión del modelo de {current_model} a {config_model}")
+                self.deepseek_model.model_version = config_model
+            
             # Inicializar el modelo DeepSeek
             model_initialized = await self.deepseek_model.initialize()
             if not model_initialized:
@@ -72,7 +92,8 @@ class DeepSeekIntegrator:
                 return False
             
             self.initialized = True
-            logger.info("DeepSeekIntegrator inicializado correctamente")
+            deepseek_config.set_initialized(True)
+            logger.info(f"DeepSeekIntegrator inicializado correctamente con factor de inteligencia {self.intelligence_factor}")
             return True
         except Exception as e:
             logger.error(f"Error al inicializar DeepSeekIntegrator: {str(e)}")
@@ -101,6 +122,15 @@ class DeepSeekIntegrator:
         Returns:
             Análisis completo de oportunidades de trading
         """
+        # Verificar si DeepSeek está habilitado
+        if not deepseek_config.is_enabled():
+            return {
+                "error": "DeepSeek está desactivado en la configuración",
+                "status": "disabled",
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        # Verificar si el integrador está inicializado
         if not self.initialized:
             success = await self.initialize()
             if not success:

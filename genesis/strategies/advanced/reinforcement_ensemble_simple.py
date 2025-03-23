@@ -20,10 +20,11 @@ from datetime import datetime
 # Importar componentes de DeepSeek si están disponibles
 try:
     from genesis.lsml.deepseek_integrator import DeepSeekIntegrator
+    from genesis.lsml import deepseek_config
     DEEPSEEK_AVAILABLE = True
 except ImportError:
     DEEPSEEK_AVAILABLE = False
-    logging.warning("Módulo DeepSeek no encontrado. La estrategia funcionará sin capacidades avanzadas de análisis.")
+    logging.warning("Módulos DeepSeek no encontrados. La estrategia funcionará sin capacidades avanzadas de análisis.")
 
 # Componentes del Sistema Genesis
 from genesis.strategies.base import Strategy
@@ -221,30 +222,34 @@ class ReinforcementEnsembleStrategy(Strategy):
             # Integración con DeepSeek si está disponible
             deepseek_analysis = None
             if self.use_deepseek and DEEPSEEK_AVAILABLE and self.deepseek_integrator:
-                try:
-                    # Preparar datos para análisis DeepSeek
-                    market_data = {
-                        'symbol': symbol,
-                        'ohlcv': ohlcv,
-                        'indicators': {
-                            'ichimoku': ichimoku,
-                            'bollinger': bollinger,
-                            'dmi': dmi
-                        },
-                        'technical_analysis': analysis_results,
-                        'agent_predictions': agent_predictions,
-                        'consensus': {
-                            'signal': consensus_signal,
-                            'confidence': confidence
+                # Verificar si DeepSeek está habilitado en la configuración global
+                if not deepseek_config.is_enabled():
+                    logger.info(f"DeepSeek está desactivado en la configuración global. Usando análisis tradicional para {symbol}")
+                else:
+                    try:
+                        # Preparar datos para análisis DeepSeek
+                        market_data = {
+                            'symbol': symbol,
+                            'ohlcv': ohlcv,
+                            'indicators': {
+                                'ichimoku': ichimoku,
+                                'bollinger': bollinger,
+                                'dmi': dmi
+                            },
+                            'technical_analysis': analysis_results,
+                            'agent_predictions': agent_predictions,
+                            'consensus': {
+                                'signal': consensus_signal,
+                                'confidence': confidence
+                            }
                         }
-                    }
-                    
-                    # Solicitar análisis avanzado a DeepSeek
-                    logger.info(f"Solicitando análisis DeepSeek para {symbol}")
-                    deepseek_analysis = await self.deepseek_integrator.analyze_trading_opportunities(
-                        market_data=market_data,
-                        news_data=news_data
-                    )
+                        
+                        # Solicitar análisis avanzado a DeepSeek
+                        logger.info(f"Solicitando análisis DeepSeek para {symbol}")
+                        deepseek_analysis = await self.deepseek_integrator.analyze_trading_opportunities(
+                            market_data=market_data,
+                            news_data=news_data
+                        )
                     
                     # Mejorar señales con DeepSeek
                     if deepseek_analysis and 'error' not in deepseek_analysis:
