@@ -1,285 +1,491 @@
 """
-Inicialización del sistema de escalabilidad adaptativa.
+Inicializador del sistema de escalabilidad adaptativa.
 
-Este módulo inicializa el motor de escalabilidad adaptativa y carga
-la configuración necesaria desde la base de datos.
+Este módulo se encarga de la inicialización del sistema de escalabilidad 
+adaptativa, creando las tablas necesarias, cargando configuraciones 
+predeterminadas y restaurando estados previos.
 """
 
 import logging
 import asyncio
+import os
+import json
 from typing import Dict, List, Any, Optional, Tuple
+from datetime import datetime
 
 from genesis.db.transcendental_database import TranscendentalDatabase
-from genesis.db.models.scaling_config_models import ScalingConfiguration
-from genesis.accounting.balance_manager import CapitalScalingManager
+from genesis.db.models.scaling_config_models import (
+    ScalingConfig, 
+    SymbolScalingConfig, 
+    SaturationPoint, 
+    EfficiencyRecord,
+    AllocationHistory, 
+    ModelTrainingHistory,
+    ModelType
+)
 from genesis.accounting.predictive_scaling import PredictiveScalingEngine
-from genesis.utils.config import get_config
+from genesis.accounting.balance_manager import CapitalScalingManager
+from genesis.strategies.adaptive_scaling_strategy import AdaptiveScalingStrategy
+from genesis.utils.helpers import generate_id
+
+# Configurar logging
+logger = logging.getLogger("genesis.init.scaling_initializer")
 
 class ScalingInitializer:
     """
     Inicializador del sistema de escalabilidad adaptativa.
     
-    Este componente se encarga de inicializar el motor de escalabilidad,
-    cargar configuraciones desde la base de datos y preparar el sistema
-    para su uso.
+    Esta clase se encarga de:
+    1. Crear las tablas necesarias en la base de datos
+    2. Cargar configuraciones predeterminadas
+    3. Inicializar los componentes de escalabilidad
+    4. Restaurar estados previos si existen
     """
     
-    def __init__(self, db: Optional[TranscendentalDatabase] = None):
+    def __init__(
+        self,
+        db: Optional[TranscendentalDatabase] = None,
+        config: Optional[Dict[str, Any]] = None
+    ):
         """
-        Inicializar el inicializador de escalabilidad.
+        Inicializar el sistema de escalabilidad adaptativa.
         
         Args:
-            db: Instancia de la base de datos transcendental
+            db: Conexión a la base de datos transcendental
+            config: Configuración adicional
         """
-        self.logger = logging.getLogger('genesis.init.scaling_initializer')
         self.db = db
-        self.config = get_config('scaling')
+        self.config = config or {}
+        self.engine = None
+        self.scaling_manager = None
+        self.adaptive_strategy = None
         
-    async def load_default_config(self) -> ScalingConfiguration:
-        """
-        Cargar configuración por defecto desde la base de datos.
+        self.symbols = self.config.get('symbols', [
+            "BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "DOT/USDT"
+        ])
         
-        Si no existe una configuración por defecto, la crea.
-        
-        Returns:
-            Configuración de escalabilidad
-        """
-        if not self.db:
-            # Crear configuración en memoria
-            return ScalingConfiguration(
-                id=1,
-                name="Default",
-                description="Configuración por defecto",
-                capital_base=10000.0,
-                efficiency_threshold=0.85,
-                max_symbols_small=5,
-                max_symbols_large=15,
-                volatility_adjustment=1.0,
-                correlation_limit=0.7,
-                capital_protection_level=0.95
-            )
-            
-        # Buscar configuración por defecto
-        config_row = await self.db.fetch_one(
-            "SELECT * FROM scaling_configurations WHERE active = true ORDER BY id LIMIT 1"
-        )
-        
-        if config_row:
-            self.logger.info(f"Configuración de escalabilidad cargada: {config_row['name']}")
-            return ScalingConfiguration(**config_row)
-        else:
-            # Crear configuración por defecto
-            self.logger.info("Creando configuración de escalabilidad por defecto")
-            default_config = ScalingConfiguration(
-                name="Default",
-                description="Configuración por defecto",
-                capital_base=10000.0,
-                efficiency_threshold=0.85,
-                max_symbols_small=5,
-                max_symbols_large=15,
-                volatility_adjustment=1.0,
-                correlation_limit=0.7,
-                capital_protection_level=0.95
-            )
-            
-            # Guardar en la base de datos
-            await self.db.execute(
-                "INSERT INTO scaling_configurations (name, description, capital_base, "
-                "efficiency_threshold, max_symbols_small, max_symbols_large, "
-                "volatility_adjustment, correlation_limit, capital_protection_level, "
-                "created_at, updated_at, active) "
-                "VALUES (:name, :description, :capital_base, :efficiency_threshold, "
-                ":max_symbols_small, :max_symbols_large, :volatility_adjustment, "
-                ":correlation_limit, :capital_protection_level, NOW(), NOW(), :active)",
-                default_config.to_dict()
-            )
-            
-            # Obtener el ID generado
-            config_id = await self.db.fetch_val(
-                "SELECT id FROM scaling_configurations WHERE name = :name ORDER BY id DESC LIMIT 1",
-                {"name": default_config.name}
-            )
-            
-            default_config.id = config_id
-            return default_config
-            
-    async def initialize_scaling_manager(self) -> CapitalScalingManager:
-        """
-        Inicializar el gestor de escalabilidad.
-        
-        Returns:
-            Instancia de CapitalScalingManager inicializada
-        """
-        # Cargar configuración
-        config = await self.load_default_config()
-        
-        # Crear motor predictivo
-        predictive_engine = PredictiveScalingEngine(
-            config={
-                "default_model_type": "polynomial",
-                "cache_ttl": 300,
-                "auto_train": True,
-                "confidence_threshold": 0.7
-            }
-        )
-        
-        # Convertir configuración a diccionario
-        config_dict = {
-            "id": config.id,
-            "name": config.name,
-            "capital_base": config.capital_base,
-            "efficiency_threshold": config.efficiency_threshold,
-            "max_symbols_small": config.max_symbols_small,
-            "max_symbols_large": config.max_symbols_large,
-            "volatility_adjustment": config.volatility_adjustment,
-            "correlation_limit": config.correlation_limit,
-            "capital_protection_level": config.capital_protection_level,
-            "db_persistence_enabled": True if self.db else False,
-            "monitoring_enabled": True,
-            "redis_cache_enabled": True,
-            "max_capital": config.capital_base * 100  # 100x el capital base como límite
-        }
-        
-        # Crear gestor de escalabilidad
-        scaling_manager = CapitalScalingManager(
-            config=config_dict,
-            predictive_engine=predictive_engine
-        )
-        
-        # Asignar base de datos
-        scaling_manager.db = self.db
-        
-        # Cargar datos históricos si están disponibles
-        if self.db:
-            await scaling_manager.load_saturation_points()
-            
-            # Cargar registros de eficiencia históricos
-            rows = await self.db.fetch(
-                "SELECT symbol, capital_level, efficiency FROM efficiency_records "
-                "WHERE config_id = :config_id",
-                {"config_id": config.id}
-            )
-            
-            if rows:
-                for row in rows:
-                    predictive_engine.add_efficiency_record(
-                        symbol=row['symbol'],
-                        capital=row['capital_level'],
-                        efficiency=row['efficiency']
-                    )
-                
-                self.logger.info(f"Cargados {len(rows)} registros de eficiencia históricos")
-                
-        self.logger.info(f"Gestor de escalabilidad inicializado con capital base {config.capital_base}")
-        return scaling_manager
+        logger.info(f"ScalingInitializer inicializado con {len(self.symbols)} símbolos")
     
-    async def create_database_tables(self) -> None:
+    async def get_default_config_id(self) -> Optional[str]:
         """
-        Crear tablas en la base de datos.
+        Obtener ID de la configuración predeterminada.
         
-        Este método crea las tablas necesarias si no existen.
+        Returns:
+            ID de la configuración o None si no existe
         """
         if not self.db:
-            self.logger.warning("No hay base de datos disponible para crear tablas")
-            return
+            return None
             
         try:
-            # Crear tablas de configuración de escalabilidad
-            await self.db.execute("""
-                CREATE TABLE IF NOT EXISTS scaling_configurations (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(200) NOT NULL,
-                    description TEXT,
-                    capital_base FLOAT NOT NULL DEFAULT 10000.0,
-                    efficiency_threshold FLOAT NOT NULL DEFAULT 0.85,
-                    max_symbols_small INTEGER NOT NULL DEFAULT 5,
-                    max_symbols_large INTEGER NOT NULL DEFAULT 15,
-                    volatility_adjustment FLOAT NOT NULL DEFAULT 1.0,
-                    correlation_limit FLOAT NOT NULL DEFAULT 0.7,
-                    capital_protection_level FLOAT NOT NULL DEFAULT 0.95,
-                    extended_config JSONB,
-                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                    active BOOLEAN NOT NULL DEFAULT TRUE
-                )
-            """)
+            result = await self.db.fetch_one(
+                "SELECT id FROM scaling_config WHERE is_active = true ORDER BY created_at DESC LIMIT 1"
+            )
             
-            # Tabla de puntos de saturación
-            await self.db.execute("""
+            if result:
+                return result['id']
+                
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo configuración predeterminada: {str(e)}")
+            return None
+    
+    async def create_default_config(self) -> Optional[str]:
+        """
+        Crear configuración predeterminada si no existe.
+        
+        Returns:
+            ID de la configuración creada o None si falló
+        """
+        if not self.db:
+            return None
+            
+        try:
+            # Verificar si ya existe
+            config_id = await self.get_default_config_id()
+            if config_id:
+                logger.info(f"Configuración predeterminada ya existe: {config_id}")
+                return config_id
+                
+            # Crear nueva configuración
+            config_id = generate_id()
+            
+            await self.db.execute(
+                """
+                INSERT INTO scaling_config 
+                (id, name, description, default_model_type, min_efficiency_threshold, 
+                rebalance_threshold, update_interval, optimization_method, 
+                capital_reserve_percentage, min_position_size, max_position_percentage)
+                VALUES 
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                """,
+                config_id,
+                "Configuración predeterminada",
+                "Configuración generada automáticamente al inicializar el sistema",
+                "polynomial",  # ModelType.POLYNOMIAL.value
+                0.5,  # min_efficiency_threshold
+                0.1,  # rebalance_threshold
+                86400,  # update_interval (1 día)
+                "marginal_utility",  # optimization_method
+                0.05,  # capital_reserve_percentage
+                0.0,  # min_position_size
+                0.5   # max_position_percentage
+            )
+            
+            logger.info(f"Configuración predeterminada creada: {config_id}")
+            return config_id
+            
+        except Exception as e:
+            logger.error(f"Error creando configuración predeterminada: {str(e)}")
+            return None
+    
+    async def get_existing_symbols(self, config_id: str) -> List[str]:
+        """
+        Obtener símbolos ya configurados para una configuración.
+        
+        Args:
+            config_id: ID de la configuración
+            
+        Returns:
+            Lista de símbolos configurados
+        """
+        if not self.db or not config_id:
+            return []
+            
+        try:
+            count = await self.db.fetch_val(
+                "SELECT COUNT(*) FROM symbol_scaling_config WHERE scaling_config_id = $1",
+                config_id
+            )
+            
+            if count == 0:
+                return []
+                
+            results = await self.db.fetch(
+                "SELECT symbol FROM symbol_scaling_config WHERE scaling_config_id = $1",
+                config_id
+            )
+            
+            return [row['symbol'] for row in results]
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo símbolos existentes: {str(e)}")
+            return []
+    
+    async def initialize_components(self) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Inicializar componentes principales del sistema de escalabilidad.
+        
+        Returns:
+            Tupla (éxito, componentes)
+        """
+        try:
+            # 1. Inicializar el motor predictivo
+            self.engine = PredictiveScalingEngine(
+                config={
+                    "default_model_type": self.config.get("model_type", "polynomial"),
+                    "cache_ttl": self.config.get("cache_ttl", 300),
+                    "auto_train": True,
+                    "confidence_threshold": self.config.get("confidence_threshold", 0.6)
+                }
+            )
+            
+            # 2. Inicializar el scaling manager
+            self.scaling_manager = CapitalScalingManager(
+                predictive_engine=self.engine,
+                initial_capital=self.config.get("initial_capital", 10000.0),
+                min_efficiency=self.config.get("min_efficiency", 0.5)
+            )
+            self.scaling_manager.db = self.db
+            
+            # 3. Cargar datos históricos si existen
+            if self.db:
+                symbols_str = ", ".join([f"'{s}'" for s in self.symbols])
+                records = await self.db.fetch(
+                    f"""
+                    SELECT symbol, capital_level, efficiency, roi, sharpe, max_drawdown, win_rate
+                    FROM efficiency_records
+                    WHERE symbol IN ({symbols_str})
+                    ORDER BY symbol, capital_level
+                    """
+                )
+                
+                # Cargar registros en el motor
+                for record in records:
+                    self.engine.add_efficiency_record(
+                        symbol=record['symbol'],
+                        capital=record['capital_level'],
+                        efficiency=record['efficiency'],
+                        metrics={
+                            "roi": record.get('roi'),
+                            "sharpe": record.get('sharpe'),
+                            "max_drawdown": record.get('max_drawdown'),
+                            "win_rate": record.get('win_rate')
+                        }
+                    )
+            
+            # 4. Inicializar la estrategia adaptativa
+            self.adaptive_strategy = AdaptiveScalingStrategy(
+                name="Estrategia de Escalabilidad Adaptativa",
+                symbols=self.symbols,
+                config=self.config,
+                db=self.db
+            )
+            
+            # 5. Vincular componentes
+            self.adaptive_strategy.engine = self.engine
+            self.adaptive_strategy.scaling_manager = self.scaling_manager
+            
+            # 6. Inicializar la estrategia
+            await self.adaptive_strategy.initialize()
+            
+            return True, {
+                "engine": self.engine,
+                "scaling_manager": self.scaling_manager,
+                "adaptive_strategy": self.adaptive_strategy
+            }
+            
+        except Exception as e:
+            logger.error(f"Error inicializando componentes: {str(e)}")
+            return False, {}
+    
+    async def setup_database_tables(self) -> bool:
+        """
+        Configurar tablas de base de datos necesarias.
+        
+        Returns:
+            True si la operación fue exitosa
+        """
+        if not self.db:
+            logger.warning("No hay conexión a base de datos, saltando setup_database_tables")
+            return False
+            
+        try:
+            # Crear tabla scaling_config si no existe
+            await self.db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS scaling_config (
+                    id VARCHAR(36) PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL UNIQUE,
+                    description VARCHAR(500),
+                    default_model_type VARCHAR(50) NOT NULL,
+                    min_efficiency_threshold FLOAT NOT NULL DEFAULT 0.5,
+                    rebalance_threshold FLOAT NOT NULL DEFAULT 0.1,
+                    update_interval INTEGER NOT NULL DEFAULT 86400,
+                    optimization_method VARCHAR(50) DEFAULT 'marginal_utility',
+                    capital_reserve_percentage FLOAT DEFAULT 0.05,
+                    min_position_size FLOAT DEFAULT 0.0,
+                    max_position_percentage FLOAT DEFAULT 0.5,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+            
+            # Crear tabla symbol_scaling_config si no existe
+            await self.db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS symbol_scaling_config (
+                    id VARCHAR(36) PRIMARY KEY,
+                    scaling_config_id VARCHAR(36) NOT NULL REFERENCES scaling_config(id) ON DELETE CASCADE,
+                    symbol VARCHAR(20) NOT NULL,
+                    model_type VARCHAR(50),
+                    model_parameters JSONB DEFAULT '{}',
+                    min_efficiency_threshold FLOAT,
+                    max_position_size FLOAT,
+                    max_position_percentage FLOAT,
+                    priority FLOAT DEFAULT 1.0,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(scaling_config_id, symbol)
+                )
+                """
+            )
+            
+            # Crear tabla saturation_points si no existe
+            await self.db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS saturation_points (
-                    id SERIAL PRIMARY KEY,
-                    config_id INTEGER NOT NULL REFERENCES scaling_configurations(id),
-                    symbol VARCHAR(50) NOT NULL,
+                    id VARCHAR(36) PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL UNIQUE,
+                    symbol_config_id VARCHAR(36) REFERENCES symbol_scaling_config(id) ON DELETE CASCADE,
                     saturation_value FLOAT NOT NULL,
-                    determination_method VARCHAR(50),
-                    confidence FLOAT,
-                    last_update TIMESTAMP NOT NULL DEFAULT NOW(),
-                    CONSTRAINT uix_saturation_config_symbol UNIQUE (config_id, symbol)
+                    efficiency_at_saturation FLOAT,
+                    determination_method VARCHAR(50) DEFAULT 'model',
+                    confidence FLOAT DEFAULT 0.5,
+                    first_detected TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """)
+                """
+            )
             
-            # Tabla de historial de asignaciones
-            await self.db.execute("""
-                CREATE TABLE IF NOT EXISTS allocation_history (
-                    id SERIAL PRIMARY KEY,
-                    config_id INTEGER NOT NULL REFERENCES scaling_configurations(id),
-                    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-                    total_capital FLOAT NOT NULL,
-                    scale_factor FLOAT NOT NULL,
-                    instruments_count INTEGER NOT NULL,
-                    capital_utilization FLOAT,
-                    entropy FLOAT,
-                    efficiency_avg FLOAT,
-                    allocations JSONB NOT NULL,
-                    metrics JSONB
-                )
-            """)
-            
-            # Tabla de registros de eficiencia
-            await self.db.execute("""
+            # Crear tabla efficiency_records si no existe
+            await self.db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS efficiency_records (
-                    id SERIAL PRIMARY KEY,
-                    config_id INTEGER NOT NULL REFERENCES scaling_configurations(id),
-                    symbol VARCHAR(50) NOT NULL,
+                    id VARCHAR(36) PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
+                    symbol_config_id VARCHAR(36) REFERENCES symbol_scaling_config(id) ON DELETE SET NULL,
                     capital_level FLOAT NOT NULL,
                     efficiency FLOAT NOT NULL,
-                    timestamp TIMESTAMP NOT NULL DEFAULT NOW(),
-                    market_conditions JSONB,
                     roi FLOAT,
                     sharpe FLOAT,
                     max_drawdown FLOAT,
-                    win_rate FLOAT
+                    win_rate FLOAT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    source VARCHAR(50) DEFAULT 'system'
                 )
-            """)
+                """
+            )
             
-            # Tabla de modelos predictivos
-            await self.db.execute("""
-                CREATE TABLE IF NOT EXISTS predictive_models (
-                    id SERIAL PRIMARY KEY,
-                    config_id INTEGER NOT NULL REFERENCES scaling_configurations(id),
-                    symbol VARCHAR(50) NOT NULL,
+            # Crear índice para efficiency_records
+            await self.db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_efficiency_symbol_capital 
+                ON efficiency_records(symbol, capital_level)
+                """
+            )
+            
+            # Crear tabla allocation_history si no existe
+            await self.db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS allocation_history (
+                    id VARCHAR(36) PRIMARY KEY,
+                    scaling_config_id VARCHAR(36) REFERENCES scaling_config(id) ON DELETE CASCADE,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    total_capital FLOAT NOT NULL,
+                    allocations JSONB NOT NULL,
+                    avg_efficiency FLOAT,
+                    entropy FLOAT,
+                    capital_utilization FLOAT,
+                    rebalance_reason VARCHAR(50)
+                )
+                """
+            )
+            
+            # Crear índice para allocation_history
+            await self.db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_allocation_timestamp
+                ON allocation_history(timestamp)
+                """
+            )
+            
+            # Crear tabla model_training_history si no existe
+            await self.db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS model_training_history (
+                    id VARCHAR(36) PRIMARY KEY,
+                    symbol VARCHAR(20) NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     model_type VARCHAR(50) NOT NULL,
-                    creation_date TIMESTAMP NOT NULL DEFAULT NOW(),
-                    last_update TIMESTAMP NOT NULL DEFAULT NOW(),
-                    training_points INTEGER NOT NULL,
                     parameters JSONB NOT NULL,
                     r_squared FLOAT,
                     mean_error FLOAT,
                     max_error FLOAT,
-                    valid_range_min FLOAT,
-                    valid_range_max FLOAT,
-                    CONSTRAINT uix_model_config_symbol UNIQUE (config_id, symbol)
+                    samples_count INTEGER,
+                    detected_saturation FLOAT
                 )
-            """)
+                """
+            )
             
-            # Índices adicionales para mejor rendimiento
-            await self.db.execute("""
-                CREATE INDEX IF NOT EXISTS idx_efficiency_symbol_capital 
-                ON efficiency_records (symbol, capital_level)
-            """)
+            # Crear índice para model_training_history
+            await self.db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_model_training_symbol
+                ON model_training_history(symbol)
+                """
+            )
             
-            self.logger.info("Tablas de escalabilidad creadas correctamente")
+            logger.info("Tablas de base de datos configuradas correctamente")
+            return True
             
         except Exception as e:
-            self.logger.error(f"Error creando tablas de escalabilidad: {str(e)}")
-            raise
+            logger.error(f"Error configurando tablas de base de datos: {str(e)}")
+            return False
+    
+    async def setup_symbol_configs(self, config_id: str) -> bool:
+        """
+        Configurar símbolos para una configuración específica.
+        
+        Args:
+            config_id: ID de la configuración
+            
+        Returns:
+            True si la operación fue exitosa
+        """
+        if not self.db or not config_id:
+            return False
+            
+        try:
+            # Obtener símbolos ya configurados
+            existing_symbols = await self.get_existing_symbols(config_id)
+            
+            # Determinar símbolos a añadir
+            new_symbols = [s for s in self.symbols if s not in existing_symbols]
+            
+            if not new_symbols:
+                logger.info("No hay nuevos símbolos para configurar")
+                return True
+                
+            # Añadir nuevos símbolos
+            for symbol in new_symbols:
+                symbol_id = generate_id()
+                
+                await self.db.execute(
+                    """
+                    INSERT INTO symbol_scaling_config
+                    (id, scaling_config_id, symbol, model_type, priority)
+                    VALUES ($1, $2, $3, $4, $5)
+                    """,
+                    symbol_id,
+                    config_id,
+                    symbol,
+                    "polynomial",  # Por defecto
+                    1.0  # Prioridad estándar
+                )
+                
+            logger.info(f"Configurados {len(new_symbols)} nuevos símbolos")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error configurando símbolos: {str(e)}")
+            return False
+    
+    async def initialize(self) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Inicializar el sistema de escalabilidad adaptativa completo.
+        
+        Returns:
+            Tupla (éxito, componentes)
+        """
+        try:
+            logger.info("Iniciando inicialización del sistema de escalabilidad adaptativa")
+            
+            # 1. Configurar tablas de base de datos
+            if self.db:
+                db_setup = await self.setup_database_tables()
+                if not db_setup:
+                    logger.warning("Configuración de base de datos fallida")
+                
+                # 2. Crear configuración predeterminada
+                config_id = await self.create_default_config()
+                if config_id:
+                    # 3. Configurar símbolos
+                    await self.setup_symbol_configs(config_id)
+            
+            # 4. Inicializar componentes
+            success, components = await self.initialize_components()
+            
+            if success:
+                logger.info("Sistema de escalabilidad adaptativa inicializado correctamente")
+            else:
+                logger.error("Fallo en la inicialización de componentes")
+                
+            return success, components
+            
+        except Exception as e:
+            logger.error(f"Error en la inicialización: {str(e)}")
+            return False, {}
