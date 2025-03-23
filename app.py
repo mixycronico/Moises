@@ -123,10 +123,33 @@ async def initialize_genesis():
     
     try:
         # Inicializar sistema principal
-        results = await initialize_system(app.config["GENESIS_CONFIG"])
-        genesis_init_results = results
+        # Cargar configuración si existe
+        config = {}
+        if os.path.exists(app.config["GENESIS_CONFIG"]):
+            try:
+                with open(app.config["GENESIS_CONFIG"], 'r') as f:
+                    config = json.load(f)
+            except Exception as e:
+                logger.warning(f"Error al cargar configuración: {e}")
         
-        if results.get("database", False) and results.get("classifier", False):
+        # Añadir configuración para sistema de escalabilidad adaptativa
+        if "scaling_config" not in config:
+            config["scaling_config"] = {
+                "initial_capital": 10000.0,
+                "min_efficiency": 0.5,
+                "default_model_type": "polynomial"
+            }
+            
+        # Inicializar sistema con la nueva función
+        success, components = await initialize_system(transcendental_db, config)
+        
+        # Almacenar resultados
+        genesis_init_results = {
+            "success": success,
+            "components": list(components.keys()) if components else []
+        }
+        
+        if success:
             genesis_initialized = True
             logger.info("Sistema Genesis inicializado correctamente")
             
@@ -135,7 +158,7 @@ async def initialize_genesis():
             
             return True
         else:
-            logger.error(f"Error al inicializar Sistema Genesis: {results}")
+            logger.error(f"Error al inicializar Sistema Genesis: {genesis_init_results}")
             return False
     except Exception as e:
         logger.error(f"Error crítico en inicialización del sistema: {e}")
@@ -421,6 +444,19 @@ def system_status():
             "modo_trascendental": performance_tracker.modo_trascendental
         } if performance_tracker else {"error": "No inicializado"}
         
+        # Obtener estadísticas del sistema de escalabilidad si está disponible
+        scaling_stats = {}
+        if "engine" in genesis_init_results:
+            try:
+                predictive_engine = genesis_init_results["engine"]
+                scaling_stats = {
+                    "saturation_points": predictive_engine.get_saturation_points(),
+                    "model_count": len(predictive_engine.models),
+                    "models": {symbol: model.get_stats() for symbol, model in predictive_engine.models.items()}
+                }
+            except Exception as e:
+                scaling_stats = {"error": f"Error al obtener estadísticas de escalabilidad: {str(e)}"}
+        
         # Generar estado completo
         complete_status = {
             "timestamp": datetime.now().isoformat(),
@@ -429,6 +465,7 @@ def system_status():
             "classifier": classifier_stats,
             "risk_manager": risk_stats,
             "performance_tracker": performance_stats,
+            "scaling_system": scaling_stats,
             "last_classification": last_classification_time.isoformat() if last_classification_time else None,
             "last_performance_update": last_performance_update.isoformat() if last_performance_update else None,
             "hot_cryptos_count": len(crypto_hot_cache)
@@ -440,6 +477,169 @@ def system_status():
         return jsonify({
             "status": "error",
             "message": f"Error al obtener estado del sistema: {str(e)}"
+        }), 500
+
+@app.route('/api/adaptive_scaling', methods=['GET'])
+def adaptive_scaling_status():
+    """Obtener información sobre el sistema de escalabilidad adaptativa."""
+    if not genesis_initialized:
+        return jsonify({
+            "status": "initializing",
+            "message": "Sistema Genesis en proceso de inicialización"
+        }), 202
+    
+    try:
+        # Buscar componentes de escalabilidad en los resultados de inicialización
+        components = genesis_init_results.get("components", [])
+        
+        if "engine" not in components or "scaling_manager" not in components:
+            return jsonify({
+                "status": "not_available",
+                "message": "Sistema de escalabilidad adaptativa no disponible",
+                "components_available": components
+            }), 404
+        
+        # Obtener estadísticas del motor predictivo
+        engine = components["engine"]
+        scaling_manager = components["scaling_manager"]
+        
+        stats = {
+            "engine_stats": engine.get_stats(),
+            "current_capital": scaling_manager.get_current_capital(),
+            "saturation_points": engine.get_saturation_points()
+        }
+        
+        # Obtener modelos disponibles
+        model_info = {}
+        for symbol, model in engine.models.items():
+            if model.is_trained:
+                model_info[symbol] = {
+                    "model_type": model.model_type,
+                    "r_squared": model.r_squared,
+                    "samples_count": model.samples_count,
+                    "parameters": model.parameters,
+                    "saturation_point": model.saturation_point
+                }
+        
+        stats["models"] = model_info
+        
+        return jsonify({
+            "status": "success",
+            "scaling_system": stats
+        })
+    except Exception as e:
+        logger.error(f"Error al obtener información de escalabilidad: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error al obtener información de escalabilidad: {str(e)}"
+        }), 500
+
+@app.route('/api/adaptive_scaling/optimize', methods=['POST'])
+def optimize_allocation():
+    """Optimizar asignación de capital entre instrumentos."""
+    if not genesis_initialized:
+        return jsonify({
+            "status": "initializing",
+            "message": "Sistema Genesis en proceso de inicialización"
+        }), 202
+    
+    try:
+        # Obtener parámetros del request
+        data = request.get_json() or {}
+        symbols = data.get("symbols", ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "DOT/USDT"])
+        total_capital = float(data.get("total_capital", 10000.0))
+        min_efficiency = float(data.get("min_efficiency", 0.5))
+        
+        # Validar parámetros
+        if not symbols or total_capital <= 0 or min_efficiency < 0 or min_efficiency > 1:
+            return jsonify({
+                "status": "error",
+                "message": "Parámetros inválidos",
+                "errors": {
+                    "symbols": "Debe proporcionar al menos un símbolo" if not symbols else None,
+                    "total_capital": "El capital debe ser positivo" if total_capital <= 0 else None,
+                    "min_efficiency": "La eficiencia mínima debe estar entre 0 y 1" if min_efficiency < 0 or min_efficiency > 1 else None
+                }
+            }), 400
+        
+        # Buscar componentes de escalabilidad en los resultados de inicialización
+        components = genesis_init_results.get("components", [])
+        
+        if "engine" not in components:
+            return jsonify({
+                "status": "not_available",
+                "message": "Sistema de escalabilidad adaptativa no disponible",
+                "components_available": components
+            }), 404
+        
+        # Obtener motor predictivo
+        engine = components["engine"]
+        
+        # Ejecutar optimización en otro hilo
+        def wrapper():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                # Ejecutar optimización
+                allocations = loop.run_until_complete(engine.optimize_allocation(
+                    symbols=symbols,
+                    total_capital=total_capital,
+                    min_efficiency=min_efficiency
+                ))
+                
+                result = {
+                    "status": "success",
+                    "allocations": allocations,
+                    "total_allocated": sum(allocations.values()),
+                    "symbols_used": len([a for a in allocations.values() if a > 0]),
+                    "timestamp": datetime.now().isoformat()
+                }
+                
+                # Convertir decimales a flotantes para serialización JSON
+                for symbol, amount in result["allocations"].items():
+                    result["allocations"][symbol] = float(amount)
+                
+                return result
+            except Exception as e:
+                logger.error(f"Error en optimización: {e}")
+                return {
+                    "status": "error",
+                    "message": f"Error en optimización: {str(e)}"
+                }
+            finally:
+                loop.close()
+        
+        # Ejecutar en otro hilo para no bloquear
+        thread = threading.Thread(target=wrapper)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=5.0)  # Esperar hasta 5 segundos por resultado
+        
+        if thread.is_alive():
+            # Si aún está ejecutando, devolver respuesta inmediata
+            return jsonify({
+                "status": "processing",
+                "message": "La optimización está en proceso",
+                "parameters": {
+                    "symbols": symbols,
+                    "total_capital": total_capital,
+                    "min_efficiency": min_efficiency
+                }
+            }), 202
+        
+        # Si terminó, devolver resultado
+        result = wrapper()
+        
+        if result["status"] == "error":
+            return jsonify(result), 500
+        
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error en endpoint de optimización: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error en endpoint de optimización: {str(e)}"
         }), 500
 
 @app.route('/logs')

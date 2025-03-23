@@ -1,84 +1,48 @@
 {
-    "system": {
-        "name": "Genesis Trascendental",
-        "version": "2.0.0",
-        "mode": "SINGULARITY_V4",
-        "environment": "development"
-    },
-    "database": {
-        "url": "DATABASE_URL",
+    "database_config": {
+        "connection_string": null,
         "pool_size": 20,
         "max_overflow": 40,
-        "pool_recycle": 300,
-        "quantum_cache_size": 1000,
-        "temporal_sync_interval": 300
+        "singularity_level": 4
     },
-    "classifier": {
+    "classifier_config": {
         "capital_inicial": 10000.0,
-        "refresh_interval": 900,
-        "classification_threshold": 0.75,
-        "modo_trascendental": "SINGULARITY_V4",
-        "backtest_periods": ["1d", "3d", "7d", "14d", "30d"],
-        "features": {
-            "trend": 0.3,
-            "volatility": 0.2,
-            "volume": 0.15,
-            "momentum": 0.2,
-            "market_cap": 0.15
-        }
+        "modo_trascendental": true,
+        "timeframes": ["1d", "4h", "1h"],
+        "limite_cryptos": 50,
+        "umbral_hot": 0.8
     },
-    "risk_manager": {
+    "risk_config": {
         "capital_inicial": 10000.0,
-        "max_drawdown_permitido": 0.15,
-        "volatilidad_base": 0.02,
-        "capital_allocation_method": "adaptive",
-        "modo_trascendental": "SINGULARITY_V4",
-        "position_sizing": {
-            "default_risk": 0.01,
-            "min_risk": 0.005,
-            "max_risk": 0.02
-        }
+        "nivel_proteccion": 0.8,
+        "modo_trascendental": true
     },
-    "performance_tracker": {
+    "performance_config": {
         "capital_inicial": 10000.0,
-        "benchmark": "crypto_top10",
-        "modo_trascendental": "SINGULARITY_V4",
-        "projection_days": 365,
-        "montecarlo_simulations": 1000
+        "ventana_calculo": 30,
+        "modo_trascendental": true
     },
-    "api": {
-        "refresh_interval": 300,
-        "classification_interval": 900,
-        "port": 5000,
-        "enable_logs": true,
-        "enable_metrics": true
-    },
-    "exchanges": {
-        "binance": {
-            "api_key": "",
-            "api_secret": "",
-            "testnet": true
-        },
-        "coinbase": {
-            "api_key": "",
-            "api_secret": "",
-            "testnet": true
-        }
-    },
-    "notifications": {
-        "enabled": true,
-        "email": {
-            "enabled": false,
-            "smtp_server": "",
-            "smtp_port": 587,
-            "username": "",
-            "password": "",
-            "from_email": ""
-        },
-        "telegram": {
-            "enabled": false,
-            "bot_token": "",
-            "chat_id": ""
-        }
+    "scaling_config": {
+        "initial_capital": 10000.0,
+        "min_efficiency": 0.5,
+        "default_model_type": "polynomial",
+        "polynomial_degree": 2,
+        "efficiency_threshold": 0.7,
+        "saturation_threshold": 0.05,
+        "auto_train": true,
+        "min_position_size": 100.0,
+        "max_position_percentage": 0.3,
+        "symbols": [
+            "BTC/USDT",
+            "ETH/USDT",
+            "SOL/USDT",
+            "ADA/USDT",
+            "DOT/USDT",
+            "AVAX/USDT",
+            "MATIC/USDT",
+            "LINK/USDT",
+            "XRP/USDT",
+            "LTC/USDT"
+        ]
     }
 }
