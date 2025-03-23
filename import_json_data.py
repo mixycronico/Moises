@@ -40,14 +40,15 @@ async def importar_resultados_intensidad(db: TranscendentalDatabase, datos: Dict
         sql = """
             INSERT INTO resultados_intensidad 
             (intensity, average_success_rate, average_essential_rate) 
-            VALUES (%s, %s, %s) 
+            VALUES ($1, $2, $3) 
             RETURNING id
         """
-        params = (
-            datos.get('intensity', 0.0),
-            datos.get('average_success_rate', 0.0),
-            datos.get('average_essential_rate', 0.0)
-        )
+        # Convertir parámetros a un diccionario con índices como claves
+        params = {
+            "1": datos.get('intensity', 0.0),
+            "2": datos.get('average_success_rate', 0.0),
+            "3": datos.get('average_essential_rate', 0.0)
+        }
         
         result = await db.execute_query(lambda: (sql, params))
         if result and len(result) > 0:
@@ -88,19 +89,19 @@ async def importar_ciclos_procesamiento(db: TranscendentalDatabase, ciclos: List
                 (cycle_id, intensity, success_rate, essential_success_rate, 
                 total_events, successful_events, essential_total, essential_successful, 
                 resultados_intensidad_id) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             """
-            params = (
-                ciclo.get('cycle_id', ''),
-                ciclo.get('intensity', 0.0),
-                ciclo.get('success_rate', 0.0),
-                ciclo.get('essential_success_rate', 0.0),
-                ciclo.get('total_events', 0),
-                ciclo.get('successful_events', 0),
-                ciclo.get('essential_total', 0),
-                ciclo.get('essential_successful', 0),
-                resultados_id
-            )
+            params = {
+                "1": ciclo.get('cycle_id', ''),
+                "2": ciclo.get('intensity', 0.0),
+                "3": ciclo.get('success_rate', 0.0),
+                "4": ciclo.get('essential_success_rate', 0.0),
+                "5": ciclo.get('total_events', 0),
+                "6": ciclo.get('successful_events', 0),
+                "7": ciclo.get('essential_total', 0),
+                "8": ciclo.get('essential_successful', 0),
+                "9": resultados_id
+            }
             
             await db.execute_query(lambda: (sql, params))
             count += 1
@@ -136,20 +137,20 @@ async def importar_componentes(db: TranscendentalDatabase, componentes: List[Dic
                 INSERT INTO componentes
                 (component_id, processed, success, failed, radiation_emissions, 
                 transmutations, energy, success_rate, essential, resultados_intensidad_id) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             """
-            params = (
-                componente.get('component_id', ''),
-                componente.get('processed', 0),
-                componente.get('success', 0),
-                componente.get('failed', 0),
-                componente.get('radiation_emissions', 0),
-                componente.get('transmutations', 0),
-                componente.get('energy', 0.0),
-                componente.get('success_rate', 0.0),
-                componente.get('essential', False),
-                resultados_id
-            )
+            params = {
+                "1": componente.get('component_id', ''),
+                "2": componente.get('processed', 0),
+                "3": componente.get('success', 0),
+                "4": componente.get('failed', 0),
+                "5": componente.get('radiation_emissions', 0),
+                "6": componente.get('transmutations', 0),
+                "7": componente.get('energy', 0.0),
+                "8": componente.get('success_rate', 0.0),
+                "9": componente.get('essential', False),
+                "10": resultados_id
+            }
             
             await db.execute_query(lambda: (sql, params))
             count += 1
@@ -189,28 +190,28 @@ async def importar_estadisticas_temporales(db: TranscendentalDatabase, datos: Di
             record_total, record_success, record_failure,
             protection_level, initialized, last_interaction, time_since_last,
             resultados_intensidad_id) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         """
-        params = (
-            stats.get('total_events', 0),
-            stats.get('past_events', 0),
-            stats.get('present_events', 0),
-            stats.get('future_events', 0),
-            stats.get('verify_continuity_total', 0),
-            stats.get('verify_continuity_success', 0),
-            stats.get('verify_continuity_failure', 0),
-            stats.get('induce_anomaly_total', 0),
-            stats.get('induce_anomaly_success', 0),
-            stats.get('induce_anomaly_failure', 0),
-            stats.get('record_total', 0),
-            stats.get('record_success', 0),
-            stats.get('record_failure', 0),
-            stats.get('protection_level', 0),
-            stats.get('initialized', False),
-            stats.get('last_interaction', 0.0),
-            stats.get('time_since_last', 0.0),
-            resultados_id
-        )
+        params = {
+            "1": stats.get('total_events', 0),
+            "2": stats.get('past_events', 0),
+            "3": stats.get('present_events', 0),
+            "4": stats.get('future_events', 0),
+            "5": stats.get('verify_continuity_total', 0),
+            "6": stats.get('verify_continuity_success', 0),
+            "7": stats.get('verify_continuity_failure', 0),
+            "8": stats.get('induce_anomaly_total', 0),
+            "9": stats.get('induce_anomaly_success', 0),
+            "10": stats.get('induce_anomaly_failure', 0),
+            "11": stats.get('record_total', 0),
+            "12": stats.get('record_success', 0),
+            "13": stats.get('record_failure', 0),
+            "14": stats.get('protection_level', 0),
+            "15": stats.get('initialized', False),
+            "16": stats.get('last_interaction', 0.0),
+            "17": stats.get('time_since_last', 0.0),
+            "18": resultados_id
+        }
         
         await db.execute_query(lambda: (sql, params))
         logger.info("Estadísticas temporales importadas correctamente")
@@ -244,9 +245,14 @@ async def importar_eventos_temporales(db: TranscendentalDatabase, eventos: Dict[
                 sql = """
                     INSERT INTO eventos_temporales
                     (timeline, event_type, count, resultados_intensidad_id) 
-                    VALUES (%s, %s, %s, %s)
+                    VALUES ($1, $2, $3, $4)
                 """
-                params = (timeline, event_type, event_count, resultados_id)
+                params = {
+                    "1": timeline,
+                    "2": event_type,
+                    "3": event_count,
+                    "4": resultados_id
+                }
                 
                 await db.execute_query(lambda: (sql, params))
                 count += 1
@@ -290,20 +296,20 @@ async def importar_modelos_eficiencia(db: TranscendentalDatabase, datos: Dict[st
                 (capital_amount, eficiencia_predicha, r2_score, mae, mse,
                 umbral_eficiencia, umbral_saturacion, tipo_modelo, activa,
                 resultados_intensidad_id) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             """
-            params = (
-                modelo.get('capital_amount', 0.0),
-                modelo.get('predicted_efficiency', 0.0),
-                modelo.get('r2_score', 0.0),
-                modelo.get('mae', 0.0),
-                modelo.get('mse', 0.0),
-                modelo.get('efficiency_threshold', 0.0),
-                modelo.get('saturation_threshold', 0.0),
-                modelo.get('model_type', 'polynomial'),
-                modelo.get('active', True),
-                resultados_id
-            )
+            params = {
+                "1": modelo.get('capital_amount', 0.0),
+                "2": modelo.get('predicted_efficiency', 0.0),
+                "3": modelo.get('r2_score', 0.0),
+                "4": modelo.get('mae', 0.0),
+                "5": modelo.get('mse', 0.0),
+                "6": modelo.get('efficiency_threshold', 0.0),
+                "7": modelo.get('saturation_threshold', 0.0),
+                "8": modelo.get('model_type', 'polynomial'),
+                "9": modelo.get('active', True),
+                "10": resultados_id
+            }
             
             await db.execute_query(lambda: (sql, params))
             count += 1
