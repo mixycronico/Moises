@@ -45,9 +45,9 @@ class TranscendentalMechanism:
             "last_invocation": None
         }
         
-    async def _register_invocation(self, success: bool = True) -> None:
+    def _register_invocation(self, success: bool = True) -> None:
         """
-        Registrar invocación del mecanismo.
+        Registrar invocación del mecanismo (versión no asíncrona).
         
         Args:
             success: Si la invocación fue exitosa
@@ -94,7 +94,7 @@ class DimensionalCollapseV4(TranscendentalMechanism):
         Returns:
             Datos colapsados
         """
-        await self._register_invocation()
+        self._register_invocation()
         
         # Simulación del colapso dimensional (proceso instantáneo)
         # En un sistema real esto optimizaría la estructura de datos
