@@ -52,12 +52,12 @@ async def test_core_mechanisms():
     try:
         # Prueba de colapso dimensional
         logger.info("Probando colapso dimensional...")
-        data = {"test": 1, "complex": {"nested": [1, 2, 3]}}
-        result = await collapse.collapse_data(data)
+        magnitude = 1000.0  # Intensidad extrema para la prueba
+        result = await collapse.process(magnitude)
         assert result is not None
         stats["operations"] += 1
         stats["successes"] += 1
-        logger.info("Colapso dimensional exitoso")
+        logger.info(f"Colapso dimensional exitoso con factor {result.get('collapse_factor', 'N/A')}")
         
         # Prueba de horizonte de eventos
         logger.info("Probando horizonte de eventos...")
