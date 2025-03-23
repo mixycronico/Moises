@@ -1,9 +1,9 @@
 """
-Integrador de Reinforcement Learning con el Sistema Genesis.
+Integrador de Reinforcement Learning (RL) para el Sistema Genesis.
 
-Este módulo proporciona la integración entre los agentes RL entrenados
-y el sistema de trading Genesis, permitiendo la toma de decisiones
-en tiempo real basada en políticas optimizadas mediante RL.
+Este módulo proporciona la integración entre los componentes de RL (agentes,
+entornos, evaluación) y el resto del sistema Genesis, permitiendo utilizar
+modelos de RL para tomar decisiones de trading.
 """
 
 import numpy as np
@@ -12,1172 +12,953 @@ import logging
 import time
 import os
 import json
-import asyncio
 from typing import Dict, List, Any, Optional, Tuple, Union, Callable
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 
-# Importaciones para RL
-from genesis.reinforcement_learning.environments import TradingEnvironment, MultiAssetTradingEnvironment
-from genesis.reinforcement_learning.agents import RLAgent, DQNAgent, PPOAgent, SACAgent, RLAgentManager
-from genesis.reinforcement_learning.evaluation import BacktestAgent, HyperparameterOptimizer
-
-class RLStrategyIntegrator:
+class RLIntegrator:
     """
-    Integrador de estrategias de RL con el Sistema Genesis.
+    Integrador para conectar Reinforcement Learning con el Sistema Genesis.
     
-    Esta clase permite utilizar agentes RL entrenados para tomar decisiones
-    de trading en el contexto del sistema Genesis, adaptando estados del
-    sistema a observaciones para el agente y decisiones del agente a acciones
-    en el sistema.
+    Proporciona interfaces para:
+    - Inicializar agentes y entornos
+    - Procesar datos de mercado en tiempo real
+    - Generar señales de trading basadas en modelos de RL
+    - Realizar entrenamiento continuo y optimización
+    - Integrar con otros componentes (sentiment, onchain, etc.)
     """
     
     def __init__(self, 
-                 agent_manager: RLAgentManager,
-                 feature_columns: List[str],
-                 window_size: int = 20,
-                 position_scaling: float = 1.0,
-                 risk_per_trade: float = 0.02,
-                 max_position_value: Optional[float] = None,
-                 use_deterministic_policy: bool = True,
-                 cache_dir: str = './cache/rl_strategies'):
+                 models_path: str = './models/rl',
+                 use_ensemble: bool = True,
+                 max_parallel_inference: int = 4):
         """
-        Inicializar integrador de estrategias RL.
+        Inicializar integrador de RL.
         
         Args:
-            agent_manager: Gestor de agentes RL
-            feature_columns: Columnas de características para observaciones
-            window_size: Tamaño de la ventana para observaciones
-            position_scaling: Factor de escala para tamaños de posición
-            risk_per_trade: Riesgo por operación (porcentaje del capital)
-            max_position_value: Valor máximo de posición (None = sin límite)
-            use_deterministic_policy: Si es True, usa política determinista
-            cache_dir: Directorio para caché
+            models_path: Ruta para guardar/cargar modelos
+            use_ensemble: Si es True, usa un conjunto de agentes
+            max_parallel_inference: Máximo de inferencias paralelas
         """
         self.logger = logging.getLogger(__name__)
-        self.agent_manager = agent_manager
-        self.feature_columns = feature_columns
-        self.window_size = window_size
-        self.position_scaling = position_scaling
-        self.risk_per_trade = risk_per_trade
-        self.max_position_value = max_position_value
-        self.use_deterministic_policy = use_deterministic_policy
-        self.cache_dir = cache_dir
+        self.models_path = models_path
+        self.use_ensemble = use_ensemble
+        self.max_parallel_inference = max_parallel_inference
         
-        # Crear directorio de caché si no existe
-        os.makedirs(cache_dir, exist_ok=True)
+        # Crear directorio si no existe
+        os.makedirs(models_path, exist_ok=True)
         
-        # Estado interno
-        self.active_agent_id = None
-        self.market_history = {}
-        self.current_positions = {}
-        self.current_balance = 0.0
-        self.trade_history = []
+        # Componentes de RL
+        self.agents = {}
+        self.environments = {}
+        self.evaluators = {}
         
-        # Contadores de señales
-        self.signal_counts = {'BUY': 0, 'SELL': 0, 'HOLD': 0}
-        
-        # Cache de observaciones
-        self.observation_cache = {}
-        
-        self.logger.info("Integrador de estrategias RL inicializado")
-    
-    async def set_active_agent(self, agent_id: str) -> bool:
-        """
-        Establecer agente activo para toma de decisiones.
-        
-        Args:
-            agent_id: ID del agente a activar
-            
-        Returns:
-            True si se activó correctamente
-        """
-        if agent_id not in self.agent_manager.agents:
-            raise ValueError(f"Agente no encontrado: {agent_id}")
-        
-        agent = self.agent_manager.agents[agent_id]
-        
-        if agent.model is None:
-            raise ValueError(f"El agente {agent_id} no ha sido entrenado")
-        
-        self.active_agent_id = agent_id
-        self.logger.info(f"Agente activo establecido: {agent_id}")
-        
-        return True
-    
-    def _prepare_observation_single_asset(self, 
-                                       symbol: str, 
-                                       data: pd.DataFrame) -> Dict[str, np.ndarray]:
-        """
-        Preparar observación para un solo activo.
-        
-        Args:
-            symbol: Símbolo del activo
-            data: DataFrame con datos históricos
-            
-        Returns:
-            Observación en formato compatible con el agente
-        """
-        # Verificar si tenemos suficientes datos
-        if len(data) < self.window_size:
-            raise ValueError(f"No hay suficientes datos para {symbol}. Se requieren al menos {self.window_size} registros.")
-        
-        # Obtener últimos datos
-        df_window = data.tail(self.window_size).copy()
-        
-        # Verificar columnas requeridas
-        required_columns = ['open', 'high', 'low', 'close', 'volume']
-        missing = [col for col in required_columns if col not in df_window.columns]
-        if missing:
-            raise ValueError(f"Faltan columnas requeridas en los datos: {missing}")
-        
-        # Verificar columnas de características
-        missing_features = [col for col in self.feature_columns if col not in df_window.columns]
-        if missing_features:
-            self.logger.warning(f"Faltan características: {missing_features}. Se usarán ceros.")
-            for col in missing_features:
-                df_window[col] = 0.0
-        
-        # Normalizar datos
-        current_price = df_window['close'].iloc[-1]
-        
-        # Precios normalizados
-        df_window['open'] = df_window['open'] / current_price - 1.0
-        df_window['high'] = df_window['high'] / current_price - 1.0
-        df_window['low'] = df_window['low'] / current_price - 1.0
-        df_window['close'] = df_window['close'] / current_price - 1.0
-        
-        # Volumen normalizado
-        vol_max = df_window['volume'].max() if df_window['volume'].max() > 0 else 1.0
-        df_window['volume'] = df_window['volume'] / vol_max
-        
-        # Normalizar características adicionales
-        for feature in self.feature_columns:
-            if feature in df_window.columns:
-                if np.any(np.abs(df_window[feature]) > 10):
-                    # Normalizar sobre valor máximo absoluto
-                    max_val = np.max(np.abs(df_window[feature])) if np.max(np.abs(df_window[feature])) > 0 else 1.0
-                    df_window[feature] = df_window[feature] / max_val
-        
-        # Preparar observación para el entorno
-        # Primero características de precio
-        price_features = ['open', 'high', 'low', 'close', 'volume']
-        market_history = df_window[price_features + self.feature_columns].values
-        
-        # Posición actual para este símbolo
-        position = self.current_positions.get(symbol, 0.0)
-        # Normalizar posición (-1 a 1)
-        position_norm = np.clip(position / (self.max_position_value or 1.0), -1.0, 1.0)
-        
-        # Estado de la cuenta
-        account_state = np.array([
-            position_norm,  # Posición normalizada
-            1.0,  # Balance normalizado (siempre 1 para simplicidad)
-            0.0   # PnL normalizada (siempre 0 para simplicidad)
-        ], dtype=np.float32)
-        
-        # Observación final
-        observation = {
-            'market_history': market_history.astype(np.float32),
-            'account_state': account_state
+        # Estadísticas y métricas
+        self.stats = {
+            'inferences': 0,
+            'successful_trades': 0,
+            'unsuccessful_trades': 0,
+            'total_reward': 0.0,
+            'last_train_time': None,
+            'model_versions': {}
         }
         
-        return observation
+        # Configuración
+        self.config = {
+            'training_frequency': 24 * 3600,  # 24 horas en segundos
+            'window_size': 60,  # Tamaño de la ventana temporal para features
+            'portfolio_features': True,  # Incluir features de portfolio
+            'use_sentiment': True,  # Incluir datos de sentimiento
+            'use_onchain': True,  # Incluir datos on-chain
+            'ensemble_weights': {
+                'dqn': 0.3,
+                'ppo': 0.4,
+                'sac': 0.3
+            }
+        }
+        
+        # Thread pool para inferencia
+        self.executor = ThreadPoolExecutor(max_workers=max_parallel_inference)
+        
+        self.logger.info("RLIntegrator inicializado")
     
-    def _prepare_observation_multi_asset(self, 
-                                      data: Dict[str, pd.DataFrame]) -> Dict[str, np.ndarray]:
+    async def load_agents(self, symbols: List[str], agent_types: List[str] = ['dqn', 'ppo', 'sac']) -> Dict[str, Any]:
         """
-        Preparar observación para múltiples activos.
+        Cargar agentes de RL para símbolos específicos.
         
         Args:
-            data: Diccionario con DataFrames de datos históricos
+            symbols: Lista de símbolos (ej. 'BTC/USDT')
+            agent_types: Tipos de agentes a cargar
             
         Returns:
-            Observación en formato compatible con el agente
+            Diccionario con resultados
         """
-        observation = {}
+        results = {}
         
-        # Procesar cada activo
-        for symbol, df in data.items():
-            # Verificar si tenemos suficientes datos
-            if len(df) < self.window_size:
-                raise ValueError(f"No hay suficientes datos para {symbol}. Se requieren al menos {self.window_size} registros.")
-            
-            # Obtener últimos datos
-            df_window = df.tail(self.window_size).copy()
-            
-            # Verificar columnas requeridas
-            required_columns = ['open', 'high', 'low', 'close', 'volume']
-            missing = [col for col in required_columns if col not in df_window.columns]
-            if missing:
-                raise ValueError(f"Faltan columnas requeridas en los datos para {symbol}: {missing}")
-            
-            # Verificar columnas de características
-            missing_features = [col for col in self.feature_columns if col not in df_window.columns]
-            if missing_features:
-                self.logger.warning(f"Faltan características para {symbol}: {missing_features}. Se usarán ceros.")
-                for col in missing_features:
-                    df_window[col] = 0.0
-            
-            # Normalizar datos
-            current_price = df_window['close'].iloc[-1]
-            
-            # Precios normalizados
-            df_window['open'] = df_window['open'] / current_price - 1.0
-            df_window['high'] = df_window['high'] / current_price - 1.0
-            df_window['low'] = df_window['low'] / current_price - 1.0
-            df_window['close'] = df_window['close'] / current_price - 1.0
-            
-            # Volumen normalizado
-            vol_max = df_window['volume'].max() if df_window['volume'].max() > 0 else 1.0
-            df_window['volume'] = df_window['volume'] / vol_max
-            
-            # Normalizar características adicionales
-            for feature in self.feature_columns:
-                if feature in df_window.columns:
-                    if np.any(np.abs(df_window[feature]) > 10):
-                        # Normalizar sobre valor máximo absoluto
-                        max_val = np.max(np.abs(df_window[feature])) if np.max(np.abs(df_window[feature])) > 0 else 1.0
-                        df_window[feature] = df_window[feature] / max_val
-            
-            # Preparar observación para este activo
-            price_features = ['open', 'high', 'low', 'close', 'volume']
-            observation[f'{symbol}_history'] = df_window[price_features + self.feature_columns].values.astype(np.float32)
+        # Importaciones condicionadas aquí para evitar cargar módulos pesados innecesariamente
+        try:
+            # Importar solo cuando sea necesario
+            from .agents import RLAgentFactory, DQNAgent, PPOAgent, SACAgent, AgentConfig
+            from .environments import TradingEnvironment, EnvironmentConfig
+        except ImportError as e:
+            self.logger.error(f"Error importando módulos de RL: {str(e)}")
+            return {"error": f"Error importando módulos de RL: {str(e)}"}
         
-        # Posiciones actuales para todos los activos
-        positions = [self.current_positions.get(symbol, 0.0) for symbol in data.keys()]
-        # Normalizar posiciones (-1 a 1)
-        positions_norm = [np.clip(pos / (self.max_position_value or 1.0), -1.0, 1.0) for pos in positions]
-        
-        # Estado de la cuenta
-        # [posición_1, ..., posición_n, balance, portfolio_value]
-        account_state = np.array(
-            positions_norm + [1.0, 1.0],  # Balance y portfolio normalizados (siempre 1 para simplicidad)
-            dtype=np.float32
-        )
-        
-        observation['account_state'] = account_state
-        
-        return observation
-    
-    def _decode_multi_asset_action(self, action: int, n_assets: int) -> List[int]:
-        """
-        Decodificar acción compuesta en acciones individuales para cada activo.
-        
-        Args:
-            action: Acción compuesta (0 a 3^num_assets - 1)
-            n_assets: Número de activos
+        for symbol in symbols:
+            self.logger.info(f"Cargando agentes para {symbol}")
             
-        Returns:
-            Lista de acciones individuales (0=mantener, 1=comprar, 2=vender)
-        """
-        actions = []
-        remaining = action
-        
-        for _ in range(n_assets):
-            actions.append(remaining % 3)
-            remaining //= 3
-        
-        return actions
-    
-    async def get_trading_decision(self, 
-                             symbols: Union[str, List[str]],
-                             data: Union[pd.DataFrame, Dict[str, pd.DataFrame]],
-                             balance: float) -> Dict[str, Any]:
-        """
-        Obtener decisión de trading del agente RL.
-        
-        Args:
-            symbols: Símbolo o lista de símbolos
-            data: DataFrame o diccionario de DataFrames con datos históricos
-            balance: Balance disponible
+            # Normalizar símbolo para uso en rutas
+            symbol_norm = symbol.replace('/', '_')
             
-        Returns:
-            Diccionario con decisión de trading
-        """
-        if self.active_agent_id is None:
-            raise ValueError("No hay un agente activo establecido")
-        
-        agent = self.agent_manager.agents[self.active_agent_id]
-        
-        # Actualizar balance
-        self.current_balance = balance
-        
-        # Determinar si es single o multi-asset
-        is_multi_asset = isinstance(symbols, list) and len(symbols) > 1
-        
-        # Preparar observación
-        if is_multi_asset:
-            if not isinstance(data, dict):
-                raise ValueError("Para múltiples activos, data debe ser un diccionario")
+            # Configurar entorno
+            env_config = {
+                'symbol': symbol,
+                'window_size': self.config['window_size'],
+                'include_portfolio': self.config['portfolio_features'],
+                'reward_function': 'sharpe',  # sharpe, sortino, pnl, etc.
+                'feature_set': 'full'  # basic, technical, full
+            }
             
-            observation = self._prepare_observation_multi_asset(data)
-            
-            # Cachear datos por símbolo
-            for symbol, df in data.items():
-                self.market_history[symbol] = df.copy()
-        else:
-            # Para un solo activo
-            symbol = symbols if isinstance(symbols, str) else symbols[0]
-            
-            if isinstance(data, dict):
-                df = data[symbol]
-            else:
-                df = data
-            
-            observation = self._prepare_observation_single_asset(symbol, df)
-            
-            # Cachear datos
-            self.market_history[symbol] = df.copy()
-        
-        # Realizar predicción con el agente
-        action, _ = await self.agent_manager.predict(
-            agent_id=self.active_agent_id,
-            observation=observation,
-            deterministic=self.use_deterministic_policy
-        )
-        
-        # Procesar acción
-        decision = {}
-        
-        if is_multi_asset:
-            # Decodificar acción para múltiples activos
-            individual_actions = self._decode_multi_asset_action(action, len(symbols))
-            
-            # Interpretar cada acción
-            for i, (symbol, act) in enumerate(zip(symbols, individual_actions)):
-                current_price = data[symbol]['close'].iloc[-1]
+            try:
+                # Crear entorno compartido para los agentes
+                env = TradingEnvironment(env_config)
+                self.environments[symbol] = env
                 
-                if act == 1:  # Comprar
-                    signal = 'BUY'
-                    # Calcular cantidad según riesgo y balance
-                    amount = self._calculate_position_size(balance, current_price, self.risk_per_trade)
-                elif act == 2:  # Vender
-                    signal = 'SELL'
-                    amount = self._calculate_position_size(balance, current_price, self.risk_per_trade)
-                else:  # Mantener
-                    signal = 'HOLD'
-                    amount = 0.0
+                # Cargar/crear agentes
+                symbol_agents = {}
                 
-                # Guardar decisión para este símbolo
-                decision[symbol] = {
-                    'signal': signal,
-                    'amount': amount,
-                    'price': current_price,
-                    'confidence': 1.0  # Siempre 1.0 para simplicidad
+                for agent_type in agent_types:
+                    # Configuración específica según tipo de agente
+                    if agent_type == 'dqn':
+                        agent_config = {
+                            'learning_rate': 1e-4,
+                            'batch_size': 64,
+                            'memory_size': 10000,
+                            'gamma': 0.99,
+                            'epsilon_start': 1.0,
+                            'epsilon_end': 0.05,
+                            'epsilon_decay': 0.995
+                        }
+                    elif agent_type == 'ppo':
+                        agent_config = {
+                            'learning_rate': 3e-4,
+                            'gamma': 0.99,
+                            'gae_lambda': 0.95,
+                            'clip_ratio': 0.2,
+                            'value_coeff': 0.5,
+                            'entropy_coeff': 0.01
+                        }
+                    elif agent_type == 'sac':
+                        agent_config = {
+                            'learning_rate': 3e-4,
+                            'alpha': 0.2,
+                            'gamma': 0.99,
+                            'tau': 0.005,
+                            'buffer_size': 10000,
+                            'batch_size': 64
+                        }
+                    else:
+                        self.logger.warning(f"Tipo de agente no soportado: {agent_type}")
+                        continue
+                    
+                    # Ruta del modelo
+                    model_path = os.path.join(self.models_path, f"{symbol_norm}_{agent_type}")
+                    
+                    # Crear configuración de agente
+                    config = AgentConfig(
+                        agent_type=agent_type,
+                        model_path=model_path,
+                        env=env,
+                        **agent_config
+                    )
+                    
+                    # Crear agente
+                    agent = RLAgentFactory.create_agent(config)
+                    
+                    # Verificar si existe un modelo guardado
+                    if os.path.exists(model_path) or os.path.exists(f"{model_path}.zip"):
+                        # Cargar modelo existente
+                        try:
+                            agent.load(model_path)
+                            self.logger.info(f"Modelo {agent_type} cargado para {symbol}")
+                            self.stats['model_versions'][f"{symbol}_{agent_type}"] = agent.get_version()
+                        except Exception as e:
+                            self.logger.error(f"Error cargando modelo {agent_type} para {symbol}: {str(e)}")
+                            # Crear nuevo modelo si no se puede cargar
+                            agent.save(model_path)
+                            self.stats['model_versions'][f"{symbol}_{agent_type}"] = "initial"
+                    else:
+                        # Crear y guardar nuevo modelo
+                        agent.save(model_path)
+                        self.logger.info(f"Nuevo modelo {agent_type} creado para {symbol}")
+                        self.stats['model_versions'][f"{symbol}_{agent_type}"] = "initial"
+                    
+                    # Añadir a la colección
+                    symbol_agents[agent_type] = agent
+                
+                # Guardar agentes
+                self.agents[symbol] = symbol_agents
+                
+                # Añadir al resultado
+                results[symbol] = {
+                    'status': 'loaded',
+                    'agent_types': list(symbol_agents.keys())
                 }
                 
-                # Actualizar conteo de señales
-                self.signal_counts[signal] = self.signal_counts.get(signal, 0) + 1
-        else:
-            # Para un solo activo
-            symbol = symbols if isinstance(symbols, str) else symbols[0]
-            current_price = df['close'].iloc[-1]
+            except Exception as e:
+                self.logger.error(f"Error cargando agentes para {symbol}: {str(e)}")
+                results[symbol] = {
+                    'status': 'error',
+                    'error': str(e)
+                }
+        
+        return results
+    
+    async def process_market_data(self, 
+                           symbol: str, 
+                           data: pd.DataFrame,
+                           portfolio_state: Optional[Dict[str, Any]] = None,
+                           sentiment_data: Optional[Dict[str, Any]] = None,
+                           onchain_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Procesar datos de mercado para generar señales de trading con RL.
+        
+        Args:
+            symbol: Símbolo (ej. 'BTC/USDT')
+            data: DataFrame con datos OHLCV
+            portfolio_state: Estado actual del portfolio (opcional)
+            sentiment_data: Datos de sentimiento (opcional)
+            onchain_data: Datos on-chain (opcional)
             
-            if action == 1:  # Comprar
-                signal = 'BUY'
-                # Calcular cantidad según riesgo y balance
-                amount = self._calculate_position_size(balance, current_price, self.risk_per_trade)
-            elif action == 2:  # Vender
-                signal = 'SELL'
-                amount = self._calculate_position_size(balance, current_price, self.risk_per_trade)
-            else:  # Mantener
-                signal = 'HOLD'
-                amount = 0.0
-            
-            # Guardar decisión
-            decision[symbol] = {
-                'signal': signal,
-                'amount': amount,
-                'price': current_price,
-                'confidence': 1.0  # Siempre 1.0 para simplicidad
+        Returns:
+            Diccionario con señales y metadatos
+        """
+        start_time = time.time()
+        self.logger.info(f"Procesando datos de {symbol} con RL ({len(data)} registros)")
+        
+        # Verificar si tenemos agentes para este símbolo
+        if symbol not in self.agents:
+            self.logger.warning(f"No hay agentes cargados para {symbol}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': 'No hay agentes cargados para este símbolo'
             }
-            
-            # Actualizar conteo de señales
-            self.signal_counts[signal] = self.signal_counts.get(signal, 0) + 1
         
-        # Registrar decisión
-        timestamp = datetime.now().isoformat()
-        decision_record = {
-            'timestamp': timestamp,
-            'symbols': symbols if isinstance(symbols, list) else [symbols],
-            'decision': decision,
-            'agent_id': self.active_agent_id,
-            'balance': balance
-        }
+        # Verificar si hay suficientes datos
+        if len(data) < self.config['window_size']:
+            self.logger.warning(f"Datos insuficientes para {symbol}: {len(data)} < {self.config['window_size']}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': f"Datos insuficientes: {len(data)} < {self.config['window_size']}"
+            }
         
-        # Guardar en historial
-        self.trade_history.append(decision_record)
-        
-        # Si hay muchos registros, limitar
-        if len(self.trade_history) > 1000:
-            self.trade_history = self.trade_history[-1000:]
-        
-        return decision
-    
-    def _calculate_position_size(self, 
-                               balance: float, 
-                               current_price: float, 
-                               risk_per_trade: float) -> float:
-        """
-        Calcular tamaño de posición basado en riesgo.
-        
-        Args:
-            balance: Balance disponible
-            current_price: Precio actual
-            risk_per_trade: Riesgo por operación (porcentaje del capital)
-            
-        Returns:
-            Tamaño de posición
-        """
-        # Calcular valor monetario del riesgo
-        risk_amount = balance * risk_per_trade
-        
-        # Calcular tamaño en unidades
-        position_size = risk_amount / current_price
-        
-        # Aplicar escalado
-        position_size *= self.position_scaling
-        
-        # Limitar por valor máximo si está definido
-        if self.max_position_value is not None and position_size * current_price > self.max_position_value:
-            position_size = self.max_position_value / current_price
-        
-        return position_size
-    
-    async def update_position(self, symbol: str, position: float) -> None:
-        """
-        Actualizar posición actual para un símbolo.
-        
-        Args:
-            symbol: Símbolo del activo
-            position: Nueva posición
-        """
-        self.current_positions[symbol] = position
-    
-    def get_signal_stats(self) -> Dict[str, int]:
-        """
-        Obtener estadísticas de señales generadas.
-        
-        Returns:
-            Diccionario con conteo de señales
-        """
-        return self.signal_counts
-    
-    async def save_state(self, filepath: Optional[str] = None) -> str:
-        """
-        Guardar estado del integrador.
-        
-        Args:
-            filepath: Ruta donde guardar el estado (opcional)
-            
-        Returns:
-            Ruta donde se guardó el estado
-        """
-        # Generar ruta si no se proporciona
-        if filepath is None:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filepath = os.path.join(self.cache_dir, f"strategy_state_{timestamp}.json")
-        
-        # Preparar estado
-        state = {
-            'active_agent_id': self.active_agent_id,
-            'current_positions': self.current_positions,
-            'current_balance': self.current_balance,
-            'signal_counts': self.signal_counts,
-            'trade_history': self.trade_history[-100:],  # Últimos 100 para no hacer archivo muy grande
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Guardar estado
-        with open(filepath, 'w') as f:
-            json.dump(state, f, indent=2)
-        
-        self.logger.info(f"Estado guardado en {filepath}")
-        
-        return filepath
-    
-    async def load_state(self, filepath: str) -> bool:
-        """
-        Cargar estado del integrador.
-        
-        Args:
-            filepath: Ruta desde donde cargar el estado
-            
-        Returns:
-            True si se cargó correctamente
-        """
         try:
-            # Cargar estado
-            with open(filepath, 'r') as f:
-                state = json.load(f)
+            # Preparar datos para el entorno
+            env = self.environments[symbol]
             
-            # Restaurar estado
-            self.active_agent_id = state.get('active_agent_id')
-            self.current_positions = state.get('current_positions', {})
-            self.current_balance = state.get('current_balance', 0.0)
-            self.signal_counts = state.get('signal_counts', {'BUY': 0, 'SELL': 0, 'HOLD': 0})
-            self.trade_history = state.get('trade_history', [])
+            # Actualizar datos en el entorno
+            env.update_data(data)
             
-            self.logger.info(f"Estado cargado desde {filepath}")
-            return True
+            # Añadir datos de portfolio si están disponibles
+            if portfolio_state and self.config['portfolio_features']:
+                env.update_portfolio_state(portfolio_state)
+            
+            # Añadir datos de sentimiento si están disponibles y configurados
+            if sentiment_data and self.config['use_sentiment']:
+                env.add_sentiment_features(sentiment_data)
+            
+            # Añadir datos on-chain si están disponibles y configurados
+            if onchain_data and self.config['use_onchain']:
+                env.add_onchain_features(onchain_data)
+            
+            # Obtener estado actual
+            state = env.get_current_state()
+            
+            # Si usamos ensemble, obtener acción de cada agente y combinar
+            if self.use_ensemble and len(self.agents[symbol]) > 1:
+                actions = {}
+                confidence = {}
+                
+                # Obtener acciones de cada agente
+                for agent_type, agent in self.agents[symbol].items():
+                    action_result = await self._get_agent_action(agent, state)
+                    actions[agent_type] = action_result['action']
+                    confidence[agent_type] = action_result['confidence']
+                
+                # Combinar acciones según pesos configurados
+                final_action, action_probs = self._combine_actions(actions, confidence)
+                
+                signal = {
+                    'symbol': symbol,
+                    'timestamp': datetime.now().isoformat(),
+                    'action': final_action,
+                    'action_name': self._action_to_name(final_action),
+                    'confidence': float(action_probs[final_action]),
+                    'action_distribution': {k: float(v) for k, v in action_probs.items()},
+                    'agent_actions': {a_type: self._action_to_name(a) for a_type, a in actions.items()},
+                    'agent_confidence': {a_type: float(c) for a_type, c in confidence.items()},
+                    'processing_time': time.time() - start_time,
+                    'status': 'success'
+                }
+            
+            # Si no usamos ensemble, usar el agente principal (por defecto PPO)
+            else:
+                # Determinar agente principal
+                primary_agent_type = 'ppo' if 'ppo' in self.agents[symbol] else list(self.agents[symbol].keys())[0]
+                agent = self.agents[symbol][primary_agent_type]
+                
+                # Obtener acción
+                action_result = await self._get_agent_action(agent, state)
+                
+                signal = {
+                    'symbol': symbol,
+                    'timestamp': datetime.now().isoformat(),
+                    'action': action_result['action'],
+                    'action_name': self._action_to_name(action_result['action']),
+                    'confidence': float(action_result['confidence']),
+                    'agent_type': primary_agent_type,
+                    'processing_time': time.time() - start_time,
+                    'status': 'success'
+                }
+            
+            # Incrementar contador de inferencias
+            self.stats['inferences'] += 1
+            
+            return signal
             
         except Exception as e:
-            self.logger.error(f"Error cargando estado: {str(e)}")
-            return False
-    
-    def plot_decision_history(self, symbol: Optional[str] = None, save_path: Optional[str] = None) -> str:
-        """
-        Generar gráfico de historial de decisiones.
-        
-        Args:
-            symbol: Símbolo específico a graficar (None = todos)
-            save_path: Ruta donde guardar el gráfico
-            
-        Returns:
-            Imagen en formato base64
-        """
-        # Filtrar decisiones por símbolo si se especifica
-        if symbol:
-            decisions = [
-                d for d in self.trade_history 
-                if symbol in d['symbols'] and symbol in d['decision']
-            ]
-            
-            if not decisions:
-                return ""
-            
-            # Extraer datos relevantes
-            timestamps = [datetime.fromisoformat(d['timestamp']) for d in decisions]
-            signals = [d['decision'][symbol]['signal'] for d in decisions]
-            prices = [d['decision'][symbol]['price'] for d in decisions]
-            
-            # Crear figura
-            fig, ax = plt.subplots(figsize=(12, 6))
-            
-            # Gráfico de precio
-            ax.plot(timestamps, prices, label='Precio', color='blue')
-            
-            # Marcar señales
-            buy_times = [t for t, s in zip(timestamps, signals) if s == 'BUY']
-            buy_prices = [p for p, s in zip(prices, signals) if s == 'BUY']
-            
-            sell_times = [t for t, s in zip(timestamps, signals) if s == 'SELL']
-            sell_prices = [p for p, s in zip(prices, signals) if s == 'SELL']
-            
-            ax.scatter(buy_times, buy_prices, marker='^', color='green', label='Compra')
-            ax.scatter(sell_times, sell_prices, marker='v', color='red', label='Venta')
-            
-            # Formato
-            ax.set_title(f'Historial de Decisiones para {symbol}')
-            ax.set_xlabel('Fecha')
-            ax.set_ylabel('Precio')
-            ax.legend()
-            ax.grid(True, alpha=0.3)
-            
-            fig.tight_layout()
-            
-            # Convertir a base64
-            buffer = BytesIO()
-            plt.savefig(buffer, format='png')
-            buffer.seek(0)
-            img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
-            plt.close()
-            
-            # Guardar gráfico si se solicita
-            if save_path:
-                with open(save_path, 'wb') as f:
-                    f.write(base64.b64decode(img_str))
-                
-                self.logger.info(f"Gráfico guardado en {save_path}")
-            
-            return img_str
-            
-        else:
-            # Para todos los símbolos, gráfico de conteo de señales
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            # Datos
-            signals = ['BUY', 'SELL', 'HOLD']
-            counts = [self.signal_counts.get(s, 0) for s in signals]
-            
-            # Gráfico de barras
-            ax.bar(signals, counts, color=['green', 'red', 'blue'])
-            
-            # Formato
-            ax.set_title('Distribución de Señales')
-            ax.set_xlabel('Señal')
-            ax.set_ylabel('Conteo')
-            ax.grid(True, alpha=0.3, axis='y')
-            
-            fig.tight_layout()
-            
-            # Convertir a base64
-            buffer = BytesIO()
-            plt.savefig(buffer, format='png')
-            buffer.seek(0)
-            img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
-            plt.close()
-            
-            # Guardar gráfico si se solicita
-            if save_path:
-                with open(save_path, 'wb') as f:
-                    f.write(base64.b64decode(img_str))
-                
-                self.logger.info(f"Gráfico guardado en {save_path}")
-            
-            return img_str
-    
-    def get_performance_stats(self) -> Dict[str, Any]:
-        """
-        Obtener estadísticas de rendimiento del integrador.
-        
-        Returns:
-            Diccionario con estadísticas
-        """
-        # Estadísticas básicas
-        stats = {
-            'total_decisions': len(self.trade_history),
-            'signal_counts': self.signal_counts.copy(),
-            'active_symbols': len(self.current_positions),
-            'active_positions': self.current_positions.copy()
-        }
-        
-        # Calcular ratios
-        total_signals = sum(self.signal_counts.values())
-        if total_signals > 0:
-            stats['buy_ratio'] = self.signal_counts.get('BUY', 0) / total_signals
-            stats['sell_ratio'] = self.signal_counts.get('SELL', 0) / total_signals
-            stats['hold_ratio'] = self.signal_counts.get('HOLD', 0) / total_signals
-        
-        return stats
-
-
-class RLStrategyManager:
-    """
-    Gestor de estrategias de Reinforcement Learning.
-    
-    Esta clase permite gestionar múltiples estrategias basadas en RL,
-    facilitando su entrenamiento, evaluación y distribución de capital.
-    """
-    
-    def __init__(self, 
-                 agent_manager: RLAgentManager,
-                 db: Optional[Any] = None,
-                 cache_dir: str = './cache/rl_strategies',
-                 logs_dir: str = './logs/rl_strategies'):
-        """
-        Inicializar gestor de estrategias RL.
-        
-        Args:
-            agent_manager: Gestor de agentes RL
-            db: Conexión a base de datos (opcional)
-            cache_dir: Directorio para caché
-            logs_dir: Directorio para logs
-        """
-        self.logger = logging.getLogger(__name__)
-        self.agent_manager = agent_manager
-        self.db = db
-        self.cache_dir = cache_dir
-        self.logs_dir = logs_dir
-        
-        # Crear directorios si no existen
-        os.makedirs(cache_dir, exist_ok=True)
-        os.makedirs(logs_dir, exist_ok=True)
-        
-        # Integradores de estrategia
-        self.integrators = {}
-        
-        # Asignación de capital
-        self.capital_allocation = {}
-        
-        self.logger.info("Gestor de estrategias RL inicializado")
-    
-    async def create_strategy(self, 
-                        strategy_id: str,
-                        feature_columns: List[str],
-                        window_size: int = 20,
-                        position_scaling: float = 1.0,
-                        risk_per_trade: float = 0.02,
-                        max_position_value: Optional[float] = None) -> str:
-        """
-        Crear una nueva estrategia RL.
-        
-        Args:
-            strategy_id: Identificador para la estrategia
-            feature_columns: Columnas de características para observaciones
-            window_size: Tamaño de la ventana para observaciones
-            position_scaling: Factor de escala para tamaños de posición
-            risk_per_trade: Riesgo por operación (porcentaje del capital)
-            max_position_value: Valor máximo de posición (None = sin límite)
-            
-        Returns:
-            ID de la estrategia creada
-        """
-        # Verificar si la estrategia ya existe
-        if strategy_id in self.integrators:
-            raise ValueError(f"La estrategia {strategy_id} ya existe")
-        
-        # Crear integrador de estrategia
-        integrator = RLStrategyIntegrator(
-            agent_manager=self.agent_manager,
-            feature_columns=feature_columns,
-            window_size=window_size,
-            position_scaling=position_scaling,
-            risk_per_trade=risk_per_trade,
-            max_position_value=max_position_value,
-            cache_dir=os.path.join(self.cache_dir, strategy_id)
-        )
-        
-        # Registrar integrador
-        self.integrators[strategy_id] = integrator
-        
-        # Asignación inicial de capital
-        self.capital_allocation[strategy_id] = 0.0
-        
-        self.logger.info(f"Estrategia {strategy_id} creada")
-        
-        return strategy_id
-    
-    async def set_strategy_agent(self, 
-                           strategy_id: str, 
-                           agent_id: str) -> bool:
-        """
-        Establecer agente para una estrategia.
-        
-        Args:
-            strategy_id: ID de la estrategia
-            agent_id: ID del agente
-            
-        Returns:
-            True si se estableció correctamente
-        """
-        # Verificar si la estrategia existe
-        if strategy_id not in self.integrators:
-            raise ValueError(f"Estrategia no encontrada: {strategy_id}")
-        
-        # Obtener integrador
-        integrator = self.integrators[strategy_id]
-        
-        # Establecer agente activo
-        success = await integrator.set_active_agent(agent_id)
-        
-        if success:
-            self.logger.info(f"Agente {agent_id} establecido para estrategia {strategy_id}")
-        
-        return success
-    
-    async def allocate_capital(self, 
-                         allocation: Dict[str, float],
-                         total_capital: Optional[float] = None) -> Dict[str, float]:
-        """
-        Asignar capital entre estrategias.
-        
-        Args:
-            allocation: Diccionario con porcentajes de asignación por estrategia
-            total_capital: Capital total disponible (opcional)
-            
-        Returns:
-            Diccionario con asignación monetaria por estrategia
-        """
-        # Verificar si todas las estrategias existen
-        for strategy_id in allocation:
-            if strategy_id not in self.integrators:
-                raise ValueError(f"Estrategia no encontrada: {strategy_id}")
-        
-        # Normalizar porcentajes
-        total_percentage = sum(allocation.values())
-        
-        if total_percentage <= 0:
-            raise ValueError("La suma de porcentajes debe ser mayor que 0")
-        
-        normalized_allocation = {
-            k: v / total_percentage for k, v in allocation.items()
-        }
-        
-        # Asignar capital monetario si se proporciona
-        if total_capital is not None:
-            monetary_allocation = {
-                k: v * total_capital for k, v in normalized_allocation.items()
+            self.logger.error(f"Error procesando datos de {symbol} con RL: {str(e)}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
             }
-            
-            # Actualizar asignación
-            self.capital_allocation = monetary_allocation
-            
-            self.logger.info(f"Capital asignado: {self.capital_allocation}")
-            
-            return monetary_allocation
-        else:
-            # Solo actualizar porcentajes
-            self.capital_allocation = normalized_allocation
-            
-            self.logger.info(f"Porcentajes asignados: {self.capital_allocation}")
-            
-            return normalized_allocation
     
-    async def get_trading_decision(self, 
-                             strategy_id: str,
-                             symbols: Union[str, List[str]],
-                             data: Union[pd.DataFrame, Dict[str, pd.DataFrame]]) -> Dict[str, Any]:
+    async def _get_agent_action(self, agent, state) -> Dict[str, Any]:
         """
-        Obtener decisión de trading de una estrategia.
+        Obtener acción de un agente de forma asíncrona.
         
         Args:
-            strategy_id: ID de la estrategia
-            symbols: Símbolo o lista de símbolos
-            data: DataFrame o diccionario de DataFrames con datos históricos
+            agent: Instancia del agente
+            state: Estado actual
             
         Returns:
-            Diccionario con decisión de trading
+            Diccionario con acción y confianza
         """
-        # Verificar si la estrategia existe
-        if strategy_id not in self.integrators:
-            raise ValueError(f"Estrategia no encontrada: {strategy_id}")
-        
-        # Obtener integrador
-        integrator = self.integrators[strategy_id]
-        
-        # Obtener balance asignado
-        balance = self.capital_allocation.get(strategy_id, 0.0)
-        
-        # Obtener decisión
-        decision = await integrator.get_trading_decision(
-            symbols=symbols,
-            data=data,
-            balance=balance
+        # Ejecutar inferencia en un hilo separado para no bloquear
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            self.executor,
+            lambda: agent.predict(state)
         )
         
-        return decision
+        # Desempaquetar resultado (acción, probabilidades)
+        action, probs = result
+        
+        # Si las probabilidades están disponibles, usarlas como confianza
+        confidence = max(probs) if probs is not None else 1.0
+        
+        return {
+            'action': action,
+            'confidence': confidence,
+            'probabilities': probs
+        }
     
-    async def get_ensemble_decision(self, 
-                              symbols: Union[str, List[str]],
-                              data: Union[pd.DataFrame, Dict[str, pd.DataFrame]],
-                              strategy_weights: Optional[Dict[str, float]] = None) -> Dict[str, Any]:
+    def _combine_actions(self, 
+                       actions: Dict[str, int], 
+                       confidence: Dict[str, float]) -> Tuple[int, np.ndarray]:
         """
-        Obtener decisión combinada de múltiples estrategias.
+        Combinar acciones de múltiples agentes usando pesos.
         
         Args:
-            symbols: Símbolo o lista de símbolos
-            data: DataFrame o diccionario de DataFrames con datos históricos
-            strategy_weights: Pesos para cada estrategia (opcional)
+            actions: Acciones por tipo de agente
+            confidence: Confianza por tipo de agente
             
         Returns:
-            Diccionario con decisión de trading combinada
+            Tupla (acción final, distribución de probabilidad)
         """
-        if not self.integrators:
-            raise ValueError("No hay estrategias registradas")
+        # Inicializar array de votos ponderados
+        action_votes = np.zeros(3)  # 0: HOLD, 1: BUY, 2: SELL
         
-        # Determinar pesos
-        if strategy_weights is None:
-            # Usar asignación de capital como pesos
-            weights = self.capital_allocation
-        else:
-            # Verificar si todas las estrategias existen
-            for strategy_id in strategy_weights:
-                if strategy_id not in self.integrators:
-                    raise ValueError(f"Estrategia no encontrada: {strategy_id}")
+        # Para cada agente
+        for agent_type, action in actions.items():
+            # Obtener peso del agente
+            weight = self.config['ensemble_weights'].get(agent_type, 1.0 / len(actions))
             
-            weights = strategy_weights
+            # Ajustar peso por confianza
+            adjusted_weight = weight * confidence[agent_type]
+            
+            # Añadir voto
+            action_votes[action] += adjusted_weight
         
-        # Normalizar pesos
-        total_weight = sum(weights.values())
+        # Normalizar votos
+        if action_votes.sum() > 0:
+            action_probs = action_votes / action_votes.sum()
+        else:
+            # Si no hay votos (poco probable), distribuir uniformemente
+            action_probs = np.ones(3) / 3
         
-        if total_weight <= 0:
-            raise ValueError("La suma de pesos debe ser mayor que 0")
+        # Seleccionar acción con más votos
+        final_action = np.argmax(action_probs)
         
-        normalized_weights = {
-            k: v / total_weight for k, v in weights.items()
+        return final_action, action_probs
+    
+    def _action_to_name(self, action: int) -> str:
+        """
+        Convertir acción numérica a nombre.
+        
+        Args:
+            action: Índice de acción (0, 1, 2)
+            
+        Returns:
+            Nombre de la acción
+        """
+        actions = {
+            0: "HOLD",
+            1: "BUY",
+            2: "SELL"
         }
+        return actions.get(action, "UNKNOWN")
+    
+    async def train_agents(self, symbol: str, historical_data: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Entrenar agentes de RL con datos históricos.
         
-        # Obtener decisiones individuales
-        decisions = {}
+        Args:
+            symbol: Símbolo (ej. 'BTC/USDT')
+            historical_data: DataFrame con datos históricos
+            
+        Returns:
+            Diccionario con resultados de entrenamiento
+        """
+        start_time = time.time()
+        self.logger.info(f"Iniciando entrenamiento para {symbol} con {len(historical_data)} registros")
         
-        for strategy_id, weight in normalized_weights.items():
-            if weight > 0:
-                # Obtener decisión
-                strategy_decision = await self.get_trading_decision(
-                    strategy_id=strategy_id,
-                    symbols=symbols,
-                    data=data
+        # Verificar si tenemos agentes para este símbolo
+        if symbol not in self.agents:
+            self.logger.warning(f"No hay agentes cargados para {symbol}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': 'No hay agentes cargados para este símbolo'
+            }
+        
+        # Verificar si hay suficientes datos
+        if len(historical_data) < 1000:
+            self.logger.warning(f"Datos históricos insuficientes para {symbol}: {len(historical_data)} < 1000")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': f"Datos históricos insuficientes: {len(historical_data)} < 1000"
+            }
+        
+        # Normalizar símbolo para uso en rutas
+        symbol_norm = symbol.replace('/', '_')
+        
+        try:
+            # Preparar entorno para entrenamiento
+            env = self.environments[symbol]
+            
+            # Actualizar datos históricos en el entorno
+            env.update_data(historical_data, is_training=True)
+            
+            # Resultados por agente
+            results = {}
+            
+            # Entrenar cada agente
+            for agent_type, agent in self.agents[symbol].items():
+                agent_start_time = time.time()
+                
+                # Determinar parámetros de entrenamiento según tipo
+                if agent_type == 'dqn':
+                    train_params = {
+                        'total_timesteps': 50000,
+                        'eval_freq': 5000
+                    }
+                elif agent_type == 'ppo':
+                    train_params = {
+                        'total_timesteps': 100000,
+                        'eval_freq': 10000
+                    }
+                elif agent_type == 'sac':
+                    train_params = {
+                        'total_timesteps': 100000,
+                        'eval_freq': 10000
+                    }
+                else:
+                    train_params = {
+                        'total_timesteps': 50000,
+                        'eval_freq': 5000
+                    }
+                
+                # Ejecutar entrenamiento en un hilo separado
+                loop = asyncio.get_running_loop()
+                train_result = await loop.run_in_executor(
+                    self.executor,
+                    lambda: agent.train(**train_params)
                 )
                 
-                decisions[strategy_id] = strategy_decision
-        
-        # Combinar decisiones
-        combined_decision = {}
-        
-        # Determinar si es single o multi-asset
-        if isinstance(symbols, str):
-            symbols_list = [symbols]
-        else:
-            symbols_list = symbols
-        
-        # Procesar cada símbolo
-        for symbol in symbols_list:
-            # Recopilar señales para este símbolo
-            buy_weight = 0.0
-            sell_weight = 0.0
-            hold_weight = 0.0
-            total_amount = 0.0
-            
-            for strategy_id, decision in decisions.items():
-                if symbol in decision:
-                    signal = decision[symbol]['signal']
-                    strategy_weight = normalized_weights[strategy_id]
-                    
-                    if signal == 'BUY':
-                        buy_weight += strategy_weight
-                        total_amount += decision[symbol]['amount'] * strategy_weight
-                    elif signal == 'SELL':
-                        sell_weight += strategy_weight
-                        total_amount += decision[symbol]['amount'] * strategy_weight
-                    else:  # HOLD
-                        hold_weight += strategy_weight
-            
-            # Determinar señal final
-            if buy_weight > sell_weight and buy_weight > hold_weight:
-                final_signal = 'BUY'
-                final_amount = total_amount
-            elif sell_weight > buy_weight and sell_weight > hold_weight:
-                final_signal = 'SELL'
-                final_amount = total_amount
-            else:
-                final_signal = 'HOLD'
-                final_amount = 0.0
-            
-            # Obtener precio del primer decision (debería ser igual en todos)
-            price = decisions[list(decisions.keys())[0]][symbol]['price']
-            
-            # Guardar decisión final
-            combined_decision[symbol] = {
-                'signal': final_signal,
-                'amount': final_amount,
-                'price': price,
-                'confidence': max(buy_weight, sell_weight, hold_weight)
-            }
-        
-        return combined_decision
-    
-    async def update_position(self, 
-                        strategy_id: str, 
-                        symbol: str, 
-                        position: float) -> None:
-        """
-        Actualizar posición actual para una estrategia.
-        
-        Args:
-            strategy_id: ID de la estrategia
-            symbol: Símbolo del activo
-            position: Nueva posición
-        """
-        # Verificar si la estrategia existe
-        if strategy_id not in self.integrators:
-            raise ValueError(f"Estrategia no encontrada: {strategy_id}")
-        
-        # Obtener integrador
-        integrator = self.integrators[strategy_id]
-        
-        # Actualizar posición
-        await integrator.update_position(symbol, position)
-    
-    async def save_state(self, filepath: Optional[str] = None) -> str:
-        """
-        Guardar estado del gestor de estrategias.
-        
-        Args:
-            filepath: Ruta donde guardar el estado (opcional)
-            
-        Returns:
-            Ruta donde se guardó el estado
-        """
-        # Generar ruta si no se proporciona
-        if filepath is None:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filepath = os.path.join(self.cache_dir, f"strategy_manager_state_{timestamp}.json")
-        
-        # Guardar estado de cada integrador
-        integrator_states = {}
-        
-        for strategy_id, integrator in self.integrators.items():
-            # Crear directorio para cada estrategia
-            strategy_dir = os.path.join(self.cache_dir, strategy_id)
-            os.makedirs(strategy_dir, exist_ok=True)
-            
-            # Guardar estado del integrador
-            integrator_path = os.path.join(strategy_dir, f"state_{timestamp}.json")
-            await integrator.save_state(integrator_path)
-            
-            integrator_states[strategy_id] = integrator_path
-        
-        # Preparar estado
-        state = {
-            'integrator_states': integrator_states,
-            'capital_allocation': self.capital_allocation,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Guardar estado
-        with open(filepath, 'w') as f:
-            json.dump(state, f, indent=2)
-        
-        self.logger.info(f"Estado guardado en {filepath}")
-        
-        return filepath
-    
-    async def load_state(self, filepath: str) -> bool:
-        """
-        Cargar estado del gestor de estrategias.
-        
-        Args:
-            filepath: Ruta desde donde cargar el estado
-            
-        Returns:
-            True si se cargó correctamente
-        """
-        try:
-            # Cargar estado
-            with open(filepath, 'r') as f:
-                state = json.load(f)
-            
-            # Restaurar asignación de capital
-            self.capital_allocation = state.get('capital_allocation', {})
-            
-            # Restaurar estado de cada integrador
-            integrator_states = state.get('integrator_states', {})
-            
-            for strategy_id, integrator_path in integrator_states.items():
-                # Verificar si el integrador existe
-                if strategy_id not in self.integrators:
-                    self.logger.warning(f"Estrategia {strategy_id} no encontrada, se omitirá su carga")
-                    continue
+                # Guardar modelo entrenado
+                model_path = os.path.join(self.models_path, f"{symbol_norm}_{agent_type}")
+                agent.save(model_path)
                 
-                # Cargar estado del integrador
-                await self.integrators[strategy_id].load_state(integrator_path)
+                # Actualizar versión del modelo
+                self.stats['model_versions'][f"{symbol}_{agent_type}"] = agent.get_version()
+                
+                # Registrar tiempo de entrenamiento
+                training_time = time.time() - agent_start_time
+                
+                # Añadir a resultados
+                results[agent_type] = {
+                    'status': 'success',
+                    'reward_mean': float(train_result.get('mean_reward', 0.0)),
+                    'reward_std': float(train_result.get('std_reward', 0.0)),
+                    'success_rate': float(train_result.get('success_rate', 0.0)),
+                    'total_timesteps': train_result.get('total_timesteps', 0),
+                    'training_time': training_time
+                }
+                
+                self.logger.info(f"Entrenamiento de {agent_type} para {symbol} completado en {training_time:.1f}s")
             
-            self.logger.info(f"Estado cargado desde {filepath}")
-            return True
+            # Actualizar estadísticas
+            self.stats['last_train_time'] = datetime.now().isoformat()
+            
+            return {
+                'symbol': symbol,
+                'status': 'success',
+                'agents': results,
+                'total_time': time.time() - start_time
+            }
             
         except Exception as e:
-            self.logger.error(f"Error cargando estado: {str(e)}")
-            return False
+            self.logger.error(f"Error entrenando agentes para {symbol}: {str(e)}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': str(e)
+            }
     
-    def get_strategy_stats(self, strategy_id: Optional[str] = None) -> Dict[str, Any]:
+    async def backtest_agents(self, 
+                        symbol: str, 
+                        test_data: pd.DataFrame,
+                        initial_balance: float = 10000.0,
+                        commission: float = 0.001) -> Dict[str, Any]:
         """
-        Obtener estadísticas de una o todas las estrategias.
+        Realizar backtest de agentes con datos históricos.
         
         Args:
-            strategy_id: ID de la estrategia (None = todas)
+            symbol: Símbolo (ej. 'BTC/USDT')
+            test_data: DataFrame con datos para backtest
+            initial_balance: Balance inicial
+            commission: Comisión por operación
             
         Returns:
-            Diccionario con estadísticas
+            Diccionario con resultados de backtest
         """
-        if strategy_id:
-            # Verificar si la estrategia existe
-            if strategy_id not in self.integrators:
-                raise ValueError(f"Estrategia no encontrada: {strategy_id}")
+        start_time = time.time()
+        self.logger.info(f"Iniciando backtest para {symbol} con {len(test_data)} registros")
+        
+        # Verificar si tenemos agentes para este símbolo
+        if symbol not in self.agents:
+            self.logger.warning(f"No hay agentes cargados para {symbol}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': 'No hay agentes cargados para este símbolo'
+            }
+        
+        # Verificar si hay suficientes datos
+        if len(test_data) < 100:
+            self.logger.warning(f"Datos de test insuficientes para {symbol}: {len(test_data)} < 100")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': f"Datos de test insuficientes: {len(test_data)} < 100"
+            }
+        
+        try:
+            # Obtener entorno
+            env = self.environments[symbol]
             
-            # Obtener integrador
-            integrator = self.integrators[strategy_id]
+            # Actualizar datos en el entorno
+            env.update_data(test_data, is_training=False)
             
-            # Obtener estadísticas
-            stats = integrator.get_performance_stats()
+            # Configurar backtest
+            env.configure_backtest(
+                initial_balance=initial_balance,
+                commission=commission
+            )
             
-            # Agregar información adicional
-            stats['strategy_id'] = strategy_id
-            stats['capital_allocation'] = self.capital_allocation.get(strategy_id, 0.0)
+            # Resultados por agente
+            results = {}
             
-            return stats
-        else:
-            # Estadísticas de todas las estrategias
-            all_stats = {}
-            
-            for s_id, integrator in self.integrators.items():
-                # Obtener estadísticas
-                stats = integrator.get_performance_stats()
+            # Ejecutar backtest para cada agente
+            for agent_type, agent in self.agents[symbol].items():
+                agent_start_time = time.time()
                 
-                # Agregar información adicional
-                stats['strategy_id'] = s_id
-                stats['capital_allocation'] = self.capital_allocation.get(s_id, 0.0)
+                # Ejecutar backtest
+                backtest_result = await self._run_backtest(agent, env)
                 
-                all_stats[s_id] = stats
+                # Añadir a resultados
+                results[agent_type] = {
+                    'status': 'success',
+                    'metrics': backtest_result['metrics'],
+                    'trades': len(backtest_result['trades']),
+                    'backtest_time': time.time() - agent_start_time
+                }
+                
+                self.logger.info(f"Backtest de {agent_type} para {symbol} completado")
             
-            return all_stats
+            # Si usamos ensemble, ejecutar backtest con strategy combinada
+            if self.use_ensemble and len(self.agents[symbol]) > 1:
+                # Configurar backtest de ensemble
+                ensemble_result = await self._run_ensemble_backtest(self.agents[symbol], env)
+                
+                # Añadir a resultados
+                results['ensemble'] = {
+                    'status': 'success',
+                    'metrics': ensemble_result['metrics'],
+                    'trades': len(ensemble_result['trades']),
+                    'backtest_time': ensemble_result['execution_time']
+                }
+            
+            # Generar gráfico de backtest
+            plot_data = await self._generate_backtest_plot(env, results)
+            
+            return {
+                'symbol': symbol,
+                'status': 'success',
+                'agents': results,
+                'total_time': time.time() - start_time,
+                'chart': plot_data
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error en backtest para {symbol}: {str(e)}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': str(e)
+            }
     
-    def plot_strategy_performance(self, 
-                                 strategy_id: Optional[str] = None, 
-                                 symbol: Optional[str] = None,
-                                 save_path: Optional[str] = None) -> str:
+    async def _run_backtest(self, agent, env) -> Dict[str, Any]:
         """
-        Generar gráfico de rendimiento de estrategia.
+        Ejecutar backtest con un agente.
         
         Args:
-            strategy_id: ID de la estrategia (None = comparar todas)
-            symbol: Símbolo específico a graficar (opcional)
-            save_path: Ruta donde guardar el gráfico
+            agent: Agente de RL
+            env: Entorno de trading
+            
+        Returns:
+            Diccionario con resultados
+        """
+        # Resetear entorno
+        state = env.reset(mode='backtest')
+        done = False
+        
+        # Ejecutar episodio completo
+        while not done:
+            # Tomar acción
+            action_result = await self._get_agent_action(agent, state)
+            action = action_result['action']
+            
+            # Aplicar acción
+            next_state, reward, done, info = env.step(action)
+            state = next_state
+        
+        # Obtener resultados
+        backtest_summary = env.get_backtest_summary()
+        trades = env.get_backtest_trades()
+        
+        return {
+            'metrics': backtest_summary,
+            'trades': trades
+        }
+    
+    async def _run_ensemble_backtest(self, agents: Dict[str, Any], env) -> Dict[str, Any]:
+        """
+        Ejecutar backtest con estrategia ensemble.
+        
+        Args:
+            agents: Diccionario de agentes
+            env: Entorno de trading
+            
+        Returns:
+            Diccionario con resultados
+        """
+        start_time = time.time()
+        
+        # Resetear entorno
+        state = env.reset(mode='backtest')
+        done = False
+        
+        # Ejecutar episodio completo
+        while not done:
+            # Obtener acción de cada agente
+            actions = {}
+            confidence = {}
+            
+            for agent_type, agent in agents.items():
+                action_result = await self._get_agent_action(agent, state)
+                actions[agent_type] = action_result['action']
+                confidence[agent_type] = action_result['confidence']
+            
+            # Combinar acciones
+            final_action, _ = self._combine_actions(actions, confidence)
+            
+            # Aplicar acción
+            next_state, reward, done, info = env.step(final_action)
+            state = next_state
+        
+        # Obtener resultados
+        backtest_summary = env.get_backtest_summary()
+        trades = env.get_backtest_trades()
+        
+        return {
+            'metrics': backtest_summary,
+            'trades': trades,
+            'execution_time': time.time() - start_time
+        }
+    
+    async def _generate_backtest_plot(self, env, results) -> str:
+        """
+        Generar gráfico de backtest.
+        
+        Args:
+            env: Entorno de trading
+            results: Resultados de backtest
             
         Returns:
             Imagen en formato base64
         """
-        if strategy_id:
-            # Gráfico de una estrategia específica
-            if strategy_id not in self.integrators:
-                raise ValueError(f"Estrategia no encontrada: {strategy_id}")
+        # Obtener datos para graficar
+        equity_curves = env.get_backtest_equity_curves()
+        price_data = env.get_price_data()
+        
+        # Crear figura
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10), sharex=True, gridspec_kw={'height_ratios': [3, 1]})
+        
+        # Graficar precio
+        ax1.plot(price_data.index, price_data['close'], 'k-', label='Precio', alpha=0.7)
+        
+        # Graficar equity curves
+        for agent_type, curve in equity_curves.items():
+            ax1.plot(curve.index, curve['equity'], label=f'{agent_type.upper()}')
+        
+        # Formato del gráfico de precio/equity
+        ax1.set_title('Backtest RL - Precio y Equity')
+        ax1.set_ylabel('Valor')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+        
+        # Graficar drawdown
+        for agent_type, curve in equity_curves.items():
+            drawdown = curve['drawdown']
+            ax2.fill_between(curve.index, 0, -drawdown, alpha=0.5, label=f'{agent_type.upper()} Drawdown')
+        
+        # Formato del gráfico de drawdown
+        ax2.set_title('Drawdown')
+        ax2.set_ylabel('Drawdown %')
+        ax2.set_xlabel('Fecha')
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        # Convertir a base64
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        plt.close()
+        
+        return img_str
+    
+    async def evaluate_and_optimize(self, 
+                             symbol: str, 
+                             historical_data: pd.DataFrame,
+                             num_trials: int = 20) -> Dict[str, Any]:
+        """
+        Evaluar y optimizar agentes con búsqueda de hiperparámetros.
+        
+        Args:
+            symbol: Símbolo (ej. 'BTC/USDT')
+            historical_data: DataFrame con datos históricos
+            num_trials: Número de pruebas
             
-            # Obtener integrador
-            integrator = self.integrators[strategy_id]
+        Returns:
+            Diccionario con resultados de optimización
+        """
+        start_time = time.time()
+        self.logger.info(f"Iniciando optimización para {symbol} con {num_trials} pruebas")
+        
+        # Aquí se implementaría la optimización de hiperparámetros
+        # Esto es un placeholder para el diseño inicial
+        
+        results = {
+            'symbol': symbol,
+            'status': 'success',
+            'message': 'Optimización de hiperparámetros pendiente de implementación',
+            'trials': num_trials,
+            'total_time': time.time() - start_time
+        }
+        
+        return results
+    
+    def get_signal_description(self, signal_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Obtener descripción textual de una señal RL.
+        
+        Args:
+            signal_data: Señal generada por process_market_data
             
-            # Generar gráfico
-            return integrator.plot_decision_history(symbol, save_path)
-            
+        Returns:
+            Diccionario con descripción
+        """
+        # Extraer datos principales
+        symbol = signal_data.get('symbol', 'Unknown')
+        action = signal_data.get('action_name', 'UNKNOWN')
+        confidence = signal_data.get('confidence', 0.0)
+        
+        # Determinar nivel de confianza
+        if confidence > 0.8:
+            confidence_level = "alta"
+        elif confidence > 0.6:
+            confidence_level = "media-alta"
+        elif confidence > 0.4:
+            confidence_level = "media"
+        elif confidence > 0.2:
+            confidence_level = "media-baja"
         else:
-            # Comparación de todas las estrategias
-            # Conteo de señales por estrategia
-            fig, ax = plt.subplots(figsize=(12, 6))
+            confidence_level = "baja"
+        
+        # Generar mensaje de recomendación
+        if action == "BUY":
+            recommendation = f"El sistema recomienda COMPRAR {symbol} con confianza {confidence_level} ({confidence:.2f})."
+        elif action == "SELL":
+            recommendation = f"El sistema recomienda VENDER {symbol} con confianza {confidence_level} ({confidence:.2f})."
+        else:  # HOLD
+            recommendation = f"El sistema recomienda MANTENER posición en {symbol} con confianza {confidence_level} ({confidence:.2f})."
+        
+        # Añadir información sobre fuentes (si está disponible)
+        if 'agent_actions' in signal_data:
+            agents_info = []
+            for agent_type, agent_action in signal_data['agent_actions'].items():
+                agent_conf = signal_data['agent_confidence'].get(agent_type, 0.0)
+                agents_info.append(f"{agent_type.upper()}: {agent_action} ({agent_conf:.2f})")
             
-            # Datos
-            strategy_ids = list(self.integrators.keys())
-            buy_counts = []
-            sell_counts = []
-            hold_counts = []
+            agents_text = "\nRecomendaciones por agente:\n" + "\n".join(agents_info)
+        else:
+            agent_type = signal_data.get('agent_type', 'rl')
+            agents_text = f"\nRecomendación basada en agente {agent_type.upper()}."
+        
+        # Construir respuesta completa
+        description = {
+            'symbol': symbol,
+            'action': action,
+            'confidence': confidence,
+            'confidence_level': confidence_level,
+            'recommendation': recommendation,
+            'details': agents_text,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return description
+    
+    async def update_from_execution_feedback(self, 
+                                      symbol: str,
+                                      signal: Dict[str, Any],
+                                      execution_result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Actualizar agentes con feedback de ejecución.
+        
+        Args:
+            symbol: Símbolo (ej. 'BTC/USDT')
+            signal: Señal original
+            execution_result: Resultado de ejecución
             
-            for s_id in strategy_ids:
-                stats = self.integrators[s_id].get_signal_stats()
-                buy_counts.append(stats.get('BUY', 0))
-                sell_counts.append(stats.get('SELL', 0))
-                hold_counts.append(stats.get('HOLD', 0))
+        Returns:
+            Diccionario con resultado de actualización
+        """
+        self.logger.info(f"Actualizando agentes con feedback de ejecución para {symbol}")
+        
+        # Verificar si tenemos agentes para este símbolo
+        if symbol not in self.agents:
+            self.logger.warning(f"No hay agentes cargados para {symbol}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': 'No hay agentes cargados para este símbolo'
+            }
+        
+        try:
+            # Extraer datos relevantes
+            action = signal.get('action', 0)
+            result = execution_result.get('result', 'unknown')
+            reward = execution_result.get('realized_pnl', 0.0)
             
-            # Configurar gráfico de barras apiladas
-            bar_width = 0.5
-            indices = np.arange(len(strategy_ids))
+            # Actualizar estadísticas
+            if result == 'success':
+                self.stats['successful_trades'] += 1
+            else:
+                self.stats['unsuccessful_trades'] += 1
             
-            p1 = ax.bar(indices, buy_counts, bar_width, label='Compra')
-            p2 = ax.bar(indices, sell_counts, bar_width, bottom=buy_counts, label='Venta')
-            p3 = ax.bar(indices, hold_counts, bar_width, bottom=np.array(buy_counts) + np.array(sell_counts), label='Mantener')
+            self.stats['total_reward'] += reward
             
-            # Formato
-            ax.set_title('Distribución de Señales por Estrategia')
-            ax.set_xlabel('Estrategia')
-            ax.set_ylabel('Conteo')
-            ax.set_xticks(indices)
-            ax.set_xticklabels(strategy_ids)
-            ax.legend()
+            # Actualizar agentes con la experiencia
+            # Esto requeriría implementación adicional para cada tipo de agente
             
-            fig.tight_layout()
+            return {
+                'symbol': symbol,
+                'status': 'success',
+                'updated_agents': list(self.agents[symbol].keys()),
+                'reward': reward
+            }
             
-            # Convertir a base64
-            buffer = BytesIO()
-            plt.savefig(buffer, format='png')
-            buffer.seek(0)
-            img_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
-            plt.close()
-            
-            # Guardar gráfico si se solicita
-            if save_path:
-                with open(save_path, 'wb') as f:
-                    f.write(base64.b64decode(img_str))
-                
-                self.logger.info(f"Gráfico guardado en {save_path}")
-            
-            return img_str
+        except Exception as e:
+            self.logger.error(f"Error actualizando agentes con feedback: {str(e)}")
+            return {
+                'symbol': symbol,
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Obtener estadísticas del integrador RL.
+        
+        Returns:
+            Diccionario con estadísticas
+        """
+        # Calcular métricas adicionales
+        total_trades = self.stats['successful_trades'] + self.stats['unsuccessful_trades']
+        success_rate = self.stats['successful_trades'] / total_trades if total_trades > 0 else 0.0
+        
+        # Añadir información sobre modelos
+        num_models = len(self.stats['model_versions'])
+        
+        # Añadir configuración actual
+        stats = {
+            'statistics': {
+                'inferences': self.stats['inferences'],
+                'successful_trades': self.stats['successful_trades'],
+                'unsuccessful_trades': self.stats['unsuccessful_trades'],
+                'total_trades': total_trades,
+                'success_rate': success_rate,
+                'total_reward': float(self.stats['total_reward']),
+                'last_train_time': self.stats['last_train_time'],
+                'num_models': num_models
+            },
+            'configuration': self.config,
+            'models': self.stats['model_versions'],
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return stats
