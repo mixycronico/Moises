@@ -53,11 +53,26 @@ async def test_market_data_subscription():
     """Probar suscripción a datos de mercado en múltiples exchanges."""
     logger.info("=== INICIANDO PRUEBA DE SUSCRIPCIÓN A DATOS DE MERCADO ===")
     
-    # Crear integrador con todos los exchanges
-    integrador = MultiExchangeTranscendentalIntegrator()
+    # Crear integrador para múltiples exchanges
+    integrador = TranscendentalExchangeIntegrator()
     
-    # Inicializar y conectar
-    await integrador.initialize()
+    # Añadir todos los exchanges disponibles
+    await integrador.add_exchange(ExchangeID.BINANCE)
+    await integrador.add_exchange(ExchangeID.BITFINEX)
+    await integrador.add_exchange(ExchangeID.BITMEX)
+    await integrador.add_exchange(ExchangeID.BYBIT)
+    await integrador.add_exchange(ExchangeID.COINBASE)
+    await integrador.add_exchange(ExchangeID.DERIBIT)
+    await integrador.add_exchange(ExchangeID.FTX)
+    await integrador.add_exchange(ExchangeID.KRAKEN)
+    await integrador.add_exchange(ExchangeID.KUCOIN)
+    await integrador.add_exchange(ExchangeID.OKEX)
+    await integrador.add_exchange(ExchangeID.BITSTAMP)
+    await integrador.add_exchange(ExchangeID.HUOBI)
+    await integrador.add_exchange(ExchangeID.GEMINI)
+    await integrador.add_exchange(ExchangeID.POLONIEX)
+    
+    # Conectar a todos los exchanges
     await integrador.connect_all()
     
     # Definir símbolos personalizados para cada exchange
@@ -70,12 +85,12 @@ async def test_market_data_subscription():
         ExchangeID.KUCOIN: "BTC-USDT",
         ExchangeID.BYBIT: "BTCUSD",
         ExchangeID.OKEX: "BTC-USDT",
-        ExchangeID.FTXINT: "BTC/USD",
+        ExchangeID.FTX: "BTC/USD",
         ExchangeID.BITSTAMP: "btcusd",
-        ExchangeID.BITTREX: "BTC-USDT",
+        ExchangeID.BITMEX: "XBTUSD",
         ExchangeID.GEMINI: "BTCUSD",
-        ExchangeID.GATEIO: "BTC_USDT",
-        ExchangeID.MEXC: "BTC_USDT"
+        ExchangeID.DERIBIT: "BTC-PERPETUAL",
+        ExchangeID.POLONIEX: "BTC_USDT"
     }
     
     # Suscribir a tickers en todos los exchanges
@@ -128,13 +143,13 @@ async def test_error_transmutation():
     logger.info("=== INICIANDO PRUEBA DE TRANSMUTACIÓN DE ERRORES ===")
     
     # Crear integrador con exchanges que pueden ser problemáticos
-    exchanges = [
-        ExchangeID.FTXINT,  # FTX ya no existe, forzará transmutación
-        ExchangeID.BITTREX,  # API puede ser inestable
-        ExchangeID.BINANCE   # Para comparar con uno estable
-    ]
+    # Crear integrador para múltiples exchanges
+    integrador = TranscendentalExchangeIntegrator()
     
-    integrador = MultiExchangeTranscendentalIntegrator(exchanges)
+    # FTX está definido pero sabemos que su API ya no está disponible (forzará transmutación)
+    await integrador.add_exchange(ExchangeID.FTX)
+    # Binance para comparar con uno estable
+    await integrador.add_exchange(ExchangeID.BINANCE)
     
     # Inicializar y conectar
     await integrador.initialize()
@@ -142,14 +157,15 @@ async def test_error_transmutation():
     
     # Verificar transmutaciones
     transmuted_count = connect_result.get('transmuted', 0)
-    logger.info(f"Conexiones transmutadas: {transmuted_count} de {len(exchanges)}")
+    total_exchanges = 2  # FTX y BINANCE
+    logger.info(f"Conexiones transmutadas: {transmuted_count} de {total_exchanges}")
     
     # Intentar suscripción
     subscription_result = await integrador.subscribe_all(["ticker"])
     
     # Verificar transmutaciones en suscripciones
     sub_transmuted = subscription_result.get('transmuted', 0)
-    logger.info(f"Suscripciones transmutadas: {sub_transmuted} de {len(exchanges)}")
+    logger.info(f"Suscripciones transmutadas: {sub_transmuted} de {total_exchanges}")
     
     # Probar recepción de datos (incluyendo transmutados)
     logger.info("Recibiendo datos durante 5 segundos (incluyendo transmutados)...")
