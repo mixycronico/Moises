@@ -97,7 +97,7 @@ class DimensionalCollapseV4(TranscendentalMechanism):
         Returns:
             Datos colapsados
         """
-        self._register_invocation()
+        await self._register_invocation()
         
         # Simulación del colapso dimensional (proceso instantáneo)
         # En un sistema real esto optimizaría la estructura de datos
