@@ -8,10 +8,20 @@ a través de diferentes canales como email, SMS, etc.
 from genesis.notifications.base import NotificationChannel
 from genesis.notifications.alert_manager import AlertCondition, AlertManager
 from genesis.notifications.email_notifier import EmailNotifier
+from genesis.notifications.initializer import (
+    initialize_notifications, 
+    send_test_notification,
+    email_notifier,
+    alert_manager
+)
 
 __all__ = [
     "NotificationChannel", 
     "AlertCondition", 
     "AlertManager", 
-    "EmailNotifier"
+    "EmailNotifier",
+    "initialize_notifications",
+    "send_test_notification",
+    "email_notifier",
+    "alert_manager"
 ]
