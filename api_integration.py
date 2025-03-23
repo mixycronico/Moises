@@ -1,17 +1,26 @@
 """
-Script para probar la integración y operación de DeepSeek en el Sistema Genesis.
+Script para probar la integración y operación de APIs externas en el Sistema Genesis.
 
-Este script permite activar, desactivar y probar las capacidades de DeepSeek,
-mostrando cómo afecta al análisis y las decisiones de trading.
+Este script permite activar, desactivar y probar las capacidades de múltiples APIs:
+- DeepSeek: Análisis avanzado con IA de texto
+- Alpha Vantage: Datos históricos y fundamentales
+- NewsAPI: Noticias y eventos
+- CoinMarketCap: Información de mercado
+- Reddit: Análisis de sentimiento social
 """
 
 import asyncio
 import logging
 import json
 import os
+import argparse
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
+# Importar gestor unificado de APIs
+from genesis.api_integration import api_manager, initialize, test_apis
+
+# Importaciones específicas para DeepSeek (integración existente)
 from genesis.lsml import deepseek_config
 from genesis.lsml.deepseek_model import DeepSeekModel
 from genesis.lsml.deepseek_integrator import DeepSeekIntegrator
@@ -172,5 +181,90 @@ async def process_deepseek_integration():
         logger.error(f"Error durante la prueba de integración: {str(e)}")
         raise
 
+
+async def print_api_status():
+    """Mostrar estado de todas las APIs configuradas."""
+    # Inicializar el gestor de APIs
+    await initialize()
+    
+    # Obtener estado actual
+    status = api_manager.get_api_status()
+    
+    print("\n=== ESTADO DE APIS CONFIGURADAS ===")
+    for api_name, api_status in status.items():
+        print(f"\n{api_name.upper()}:")
+        for key, value in api_status.items():
+            # No mostrar la clave enmascarada a menos que esté configurada
+            if key == "key_masked" and not api_status.get("key_configured", False):
+                continue
+            print(f"  {key}: {value}")
+    
+    print("\n=================================\n")
+
+
+async def test_all_apis():
+    """Probar todas las APIs configuradas."""
+    print("\n=== PROBANDO TODAS LAS APIS CONFIGURADAS ===\n")
+    
+    results = await test_apis()
+    
+    for api_name, result in results.items():
+        if api_name == "api_status":
+            continue
+            
+        print(f"\n--- Resultado para {api_name.upper()} ---")
+        if "error" in result:
+            print(f"Error: {result['error']}")
+        else:
+            print(json.dumps(result, indent=2, default=str)[:500] + "...")
+    
+    print("\n=== FIN DE PRUEBAS DE APIS ===\n")
+
+
+async def main(args):
+    """Función principal."""
+    try:
+        if args.all:
+            # Probar todas las integraciones
+            await print_api_status()
+            await test_all_apis()
+            await process_deepseek_integration()
+        elif args.deepseek:
+            # Solo probar DeepSeek
+            await process_deepseek_integration()
+        elif args.status:
+            # Mostrar estado de APIs
+            await print_api_status()
+        elif args.test:
+            # Probar APIs configuradas
+            await test_all_apis()
+        else:
+            # Mostrar ayuda si no se especifica acción
+            print("Especifique una acción con --all, --deepseek, --status o --test")
+            print("Ejecute con --help para más información")
+    except Exception as e:
+        logger.error(f"Error durante la ejecución: {str(e)}")
+        raise
+    finally:
+        # Cerrar conexiones
+        if hasattr(api_manager, 'session') and api_manager.session:
+            await api_manager.close()
+
+
 if __name__ == "__main__":
-    asyncio.run(process_deepseek_integration())
+    parser = argparse.ArgumentParser(description='Sistema de integración de APIs externas para Genesis')
+    
+    # Acciones exclusivas
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--all', action='store_true', help='Ejecutar todas las pruebas de integración')
+    group.add_argument('--deepseek', action='store_true', help='Probar solo la integración con DeepSeek')
+    group.add_argument('--status', action='store_true', help='Mostrar estado de todas las APIs configuradas')
+    group.add_argument('--test', action='store_true', help='Probar APIs configuradas')
+    
+    args = parser.parse_args()
+    
+    # Si no se especifica ninguna acción, mostrar estado por defecto
+    if not (args.all or args.deepseek or args.status or args.test):
+        args.status = True
+    
+    asyncio.run(main(args))
