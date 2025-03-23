@@ -140,6 +140,15 @@ async def initialize_genesis():
                 "default_model_type": "polynomial"
             }
             
+        # Añadir configuración para base de datos si no existe
+        if "database_config" not in config:
+            config["database_config"] = {
+                "database_url": DATABASE_URL,
+                "pool_size": 20,
+                "max_overflow": 40,
+                "pool_recycle": 300
+            }
+            
         # Inicializar sistema con la configuración
         # Primero guardamos la configuración actualizada en el archivo
         try:
@@ -147,6 +156,10 @@ async def initialize_genesis():
                 json.dump(config, f, indent=4)
         except Exception as e:
             logger.warning(f"Error al guardar configuración: {e}")
+            
+        # Inicializar base de datos con el nuevo inicializador
+        from genesis.db.initializer import initialize_database
+        db_initialized = await initialize_database(config.get("database_config", {}))
             
         # Luego iniciamos el sistema con la ruta al archivo de configuración
         results = await initialize_system(app.config["GENESIS_CONFIG"])

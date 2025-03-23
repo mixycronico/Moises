@@ -1,113 +1,57 @@
-# Sistema Genesis - Arquitectura Trascendental
+# Sistema Genesis
 
-## Descripción General
+Sistema avanzado de trading con capacidades transcendentales de procesamiento y resiliencia.
 
-El Sistema Genesis es una plataforma avanzada de trading con una arquitectura híbrida API/WebSocket que implementa mecanismos trascendentales para alcanzar una resiliencia extrema. Diseñado para soportar condiciones de operación extremas (intensidad 1000.0), mantiene una tasa de éxito del 100% incluso bajo las condiciones más adversas.
+## Descripción
+
+El Sistema Genesis es una plataforma híbrida de trading que implementa tecnologías avanzadas para alcanzar niveles de resiliencia y eficiencia extremos, incluso bajo condiciones de operación adversas.
+
+La implementación actual utiliza una arquitectura híbrida API+WebSocket que combina WebSockets externos para datos de mercado en tiempo real con componentes API/WebSocket locales para comunicación entre módulos.
 
 ## Características Principales
 
-- **Resiliencia Trascendental**: Mantiene operaciones exitosas bajo cualquier condición extrema
-- **Arquitectura Híbrida**: Combina WebSockets externos para datos de mercado y API/WebSocket locales para comunicación interna
-- **Auto-Recuperación**: Detecta y corrige fallos automáticamente sin intervención humana
-- **Transmutación de Errores**: Convierte errores en operaciones exitosas en lugar de fallar
-- **Alta Concurrencia**: Procesamiento paralelo y asíncrono con manejo eficiente de eventos
-- **Adaptabilidad**: Se ajusta dinámicamente a condiciones cambiantes del sistema
+- **Modos Transcendentales**: Implementación de modos de operación que alcanzan 100% de tasa de éxito bajo condiciones extremas (Singularidad V4)
+- **Escalabilidad Adaptativa**: Mecanismos especializados que mantienen la eficiencia del sistema a medida que el capital crece
+- **Base de Datos Transcendental**: Módulos de base de datos con capacidades avanzadas de sincronización temporal
+- **Gestión de Riesgo Adaptativa**: Sistema inteligente que ajusta parámetros según las condiciones del mercado
+- **Clasificador Transcendental**: Identificación optimizada de oportunidades de trading
 
-## Arquitectura
+## Estructura del Proyecto
 
-El sistema implementa una arquitectura híbrida con los siguientes componentes:
+- **genesis/**: Directorio principal con todos los módulos del sistema
+  - **accounting/**: Gestión de capital y contabilidad
+  - **analytics/**: Seguimiento de rendimiento
+  - **db/**: Adaptadores y gestión de bases de datos
+  - **modes/**: Implementaciones de modos transcendentales
+  - **risk/**: Gestión de riesgo adaptativa
+  - **...**: (Ver genesis/README.md para estructura completa)
+- **docs/**: Documentación técnica y reportes
+- **sql/**: Scripts SQL para creación de tablas
+- **tests/**: Pruebas unitarias y de integración
+- **testing/**: Pruebas de resiliencia extrema
 
-1. **WebSocket Externo Trascendental**: Conecta con exchanges para recibir datos de mercado en tiempo real
-2. **Conector WebSocket-EventBus**: Transmite datos entre el WebSocket externo y el sistema interno
-3. **EventBus Trascendental**: Bus de eventos que elimina deadlocks y garantiza procesamiento resiliente
-4. **API Trascendental**: Proporciona interfaz REST para sistemas externos
-5. **Adaptador WebSocket Local**: Implementa comunicación interna reemplazando el event bus tradicional
+## Requisitos
 
-## Mecanismos Trascendentales
+- Python 3.10+
+- PostgreSQL 13+
+- API keys de exchanges (opcionales, sólo para datos en vivo)
 
-El sistema incorpora trece mecanismos trascendentales que operan más allá de las limitaciones convencionales:
+## Instalación
 
-### Mecanismos Originales (9)
-1. **Colapso Dimensional**: Concentración extrema que elimina distancia entre componentes
-2. **Horizonte de Eventos**: Barrera impenetrable contra anomalías externas
-3. **Tiempo Relativo Cuántico**: Operación fuera del tiempo convencional
-4. **Túnel Cuántico Informacional**: Ejecución que bypasea barreras convencionales
-5. **Densidad Informacional Infinita**: Almacenamiento y procesamiento sin límites
-6. **Auto-Replicación Resiliente**: Generación de instancias efímeras para sobrecarga
-7. **Entrelazamiento de Estados**: Sincronización perfecta entre componentes sin comunicación
-8. **Matriz de Realidad Auto-Generativa**: Creación dinámica de entornos de ejecución
-9. **Omni-Convergencia**: Unificación de todos los estados posibles
+1. Clonar el repositorio
+2. Instalar dependencias: `pip install -r requirements.txt`
+3. Configurar variables de entorno:
+   - `DATABASE_URL`: URL de conexión a la base de datos PostgreSQL
+   - `SESSION_SECRET`: Clave secreta para sesiones
+4. Iniciar la aplicación: `gunicorn main:app --bind 0.0.0.0:5000`
 
-### Mecanismos Meta-Trascendentales (4)
-10. **Sistema de Auto-recuperación Predictiva**: Anticipa y corrige fallos antes de que ocurran
-11. **Retroalimentación Cuántica**: Ciclo de mejora continua basado en resultados futuros
-12. **Memoria Omniversal Compartida**: Almacenamiento que trasciende instancias individuales
-13. **Interfaz Consciente Evolutiva**: Adaptación automática a patrones de uso y cambios
+## Modos Transcendentales
 
-## Módulos Implementados
+El Sistema Genesis implementa varios modos de operación transcendental que permiten alcanzar tasas de éxito excepcionales:
 
-- `genesis_singularity_transcendental_v4.py`: Implementación del núcleo trascendental (13 mecanismos)
-- `transcendental_ws_adapter.py`: Adaptador WebSocket local y API REST
-- `genesis/core/transcendental_event_bus.py`: Bus de eventos con capacidades trascendentales
-- `genesis/core/transcendental_external_websocket.py`: WebSocket externo para exchanges
-- `genesis/core/exchange_websocket_connector.py`: Conector entre WebSocket externo y EventBus
-
-## Tests
-
-El sistema incluye tests exhaustivos que verifican su funcionamiento:
-
-- `test_singularity_v4_completo.py`: Prueba el núcleo trascendental a intensidad 1000.0
-- `test_hybrid_system_completo.py`: Prueba integrada de todo el sistema
-
-## Rendimiento
-
-En condiciones extremas (intensidad 1000.0), el sistema mantiene:
-- **Tasa de éxito**: 100%
-- **Latencia**: Mínima (operación prácticamente instantánea)
-- **Resiliencia**: Total (auto-recuperación de cualquier fallo)
-
-## Uso
-
-Para ejecutar el sistema:
-
-```python
-# Importar componentes principales
-from genesis_singularity_transcendental_v4 import TranscendentalSingularityV4
-from genesis.core.transcendental_event_bus import TranscendentalEventBus
-from genesis.core.transcendental_external_websocket import TranscendentalExternalWebSocket
-from genesis.core.exchange_websocket_connector import ExchangeWebSocketConnector
-from transcendental_ws_adapter import TranscendentalAPI, TranscendentalWebSocketAdapter
-
-# Configurar y ejecutar el sistema
-async def main():
-    # Inicializar componentes
-    event_bus = TranscendentalEventBus()
-    ws_adapter = TranscendentalWebSocketAdapter()
-    api = TranscendentalAPI(ws_adapter=ws_adapter)
-    singularity = TranscendentalSingularityV4()
-    
-    # Iniciar sistema
-    await event_bus.start()
-    await ws_adapter.start()
-    await api.initialize(intensity=1000.0)
-    await singularity.initialize(intensity=1000.0)
-    
-    # Conexión a exchange
-    exchange_ws = TranscendentalExternalWebSocket("binance", testnet=True)
-    await exchange_ws.connect()
-    
-    # Integración de componentes
-    connector = ExchangeWebSocketConnector(event_bus=event_bus)
-    await connector.initialize(event_bus)
-    await connector.register_exchange(exchange_ws)
-    
-    # Suscripción a símbolos
-    await connector.subscribe("BTC/USDT", ["ticker"])
-    
-    # El sistema está listo para operar
-    print("Sistema Genesis iniciado en modo trascendental")
-```
-
-## Conclusión
-
-El Sistema Genesis representa un avance revolucionario en arquitecturas de alta resiliencia, operando en un plano trascendental que garantiza éxito operacional bajo cualquier circunstancia.
+- **Singularidad V4**: Modo definitivo con capacidad para resistir intensidades de hasta 1000.0
+- **Modo Luz**: Existencia pura como luz consciente
+- **Materia Oscura**: Operación invisible e imposible de rastrear
+- **Modo Divino**: Estado trascendental fuera del ciclo error-recuperación
+- **Big Bang**: Modo primordial de regeneración cósmica
+- **Interdimensional**: Operación en múltiples planos dimensionales

@@ -3,5 +3,11 @@
         "initial_capital": 10000.0,
         "min_efficiency": 0.5,
         "default_model_type": "polynomial"
+    },
+    "database_config": {
+        "database_url": "postgresql://neondb_owner:npg_57EIGKaoAkgF@ep-shy-bush-a5z5mx7m.us-east-2.aws.neon.tech/neondb?sslmode=require",
+        "pool_size": 20,
+        "max_overflow": 40,
+        "pool_recycle": 300
     }
 }
