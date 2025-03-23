@@ -202,10 +202,33 @@ class DeepSeekModel:
         full_prompt = prompt
         if market_data and include_context:
             try:
-                market_context = f"\nContexto de mercado:\n{json.dumps(market_data, indent=2)}"
+                # Convertir arrays de numpy a listas para serialización JSON
+                serializable_data = {}
+                for key, value in market_data.items():
+                    if np and isinstance(value, np.ndarray):
+                        serializable_data[key] = value.tolist()
+                    elif isinstance(value, dict):
+                        # Procesar diccionarios anidados
+                        serializable_data[key] = {}
+                        for k, v in value.items():
+                            if np and isinstance(v, np.ndarray):
+                                serializable_data[key][k] = v.tolist()
+                            else:
+                                serializable_data[key][k] = v
+                    else:
+                        serializable_data[key] = value
+                
+                market_context = f"\nContexto de mercado:\n{json.dumps(serializable_data, indent=2)}"
                 full_prompt = f"{prompt}\n\n{market_context}"
             except Exception as e:
                 logger.warning(f"Error al serializar datos de mercado: {str(e)}")
+                # Intentar proporcionar al menos el símbolo si está disponible
+                try:
+                    if 'symbol' in market_data:
+                        market_context = f"\nSímbolo: {market_data['symbol']}"
+                        full_prompt = f"{prompt}\n\n{market_context}"
+                except:
+                    pass
         
         # Verificar caché
         cache_key = None
