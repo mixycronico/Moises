@@ -233,12 +233,24 @@ async def refresh_classification():
         logger.warning("No se puede actualizar clasificación, sistema no inicializado")
         return False
     
+    # Crear nuevo bucle de eventos para operaciones de base de datos
+    # para evitar conflictos entre bucles
+    loop = asyncio.get_event_loop()
+    
     try:
-        # Ejecutar clasificación completa
-        results = await classifier.classify_all()
-        
-        # Obtener criptomonedas hot
-        hot_cryptos = await classifier.get_hot_cryptos()
+        # Ejecutar clasificación completa con manejo de errores mejorado
+        try:
+            results = await classifier.classify_all()
+        except Exception as e:
+            logger.error(f"Error al ejecutar clasificación completa: {e}")
+            return False
+            
+        # Obtener criptomonedas hot con manejo de errores
+        try:
+            hot_cryptos = await classifier.get_hot_cryptos()
+        except Exception as e:
+            logger.error(f"Error al obtener criptomonedas hot: {e}")
+            return False
         
         # Actualizar caché
         crypto_hot_cache = list(hot_cryptos.values())
@@ -247,7 +259,7 @@ async def refresh_classification():
         logger.info(f"Clasificación actualizada. {len(crypto_hot_cache)} cryptos calientes identificadas.")
         return True
     except Exception as e:
-        logger.error(f"Error al actualizar clasificación: {e}")
+        logger.error(f"Error general al actualizar clasificación: {e}")
         return False
 
 async def update_performance_data():
