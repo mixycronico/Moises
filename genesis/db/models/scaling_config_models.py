@@ -1,58 +1,65 @@
 """
-Modelos de configuración de escalabilidad para el Sistema Genesis.
+Modelos de base de datos para la configuración de escalabilidad.
 
-Este módulo define los modelos de datos para la configuración del sistema de 
-escalabilidad adaptativa, que permite mantener la eficiencia del sistema
-cuando el capital crece significativamente.
+Este módulo define los modelos de base de datos necesarios para almacenar
+configuraciones, puntos de saturación, historial de asignaciones y registros
+de eficiencia para el sistema de escalabilidad adaptativa.
 """
 
-from sqlalchemy import Column, Integer, String, Float, Boolean, JSON, ForeignKey, DateTime, Text
-from sqlalchemy.orm import relationship
+import sqlalchemy as sa
+from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.dialects.postgresql import JSONB
 from datetime import datetime
+from typing import Dict, List, Any, Optional
 
-from genesis.db.base import Base
+Base = declarative_base()
 
-class ScalingConfig(Base):
+class ScalingConfiguration(Base):
     """
-    Configuración del sistema de escalabilidad adaptativa.
+    Configuración de escalabilidad para un conjunto de instrumentos o una estrategia.
     
-    Esta tabla almacena los parámetros de configuración para el gestor
-    de escalabilidad de capital, que ajusta la distribución y parámetros
-    según el nivel de fondos disponibles.
+    Esta tabla almacena los parámetros base para la escalabilidad adaptativa,
+    incluyendo thresholds, límites y factores de ajuste.
     """
-    __tablename__ = "scaling_config"
+    __tablename__ = 'scaling_configurations'
     
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False, unique=True)
-    description = Column(Text, nullable=True)
+    id = sa.Column(sa.Integer, primary_key=True)
+    name = sa.Column(sa.String(200), nullable=False)
+    description = sa.Column(sa.Text, nullable=True)
     
-    # Parámetros de escalabilidad
-    capital_base = Column(Float, nullable=False, default=10000.0)
-    efficiency_threshold = Column(Float, nullable=False, default=0.85)
-    max_symbols_small = Column(Integer, nullable=False, default=5)
-    max_symbols_large = Column(Integer, nullable=False, default=15)
-    timeframes = Column(JSON, nullable=False, default=lambda: ["15m", "1h", "4h", "1d"])
-    reallocation_interval_hours = Column(Integer, nullable=False, default=6)
-    saturation_default = Column(Float, nullable=False, default=1000000.0)
+    # Parámetros base
+    capital_base = sa.Column(sa.Float, nullable=False, default=10000.0)
+    efficiency_threshold = sa.Column(sa.Float, nullable=False, default=0.85)
+    max_symbols_small = sa.Column(sa.Integer, nullable=False, default=5)
+    max_symbols_large = sa.Column(sa.Integer, nullable=False, default=15)
     
-    # Control de flujo
-    active = Column(Boolean, nullable=False, default=True)
-    redis_cache_enabled = Column(Boolean, nullable=False, default=True)
-    monitoring_enabled = Column(Boolean, nullable=False, default=True)
+    # Configuración avanzada
+    volatility_adjustment = sa.Column(sa.Float, nullable=False, default=1.0)
+    correlation_limit = sa.Column(sa.Float, nullable=False, default=0.7)
+    capital_protection_level = sa.Column(sa.Float, nullable=False, default=0.95)
     
-    # Metadatos
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
-    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    # JSON con configuración adicional
+    extended_config = sa.Column(JSONB, nullable=True)
     
-    # Configuración adicional en formato JSON
-    advanced_config = Column(JSON, nullable=True)
+    # Metadata
+    created_at = sa.Column(sa.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = sa.Column(sa.DateTime, nullable=False, default=datetime.utcnow, 
+                          onupdate=datetime.utcnow)
+    active = sa.Column(sa.Boolean, nullable=False, default=True)
     
     # Relaciones
-    saturation_points = relationship("SaturationPoint", back_populates="config", cascade="all, delete-orphan")
-    allocation_history = relationship("AllocationHistory", back_populates="config", cascade="all, delete-orphan")
+    saturation_points = relationship("SaturationPoint", back_populates="config",
+                                    cascade="all, delete-orphan")
+    allocation_history = relationship("AllocationHistory", back_populates="config",
+                                     cascade="all, delete-orphan")
+    efficiency_records = relationship("EfficiencyRecord", back_populates="config",
+                                     cascade="all, delete-orphan")
     
-    def to_dict(self):
+    def __repr__(self):
+        return f"<ScalingConfiguration(id={self.id}, name='{self.name}')>"
+    
+    def to_dict(self) -> Dict[str, Any]:
         """Convertir a diccionario."""
         return {
             "id": self.id,
@@ -62,59 +69,58 @@ class ScalingConfig(Base):
             "efficiency_threshold": self.efficiency_threshold,
             "max_symbols_small": self.max_symbols_small,
             "max_symbols_large": self.max_symbols_large,
-            "timeframes": self.timeframes,
-            "reallocation_interval_hours": self.reallocation_interval_hours,
-            "saturation_default": self.saturation_default,
-            "active": self.active,
-            "redis_cache_enabled": self.redis_cache_enabled,
-            "monitoring_enabled": self.monitoring_enabled,
+            "volatility_adjustment": self.volatility_adjustment,
+            "correlation_limit": self.correlation_limit,
+            "capital_protection_level": self.capital_protection_level,
+            "extended_config": self.extended_config,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-            "advanced_config": self.advanced_config
+            "active": self.active
         }
 
 
 class SaturationPoint(Base):
     """
-    Puntos de saturación estimados para instrumentos.
+    Punto de saturación para un instrumento financiero.
     
-    Almacena los puntos de saturación calculados para cada instrumento,
-    permitiendo persistir estos valores entre reinicios del sistema.
+    Representa el nivel de capital donde un instrumento comienza a mostrar
+    deterioro de eficiencia debido a problemas de liquidez o impacto de mercado.
     """
-    __tablename__ = "saturation_points"
+    __tablename__ = 'saturation_points'
     
-    id = Column(Integer, primary_key=True)
-    config_id = Column(Integer, ForeignKey("scaling_config.id"), nullable=False)
-    symbol = Column(String(20), nullable=False)
-    saturation_value = Column(Float, nullable=False)
-    liquidity_score = Column(Float, nullable=True)
-    volume_24h = Column(Float, nullable=True)
-    market_cap = Column(Float, nullable=True)
+    id = sa.Column(sa.Integer, primary_key=True)
+    config_id = sa.Column(sa.Integer, sa.ForeignKey('scaling_configurations.id'), 
+                         nullable=False)
+    symbol = sa.Column(sa.String(50), nullable=False)
+    saturation_value = sa.Column(sa.Float, nullable=False)
     
-    # Metadatos
-    created_at = Column(DateTime, nullable=False, default=datetime.now)
-    updated_at = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+    # Metadata sobre cómo se determinó este punto
+    determination_method = sa.Column(sa.String(50), nullable=True)  # 'model', 'manual', 'historical'
+    confidence = sa.Column(sa.Float, nullable=True)  # 0-1
+    last_update = sa.Column(sa.DateTime, nullable=False, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
     
-    # Relaciones
-    config = relationship("ScalingConfig", back_populates="saturation_points")
+    # Relación inversa
+    config = relationship("ScalingConfiguration", back_populates="saturation_points")
     
+    # Índice combinado para búsquedas rápidas
     __table_args__ = (
-        # Índice compuesto para búsquedas rápidas
-        {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'}
+        sa.UniqueConstraint('config_id', 'symbol', name='uix_saturation_config_symbol'),
     )
     
-    def to_dict(self):
+    def __repr__(self):
+        return f"<SaturationPoint(symbol='{self.symbol}', value={self.saturation_value:.2f})>"
+    
+    def to_dict(self) -> Dict[str, Any]:
         """Convertir a diccionario."""
         return {
             "id": self.id,
             "config_id": self.config_id,
             "symbol": self.symbol,
             "saturation_value": self.saturation_value,
-            "liquidity_score": self.liquidity_score,
-            "volume_24h": self.volume_24h,
-            "market_cap": self.market_cap,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+            "determination_method": self.determination_method,
+            "confidence": self.confidence,
+            "last_update": self.last_update.isoformat() if self.last_update else None
         }
 
 
@@ -122,38 +128,37 @@ class AllocationHistory(Base):
     """
     Historial de asignaciones de capital.
     
-    Registra las asignaciones de capital realizadas a lo largo del tiempo,
-    permitiendo análisis históricos y optimización continua.
+    Almacena un registro histórico de cómo se distribuyó el capital
+    entre diferentes instrumentos a lo largo del tiempo.
     """
-    __tablename__ = "allocation_history"
+    __tablename__ = 'allocation_history'
     
-    id = Column(Integer, primary_key=True)
-    config_id = Column(Integer, ForeignKey("scaling_config.id"), nullable=False)
-    timestamp = Column(DateTime, nullable=False, default=datetime.now)
+    id = sa.Column(sa.Integer, primary_key=True)
+    config_id = sa.Column(sa.Integer, sa.ForeignKey('scaling_configurations.id'), 
+                         nullable=False)
+    timestamp = sa.Column(sa.DateTime, nullable=False, default=datetime.utcnow)
     
     # Datos de asignación
-    total_capital = Column(Float, nullable=False)
-    scale_factor = Column(Float, nullable=False)
-    instruments_count = Column(Integer, nullable=False)
+    total_capital = sa.Column(sa.Float, nullable=False)
+    scale_factor = sa.Column(sa.Float, nullable=False)
+    instruments_count = sa.Column(sa.Integer, nullable=False)
     
-    # Métricas
-    capital_utilization = Column(Float, nullable=False)
-    entropy = Column(Float, nullable=True)
-    efficiency_avg = Column(Float, nullable=True)
+    # Métricas de calidad
+    capital_utilization = sa.Column(sa.Float, nullable=True)
+    entropy = sa.Column(sa.Float, nullable=True)  # Diversificación
+    efficiency_avg = sa.Column(sa.Float, nullable=True)
     
     # Datos detallados
-    allocations = Column(JSON, nullable=False)
-    metrics = Column(JSON, nullable=True)
+    allocations = sa.Column(JSONB, nullable=False)  # {symbol: amount, ...}
+    metrics = sa.Column(JSONB, nullable=True)  # Métricas adicionales
     
-    # Relaciones
-    config = relationship("ScalingConfig", back_populates="allocation_history")
+    # Relación inversa
+    config = relationship("ScalingConfiguration", back_populates="allocation_history")
     
-    __table_args__ = (
-        # Índice para búsquedas por fecha
-        {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'}
-    )
+    def __repr__(self):
+        return f"<AllocationHistory(id={self.id}, capital={self.total_capital:.2f}, instruments={self.instruments_count})>"
     
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         """Convertir a diccionario."""
         return {
             "id": self.id,
@@ -172,50 +177,113 @@ class AllocationHistory(Base):
 
 class EfficiencyRecord(Base):
     """
-    Registro de eficiencia por nivel de capital.
+    Registro de eficiencia observada para un instrumento.
     
-    Almacena las mediciones de eficiencia para diferentes niveles de
-    capital por instrumento, permitiendo analizar el impacto del crecimiento
-    de capital en la eficiencia operativa.
+    Almacena datos históricos de eficiencia observada para diferentes
+    niveles de capital, permitiendo construir modelos predictivos.
     """
-    __tablename__ = "efficiency_records"
+    __tablename__ = 'efficiency_records'
     
-    id = Column(Integer, primary_key=True)
-    config_id = Column(Integer, ForeignKey("scaling_config.id"), nullable=False)
-    symbol = Column(String(20), nullable=False)
+    id = sa.Column(sa.Integer, primary_key=True)
+    config_id = sa.Column(sa.Integer, sa.ForeignKey('scaling_configurations.id'), 
+                         nullable=False)
+    symbol = sa.Column(sa.String(50), nullable=False)
+    capital_level = sa.Column(sa.Float, nullable=False)
+    efficiency = sa.Column(sa.Float, nullable=False)  # 0-1
     
-    # Datos de eficiencia
-    capital_level = Column(Float, nullable=False)
-    efficiency_score = Column(Float, nullable=False)
+    # Datos contextuales
+    timestamp = sa.Column(sa.DateTime, nullable=False, default=datetime.utcnow)
+    market_conditions = sa.Column(JSONB, nullable=True)  # Condiciones de mercado
     
-    # Datos adicionales
-    roi = Column(Float, nullable=True)
-    win_rate = Column(Float, nullable=True)
-    sharpe_ratio = Column(Float, nullable=True)
-    trades_count = Column(Integer, nullable=True)
+    # Métricas de rendimiento
+    roi = sa.Column(sa.Float, nullable=True)
+    sharpe = sa.Column(sa.Float, nullable=True)
+    max_drawdown = sa.Column(sa.Float, nullable=True)
+    win_rate = sa.Column(sa.Float, nullable=True)
     
-    # Metadatos
-    timestamp = Column(DateTime, nullable=False, default=datetime.now)
+    # Relación inversa
+    config = relationship("ScalingConfiguration", back_populates="efficiency_records")
     
-    # Relaciones
-    config = relationship("ScalingConfig")
-    
+    # Índices
     __table_args__ = (
-        # Índices para consultas rápidas
-        {'mysql_engine': 'InnoDB', 'mysql_charset': 'utf8mb4'}
+        sa.Index('idx_efficiency_symbol_capital', 'symbol', 'capital_level'),
     )
     
-    def to_dict(self):
+    def __repr__(self):
+        return f"<EfficiencyRecord(symbol='{self.symbol}', capital={self.capital_level:.2f}, efficiency={self.efficiency:.2f})>"
+    
+    def to_dict(self) -> Dict[str, Any]:
         """Convertir a diccionario."""
         return {
             "id": self.id,
             "config_id": self.config_id,
             "symbol": self.symbol,
             "capital_level": self.capital_level,
-            "efficiency_score": self.efficiency_score,
+            "efficiency": self.efficiency,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "market_conditions": self.market_conditions,
             "roi": self.roi,
-            "win_rate": self.win_rate,
-            "sharpe_ratio": self.sharpe_ratio,
-            "trades_count": self.trades_count,
-            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+            "sharpe": self.sharpe,
+            "max_drawdown": self.max_drawdown,
+            "win_rate": self.win_rate
+        }
+
+
+class PredictiveModel(Base):
+    """
+    Modelo predictivo para estimación de eficiencia.
+    
+    Almacena modelos entrenados y sus parámetros para predecir
+    cómo se comportarán diferentes instrumentos con distintos niveles de capital.
+    """
+    __tablename__ = 'predictive_models'
+    
+    id = sa.Column(sa.Integer, primary_key=True)
+    config_id = sa.Column(sa.Integer, sa.ForeignKey('scaling_configurations.id'), 
+                         nullable=False)
+    symbol = sa.Column(sa.String(50), nullable=False)
+    
+    # Metadatos del modelo
+    model_type = sa.Column(sa.String(50), nullable=False)  # linear, polynomial, exponential
+    creation_date = sa.Column(sa.DateTime, nullable=False, default=datetime.utcnow)
+    last_update = sa.Column(sa.DateTime, nullable=False, default=datetime.utcnow,
+                           onupdate=datetime.utcnow)
+    training_points = sa.Column(sa.Integer, nullable=False)
+    
+    # Parámetros del modelo
+    parameters = sa.Column(JSONB, nullable=False)  # Coeficientes, hiperparámetros, etc.
+    
+    # Métricas de calidad
+    r_squared = sa.Column(sa.Float, nullable=True)
+    mean_error = sa.Column(sa.Float, nullable=True)
+    max_error = sa.Column(sa.Float, nullable=True)
+    
+    # Rango válido
+    valid_range_min = sa.Column(sa.Float, nullable=True)
+    valid_range_max = sa.Column(sa.Float, nullable=True)
+    
+    # Índice combinado para búsquedas rápidas
+    __table_args__ = (
+        sa.UniqueConstraint('config_id', 'symbol', name='uix_model_config_symbol'),
+    )
+    
+    def __repr__(self):
+        return f"<PredictiveModel(symbol='{self.symbol}', type='{self.model_type}', r²={self.r_squared or 0:.3f})>"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convertir a diccionario."""
+        return {
+            "id": self.id,
+            "config_id": self.config_id,
+            "symbol": self.symbol,
+            "model_type": self.model_type,
+            "creation_date": self.creation_date.isoformat() if self.creation_date else None,
+            "last_update": self.last_update.isoformat() if self.last_update else None,
+            "training_points": self.training_points,
+            "parameters": self.parameters,
+            "r_squared": self.r_squared,
+            "mean_error": self.mean_error,
+            "max_error": self.max_error,
+            "valid_range_min": self.valid_range_min,
+            "valid_range_max": self.valid_range_max
         }

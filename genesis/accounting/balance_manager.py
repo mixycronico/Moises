@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from genesis.core.base import Component
 from genesis.utils.helpers import generate_id, format_timestamp
 from genesis.utils.logger import setup_logging
+from genesis.accounting.predictive_scaling import PredictiveScalingEngine, ScalingPrediction
 
 # Configurar precisión para operaciones con Decimal
 getcontext().prec = 28
@@ -120,6 +121,9 @@ class CapitalScalingManager:
         self.registros_eficiencia: Dict[str, Dict[float, float]] = {}
         self.puntos_saturacion: Dict[str, float] = {}
         self.historial_distribucion: List[Dict[str, Any]] = []
+        
+        # Inicializar motor predictivo de escalabilidad
+        self.predictive_engine = PredictiveScalingEngine()
         
         # Pool de hilos para cálculos intensivos
         self.executor = ThreadPoolExecutor(max_workers=4)
@@ -591,29 +595,44 @@ class CapitalScalingManager:
             self.logger.error(f"Error analizando eficiencia para {simbolo}: {str(e)}")
             return 0.5  # Valor neutral en caso de error
 
-    async def _analizar_tendencia_eficiencia(self, simbolo: str) -> None:
+    async def _analizar_tendencia_eficiencia(self, simbolo: str) -> Dict[str, Any]:
         """
         Analizar tendencia de eficiencia con diferentes niveles de capital.
         
+        Este método examina cómo la eficiencia cambia a medida que el capital
+        desplegado aumenta, identificando puntos de saturación y patrones
+        para optimizar la asignación futura.
+        
         Args:
             simbolo: Símbolo a analizar
+            
+        Returns:
+            Diccionario con resultados del análisis
         """
         if simbolo not in self.registros_eficiencia:
-            return
+            return {}
             
         # Obtener puntos ordenados por capital
         puntos = sorted(self.registros_eficiencia[simbolo].items())
         
-        if len(puntos) < 3:
-            return
+        if len(puntos) < 2:
+            return {}
             
-        # Analizar tendencia con regresión lineal simple
-        x = [p[0] for p in puntos]  # Capital
-        y = [p[1] for p in puntos]  # Eficiencia
+        # Actualizar registros en el motor predictivo
+        for capital, eficiencia in self.registros_eficiencia[simbolo].items():
+            self.predictive_engine.add_efficiency_record(simbolo, capital, eficiencia)
         
-        # Calcular pendiente
+        resultados = {}
+        
         try:
-            pendiente, _ = np.polyfit(x, y, 1)
+            # Análisis básico con regresión lineal simple (para compatibilidad con versiones anteriores)
+            x = np.array([p[0] for p in puntos])  # Capital
+            y = np.array([p[1] for p in puntos])  # Eficiencia
+            
+            pendiente, ordenada = np.polyfit(x, y, 1)
+            resultados["pendiente"] = pendiente
+            resultados["ordenada"] = ordenada
+            resultados["r2_lineal"] = self.predictive_engine._calculate_r2(x, y, lambda x: pendiente * x + ordenada)
             
             # Si la pendiente es negativa, hay deterioro de eficiencia
             if pendiente < -0.0001:  # Umbral de significancia
@@ -626,15 +645,49 @@ class CapitalScalingManager:
                 if eficiencia_actual > self.umbral_eficiencia:
                     capital_margen = (eficiencia_actual - self.umbral_eficiencia) / abs(pendiente)
                     saturacion_proyectada = capital_actual + capital_margen
+                    resultados["saturacion_proyectada_lineal"] = saturacion_proyectada
                     
                     # Actualizar punto de saturación si es menor que el actual
                     saturacion_actual = self.puntos_saturacion.get(simbolo, CAPITAL_CONFIG['SATURACION_POR_DEFECTO'])
                     if saturacion_proyectada < saturacion_actual * 0.8:  # Solo actualizar si es significativamente menor
                         self.puntos_saturacion[simbolo] = saturacion_proyectada
                         self.logger.info(f"Punto de saturación para {simbolo} ajustado a ${saturacion_proyectada:,.2f} basado en análisis de eficiencia")
+                        resultados["saturacion_actualizada"] = True
+            
+            # Análisis avanzado con motor predictivo
+            # Generar proyecciones a futuro utilizando el motor predictivo
+            capital_max = max(x) * 2  # Proyectar hasta el doble del capital actual
+            pasos = 5
+            proyecciones = []
+            
+            for i in range(1, pasos + 1):
+                capital_proyectado = capital_actual + (capital_max - capital_actual) * (i / pasos)
+                prediccion = self.predictive_engine.predict_efficiency(simbolo, capital_proyectado)
+                proyecciones.append(prediccion.to_dict())
+            
+            resultados["proyecciones"] = proyecciones
+            
+            # Buscar punto de saturación proyectado (donde la eficiencia cae por debajo del umbral)
+            for prediccion in proyecciones:
+                if prediccion["efficiency"] < self.umbral_eficiencia:
+                    saturacion_avanzada = prediccion["capital_level"]
+                    resultados["saturacion_proyectada_avanzada"] = saturacion_avanzada
+                    
+                    # Actualizar punto de saturación si es más preciso que el modelo lineal
+                    if prediccion["confidence"] > 0.7 and (
+                        "saturacion_proyectada_lineal" not in resultados or 
+                        saturacion_avanzada < resultados["saturacion_proyectada_lineal"] * 0.9
+                    ):
+                        self.puntos_saturacion[simbolo] = saturacion_avanzada
+                        self.logger.info(f"Punto de saturación para {simbolo} actualizado a ${saturacion_avanzada:,.2f} con modelo predictivo avanzado")
+                        resultados["saturacion_actualizada_avanzada"] = True
+                    break
         
         except Exception as e:
             self.logger.warning(f"Error en análisis de tendencia para {simbolo}: {str(e)}")
+            resultados["error"] = str(e)
+        
+        return resultados
 
     def get_saturation_points(self) -> Dict[str, float]:
         """
@@ -669,6 +722,79 @@ class CapitalScalingManager:
             Lista de registros históricos
         """
         return self.historial_distribucion[-limit:]
+        
+    async def predict_capital_efficiency(
+        self, 
+        symbol: str, 
+        capital_levels: List[float]
+    ) -> List[Dict[str, Any]]:
+        """
+        Predecir eficiencia para diferentes niveles de capital.
+        
+        Este método utiliza el motor predictivo para estimar cómo
+        se comportará un instrumento con diferentes niveles de capital,
+        permitiendo planificar escalabilidad a futuro.
+        
+        Args:
+            symbol: Símbolo del instrumento
+            capital_levels: Lista de niveles de capital a predecir
+            
+        Returns:
+            Lista de predicciones con detalles
+        """
+        if not capital_levels:
+            return []
+            
+        # Asegurar que el motor tiene todos los datos disponibles
+        if symbol in self.registros_eficiencia:
+            for capital, eficiencia in self.registros_eficiencia[symbol].items():
+                self.predictive_engine.add_efficiency_record(symbol, capital, eficiencia)
+        
+        # Generar predicciones
+        predicciones = []
+        for capital_level in capital_levels:
+            prediccion = self.predictive_engine.predict_efficiency(symbol, capital_level)
+            predicciones.append(prediccion.to_dict())
+            
+        # Ordenar por nivel de capital
+        return sorted(predicciones, key=lambda p: p["capital_level"])
+    
+    async def optimize_allocations_with_predictor(
+        self,
+        symbols: List[str],
+        total_capital: float,
+        min_efficiency: float = 0.7
+    ) -> Dict[str, float]:
+        """
+        Optimizar asignación de capital utilizando el motor predictivo.
+        
+        Esta versión más avanzada que _calcular_asignaciones utiliza
+        el motor predictivo para encontrar la distribución óptima que
+        maximiza la eficiencia global del sistema.
+        
+        Args:
+            symbols: Lista de símbolos disponibles
+            total_capital: Capital total a distribuir
+            min_efficiency: Eficiencia mínima aceptable
+            
+        Returns:
+            Diccionario con asignación por símbolo
+        """
+        if not symbols or total_capital <= 0:
+            return {}
+        
+        # Actualizar registros de eficiencia en el motor predictivo
+        for symbol in symbols:
+            if symbol in self.registros_eficiencia:
+                for capital, eficiencia in self.registros_eficiencia[symbol].items():
+                    self.predictive_engine.add_efficiency_record(symbol, capital, eficiencia)
+        
+        # Utilizar el optimizador del motor predictivo
+        asignaciones = self.predictive_engine.optimize_allocation(
+            symbols, total_capital, min_efficiency
+        )
+        
+        return asignaciones
         
     async def _persist_allocation_history(
         self,
