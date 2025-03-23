@@ -8,7 +8,11 @@
     "classifier_config": {
         "capital_inicial": 10000.0,
         "modo_trascendental": true,
-        "timeframes": ["1d", "4h", "1h"],
+        "timeframes": [
+            "1d",
+            "4h",
+            "1h"
+        ],
         "limite_cryptos": 50,
         "umbral_hot": 0.8
     },

@@ -140,13 +140,24 @@ async def initialize_genesis():
                 "default_model_type": "polynomial"
             }
             
-        # Inicializar sistema con la nueva función
-        success, components = await initialize_system(transcendental_db, config)
+        # Inicializar sistema con la configuración
+        # Primero guardamos la configuración actualizada en el archivo
+        try:
+            with open(app.config["GENESIS_CONFIG"], 'w') as f:
+                json.dump(config, f, indent=4)
+        except Exception as e:
+            logger.warning(f"Error al guardar configuración: {e}")
+            
+        # Luego iniciamos el sistema con la ruta al archivo de configuración
+        results = await initialize_system(app.config["GENESIS_CONFIG"])
         
         # Almacenar resultados
+        success = results.get("mensaje", "").endswith("correctamente")
+        status_components = [k for k in results if k.endswith("_status") and results[k] is True]
+        
         genesis_init_results = {
             "success": success,
-            "components": list(components.keys()) if components else []
+            "components": status_components
         }
         
         if success:

@@ -7,6 +7,8 @@ incluyendo base de datos, motor de eventos, análisis, trading, etc.
 
 import logging
 import asyncio
+import json
+import os
 from typing import Dict, List, Any, Tuple, Optional
 
 from genesis.db.transcendental_database import TranscendentalDatabase
@@ -18,86 +20,144 @@ from genesis.analytics.transcendental_performance_tracker import initialize_perf
 # Configurar logging
 logger = logging.getLogger("genesis.init")
 
-async def initialize_system(
-    db: Optional[TranscendentalDatabase] = None,
-    config: Optional[Dict[str, Any]] = None
-) -> Tuple[bool, Dict[str, Any]]:
+async def initialize_system(config_path: str) -> Dict[str, Any]:
     """
     Inicializar todo el sistema Genesis.
     
-    Esta función coordina la inicialización de todos los componentes.
+    Esta función coordina la inicialización de todos los componentes
+    usando la configuración del archivo especificado.
     
     Args:
-        db: Conexión a la base de datos transcendental (opcional)
-        config: Configuración adicional
+        config_path: Ruta al archivo de configuración JSON
         
     Returns:
-        Tupla (éxito, componentes)
+        Dict con resultados de inicialización con formato {"componente": True/False, "mensaje": "..."}
     """
     try:
         logger.info("Iniciando inicialización del sistema Genesis")
         
-        config = config or {}
-        components = {}
+        # Cargar configuración del archivo
+        if not os.path.exists(config_path):
+            logger.error(f"Archivo de configuración no encontrado: {config_path}")
+            return {"mensaje": f"Archivo de configuración no encontrado: {config_path}"}
+        
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+        except Exception as e:
+            logger.error(f"Error al cargar configuración: {e}")
+            return {"mensaje": f"Error al cargar configuración: {e}"}
+        
+        # Extraer valores principales de configuración 
+        initial_capital = config.get("scaling_config", {}).get("initial_capital", 10000.0)
+        logger.info(f"Capital inicial configurado: {initial_capital}")
+        
+        results = {"mensaje": ""}
         
         # 1. Inicializar componentes base
-        # 1.1 Inicializar clasificador
-        crypto_classifier = await initialize_classifier(db, config.get("classifier_config"))
+        # 1.1 Inicializar clasificador con capital numérico
+        classifier_config = config.get("classifier_config", {})
+        crypto_classifier = await initialize_classifier(
+            initial_capital=float(initial_capital), 
+            config=classifier_config or {}
+        )
+        
         if crypto_classifier:
-            components["crypto_classifier"] = crypto_classifier
+            results["crypto_classifier"] = crypto_classifier
+            results["crypto_classifier_status"] = True
             logger.info("Clasificador de criptomonedas inicializado")
         else:
+            results["crypto_classifier_status"] = False
             logger.warning("Fallo en la inicialización del clasificador de criptomonedas")
         
-        # 1.2 Inicializar risk manager
-        risk_manager = await initialize_risk_manager(db, config.get("risk_config"))
+        # 1.2 Inicializar risk manager con capital numérico
+        risk_config = config.get("risk_config", {})
+        risk_manager = await initialize_risk_manager(
+            capital_inicial=float(initial_capital), 
+            config=risk_config or {}
+        )
+        
         if risk_manager:
-            components["risk_manager"] = risk_manager
+            results["risk_manager"] = risk_manager
+            results["risk_manager_status"] = True
             logger.info("Risk manager inicializado")
         else:
+            results["risk_manager_status"] = False
             logger.warning("Fallo en la inicialización del risk manager")
         
-        # 1.3 Inicializar performance tracker
-        performance_tracker = await initialize_performance_tracker(db, config.get("performance_config"))
+        # 1.3 Inicializar performance tracker con capital numérico
+        performance_config = config.get("performance_config", {})
+        performance_tracker = await initialize_performance_tracker(
+            capital_inicial=float(initial_capital), 
+            config=performance_config or {}
+        )
+        
         if performance_tracker:
-            components["performance_tracker"] = performance_tracker
+            results["performance_tracker"] = performance_tracker
+            results["performance_tracker_status"] = True
             logger.info("Performance tracker inicializado")
         else:
+            results["performance_tracker_status"] = False
             logger.warning("Fallo en la inicialización del performance tracker")
         
         # 2. Inicializar sistema de escalabilidad adaptativa
-        scaling_success, scaling_components = await initialize_scaling_system(db, config.get("scaling_config"))
-        if scaling_success:
-            components.update(scaling_components)
-            logger.info("Sistema de escalabilidad adaptativa inicializado")
-        else:
-            logger.warning("Fallo en la inicialización del sistema de escalabilidad adaptativa")
+        scaling_config = config.get("scaling_config", {})
+        try:
+            scaling_success, scaling_components = await initialize_scaling_system(
+                db=None,  # La base de datos se maneja internamente 
+                config=scaling_config
+            )
+            
+            if scaling_success and isinstance(scaling_components, dict):
+                # Guardar estado de éxito
+                results["scaling_system_status"] = True
+                
+                # Guardar componentes especiales para enlazar
+                for key, component in scaling_components.items():
+                    component_key = f"{key}_status"
+                    results[component_key] = True
+                    results[key] = component
+                
+                logger.info("Sistema de escalabilidad adaptativa inicializado")
+            else:
+                results["scaling_system_status"] = False
+                logger.warning("Fallo en la inicialización del sistema de escalabilidad adaptativa")
+        except Exception as e:
+            results["scaling_system_status"] = False
+            logger.warning(f"Error en la inicialización del sistema de escalabilidad: {e}")
         
-        # 3. Enlazar componentes entre sí
-        # 3.1 Si existe la estrategia adaptativa, enlazarla con risk manager
-        if "adaptive_strategy" in components and "risk_manager" in components:
-            components["adaptive_strategy"].risk_manager = components["risk_manager"]
-            logger.info("Estrategia adaptativa enlazada con risk manager")
-        
-        # 3.2 Si existe el scaling_manager, enlazarlo con performance_tracker
-        if "scaling_manager" in components and "performance_tracker" in components:
-            # Proporcionar acceso al performance tracker para métricas 
-            if hasattr(components["scaling_manager"], "register_metrics_provider"):
-                components["scaling_manager"].register_metrics_provider(
-                    components["performance_tracker"]
-                )
-                logger.info("Scaling manager enlazado con performance tracker")
+        # 3. Enlazar componentes entre sí si es posible
+        try:
+            # 3.1 Si existe la estrategia adaptativa, enlazarla con risk manager
+            if risk_manager and "adaptive_strategy" in results:
+                adaptive_strategy = results.get("adaptive_strategy")
+                if hasattr(adaptive_strategy, "risk_manager"):
+                    adaptive_strategy.risk_manager = risk_manager
+                    logger.info("Estrategia adaptativa enlazada con risk manager")
+            
+            # 3.2 Si existe el scaling_manager, enlazarlo con performance_tracker
+            if performance_tracker and "scaling_manager" in results:
+                scaling_manager = results.get("scaling_manager")
+                if hasattr(scaling_manager, "register_metrics_provider"):
+                    scaling_manager.register_metrics_provider(performance_tracker)
+                    logger.info("Scaling manager enlazado con performance tracker")
+        except Exception as e:
+            logger.warning(f"Error al enlazar componentes: {e}")
         
         # Verificar si la inicialización fue exitosa (al menos algunos componentes iniciados)
-        success = len(components) > 0
+        status_keys = [k for k in results if k.endswith("_status")]
+        success_count = sum(1 for k in status_keys if results[k] is True)
         
-        if success:
-            logger.info("Sistema Genesis inicializado correctamente")
+        if success_count > 0:
+            results["mensaje"] = "Sistema Genesis inicializado correctamente"
+            logger.info(f"Sistema Genesis inicializado correctamente con {success_count} componentes")
         else:
+            results["mensaje"] = "Fallo en la inicialización del sistema Genesis"
             logger.error("Fallo en la inicialización del sistema Genesis")
         
-        return success, components
+        return results
     
     except Exception as e:
-        logger.error(f"Error en la inicialización del sistema Genesis: {str(e)}")
-        return False, {}
+        error_msg = f"Error en la inicialización del sistema Genesis: {str(e)}"
+        logger.error(error_msg)
+        return {"mensaje": error_msg}
