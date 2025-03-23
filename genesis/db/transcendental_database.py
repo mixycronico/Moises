@@ -338,34 +338,33 @@ class TranscendentalDatabase:
         
         # Implementar reintentos con backoff exponencial
         for retry in range(max_retries + 1):
+            session = None
             try:
                 # Obtener una sesión
                 session = await get_db_session()
-                try:
-                    # Ejecutar consulta
-                    result = await session.execute(sql, params)
-                    
-                    # Si es una operación que modifica datos, hacer commit
-                    if sql.strip().lower().startswith(("insert", "update", "delete")):
-                        await session.commit()
-                    
-                    # Procesar resultado según tipo de consulta
-                    if sql.strip().lower().startswith("select"):
-                        final_result = result.fetchall()
-                    else:
-                        final_result = result.rowcount
-                finally:
-                    await session.close()
-                    
-                    # Almacenar en cache si está habilitado
-                    if use_cache:
-                        self.cache.set(op_id, final_result)
-                    
-                    # Registrar éxito
-                    self.success_count[op_id] = self.success_count.get(op_id, 0) + 1
-                    
-                    return final_result
-                    
+                
+                # Ejecutar consulta
+                result = await session.execute(text(sql), params)
+                
+                # Si es una operación que modifica datos, hacer commit
+                if sql.strip().lower().startswith(("insert", "update", "delete")):
+                    await session.commit()
+                
+                # Procesar resultado según tipo de consulta
+                if sql.strip().lower().startswith("select"):
+                    final_result = result.fetchall()
+                else:
+                    final_result = result.rowcount
+                
+                # Almacenar en cache si está habilitado
+                if use_cache:
+                    self.cache.set(op_id, final_result)
+                
+                # Registrar éxito
+                self.success_count[op_id] = self.success_count.get(op_id, 0) + 1
+                
+                return final_result
+                
             except SQLAlchemyError as e:
                 # Registrar error
                 self.error_count[op_id] = self.error_count.get(op_id, 0) + 1
@@ -383,6 +382,10 @@ class TranscendentalDatabase:
                 delay = min(1.0, 0.1 * (2 ** retry) + random.uniform(0, 0.1))
                 logger.warning(f"Reintento {retry+1}/{max_retries} para {op_id} después de {delay:.2f}s: {str(e)}")
                 await asyncio.sleep(delay)
+                
+            finally:
+                if session:
+                    await session.close()
     
     async def execute_batch(
         self, 

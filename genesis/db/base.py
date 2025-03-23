@@ -8,9 +8,8 @@ import logging
 import os
 from typing import Dict, Any, Optional
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.pool import QueuePool
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
 
 # Configuración de logging
 logger = logging.getLogger("genesis.db.base")
@@ -58,11 +57,10 @@ class DatabaseManager:
                 max_overflow=self.max_overflow,
                 pool_recycle=self.pool_recycle,
                 pool_pre_ping=True,  # Verificar conexiones antes de usarlas
-                poolclass=QueuePool,
             )
             
-            self.async_session_factory = sessionmaker(
-                self.engine, expire_on_commit=False, class_=AsyncSession
+            self.async_session_factory = async_sessionmaker(
+                self.engine, expire_on_commit=False
             )
             
             logger.info("Motor de base de datos asíncrono configurado")
