@@ -355,6 +355,64 @@ class AdaptiveScalingStrategy(BaseStrategy):
         if len(self.performance_metrics["allocation_history"]) > 100:
             self.performance_metrics["allocation_history"] = self.performance_metrics["allocation_history"][-100:]
     
+    async def generate_signal(self, symbol: str, data: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Generar señal de trading basada en la escalabilidad adaptativa.
+        
+        Esta implementación genera señales basadas en la eficiencia proyectada
+        del instrumento según el nivel de capital actual.
+        
+        Args:
+            symbol: Símbolo del instrumento
+            data: DataFrame con datos OHLCV
+            
+        Returns:
+            Señal de trading con dirección y metadatos
+        """
+        if not self.initialized or not self.engine:
+            return {"type": "hold", "reason": "strategy_not_ready"}
+            
+        # Obtener capital actual para el símbolo
+        symbol_allocation = self.current_allocations.get(symbol, 0.0)
+        
+        if symbol_allocation <= 0:
+            return {"type": "hold", "reason": "no_capital_allocated"}
+            
+        # Verificar si está por encima del umbral de eficiencia
+        try:
+            # Predecir eficiencia con el capital actual
+            prediction = await self.engine.predict_efficiency(symbol, symbol_allocation)
+            
+            if prediction.efficiency < self.min_efficiency_threshold:
+                return {
+                    "type": "hold",
+                    "reason": "below_efficiency_threshold",
+                    "efficiency": prediction.efficiency,
+                    "threshold": self.min_efficiency_threshold
+                }
+                
+            # Si llegamos aquí, el instrumento tiene capital asignado y eficiencia aceptable
+            # Generar señal básica (en una implementación real, usaríamos indicadores técnicos)
+            last_close = data['close'].iloc[-1] if not data.empty else 0
+            
+            # Ejemplo simple: alternar señales basadas en paridad del minuto actual
+            # En un sistema real, aquí iría lógica de trading basada en indicadores
+            current_minute = pd.Timestamp.now().minute
+            signal_type = "buy" if current_minute % 2 == 0 else "sell"
+            
+            return {
+                "type": signal_type,
+                "reason": "adaptive_allocation_active",
+                "price": last_close,
+                "efficiency": prediction.efficiency,
+                "capital": symbol_allocation,
+                "timestamp": pd.Timestamp.now().isoformat()
+            }
+                
+        except Exception as e:
+            self.logger.error(f"Error generando señal para {symbol}: {str(e)}")
+            return {"type": "hold", "reason": f"error: {str(e)}"}
+    
     async def record_observed_efficiency(
         self, 
         symbol: str, 

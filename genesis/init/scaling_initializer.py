@@ -192,10 +192,11 @@ class ScalingInitializer:
             
             # 2. Inicializar el scaling manager
             self.scaling_manager = CapitalScalingManager(
-                predictive_engine=self.engine,
-                initial_capital=self.config.get("initial_capital", 10000.0),
-                min_efficiency=self.config.get("min_efficiency", 0.5)
+                capital_inicial=self.config.get("initial_capital", 10000.0),
+                umbral_eficiencia=self.config.get("min_efficiency", 0.5)
             )
+            # Asociar el motor predictivo y la BD al gestor de escalabilidad
+            self.scaling_manager.engine = self.engine
             self.scaling_manager.db = self.db
             
             # 3. Cargar datos históricos si existen
