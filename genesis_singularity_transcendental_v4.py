@@ -463,18 +463,33 @@ class QuantumTimeV4:
     
     async def _activate_temporal_nullification(self):
         """Activa la nullificación temporal."""
-        # Implementación práctica: establecer factor extremo
-        self.time_dilation_factor = 0.0
+        try:
+            # Implementación práctica: establecer factor extremo, pero con protección
+            # para evitar "Numerical result out of range"
+            self.time_dilation_factor = 1e-12  # Valor extremadamente pequeño pero no cero
+            
+            # Registrar operación
+            self.temporal_flux_state = {
+                "nullification_active": True,
+                "start_time": time.time(),
+                "dilation_factor": self.time_dilation_factor
+            }
+            
+            # Tiempo mínimo para operación (simulado)
+            await asyncio.sleep(0.00001)
+            
+            self.logger.debug(f"Nullificación temporal activada con factor {self.time_dilation_factor}")
         
-        # Registrar operación
-        self.temporal_flux_state = {
-            "nullification_active": True,
-            "start_time": time.time(),
-            "dilation_factor": self.time_dilation_factor
-        }
-        
-        # Tiempo mínimo para operación (simulado)
-        await asyncio.sleep(0.00001)
+        except Exception as e:
+            self.logger.warning(f"Ajuste durante activación de nullificación temporal: {str(e)}")
+            # Asegurar valores seguros
+            self.time_dilation_factor = 1e-6
+            self.temporal_flux_state = {
+                "nullification_active": True,
+                "start_time": time.time(),
+                "dilation_factor": self.time_dilation_factor,
+                "safe_mode": True
+            }
     
     async def _restore_temporal_state(self, prev_dilation: float):
         """
@@ -608,9 +623,9 @@ class InfiniteDensityV4:
     estados completos del sistema en espacios infinitesimales.
     """
     def __init__(self):
-        self.compression_ratio = float('inf')  # Compresión infinita
+        self.compression_ratio = 1e308  # Valor extremadamente alto pero manejable
         self.stored_universes = 0
-        self.storage_capacity = float('inf')
+        self.storage_capacity = 1e308  # Valor extremadamente alto pero manejable
         self.logger = logging.getLogger("Genesis.InfiniteDensityV4")
     
     async def encode_universe(self, complexity: float) -> Dict[str, Any]:
@@ -641,7 +656,7 @@ class InfiniteDensityV4:
                 "universe_id": self.stored_universes,
                 "complexity": complexity,
                 "compression_ratio": self.compression_ratio,
-                "encoded_size": 0 if self.compression_ratio == float('inf') else complexity / self.compression_ratio
+                "encoded_size": complexity / (self.compression_ratio or 1e308)
             }
             
         except Exception as e:
