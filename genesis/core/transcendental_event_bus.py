@@ -11,8 +11,7 @@ import asyncio
 import logging
 import time
 import json
-from typing import Dict, Any, Optional, Callable, Awaitable, List
-from websockets.server import WebSocketServerProtocol as WebSocket
+from typing import Dict, Any, Optional, Callable, Awaitable, List, Tuple, cast
 
 # Importar mecanismos y componentes trascendentales
 from genesis_singularity_transcendental_v4 import (
@@ -92,10 +91,10 @@ class TranscendentalEventBus:
         
         # Mapa de suscriptores trascendental
         # Estructura: {event_type: [(priority, handler, component_id)]}
-        self.subscribers: Dict[str, List[tuple[int, EventHandler, str]]] = {}
+        self.subscribers: Dict[str, List[Tuple[int, EventHandler, str]]] = {}
         
         # Estadísticas avanzadas
-        self.stats = {"events_emitted": 0, "events_delivered": 0, "errors_transmuted": 0}
+        self.stats: Dict[str, Any] = {"events_emitted": 0, "events_delivered": 0, "errors_transmuted": 0}
         
         # Iniciar tareas en segundo plano
         asyncio.create_task(self._run_background_tasks())
@@ -236,7 +235,7 @@ class TranscendentalEventBus:
                 collapsed = await self.mechanisms["dimensional"].collapse_data(event)
                 compressed = await self.mechanisms["density"].compress(collapsed)
                 tunneled = await self.mechanisms["tunnel"].tunnel_data(compressed)
-                feedback = await self.mechanisms["feedback"].feedback(tunneled)
+                feedback = await self.mechanisms["feedback"].apply_feedback(tunneled)
                 optimized = await self.mechanisms["reality"].optimize(feedback)
                 
                 # Verificar convergencia antes de procesar
@@ -295,18 +294,19 @@ class TranscendentalEventBus:
         # Crear tareas para procesamiento paralelo
         tasks = []
         for priority, handler, component_id in self.subscribers[event_type]:
-            async def handle_with_resilience(h: EventHandler):
+            async def handle_with_resilience(h: EventHandler, c_id: str) -> None:
                 try:
                     await h(event_type, data, source)
                 except Exception as e:
                     # Transmutación de error en energía
                     await self.mechanisms["horizon"].transmute_error(e, {
                         "event_type": event_type,
-                        "component_id": component_id
+                        "component_id": c_id
                     })
                     self.stats["errors_transmuted"] += 1
             
-            tasks.append(handle_with_resilience(handler))
+            # Crear tarea con handler y component_id explícitos para evitar problemas de captura
+            tasks.append(handle_with_resilience(handler, component_id))
         
         # Ejecutar manejadores en paralelo
         await asyncio.gather(*tasks)
@@ -332,26 +332,32 @@ class TranscendentalEventBus:
         Returns:
             Estadísticas detalladas
         """
-        # Combinar estadísticas básicas con específicas
-        stats = self.stats.copy()
-        stats.update({
-            "running": self.running,
-            "subscribers_count": sum(len(handlers) for handlers in self.subscribers.values()),
-            "event_types": len(self.subscribers),
-            "test_mode": self.test_mode,
-            "subscribers": {k: len(v) for k, v in self.subscribers.items()}
-        })
+        # Crear un nuevo diccionario con las estadísticas básicas
+        result: Dict[str, Any] = dict(self.stats)
+        
+        # Añadir más información de estado
+        result["running"] = self.running
+        result["subscribers_count"] = sum(len(handlers) for handlers in self.subscribers.values())
+        result["event_types"] = len(self.subscribers)
+        result["test_mode"] = self.test_mode
+        result["subscribers"] = {k: len(v) for k, v in self.subscribers.items()}
         
         # Añadir estadísticas de cada mecanismo
         for name, mechanism in self.mechanisms.items():
             if hasattr(mechanism, "get_stats"):
-                stats[f"{name}_stats"] = mechanism.get_stats()
+                stats = mechanism.get_stats()
+                result[f"{name}_stats"] = stats
                 
-        # Añadir estadísticas de WebSocket y API
-        stats["ws_stats"] = self.ws.get_stats()
-        stats["api_stats"] = self.api.get_stats()
+        # Añadir estadísticas de WebSocket y API si están disponibles
+        ws_stats = self.ws.get_stats()
+        api_stats = self.api.get_stats()
         
-        return stats
+        if ws_stats:
+            result["ws_stats"] = ws_stats
+        if api_stats:
+            result["api_stats"] = api_stats
+        
+        return result
 
 # Ejemplo de uso para pruebas
 async def test_event_bus():
@@ -370,4 +376,3 @@ async def test_event_bus():
 
 if __name__ == "__main__":
     asyncio.run(test_event_bus())
-"""
