@@ -339,7 +339,9 @@ class TranscendentalDatabase:
         # Implementar reintentos con backoff exponencial
         for retry in range(max_retries + 1):
             try:
-                async with get_db_session() as session:
+                # Obtener una sesión
+                session = await get_db_session()
+                try:
                     # Ejecutar consulta
                     result = await session.execute(sql, params)
                     
@@ -352,6 +354,8 @@ class TranscendentalDatabase:
                         final_result = result.fetchall()
                     else:
                         final_result = result.rowcount
+                finally:
+                    await session.close()
                     
                     # Almacenar en cache si está habilitado
                     if use_cache:
@@ -402,9 +406,11 @@ class TranscendentalDatabase:
         """
         for retry in range(max_retries + 1):
             try:
-                async with get_db_session() as session:
-                    results = []
-                    
+                # Obtener una sesión
+                session = await get_db_session()
+                results = []
+                
+                try:
                     # Iniciar transacción si está habilitada
                     if use_transaction:
                         transaction = await session.begin()
@@ -428,6 +434,8 @@ class TranscendentalDatabase:
                         if use_transaction:
                             await transaction.rollback()
                         raise
+                finally:
+                    await session.close()
                         
             except SQLAlchemyError as e:
                 # Último intento, propagar excepción

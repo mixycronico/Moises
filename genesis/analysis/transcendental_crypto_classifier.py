@@ -366,7 +366,7 @@ class TranscendentalCryptoClassifier:
         logger.info(f"Iniciando clasificación con capital={self.current_capital}")
         
         # Obtener todas las criptomonedas activas
-        async def get_active_cryptos_query():
+        def get_active_cryptos_query():
             return (
                 select(Cryptocurrency)
                 .where(Cryptocurrency.is_active == True)
