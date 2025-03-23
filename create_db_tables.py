@@ -146,8 +146,8 @@ async def main():
     try:
         logger.info("Iniciando creación de tablas de la base de datos")
         
-        # Crear tablas
-        success = await create_tables('create_tables.sql')
+        # Crear tablas con nuevos nombres
+        success = await create_tables('create_tables_gen.sql')
         
         if success:
             logger.info("Tablas creadas correctamente. Sistema listo para importar datos.")
