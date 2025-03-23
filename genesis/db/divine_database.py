@@ -896,4 +896,4 @@ def get_divine_db_adapter(db_url: Optional[str] = None) -> DivineDatabaseAdapter
         return _divine_db_adapter
 
 # Aliases para mayor comodidad
-divine_db = get_divine_db_adapter
+divine_db = get_divine_db_adapter()
