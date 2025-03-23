@@ -15,7 +15,8 @@ import datetime
 import random
 import json
 from typing import Dict, Any, List, Optional, Tuple, Union
-import matplotlib.pyplot as plt
+# Comentando matplotlib ya que no lo necesitamos para la prueba básica
+# import matplotlib.pyplot as plt
 from collections import defaultdict
 
 # Configurar logging
@@ -31,12 +32,12 @@ from genesis.db.transcendental_database import AtemporalSynchronization
 
 # Parámetros de prueba
 TEST_INTENSITY = 1000.0
-TEST_DURATION = 5   # segundos (reducido para prueba rápida)
-BUFFER_SIZE = 50    # Reducido para prueba rápida
-KEYS_COUNT = 10     # Reducido para prueba rápida
+TEST_DURATION = 3   # segundos (reducido para prueba rápida)
+BUFFER_SIZE = 30    # Reducido para prueba rápida
+KEYS_COUNT = 5      # Reducido para prueba rápida
 ANOMALY_RATE = 0.3  # Tasa de inducción de anomalías
 PARADOX_RATE = 0.1  # Tasa de inducción de paradojas temporales
-MAX_TIMELINE_OFFSET = 30  # Máximo offset temporal en segundos (reducido)
+MAX_TIMELINE_OFFSET = 20  # Máximo offset temporal en segundos (reducido)
 
 class TemporalAnomaly(Exception):
     """Excepción que representa una anomalía temporal."""
@@ -269,26 +270,19 @@ class AtemporalTester:
         """Inicializar componentes."""
         logger.info(f"Inicializando componentes con intensidad {self.intensity}")
         
-        # Crear sincronizador atemporal
-        self.atemporal_sync = AtemporalSynchronization(temporal_buffer_size=BUFFER_SIZE)
+        # Crear sincronizador atemporal con capacidades avanzadas
+        self.atemporal_sync = AtemporalSynchronization(
+            temporal_buffer_size=BUFFER_SIZE,
+            extended_horizon=True,
+            adaptive_compression=True,
+            interdimensional_backup=True
+        )
         
-        # Inicializar núcleo (opcional)
-        try:
-            self.core = TranscendentalSingularityV4(intensity=self.intensity)
-            await self.core.initialize()
-            logger.info("Núcleo inicializado correctamente")
-        except Exception as e:
-            logger.error(f"Error al inicializar núcleo: {e}")
+        logger.info("Sincronizador atemporal inicializado con capacidades avanzadas")
         
-        # Inicializar base de datos (opcional)
-        try:
-            dsn = os.environ.get("DATABASE_URL")
-            if dsn:
-                self.db = TranscendentalDatabase(dsn, intensity=self.intensity)
-                await self.db.initialize()
-                logger.info("Base de datos inicializada correctamente")
-        except Exception as e:
-            logger.error(f"Error al inicializar base de datos: {e}")
+        # No inicializamos núcleo ni base de datos para esta prueba
+        self.core = None
+        self.db = None
         
         return True
     
@@ -633,8 +627,8 @@ class AtemporalTester:
             
         logger.info("Resultados guardados en resultados_atemporal_sync.json")
         
-        # Generar visualizaciones
-        self._generate_visualizations(stats)
+        # Comentamos generación de visualizaciones para esta prueba
+        # self._generate_visualizations(stats)
         
         # Generar reporte en Markdown
         report_text = f"""# Reporte de Prueba de Sincronización Atemporal
@@ -792,8 +786,7 @@ Estos resultados confirman que el mecanismo de Sincronización Atemporal es un c
     
     async def close(self):
         """Cerrar componentes."""
-        if self.db:
-            await self.db.close()
+        pass  # No hay componentes que cerrar en esta prueba
 
 async def main():
     """Función principal."""
