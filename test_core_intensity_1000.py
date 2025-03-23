@@ -266,6 +266,7 @@ async def test_singularity_core(intensity: float = 1000.0, iterations: int = 100
     successful = 0
     
     for i in range(iterations):
+        operation_start = time.time()  # Mover aquí para que siempre esté definido
         try:
             # Generar datos de prueba complejos
             test_data = {
@@ -276,7 +277,6 @@ async def test_singularity_core(intensity: float = 1000.0, iterations: int = 100
             }
             
             # Ejecutar operación trascendental
-            operation_start = time.time()
             result = await singularity.execute_transcendental_operation(test_data, intensity)
             operation_time = time.time() - operation_start
             

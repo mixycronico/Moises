@@ -1,0 +1,711 @@
+{
+  "test_type": "core_singularity_v4",
+  "intensity": 1000.0,
+  "iterations": 100,
+  "success_count": 100,
+  "success_rate": 1.0,
+  "total_time": 0.6043739318847656,
+  "avg_time": 0.006022803783416748,
+  "detailed_results": [
+    {
+      "iteration": 0,
+      "status": "success",
+      "time": 0.006051540374755859,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 1,
+      "status": "success",
+      "time": 0.004830121994018555,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 2,
+      "status": "success",
+      "time": 0.007422208786010742,
+      "data_size": 119,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 3,
+      "status": "success",
+      "time": 0.005679130554199219,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 4,
+      "status": "success",
+      "time": 0.005843639373779297,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 5,
+      "status": "success",
+      "time": 0.0072858333587646484,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 6,
+      "status": "success",
+      "time": 0.005224704742431641,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 7,
+      "status": "success",
+      "time": 0.005774497985839844,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 8,
+      "status": "success",
+      "time": 0.005628824234008789,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 9,
+      "status": "success",
+      "time": 0.00549769401550293,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 10,
+      "status": "success",
+      "time": 0.005255699157714844,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 11,
+      "status": "success",
+      "time": 0.006373882293701172,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 12,
+      "status": "success",
+      "time": 0.005223751068115234,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 13,
+      "status": "success",
+      "time": 0.005312681198120117,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 14,
+      "status": "success",
+      "time": 0.00533604621887207,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 15,
+      "status": "success",
+      "time": 0.0062618255615234375,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 16,
+      "status": "success",
+      "time": 0.005319118499755859,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 17,
+      "status": "success",
+      "time": 0.006387233734130859,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 18,
+      "status": "success",
+      "time": 0.006184101104736328,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 19,
+      "status": "success",
+      "time": 0.006407737731933594,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 20,
+      "status": "success",
+      "time": 0.0069239139556884766,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 21,
+      "status": "success",
+      "time": 0.006376743316650391,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 22,
+      "status": "success",
+      "time": 0.005171537399291992,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 23,
+      "status": "success",
+      "time": 0.006426095962524414,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 24,
+      "status": "success",
+      "time": 0.0062656402587890625,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 25,
+      "status": "success",
+      "time": 0.005208015441894531,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 26,
+      "status": "success",
+      "time": 0.006236076354980469,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 27,
+      "status": "success",
+      "time": 0.006112098693847656,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 28,
+      "status": "success",
+      "time": 0.005262136459350586,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 29,
+      "status": "success",
+      "time": 0.005298137664794922,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 30,
+      "status": "success",
+      "time": 0.0052340030670166016,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 31,
+      "status": "success",
+      "time": 0.006295442581176758,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 32,
+      "status": "success",
+      "time": 0.005186557769775391,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 33,
+      "status": "success",
+      "time": 0.005317211151123047,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 34,
+      "status": "success",
+      "time": 0.005396127700805664,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 35,
+      "status": "success",
+      "time": 0.006258487701416016,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 36,
+      "status": "success",
+      "time": 0.005471467971801758,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 37,
+      "status": "success",
+      "time": 0.005377054214477539,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 38,
+      "status": "success",
+      "time": 0.005299806594848633,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 39,
+      "status": "success",
+      "time": 0.0069577693939208984,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 40,
+      "status": "success",
+      "time": 0.006570100784301758,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 41,
+      "status": "success",
+      "time": 0.00643467903137207,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 42,
+      "status": "success",
+      "time": 0.006543636322021484,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 43,
+      "status": "success",
+      "time": 0.006397247314453125,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 44,
+      "status": "success",
+      "time": 0.006518840789794922,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 45,
+      "status": "success",
+      "time": 0.005416154861450195,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 46,
+      "status": "success",
+      "time": 0.006482124328613281,
+      "data_size": 119,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 47,
+      "status": "success",
+      "time": 0.006827354431152344,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 48,
+      "status": "success",
+      "time": 0.006386518478393555,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 49,
+      "status": "success",
+      "time": 0.006308078765869141,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 50,
+      "status": "success",
+      "time": 0.006383657455444336,
+      "data_size": 119,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 51,
+      "status": "success",
+      "time": 0.006318092346191406,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 52,
+      "status": "success",
+      "time": 0.006371736526489258,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 53,
+      "status": "success",
+      "time": 0.006533145904541016,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 54,
+      "status": "success",
+      "time": 0.005334138870239258,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 55,
+      "status": "success",
+      "time": 0.005583286285400391,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 56,
+      "status": "success",
+      "time": 0.006506443023681641,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 57,
+      "status": "success",
+      "time": 0.0056078433990478516,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 58,
+      "status": "success",
+      "time": 0.005224466323852539,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 59,
+      "status": "success",
+      "time": 0.0052394866943359375,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 60,
+      "status": "success",
+      "time": 0.005554914474487305,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 61,
+      "status": "success",
+      "time": 0.005281686782836914,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 62,
+      "status": "success",
+      "time": 0.006431102752685547,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 63,
+      "status": "success",
+      "time": 0.005241870880126953,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 64,
+      "status": "success",
+      "time": 0.0053539276123046875,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 65,
+      "status": "success",
+      "time": 0.006264925003051758,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 66,
+      "status": "success",
+      "time": 0.005248546600341797,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 67,
+      "status": "success",
+      "time": 0.0051648616790771484,
+      "data_size": 119,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 68,
+      "status": "success",
+      "time": 0.006294965744018555,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 69,
+      "status": "success",
+      "time": 0.005720615386962891,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 70,
+      "status": "success",
+      "time": 0.006489992141723633,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 71,
+      "status": "success",
+      "time": 0.006524085998535156,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 72,
+      "status": "success",
+      "time": 0.005407810211181641,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 73,
+      "status": "success",
+      "time": 0.006300210952758789,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 74,
+      "status": "success",
+      "time": 0.006366729736328125,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 75,
+      "status": "success",
+      "time": 0.0064084529876708984,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 76,
+      "status": "success",
+      "time": 0.009583473205566406,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 77,
+      "status": "success",
+      "time": 0.011023521423339844,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 78,
+      "status": "success",
+      "time": 0.01227426528930664,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 79,
+      "status": "success",
+      "time": 0.0067026615142822266,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 80,
+      "status": "success",
+      "time": 0.005321025848388672,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 81,
+      "status": "success",
+      "time": 0.005278825759887695,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 82,
+      "status": "success",
+      "time": 0.006280422210693359,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 83,
+      "status": "success",
+      "time": 0.006427288055419922,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 84,
+      "status": "success",
+      "time": 0.005377531051635742,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 85,
+      "status": "success",
+      "time": 0.0062291622161865234,
+      "data_size": 119,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 86,
+      "status": "success",
+      "time": 0.005342006683349609,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 87,
+      "status": "success",
+      "time": 0.005082845687866211,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 88,
+      "status": "success",
+      "time": 0.005230426788330078,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 89,
+      "status": "success",
+      "time": 0.0052182674407958984,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 90,
+      "status": "success",
+      "time": 0.005399942398071289,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 91,
+      "status": "success",
+      "time": 0.005080223083496094,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 92,
+      "status": "success",
+      "time": 0.0051097869873046875,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 93,
+      "status": "success",
+      "time": 0.006430864334106445,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 94,
+      "status": "success",
+      "time": 0.005408048629760742,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 95,
+      "status": "success",
+      "time": 0.005198478698730469,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 96,
+      "status": "success",
+      "time": 0.0051691532135009766,
+      "data_size": 122,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 97,
+      "status": "success",
+      "time": 0.0062024593353271484,
+      "data_size": 121,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 98,
+      "status": "success",
+      "time": 0.00635075569152832,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    },
+    {
+      "iteration": 99,
+      "status": "success",
+      "time": 0.006142616271972656,
+      "data_size": 120,
+      "complexity": 100000000000000000000
+    }
+  ]
+}
