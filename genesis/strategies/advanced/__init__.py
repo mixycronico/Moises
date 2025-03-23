@@ -8,7 +8,9 @@ datos on-chain y simulaciones de Monte Carlo.
 from typing import Dict, Any, List, Type
 
 from genesis.strategies.base import Strategy
-from genesis.strategies.advanced.reinforcement_ensemble import ReinforcementEnsembleStrategy
+
+# Importamos la versión simplificada que no depende de gymnasium ni stable-baselines3
+from genesis.strategies.advanced.reinforcement_ensemble_simple import ReinforcementEnsembleStrategy
 
 # Diccionario de estrategias avanzadas disponibles
 ADVANCED_STRATEGIES = {
