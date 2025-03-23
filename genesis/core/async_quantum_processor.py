@@ -26,12 +26,8 @@ from typing import Dict, Any, List, Callable, Coroutine, Optional, Union, Tuple,
 from contextlib import contextmanager, asynccontextmanager
 
 # Optimizar eventos asincrónicos
-try:
-    import uvloop
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    UVLOOP_ENABLED = True
-except ImportError:
-    UVLOOP_ENABLED = False
+# uvloop es opcional, usar policy estándar
+UVLOOP_ENABLED = False
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
