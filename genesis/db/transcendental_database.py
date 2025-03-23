@@ -1,484 +1,553 @@
 """
-Módulo de base de datos transcendental para el Sistema Genesis.
+Módulo de base de datos trascendental para el Sistema Genesis.
 
-Este módulo proporciona una interfaz resiliente y optimizada para operaciones de base de datos,
-aplicando los 13 mecanismos transcendentales del Modo Singularidad V4 para garantizar
-integridad perfecta incluso bajo condiciones extremas.
+Este módulo implementa la capa de base de datos con capacidades trascendentales,
+permitiendo operaciones resilientes y atemporales que garantizan la consistencia
+incluso bajo condiciones extremas y alta carga.
 
 Características principales:
-- Capacidades de auto-recuperación predictiva para consultas fallidas
-- Memoria omniversal compartida para resultados críticos
-- Horizonte de eventos optimizado contra errores de base de datos
-- Tiempo relativo cuántico para optimización de consultas
+- Cache cuántico multidimensional
+- Reintentos adaptativos con backoff exponencial
+- Checkpointing atemporal
+- Resolución automática de anomalías y conflictos
+- Sincronización entre estados temporales
 """
-
-import logging
 import asyncio
+import logging
+import json
 import time
-from typing import Any, Dict, List, Optional, Tuple, Type, Union, TypeVar
-from sqlalchemy import select, update, delete, insert, func, text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
-from contextlib import asynccontextmanager
-import os
+import random
+from typing import Dict, Any, List, Optional, Tuple, Union, Callable, TypeVar, Generic, Set
 
-from genesis.db.base import Base
+import sqlalchemy
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
+
+from genesis.db.base import get_db_session
+
+# Definición de tipos para anotaciones
+T = TypeVar('T')
+R = TypeVar('R')
 
 # Configuración de logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("genesis.db.transcendental_database")
 
-# Tipo genérico para modelos SQLAlchemy
-T = TypeVar('T', bound=Base)
+class QuantumCache(Generic[T]):
+    """
+    Cache cuántico multidimensional que almacena valores en diferentes estados temporales.
+    
+    Este cache mantiene múltiples versiones de los datos en diferentes "dimensiones",
+    permitiendo acceso a estados pasados, presentes y futuros sin conflictos.
+    """
+    
+    def __init__(self, max_size: int = 1000, dimensions: int = 3, ttl: int = 3600):
+        """
+        Inicializar cache cuántico.
+        
+        Args:
+            max_size: Tamaño máximo del cache
+            dimensions: Número de dimensiones (3 = pasado, presente, futuro)
+            ttl: Tiempo de vida para entradas del cache (segundos)
+        """
+        self.max_size = max_size
+        self.dimensions = dimensions
+        self.ttl = ttl
+        self.cache: Dict[int, Dict[str, Tuple[T, float]]] = {d: {} for d in range(dimensions)}
+        self.access_count: Dict[str, int] = {}
+        self.last_cleanup = time.time()
+        
+        logger.info(f"QuantumCache inicializado con {dimensions} dimensiones y TTL de {ttl}s")
+    
+    def set(self, key: str, value: T, dimension: int = 1) -> None:
+        """
+        Almacenar valor en el cache para una dimensión específica.
+        
+        Args:
+            key: Clave de almacenamiento
+            value: Valor a almacenar
+            dimension: Dimensión (0=pasado, 1=presente, 2=futuro)
+        """
+        if dimension >= self.dimensions:
+            dimension = self.dimensions - 1
+            
+        # Limpiar cache si está lleno
+        if len(self.cache[dimension]) >= self.max_size:
+            self._cleanup()
+            
+        self.cache[dimension][key] = (value, time.time() + self.ttl)
+        self.access_count[key] = self.access_count.get(key, 0) + 1
+    
+    def get(self, key: str, dimension: int = 1) -> Optional[T]:
+        """
+        Obtener valor del cache para una dimensión específica.
+        
+        Args:
+            key: Clave de búsqueda
+            dimension: Dimensión (0=pasado, 1=presente, 2=futuro)
+            
+        Returns:
+            Valor almacenado o None si no existe o ha expirado
+        """
+        if dimension >= self.dimensions:
+            dimension = self.dimensions - 1
+            
+        if key not in self.cache[dimension]:
+            return None
+            
+        value, expiry = self.cache[dimension][key]
+        
+        # Verificar si ha expirado
+        if time.time() > expiry:
+            del self.cache[dimension][key]
+            return None
+            
+        self.access_count[key] = self.access_count.get(key, 0) + 1
+        return value
+    
+    def invalidate(self, key: str, all_dimensions: bool = False) -> None:
+        """
+        Invalidar entrada del cache.
+        
+        Args:
+            key: Clave a invalidar
+            all_dimensions: Si se deben invalidar todas las dimensiones
+        """
+        if all_dimensions:
+            for d in range(self.dimensions):
+                if key in self.cache[d]:
+                    del self.cache[d][key]
+        else:
+            # Solo dimensión presente
+            if key in self.cache[1]:
+                del self.cache[1][key]
+    
+    def propagate(self, key: str, direction: int = 1) -> None:
+        """
+        Propagar valor entre dimensiones.
+        
+        Args:
+            key: Clave a propagar
+            direction: Dirección (1=hacia futuro, -1=hacia pasado)
+        """
+        if direction == 1 and key in self.cache[1]:
+            # Presente -> Futuro
+            self.cache[2][key] = self.cache[1][key]
+        elif direction == -1 and key in self.cache[1]:
+            # Presente -> Pasado
+            self.cache[0][key] = self.cache[1][key]
+    
+    def _cleanup(self) -> None:
+        """Limpieza de entradas expiradas o menos utilizadas."""
+        current_time = time.time()
+        
+        # Limpiar cada 60 segundos máximo
+        if current_time - self.last_cleanup < 60:
+            return
+            
+        self.last_cleanup = current_time
+        
+        # Eliminar expirados
+        for d in range(self.dimensions):
+            expired_keys = [
+                k for k, (_, expiry) in self.cache[d].items() 
+                if current_time > expiry
+            ]
+            for k in expired_keys:
+                del self.cache[d][k]
+        
+        # Si sigue lleno, eliminar menos accedidos
+        if any(len(self.cache[d]) >= self.max_size for d in range(self.dimensions)):
+            sorted_keys = sorted(
+                self.access_count.keys(), 
+                key=lambda k: self.access_count[k]
+            )
+            
+            # Eliminar el 10% menos accedido
+            keys_to_remove = sorted_keys[:int(len(sorted_keys) * 0.1)]
+            for k in keys_to_remove:
+                self.access_count.pop(k, None)
+                for d in range(self.dimensions):
+                    self.cache[d].pop(k, None)
+
+
+class AtemporalCheckpoint:
+    """
+    Sistema de checkpoint atemporal para mantener estados coherentes.
+    
+    Permite guardar y restaurar estados de la base de datos en diferentes
+    momentos temporales, incluso durante operaciones que cruzan la barrera
+    entre pasado, presente y futuro.
+    """
+    
+    def __init__(self, max_checkpoints: int = 100):
+        """
+        Inicializar sistema de checkpoints.
+        
+        Args:
+            max_checkpoints: Número máximo de checkpoints a mantener
+        """
+        self.checkpoints: Dict[str, Dict[str, Any]] = {}
+        self.max_checkpoints = max_checkpoints
+        self.metadata: Dict[str, Dict[str, Any]] = {}
+        self.checkpoint_count = 0
+        
+        logger.info(f"AtemporalCheckpoint inicializado con capacidad para {max_checkpoints} puntos")
+    
+    def create(self, checkpoint_id: str, data: Dict[str, Any], metadata: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Crear un nuevo checkpoint.
+        
+        Args:
+            checkpoint_id: Identificador único del checkpoint
+            data: Datos a almacenar
+            metadata: Metadatos adicionales
+        """
+        if len(self.checkpoints) >= self.max_checkpoints:
+            # Eliminar el checkpoint más antiguo
+            oldest = min(self.metadata.items(), key=lambda x: x[1].get('timestamp', 0))
+            if oldest[0] in self.checkpoints:
+                del self.checkpoints[oldest[0]]
+                del self.metadata[oldest[0]]
+        
+        # Serializar data para asegurar una copia profunda
+        self.checkpoints[checkpoint_id] = json.loads(json.dumps(data))
+        self.metadata[checkpoint_id] = metadata or {
+            'timestamp': time.time(),
+            'sequence': self.checkpoint_count
+        }
+        self.checkpoint_count += 1
+        
+    def get(self, checkpoint_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtener datos de un checkpoint.
+        
+        Args:
+            checkpoint_id: Identificador del checkpoint
+            
+        Returns:
+            Datos almacenados o None si no existe
+        """
+        return self.checkpoints.get(checkpoint_id)
+    
+    def get_metadata(self, checkpoint_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtener metadatos de un checkpoint.
+        
+        Args:
+            checkpoint_id: Identificador del checkpoint
+            
+        Returns:
+            Metadatos o None si no existe
+        """
+        return self.metadata.get(checkpoint_id)
+    
+    def list_all(self) -> List[str]:
+        """
+        Listar todos los checkpoints disponibles.
+        
+        Returns:
+            Lista de identificadores de checkpoint
+        """
+        return list(self.checkpoints.keys())
+    
+    def delete(self, checkpoint_id: str) -> bool:
+        """
+        Eliminar un checkpoint.
+        
+        Args:
+            checkpoint_id: Identificador del checkpoint
+            
+        Returns:
+            True si se eliminó correctamente, False si no existía
+        """
+        if checkpoint_id in self.checkpoints:
+            del self.checkpoints[checkpoint_id]
+            if checkpoint_id in self.metadata:
+                del self.metadata[checkpoint_id]
+            return True
+        return False
+
 
 class TranscendentalDatabase:
     """
-    Interfaz transcendental para interacciones con la base de datos.
+    Capa de base de datos trascendental que proporciona resiliencia extrema.
     
-    Implementa los 13 mecanismos del Modo Singularidad V4 para asegurar
-    resiliencia absoluta bajo intensidad 1000.0.
+    Implementa capacidades avanzadas de la Singularidad V4, incluyendo:
+    - Operaciones atemporales
+    - Reintentos adaptativos con circuit breaker
+    - Cache cuántico
+    - Checkpoints resilientes
+    - Protección contra anomalías
     """
     
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, cache_size: int = 10000, checkpoint_capacity: int = 100):
         """
-        Inicializar la conexión a la base de datos con capacidades transcendentales.
+        Inicializar base de datos trascendental.
         
         Args:
-            database_url: URL de conexión a la base de datos
+            cache_size: Tamaño del cache cuántico
+            checkpoint_capacity: Capacidad máxima de checkpoints
         """
-        self.database_url = database_url or os.environ.get("DATABASE_URL")
-        if not self.database_url:
-            raise ValueError("Se requiere DATABASE_URL")
-            
-        # Convertir URL de sincrónico a asincrónico si es necesario
-        if self.database_url.startswith('postgresql://'):
-            self.database_url = self.database_url.replace('postgresql://', 'postgresql+asyncpg://')
-            
-        # Engine asincrónico con configuración óptima
-        self.engine = create_async_engine(
-            self.database_url,
-            pool_size=20,
-            max_overflow=40,
-            pool_recycle=300,
-            pool_pre_ping=True,
-            echo=False,
-        )
-        
-        # Creador de sesiones asincrónico
-        self.async_session = sessionmaker(
-            self.engine, 
-            class_=AsyncSession, 
-            expire_on_commit=False,
-            future=True
-        )
-        
-        # Caché omniversal para optimización transcendental
-        self._omniversal_cache = {}
-        self._cache_lifetime = 5.0  # segundos
-        self._cache_metrics = {
-            "hits": 0,
-            "misses": 0,
-            "stored": 0,
-            "recovered": 0
-        }
-        
-        # Estado del sistema de base de datos
-        self._system_state = "OPERATIONAL"
-        self._anomaly_count = 0
-        self._recovery_count = 0
+        self.cache = QuantumCache(max_size=cache_size)
+        self.checkpoint = AtemporalCheckpoint(max_checkpoints=checkpoint_capacity)
+        self.error_count: Dict[str, int] = {}
+        self.success_count: Dict[str, int] = {}
+        self.anomaly_detection: Set[str] = set()
         
         logger.info("TranscendentalDatabase inicializada con capacidades de Singularidad V4")
-        
-    @asynccontextmanager
-    async def session(self):
+    
+    async def execute_query(
+        self, 
+        query_func: Callable[..., Tuple[str, List[Any]]], 
+        *args, 
+        max_retries: int = 3,
+        use_cache: bool = True,
+        cache_ttl: int = 3600,
+        operation_id: Optional[str] = None,
+        **kwargs
+    ) -> Any:
         """
-        Contexto asincrónico para sesiones de base de datos con recuperación automática.
+        Ejecutar consulta SQL con toda la resiliencia del sistema trascendental.
         
-        Este contexto implementa los mecanismos de Horizonte de Eventos y Auto-recuperación
-        Predictiva para garantizar operaciones resilientes bajo condiciones extremas.
-        
-        Yields:
-            AsyncSession: Sesión de SQLAlchemy asincrónica
-        """
-        session = self.async_session()
-        retry_count = 0
-        max_retries = 3
-        
-        try:
-            yield session
-        except OperationalError as e:
-            self._anomaly_count += 1
-            logger.warning(f"Anomalía en la conexión a la base de datos: {e}")
+        Args:
+            query_func: Función que genera la consulta SQL y parámetros
+            *args: Argumentos para query_func
+            max_retries: Reintentos máximos
+            use_cache: Si se debe usar el cache
+            cache_ttl: Tiempo de vida en cache
+            operation_id: Identificador de operación
+            **kwargs: Argumentos adicionales para query_func
             
-            # Auto-recuperación Predictiva
-            while retry_count < max_retries:
-                retry_count += 1
-                await asyncio.sleep(0.1 * retry_count)  # Backoff exponencial ligero
+        Returns:
+            Resultado de la consulta
+            
+        Raises:
+            SQLAlchemyError: Si todos los reintentos fallan
+        """
+        op_id = operation_id or f"query_{hash(str(query_func) + str(args) + str(kwargs))}"
+        
+        # Verificar cache si está habilitado
+        if use_cache:
+            cached_result = self.cache.get(op_id)
+            if cached_result is not None:
+                return cached_result
+        
+        # Preparar consulta
+        sql, params = query_func(*args, **kwargs)
+        
+        # Implementar reintentos con backoff exponencial
+        for retry in range(max_retries + 1):
+            try:
+                async with get_db_session() as session:
+                    # Ejecutar consulta
+                    result = await session.execute(sql, params)
+                    
+                    # Si es una operación que modifica datos, hacer commit
+                    if sql.strip().lower().startswith(("insert", "update", "delete")):
+                        await session.commit()
+                    
+                    # Procesar resultado según tipo de consulta
+                    if sql.strip().lower().startswith("select"):
+                        final_result = result.fetchall()
+                    else:
+                        final_result = result.rowcount
+                    
+                    # Almacenar en cache si está habilitado
+                    if use_cache:
+                        self.cache.set(op_id, final_result)
+                    
+                    # Registrar éxito
+                    self.success_count[op_id] = self.success_count.get(op_id, 0) + 1
+                    
+                    return final_result
+                    
+            except SQLAlchemyError as e:
+                # Registrar error
+                self.error_count[op_id] = self.error_count.get(op_id, 0) + 1
                 
-                try:
-                    # Recrear sesión tras fallo
-                    session = self.async_session()
-                    yield session
-                    self._recovery_count += 1
-                    logger.info(f"Recuperación de sesión exitosa después de {retry_count} intentos")
-                    break
-                except Exception as inner_e:
-                    logger.error(f"Intento de recuperación {retry_count} fallido: {inner_e}")
-                    if retry_count >= max_retries:
-                        # Última oportunidad - aplicar Colapso Dimensional
-                        self._system_state = "DIMENSIONAL_COLLAPSE"
-                        try:
-                            # Creación de sesión de emergencia con timeout extendido
-                            emergency_engine = create_async_engine(
-                                self.database_url,
-                                pool_timeout=60,
-                                connect_args={"connect_timeout": 30}
-                            )
-                            emergency_session = sessionmaker(
-                                emergency_engine, 
-                                class_=AsyncSession, 
-                                expire_on_commit=False
-                            )
-                            yield emergency_session()
-                            logger.critical("Recuperación mediante Colapso Dimensional exitosa")
-                            self._system_state = "RECOVERY"
-                        except Exception as final_e:
-                            self._system_state = "CRITICAL"
-                            logger.critical(f"Fallo crítico en la base de datos: {final_e}")
-                            raise
-        except Exception as e:
-            logger.error(f"Error en sesión de base de datos: {e}")
-            raise
-        finally:
-            await session.close()
-    
-    async def create_tables(self):
-        """Crear todas las tablas definidas en los modelos si no existen."""
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Tablas de base de datos creadas/verificadas")
-    
-    # Implementación de operaciones CRUD con resiliencia transcendental
-    
-    async def add(self, obj: T) -> T:
-        """
-        Agregar un objeto a la base de datos con garantía de éxito.
-        
-        Args:
-            obj: Instancia de modelo SQLAlchemy para agregar
-            
-        Returns:
-            El objeto agregado
-        """
-        async with self.session() as session:
-            session.add(obj)
-            await session.commit()
-            # Refrescar para obtener valores generados como IDs
-            await session.refresh(obj)
-            return obj
-    
-    async def add_all(self, objects: List[T]) -> List[T]:
-        """
-        Agregar múltiples objetos a la base de datos con garantía de éxito.
-        
-        Args:
-            objects: Lista de instancias de modelo SQLAlchemy
-            
-        Returns:
-            Lista de objetos agregados
-        """
-        async with self.session() as session:
-            session.add_all(objects)
-            await session.commit()
-            # Refrescar para obtener valores generados
-            for obj in objects:
-                await session.refresh(obj)
-            return objects
-    
-    async def get_by_id(self, model_class: Type[T], id: Any) -> Optional[T]:
-        """
-        Obtener un objeto por su ID primaria.
-        
-        Args:
-            model_class: Clase del modelo SQLAlchemy
-            id: Valor de la clave primaria
-            
-        Returns:
-            Instancia del modelo o None si no existe
-        """
-        # Intento de recuperación desde caché omniversal
-        cache_key = f"{model_class.__name__}_{id}"
-        cached = self._get_from_cache(cache_key)
-        if cached:
-            return cached
-        
-        async with self.session() as session:
-            stmt = select(model_class).where(model_class.id == id)
-            result = await session.execute(stmt)
-            obj = result.scalars().first()
-            
-            # Guardar en caché omniversal para futuras consultas
-            if obj:
-                self._store_in_cache(cache_key, obj)
+                # Detectar anomalías
+                if self.error_count.get(op_id, 0) > 5:
+                    self.anomaly_detection.add(op_id)
                 
-            return obj
-    
-    async def get_all(self, model_class: Type[T]) -> List[T]:
-        """
-        Obtener todos los objetos de un modelo.
-        
-        Args:
-            model_class: Clase del modelo SQLAlchemy
-            
-        Returns:
-            Lista de instancias del modelo
-        """
-        async with self.session() as session:
-            stmt = select(model_class)
-            result = await session.execute(stmt)
-            return list(result.scalars().all())
-    
-    async def update(self, obj: T) -> T:
-        """
-        Actualizar un objeto existente.
-        
-        Args:
-            obj: Instancia de modelo SQLAlchemy con cambios
-            
-        Returns:
-            Objeto actualizado
-        """
-        async with self.session() as session:
-            session.add(obj)
-            await session.commit()
-            await session.refresh(obj)
-            
-            # Actualizar caché omniversal
-            cache_key = f"{obj.__class__.__name__}_{obj.id}"
-            self._store_in_cache(cache_key, obj)
-            
-            return obj
-    
-    async def delete(self, obj: T) -> bool:
-        """
-        Eliminar un objeto de la base de datos.
-        
-        Args:
-            obj: Instancia de modelo SQLAlchemy a eliminar
-            
-        Returns:
-            True si la eliminación fue exitosa
-        """
-        async with self.session() as session:
-            await session.delete(obj)
-            await session.commit()
-            
-            # Eliminar de la caché omniversal
-            cache_key = f"{obj.__class__.__name__}_{obj.id}"
-            if cache_key in self._omniversal_cache:
-                del self._omniversal_cache[cache_key]
+                # Último intento, propagar excepción
+                if retry == max_retries:
+                    logger.error(f"Todos los reintentos fallaron para operación {op_id}: {str(e)}")
+                    raise
                 
-            return True
+                # Aplicar backoff exponencial con jitter
+                delay = min(1.0, 0.1 * (2 ** retry) + random.uniform(0, 0.1))
+                logger.warning(f"Reintento {retry+1}/{max_retries} para {op_id} después de {delay:.2f}s: {str(e)}")
+                await asyncio.sleep(delay)
     
-    async def execute_query(self, query: Any) -> List[Any]:
+    async def execute_batch(
+        self, 
+        queries: List[Tuple[Callable, List, Dict]],
+        use_transaction: bool = True,
+        max_retries: int = 3
+    ) -> List[Any]:
         """
-        Ejecutar una consulta personalizada.
+        Ejecutar múltiples consultas como lote, opcionalmente en una transacción.
         
         Args:
-            query: Consulta SQLAlchemy
+            queries: Lista de tuplas (func, args, kwargs)
+            use_transaction: Si se debe usar una transacción
+            max_retries: Reintentos máximos
             
         Returns:
-            Resultados de la consulta
+            Lista de resultados
+            
+        Raises:
+            SQLAlchemyError: Si todos los reintentos fallan
         """
-        async with self.session() as session:
-            result = await session.execute(query)
-            return list(result.scalars().all())
-    
-    async def execute_raw_sql(self, sql: str, params: Optional[Dict[str, Any]] = None) -> List[Any]:
-        """
-        Ejecutar SQL directo con parámetros.
-        
-        Args:
-            sql: Consulta SQL
-            params: Parámetros para la consulta
-            
-        Returns:
-            Resultados de la consulta
-        """
-        async with self.session() as session:
-            stmt = text(sql)
-            result = await session.execute(stmt, params or {})
-            return result.fetchall()
-    
-    # Operaciones específicas para el Crypto Classifier
-    
-    async def get_top_crypto_scores(self, limit: int = 10) -> List[Any]:
-        """
-        Obtener las criptomonedas con mayor puntuación.
-        
-        Args:
-            limit: Número máximo de resultados
-            
-        Returns:
-            Lista de CryptoScores ordenados por puntuación
-        """
-        from genesis.db.models.crypto_classifier_models import CryptoScores
-        
-        async with self.session() as session:
-            stmt = select(CryptoScores).order_by(CryptoScores.total_score.desc()).limit(limit)
-            result = await session.execute(stmt)
-            return list(result.scalars().all())
-    
-    async def get_crypto_metrics_with_scores(self, symbol: str) -> Tuple[Any, Any]:
-        """
-        Obtener métricas y puntuaciones para una criptomoneda.
-        
-        Args:
-            symbol: Símbolo de la criptomoneda
-            
-        Returns:
-            Tupla (metrics, scores) o (None, None) si no existe
-        """
-        from genesis.db.models.crypto_classifier_models import CryptoMetrics, CryptoScores
-        
-        cache_key = f"metrics_scores_{symbol}"
-        cached = self._get_from_cache(cache_key)
-        if cached:
-            return cached
-        
-        async with self.session() as session:
-            # Obtener métricas más recientes
-            metrics_stmt = select(CryptoMetrics).where(
-                CryptoMetrics.symbol == symbol
-            ).order_by(CryptoMetrics.timestamp.desc()).limit(1)
-            
-            metrics_result = await session.execute(metrics_stmt)
-            metrics = metrics_result.scalars().first()
-            
-            if not metrics:
-                return None, None
-            
-            # Obtener puntuaciones asociadas
-            scores_stmt = select(CryptoScores).where(
-                CryptoScores.metrics_id == metrics.id
-            )
-            scores_result = await session.execute(scores_stmt)
-            scores = scores_result.scalars().first()
-            
-            result = (metrics, scores)
-            self._store_in_cache(cache_key, result, lifetime=10.0)  # Cache por 10 segundos
-            
-            return result
-    
-    async def update_crypto_score(self, symbol: str, new_scores: Dict[str, float]) -> Optional[Any]:
-        """
-        Actualizar puntuaciones para una criptomoneda.
-        
-        Args:
-            symbol: Símbolo de la criptomoneda
-            new_scores: Diccionario con nuevas puntuaciones
-            
-        Returns:
-            Objeto CryptoScores actualizado o None si no existe
-        """
-        from genesis.db.models.crypto_classifier_models import CryptoScores
-        
-        async with self.session() as session:
-            # Obtener el registro más reciente
-            stmt = select(CryptoScores).where(
-                CryptoScores.symbol == symbol
-            ).order_by(CryptoScores.timestamp.desc()).limit(1)
-            
-            result = await session.execute(stmt)
-            score = result.scalars().first()
-            
-            if not score:
-                return None
-            
-            # Actualizar campos
-            for key, value in new_scores.items():
-                if hasattr(score, key):
-                    setattr(score, key, value)
-            
-            # Recalcular total_score si se proporcionan componentes
-            if any(k in new_scores for k in [
-                'volume_score', 'change_score', 'market_cap_score', 
-                'spread_score', 'sentiment_score', 'adoption_score'
-            ]):
-                # Ponderaciones para cada componente
-                weights = {
-                    'volume_score': 0.15,
-                    'change_score': 0.25,
-                    'market_cap_score': 0.1,
-                    'spread_score': 0.15,
-                    'sentiment_score': 0.2,
-                    'adoption_score': 0.15
-                }
+        for retry in range(max_retries + 1):
+            try:
+                async with get_db_session() as session:
+                    results = []
+                    
+                    # Iniciar transacción si está habilitada
+                    if use_transaction:
+                        transaction = await session.begin()
+                    
+                    try:
+                        for query_func, args, kwargs in queries:
+                            sql, params = query_func(*args, **kwargs)
+                            result = await session.execute(sql, params)
+                            
+                            if sql.strip().lower().startswith("select"):
+                                results.append(result.fetchall())
+                            else:
+                                results.append(result.rowcount)
+                        
+                        if use_transaction:
+                            await transaction.commit()
+                            
+                        return results
+                        
+                    except Exception as e:
+                        if use_transaction:
+                            await transaction.rollback()
+                        raise
+                        
+            except SQLAlchemyError as e:
+                # Último intento, propagar excepción
+                if retry == max_retries:
+                    logger.error(f"Todos los reintentos fallaron para operación batch: {str(e)}")
+                    raise
                 
-                # Calcular score ponderado
-                total = 0.0
-                for field, weight in weights.items():
-                    value = getattr(score, field) or 0.0
-                    total += value * weight
-                
-                score.total_score = min(max(total, 0.0), 1.0)  # Normalizar entre 0 y 1
-            
-            await session.commit()
-            await session.refresh(score)
-            
-            # Actualizar caché
-            cache_key = f"metrics_scores_{symbol}"
-            if cache_key in self._omniversal_cache:
-                del self._omniversal_cache[cache_key]
-                
-            return score
+                # Aplicar backoff exponencial con jitter
+                delay = min(1.0, 0.1 * (2 ** retry) + random.uniform(0, 0.1))
+                logger.warning(f"Reintento {retry+1}/{max_retries} para batch después de {delay:.2f}s: {str(e)}")
+                await asyncio.sleep(delay)
     
-    # Métodos para caché omniversal compartida
-    
-    def _get_from_cache(self, key: str) -> Optional[Any]:
-        """Obtener valor de la caché omniversal con verificación de tiempo de vida."""
-        if key in self._omniversal_cache:
-            data, timestamp = self._omniversal_cache[key]
-            if time.time() - timestamp <= self._cache_lifetime:
-                self._cache_metrics["hits"] += 1
-                return data
-            # Expirado
-            del self._omniversal_cache[key]
-        self._cache_metrics["misses"] += 1
-        return None
-    
-    def _store_in_cache(self, key: str, value: Any, lifetime: Optional[float] = None) -> None:
-        """Almacenar valor en la caché omniversal con marca de tiempo."""
-        self._omniversal_cache[key] = (value, time.time())
-        self._cache_lifetime = lifetime or self._cache_lifetime
-        self._cache_metrics["stored"] += 1
-    
-    def get_system_status(self) -> Dict[str, Any]:
+    async def checkpoint_state(self, entity_type: str, entity_id: str, data: Dict[str, Any]) -> str:
         """
-        Obtener estadísticas y estado del sistema de base de datos.
+        Crear checkpoint del estado de una entidad.
+        
+        Args:
+            entity_type: Tipo de entidad
+            entity_id: ID de la entidad
+            data: Estado a guardar
+            
+        Returns:
+            ID del checkpoint
+        """
+        checkpoint_id = f"{entity_type}_{entity_id}_{int(time.time())}"
+        self.checkpoint.create(checkpoint_id, data, {
+            'entity_type': entity_type,
+            'entity_id': entity_id,
+            'timestamp': time.time()
+        })
+        return checkpoint_id
+    
+    def restore_checkpoint(self, checkpoint_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Restaurar estado desde un checkpoint.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            
+        Returns:
+            Estado restaurado o None si no existe
+        """
+        return self.checkpoint.get(checkpoint_id)
+    
+    def get_latest_checkpoint(self, entity_type: str, entity_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtener el checkpoint más reciente para una entidad.
+        
+        Args:
+            entity_type: Tipo de entidad
+            entity_id: ID de la entidad
+            
+        Returns:
+            Datos del checkpoint o None si no hay
+        """
+        prefix = f"{entity_type}_{entity_id}_"
+        checkpoints = [cp for cp in self.checkpoint.list_all() if cp.startswith(prefix)]
+        
+        if not checkpoints:
+            return None
+            
+        # Ordenar por timestamp (parte del ID)
+        latest = max(checkpoints, key=lambda cp: int(cp.split('_')[2]))
+        return self.checkpoint.get(latest)
+    
+    async def perform_temporal_sync(self) -> Dict[str, Any]:
+        """
+        Sincronizar estados temporales entre dimensiones del cache.
+        
+        Esta función propaga valores críticos entre dimensiones para mantener
+        coherencia, evitando paradojas temporales.
         
         Returns:
-            Diccionario con métricas y estado
+            Estadísticas de sincronización
+        """
+        # Identificar claves críticas con alta frecuencia de acceso
+        critical_keys = {
+            k: v for k, v in self.cache.access_count.items() 
+            if v > 5  # Umbral de acceso para considerar crítico
+        }
+        
+        # Propagar valores en ambas direcciones
+        propagated_future = 0
+        propagated_past = 0
+        
+        for key in critical_keys:
+            # Presente -> Futuro
+            if self.cache.get(key, dimension=1) is not None:
+                self.cache.propagate(key, direction=1)
+                propagated_future += 1
+                
+            # Presente -> Pasado (solo para valores muy críticos)
+            if critical_keys.get(key, 0) > 10 and self.cache.get(key, dimension=1) is not None:
+                self.cache.propagate(key, direction=-1)
+                propagated_past += 1
+        
+        return {
+            'critical_keys': len(critical_keys),
+            'propagated_future': propagated_future,
+            'propagated_past': propagated_past,
+            'timestamp': time.time()
+        }
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Obtener estadísticas de la base de datos trascendental.
+        
+        Returns:
+            Diccionario con estadísticas
         """
         return {
-            "system_state": self._system_state,
-            "anomaly_count": self._anomaly_count,
-            "recovery_count": self._recovery_count,
-            "cache_metrics": self._cache_metrics,
-            "cache_size": len(self._omniversal_cache),
-            "cache_lifetime": self._cache_lifetime
+            'cache_size': sum(len(self.cache.cache[d]) for d in range(self.cache.dimensions)),
+            'cache_dimensions': self.cache.dimensions,
+            'checkpoint_count': len(self.checkpoint.checkpoints),
+            'error_count': sum(self.error_count.values()),
+            'success_count': sum(self.success_count.values()),
+            'anomaly_count': len(self.anomaly_detection),
+            'success_ratio': sum(self.success_count.values()) / (sum(self.error_count.values()) + sum(self.success_count.values()) + 0.001) * 100
         }
 
-# Instancia global para acceso desde cualquier módulo
-db = TranscendentalDatabase()
 
-async def initialize_database():
-    """Inicializar y verificar la base de datos."""
-    await db.create_tables()
-    logger.info("Base de datos transcendental inicializada correctamente")
-    
-    # Verificar estado
-    status = db.get_system_status()
-    logger.info(f"Estado inicial del sistema de base de datos: {status['system_state']}")
-    
-    return True
+# Instancia global de la base de datos trascendental
+transcendental_db = TranscendentalDatabase()

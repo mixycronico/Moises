@@ -1,751 +1,1016 @@
 """
-Clasificador Transcendental de Criptomonedas para el Sistema Genesis.
+Clasificador trascendental de criptomonedas con estrategia adaptativa.
 
-Este módulo implementa un clasificador avanzado con capacidades transcendentales
-que evalúa múltiples factores para identificar oportunidades de trading óptimas
-en el mercado de criptomonedas, con adaptabilidad al crecimiento del capital.
+Este módulo implementa un sistema avanzado de clasificación de criptomonedas
+que mantiene su eficiencia independientemente del tamaño del capital,
+aplicando estrategias adaptativas para compensar los efectos de escala.
 
 Características principales:
-- Análisis multifactorial con ponderación dinámica adaptativa
-- Clasificación en tiempo real con resiliencia transcendental
-- Ajuste automático de parámetros según el crecimiento del capital
-- Optimización de asignación de capital basada en puntuaciones
-- Integración con todos los mecanismos transcendentales de Genesis
+- Análisis multidimensional con 7 factores clave
+- Compensación dinámica por efectos del tamaño del capital
+- Distribución inteligente entre exchanges para mantener eficiencia
+- Detección de umbrales de saturación de liquidez
+- Proyección de desempeño en diferentes niveles de capital
 """
-
-import logging
 import asyncio
+import logging
+import json
 import time
+import random
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional, Tuple, Set, Union, cast
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Any, Optional, Tuple, Set
-from datetime import datetime, timedelta
-import json
-from decimal import Decimal
+from sqlalchemy import select, insert, update, delete, and_, or_, desc
 
-from genesis.db.transcendental_database import db
 from genesis.db.models.crypto_classifier_models import (
-    CryptoMetrics, CryptoScores, CryptoPredictions,
-    SocialTrends, LiquidityData, ClassifierLogs
+    Cryptocurrency, CryptoClassification, CryptoMetrics,
+    ClassificationHistory, CapitalScaleEffect
 )
+from genesis.db.transcendental_database import transcendental_db
+from genesis.db.base import db_manager
 
 # Configuración de logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("genesis.analysis.crypto_classifier")
+
+# Constantes globales
+DEFAULT_CAPITAL_BASE = 10000.0  # $10,000 USD
+DEFAULT_CONFIDENCE_THRESHOLD = 0.7  # Umbral de confianza para clasificaciones
+DEFAULT_EXCHANGES = ["binance", "kucoin", "bybit", "okx", "coinbase"]
+MIN_DATA_POINTS = 30  # Mínimo de puntos de datos necesarios para clasificación confiable
+
+
+class AdaptiveScoreAdjuster:
+    """
+    Ajustador de puntuaciones para compensar efectos del tamaño del capital.
+    
+    Este componente aplica ajustes a las puntuaciones de clasificación basados
+    en el tamaño del capital, para mantener la precisión y eficiencia del sistema
+    independientemente de la escala.
+    """
+    
+    def __init__(self, base_capital: float = DEFAULT_CAPITAL_BASE):
+        """
+        Inicializar ajustador adaptativo.
+        
+        Args:
+            base_capital: Capital base para los cálculos
+        """
+        self.base_capital = base_capital
+        self.scale_factor_cache: Dict[str, Dict[str, float]] = {}
+        self.saturation_points: Dict[str, float] = {}
+    
+    def adjust_score(
+        self, 
+        symbol: str, 
+        raw_scores: Dict[str, float], 
+        capital: float,
+        metrics: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, float]:
+        """
+        Ajustar puntuaciones en función del capital.
+        
+        Args:
+            symbol: Símbolo de la criptomoneda
+            raw_scores: Puntuaciones originales por factor
+            capital: Capital actual
+            metrics: Métricas adicionales
+            
+        Returns:
+            Puntuaciones ajustadas
+        """
+        # Si el capital es igual o menor al base, no hay ajuste
+        if capital <= self.base_capital:
+            return raw_scores.copy()
+        
+        adjusted_scores = {}
+        scale_ratio = capital / self.base_capital
+        
+        # Obtener o calcular factores de escala para el símbolo
+        scale_factors = self._get_scale_factors(symbol, metrics)
+        
+        # Aplicar ajustes específicos por factor
+        for factor, score in raw_scores.items():
+            if factor in scale_factors:
+                # Fórmula: score_ajustado = score_original * (1 - factor_escala * log(escala))
+                scale_impact = scale_factors[factor] * np.log10(scale_ratio)
+                
+                # Limitar el impacto máximo al 95%
+                scale_impact = min(scale_impact, 0.95)
+                
+                adjusted_scores[factor] = score * (1 - scale_impact)
+            else:
+                adjusted_scores[factor] = score
+        
+        return adjusted_scores
+    
+    def _get_scale_factors(self, symbol: str, metrics: Optional[Dict[str, Any]] = None) -> Dict[str, float]:
+        """
+        Obtener factores de escala para una criptomoneda.
+        
+        Args:
+            symbol: Símbolo de la criptomoneda
+            metrics: Métricas disponibles
+            
+        Returns:
+            Factores de escala por componente
+        """
+        # Usar cache si existe
+        if symbol in self.scale_factor_cache:
+            return self.scale_factor_cache[symbol]
+        
+        # Calcular factores de escala basados en métricas
+        scale_factors = {
+            "liquidity_score": 0.15,  # Factor base para liquidez
+            "alpha_score": 0.05,      # El alfa se ve menos afectado
+            "volatility_score": 0.02,  # La volatilidad casi no cambia con escala
+            "momentum_score": 0.10,   # El momentum se ve moderadamente afectado
+            "trend_score": 0.03,      # La tendencia se ve poco afectada
+            "correlation_score": 0.01,  # La correlación casi no cambia
+            "exchange_quality_score": 0.08  # Calidad del exchange
+        }
+        
+        # Ajustar en función de métricas si están disponibles
+        if metrics:
+            # La liquidez es el factor más sensible a la escala
+            if metrics.get("orderbook_depth_usd"):
+                # A menor profundidad, mayor sensibilidad a escala
+                depth_factor = min(1.0, 1000000 / max(10000, float(metrics["orderbook_depth_usd"])))
+                scale_factors["liquidity_score"] = 0.15 * (1 + depth_factor)
+            
+            # El deslizamiento indica problemas de escala
+            if metrics.get("slippage_10000usd"):
+                slippage = float(metrics["slippage_10000usd"])
+                if slippage > 0.001:  # 0.1% de deslizamiento
+                    slippage_factor = min(3.0, slippage * 1000)
+                    scale_factors["liquidity_score"] *= slippage_factor
+        
+        # Guardar en cache
+        self.scale_factor_cache[symbol] = scale_factors
+        return scale_factors
+    
+    def estimate_saturation_point(
+        self, 
+        symbol: str, 
+        metrics: Dict[str, Any]
+    ) -> float:
+        """
+        Estimar punto de saturación de capital para una criptomoneda.
+        
+        Este es el punto donde añadir más capital no mejora los rendimientos
+        debido a limitaciones de liquidez.
+        
+        Args:
+            symbol: Símbolo de la criptomoneda
+            metrics: Métricas disponibles
+            
+        Returns:
+            Punto de saturación estimado en USD
+        """
+        if symbol in self.saturation_points:
+            return self.saturation_points[symbol]
+        
+        # Valor base de saturación
+        base_saturation = 1_000_000  # $1M por defecto
+        
+        # Ajustar según métricas
+        if metrics:
+            # Profundidad del libro de órdenes
+            if metrics.get("orderbook_depth_usd"):
+                depth = float(metrics["orderbook_depth_usd"])
+                # Punto de saturación aproximado = 5-10% de la profundidad total
+                depth_saturation = depth * 0.08
+                base_saturation = max(base_saturation, depth_saturation)
+            
+            # Volume 24h indica liquidez
+            if metrics.get("volume_24h"):
+                volume = float(metrics["volume_24h"])
+                # Aprox. 1% del volumen diario es sostenible
+                volume_saturation = volume * 0.01
+                base_saturation = max(base_saturation, volume_saturation)
+            
+            # Market cap como indicador de tamaño
+            if metrics.get("market_cap"):
+                mcap = float(metrics["market_cap"])
+                # 0.05% - 0.1% del market cap
+                mcap_saturation = mcap * 0.0005
+                base_saturation = min(base_saturation, mcap_saturation)
+        
+        # Limitar a rangos razonables
+        saturation = max(100_000, min(1_000_000_000, base_saturation))
+        
+        # Guardar en cache
+        self.saturation_points[symbol] = saturation
+        return saturation
+    
+    def get_optimal_capital_per_symbol(
+        self, 
+        symbols: List[str],
+        metrics_dict: Dict[str, Dict[str, Any]],
+        total_capital: float
+    ) -> Dict[str, float]:
+        """
+        Distribuir el capital de manera óptima entre criptomonedas.
+        
+        Args:
+            symbols: Lista de símbolos
+            metrics_dict: Métricas por símbolo
+            total_capital: Capital total a distribuir
+            
+        Returns:
+            Asignación óptima de capital por símbolo
+        """
+        # Calcular saturación para cada símbolo
+        saturations = {
+            s: self.estimate_saturation_point(s, metrics_dict.get(s, {}))
+            for s in symbols
+        }
+        
+        # Calcular asignación inicial basada en saturación
+        total_saturation = sum(saturations.values())
+        allocations = {}
+        
+        for symbol in symbols:
+            sat_weight = saturations[symbol] / total_saturation if total_saturation > 0 else 1.0 / len(symbols)
+            allocations[symbol] = total_capital * sat_weight
+            
+            # Limitar a la saturación
+            if allocations[symbol] > saturations[symbol]:
+                allocations[symbol] = saturations[symbol]
+        
+        # Ajustar para alcanzar el capital total
+        allocated = sum(allocations.values())
+        if allocated < total_capital:
+            remaining = total_capital - allocated
+            
+            # Distribuir el restante a los no saturados
+            non_saturated = [s for s in symbols if allocations[s] < saturations[s]]
+            
+            if non_saturated:
+                for symbol in non_saturated:
+                    space_left = saturations[symbol] - allocations[symbol]
+                    share = space_left / sum(saturations[s] - allocations[s] for s in non_saturated)
+                    allocations[symbol] += remaining * share
+        
+        return allocations
+    
+    def get_optimal_exchange_distribution(
+        self, 
+        symbol: str, 
+        capital: float,
+        exchanges: List[str],
+        metrics: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, float]:
+        """
+        Distribuir capital entre exchanges de manera óptima.
+        
+        Args:
+            symbol: Símbolo de la criptomoneda
+            capital: Capital a distribuir
+            exchanges: Exchanges disponibles
+            metrics: Métricas por exchange
+            
+        Returns:
+            Distribución óptima por exchange
+        """
+        # Distribución base equitativa
+        distribution = {ex: 1.0 for ex in exchanges}
+        
+        # Ajustar según métricas si están disponibles
+        if metrics and metrics.get("exchange_metrics"):
+            ex_metrics = metrics["exchange_metrics"]
+            
+            # Normalizar métricas
+            total_weight = 0
+            for ex in exchanges:
+                if ex in ex_metrics:
+                    # Combinar liquidez, volumen y calidad
+                    liquidity = ex_metrics[ex].get("liquidity", 0.5)
+                    volume = ex_metrics[ex].get("volume", 0.5)
+                    quality = ex_metrics[ex].get("quality", 0.5)
+                    
+                    # Peso compuesto
+                    weight = (liquidity * 0.5) + (volume * 0.3) + (quality * 0.2)
+                    distribution[ex] = weight
+                    total_weight += weight
+            
+            # Normalizar pesos
+            if total_weight > 0:
+                for ex in distribution:
+                    distribution[ex] = distribution[ex] / total_weight
+        else:
+            # Sin métricas, distribución equitativa
+            even_weight = 1.0 / len(exchanges)
+            for ex in exchanges:
+                distribution[ex] = even_weight
+        
+        # Multiplicar por el capital para obtener asignación
+        allocation = {ex: capital * weight for ex, weight in distribution.items()}
+        
+        return allocation
+
 
 class TranscendentalCryptoClassifier:
     """
-    Clasificador avanzado de criptomonedas con capacidades transcendentales.
+    Clasificador transcendental de criptomonedas con estrategia adaptativa.
     
-    Esta clase implementa un sistema de clasificación multifactorial que evalúa
-    oportunidades de trading basadas en análisis técnico, fundamental, de sentimiento
-    y de liquidez, con adaptabilidad al crecimiento del capital.
+    Este clasificador implementa la estrategia adaptativa que mantiene
+    su eficacia independientemente del tamaño del capital, mediante
+    ajustes dinámicos basados en factores multidimensionales.
     """
     
-    def __init__(self, capital_inicial: float = 10000.0, exchanges: Optional[List[str]] = None):
+    def __init__(
+        self, 
+        initial_capital: float = DEFAULT_CAPITAL_BASE,
+        exchanges: Optional[List[str]] = None,
+        confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD
+    ):
         """
-        Inicializar el clasificador transcendental.
+        Inicializar clasificador transcendental.
         
         Args:
-            capital_inicial: Capital inicial del sistema en USD
-            exchanges: Lista de exchanges soportados
+            initial_capital: Capital inicial para clasificación base
+            exchanges: Lista de exchanges a considerar
+            confidence_threshold: Umbral de confianza para clasificaciones
         """
-        self.capital_actual = capital_inicial
-        self.capital_inicial = capital_inicial
-        self.exchanges = exchanges or ["binance", "kucoin", "okx", "bybit", "coinbase"]
+        self.initial_capital = initial_capital
+        self.current_capital = initial_capital
+        self.confidence_threshold = confidence_threshold
+        self.exchanges = exchanges or DEFAULT_EXCHANGES
         
-        # Umbrales para ajuste adaptativo basado en crecimiento de capital
-        self.umbrales_capital = [
-            10000,    # Nivel inicial
-            50000,    # Nivel 2
-            100000,   # Nivel 3
-            250000,   # Nivel 4
-            500000,   # Nivel 5
-            1000000,  # Nivel 6
-            5000000,  # Nivel 7
-            10000000  # Nivel 8
-        ]
+        self.score_adjuster = AdaptiveScoreAdjuster(base_capital=initial_capital)
+        self.last_classification_time = datetime.now() - timedelta(days=1)
+        self.classified_symbols: Set[str] = set()
+        self.hot_cryptos: Dict[str, Dict[str, Any]] = {}
         
-        # Parámetros adaptativos según nivel de capital
-        self.parametros_adaptativos = {
-            # Nivel, riesgo_base, diversificacion, min_liquidez_usd, max_slippage
-            1: (0.02, 5, 50000, 0.012),    # 2% riesgo, 5 cripto max, liquidez min 50k, slippage 1.2%
-            2: (0.018, 8, 100000, 0.01),   # 1.8% riesgo, 8 cripto max
-            3: (0.015, 12, 250000, 0.008), # 1.5% riesgo, 12 cripto max
-            4: (0.012, 16, 500000, 0.006), # 1.2% riesgo, 16 cripto max
-            5: (0.01, 20, 1000000, 0.005), # 1% riesgo, 20 cripto max
-            6: (0.008, 25, 2500000, 0.004),# 0.8% riesgo, 25 cripto max
-            7: (0.006, 35, 5000000, 0.003),# 0.6% riesgo, 35 cripto max
-            8: (0.005, 50, 10000000, 0.002)# 0.5% riesgo, 50 cripto max
-        }
-        
-        # Estado actual del sistema
-        self.nivel_actual = 1
-        self.riesgo_por_operacion = self.parametros_adaptativos[1][0]
-        self.max_diversificacion = self.parametros_adaptativos[1][1]
-        self.min_liquidez_usd = self.parametros_adaptativos[1][2]
-        self.max_slippage = self.parametros_adaptativos[1][3]
-        
-        # Monedas actualmente clasificadas como "calientes"
-        self.cryptos_calientes = set()
-        
-        # Métricas de rendimiento
-        self.metricas = {
-            "clasificaciones_realizadas": 0,
-            "actualizaciones_capital": 0,
-            "ajustes_adaptativos": 0,
-            "cryptos_analizadas": set(),
-            "timestamp_ultimo_analisis": None,
-            "mayor_score": 0.0,
-            "cryptos_hot_historicas": set()
-        }
-        
-        logger.info(f"TranscendentalCryptoClassifier inicializado con capital: ${capital_inicial:,.2f}")
-        self._actualizar_nivel_capital()
+        logger.info(
+            f"TranscendentalCryptoClassifier inicializado con capital={initial_capital}, "
+            f"{len(self.exchanges)} exchanges"
+        )
     
-    async def clasificar_cryptos(self, symbols: List[str], force_update: bool = False) -> Dict[str, Any]:
+    async def classify_all(self, capital: Optional[float] = None) -> List[Dict[str, Any]]:
         """
-        Clasificar un conjunto de criptomonedas según múltiples factores.
-        
-        Esta función evalúa cada cripto según factores técnicos, fundamentales,
-        de sentimiento y liquidez, asignando una puntuación total y clasificando
-        las mejores como "hot" para invertir.
+        Clasificar todas las criptomonedas disponibles.
         
         Args:
-            symbols: Lista de símbolos de criptomonedas (ej. ["BTC", "ETH"])
-            force_update: Forzar actualización aunque los datos sean recientes
+            capital: Capital actual (usa el inicial si no se especifica)
             
         Returns:
-            Diccionario con resultados de la clasificación y estadísticas
+            Lista de clasificaciones
         """
+        # Actualizar capital si se especifica
+        if capital is not None and capital > 0:
+            self.current_capital = capital
+        
+        logger.info(f"Iniciando clasificación con capital={self.current_capital}")
+        
+        # Obtener todas las criptomonedas activas
+        async def get_active_cryptos_query():
+            return (
+                select(Cryptocurrency)
+                .where(Cryptocurrency.is_active == True)
+                .order_by(Cryptocurrency.market_cap.desc())
+            ), []
+        
+        cryptos = await transcendental_db.execute_query(get_active_cryptos_query)
+        
+        results = []
         start_time = time.time()
-        resultados = {
-            "hot_cryptos": [],
-            "all_scores": {},
-            "timestamp": datetime.now().isoformat(),
-            "duracion_segundos": 0,
-            "nivel_capital": self.nivel_actual,
-            "parametros": {
-                "riesgo_por_operacion": self.riesgo_por_operacion,
-                "max_diversificacion": self.max_diversificacion,
-                "min_liquidez_usd": self.min_liquidez_usd,
-                "max_slippage": self.max_slippage
-            }
+        
+        # Procesar por lotes para mejor rendimiento
+        batch_size = 10
+        for i in range(0, len(cryptos), batch_size):
+            batch = cryptos[i:i+batch_size]
+            tasks = [self.classify_crypto(crypto) for crypto in batch]
+            batch_results = await asyncio.gather(*tasks)
+            results.extend([r for r in batch_results if r])
+        
+        # Actualizar hora de última clasificación
+        self.last_classification_time = datetime.now()
+        
+        # Actualizar conjunto de símbolos clasificados
+        self.classified_symbols = {r["symbol"] for r in results}
+        
+        # Actualizar hot_cryptos
+        self.hot_cryptos = {
+            r["symbol"]: r for r in results if r.get("is_hot", False)
         }
         
-        # Registro de la operación
-        log_entry = ClassifierLogs(
-            action="clasificar_cryptos",
-            details={
-                "symbols_count": len(symbols),
-                "force_update": force_update,
-                "start_time": start_time
-            }
-        )
-        await db.add(log_entry)
-        
-        try:
-            todas_puntuaciones = {}
-            cryptos_calientes_nuevas = set()
-            
-            # Procesar cada símbolo
-            for symbol in symbols:
-                # Obtener datos actuales
-                metrics, scores = await db.get_crypto_metrics_with_scores(symbol)
-                
-                # Si no hay datos o son antiguos, buscar actualización
-                if not metrics or not scores or force_update:
-                    # En un sistema real, aquí iría la lógica para obtener datos actualizados
-                    # Para esta implementación, simulamos datos actualizados
-                    
-                    # 1. Obtener métricas simuladas
-                    new_metrics = await self._generar_metricas_simuladas(symbol)
-                    await db.add(new_metrics)
-                    
-                    # 2. Calcular puntuaciones
-                    new_scores = await self._calcular_puntuaciones(new_metrics)
-                    await db.add(new_scores)
-                    
-                    # 3. Actualizar variables locales
-                    metrics, scores = new_metrics, new_scores
-                
-                # Almacenar puntuación
-                todas_puntuaciones[symbol] = {
-                    "total_score": scores.total_score,
-                    "volume_score": scores.volume_score,
-                    "change_score": scores.change_score,
-                    "market_cap_score": scores.market_cap_score,
-                    "spread_score": scores.spread_score,
-                    "sentiment_score": scores.sentiment_score,
-                    "adoption_score": scores.adoption_score,
-                    "is_hot": scores.is_hot,
-                    "allocation": scores.allocation
-                }
-                
-                # Verificar si califica como "hot"
-                if scores.total_score >= 0.75:  # Umbral para clasificación "hot"
-                    # Verificar liquidez suficiente según nivel de capital
-                    liquidez_suficiente = await self._verificar_liquidez(symbol)
-                    
-                    if liquidez_suficiente:
-                        scores.is_hot = True
-                        cryptos_calientes_nuevas.add(symbol)
-                        
-                        # Calcular asignación adaptativa de capital
-                        allocation = self._calcular_asignacion_capital(scores.total_score)
-                        scores.allocation = allocation
-                        
-                        # Establecer parámetros de gestión de riesgos adaptativos
-                        scores.drawdown_threshold = -0.05 - (scores.total_score * 0.05)  # Entre -5% y -10%
-                        scores.take_profit_multiplier = 2.0 + scores.total_score  # Entre 2x y 3x
-                        
-                        # Actualizar en base de datos
-                        await db.update(scores)
-                        
-                        # Añadir a lista de hot cryptos en resultados
-                        resultados["hot_cryptos"].append({
-                            "symbol": symbol,
-                            "score": scores.total_score,
-                            "allocation": scores.allocation,
-                            "drawdown_threshold": scores.drawdown_threshold,
-                            "take_profit_multiplier": scores.take_profit_multiplier,
-                            "risk_reward_ratio": scores.risk_reward_ratio
-                        })
-                else:
-                    # Si estaba caliente pero ya no lo es, actualizar
-                    if scores.is_hot:
-                        scores.is_hot = False
-                        scores.allocation = 0.0
-                        await db.update(scores)
-            
-            # Actualizar conjunto de cryptos calientes
-            self.cryptos_calientes = cryptos_calientes_nuevas
-            
-            # Actualizar métricas
-            self.metricas["clasificaciones_realizadas"] += 1
-            self.metricas["cryptos_analizadas"].update(symbols)
-            self.metricas["timestamp_ultimo_analisis"] = time.time()
-            self.metricas["mayor_score"] = max(
-                self.metricas["mayor_score"],
-                max([s["total_score"] for s in todas_puntuaciones.values()], default=0)
-            )
-            self.metricas["cryptos_hot_historicas"].update(cryptos_calientes_nuevas)
-            
-            # Finalizar log
-            log_entry.success = True
-            log_entry.details["end_time"] = time.time()
-            log_entry.details["hot_cryptos_count"] = len(resultados["hot_cryptos"])
-            await db.update(log_entry)
-            
-            # Completar resultados
-            resultados["all_scores"] = todas_puntuaciones
-            resultados["duracion_segundos"] = time.time() - start_time
-            
-            return resultados
-            
-        except Exception as e:
-            logger.error(f"Error en clasificación: {e}")
-            log_entry.success = False
-            log_entry.details["error"] = str(e)
-            log_entry.details["end_time"] = time.time()
-            await db.update(log_entry)
-            
-            raise
-    
-    async def actualizar_capital(self, nuevo_capital: float) -> Dict[str, Any]:
-        """
-        Actualizar el capital actual y ajustar parámetros adaptativos.
-        
-        Esta función actualiza el capital disponible y ajusta automáticamente
-        los parámetros del sistema según los umbrales definidos, adaptando
-        el enfoque de trading al nuevo nivel de capital.
-        
-        Args:
-            nuevo_capital: Nuevo monto de capital en USD
-            
-        Returns:
-            Diccionario con información sobre cambios aplicados
-        """
-        capital_anterior = self.capital_actual
-        nivel_anterior = self.nivel_actual
-        
-        self.capital_actual = nuevo_capital
-        self.metricas["actualizaciones_capital"] += 1
-        
-        # Actualizar nivel y parámetros basados en capital
-        self._actualizar_nivel_capital()
-        
-        # Preparar resultados
-        cambios = {
-            "capital_anterior": capital_anterior,
-            "capital_nuevo": nuevo_capital,
-            "cambio_porcentual": ((nuevo_capital / capital_anterior) - 1) * 100 if capital_anterior > 0 else 0,
-            "nivel_anterior": nivel_anterior,
-            "nivel_nuevo": self.nivel_actual,
-            "cambio_nivel": self.nivel_actual != nivel_anterior,
-            "nuevos_parametros": {
-                "riesgo_por_operacion": self.riesgo_por_operacion,
-                "max_diversificacion": self.max_diversificacion,
-                "min_liquidez_usd": self.min_liquidez_usd,
-                "max_slippage": self.max_slippage
-            }
-        }
-        
-        # Si cambió el nivel, registrar ajuste adaptativo
-        if cambios["cambio_nivel"]:
-            self.metricas["ajustes_adaptativos"] += 1
-            logger.info(f"Ajuste adaptativo realizado: Nivel {nivel_anterior} → {self.nivel_actual}")
-            logger.info(f"Nuevos parámetros: Riesgo {self.riesgo_por_operacion:.1%}, " 
-                        f"Max Diversificación: {self.max_diversificacion}, "
-                        f"Min Liquidez: ${self.min_liquidez_usd:,.0f}")
-            
-            # En un sistema real, aquí reclasificaríamos todas las criptomonedas
-            # adaptando la cartera al nuevo nivel de capital
-        
-        return cambios
-    
-    def get_estado_actual(self) -> Dict[str, Any]:
-        """
-        Obtener estado actual completo del clasificador.
-        
-        Returns:
-            Diccionario con estado actual del clasificador
-        """
-        return {
-            "capital": {
-                "inicial": self.capital_inicial,
-                "actual": self.capital_actual,
-                "rendimiento_porcentual": ((self.capital_actual / self.capital_inicial) - 1) * 100,
-                "nivel": self.nivel_actual
-            },
-            "parametros": {
-                "riesgo_por_operacion": self.riesgo_por_operacion,
-                "max_diversificacion": self.max_diversificacion,
-                "min_liquidez_usd": self.min_liquidez_usd,
-                "max_slippage": self.max_slippage
-            },
-            "cryptos_calientes": list(self.cryptos_calientes),
-            "metricas": {
-                "clasificaciones_realizadas": self.metricas["clasificaciones_realizadas"],
-                "actualizaciones_capital": self.metricas["actualizaciones_capital"],
-                "ajustes_adaptativos": self.metricas["ajustes_adaptativos"],
-                "cryptos_analizadas_count": len(self.metricas["cryptos_analizadas"]),
-                "cryptos_hot_historicas_count": len(self.metricas["cryptos_hot_historicas"]),
-                "ultima_clasificacion": (
-                    datetime.fromtimestamp(self.metricas["timestamp_ultimo_analisis"]).isoformat()
-                    if self.metricas["timestamp_ultimo_analisis"] else None
-                ),
-                "mayor_score_historico": self.metricas["mayor_score"]
-            },
-            "exchanges_soportados": self.exchanges
-        }
-    
-    async def simular_clasificacion_completa(self, 
-                                           n_cryptos: int = 50, 
-                                           capital: Optional[float] = None) -> Dict[str, Any]:
-        """
-        Realizar una simulación completa del proceso de clasificación.
-        
-        Esta función es para demostración y pruebas, generando datos
-        simulados para un conjunto de criptomonedas y clasificándolas.
-        
-        Args:
-            n_cryptos: Número de criptomonedas a simular
-            capital: Opcional, actualizar capital antes de simular
-            
-        Returns:
-            Resultados de la clasificación
-        """
-        # Actualizar capital si se proporciona
-        if capital is not None:
-            await self.actualizar_capital(capital)
-        
-        # Generar símbolos simulados
-        top_symbols = ["BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "AVAX", "DOT", "MATIC", "LINK"]
-        mid_symbols = ["UNI", "ATOM", "LTC", "ALGO", "FIL", "AAVE", "SNX", "CRV", "YFI", "COMP"]
-        
-        symbols = top_symbols.copy()
-        
-        # Añadir símbolos simulados adicionales si se necesitan más
-        if n_cryptos > len(symbols):
-            symbols.extend(mid_symbols)
-        
-        # Si aún necesitamos más, generar símbolos aleatorios
-        while len(symbols) < n_cryptos:
-            # Generar símbolo aleatorio de 3-4 letras
-            import random
-            import string
-            length = random.choice([3, 4])
-            random_symbol = ''.join(random.choices(string.ascii_uppercase, k=length))
-            
-            if random_symbol not in symbols:
-                symbols.append(random_symbol)
-        
-        # Limitar al número solicitado
-        symbols = symbols[:n_cryptos]
-        
-        # Ejecutar clasificación
-        resultado = await self.clasificar_cryptos(symbols, force_update=True)
-        
-        return resultado
-    
-    # Métodos internos
-    
-    def _actualizar_nivel_capital(self) -> None:
-        """Actualizar nivel de capital y parámetros adaptativos."""
-        # Determinar nivel basado en capital actual
-        nivel_nuevo = 1
-        for i, umbral in enumerate(self.umbrales_capital):
-            if self.capital_actual >= umbral:
-                nivel_nuevo = i + 1
-            else:
-                break
-        
-        # Si el nivel cambió, actualizar parámetros
-        if nivel_nuevo != self.nivel_actual:
-            self.nivel_actual = nivel_nuevo
-            
-            # Obtener parámetros para el nuevo nivel
-            params = self.parametros_adaptativos[nivel_nuevo]
-            self.riesgo_por_operacion = params[0]
-            self.max_diversificacion = params[1]
-            self.min_liquidez_usd = params[2]
-            self.max_slippage = params[3]
-    
-    def _calcular_asignacion_capital(self, score: float) -> float:
-        """
-        Calcular asignación de capital basada en score y nivel actual.
-        
-        Args:
-            score: Puntuación de la criptomoneda (0-1)
-            
-        Returns:
-            Porcentaje de capital a asignar
-        """
-        # La asignación base depende del riesgo por operación del nivel actual
-        asignacion_base = self.riesgo_por_operacion
-        
-        # Ajustar según score (mayor score = asignación ligeramente mayor)
-        factor_score = 0.5 + (score * 0.5)  # Entre 0.5 y 1.0
-        
-        # Ajustar según diversificación máxima
-        factor_diversificacion = 1.0
-        if len(self.cryptos_calientes) > 0:
-            # Reducir asignación si ya tenemos muchas cryptos calientes
-            factor_diversificacion = max(0.5, 1.0 - (len(self.cryptos_calientes) / self.max_diversificacion))
-        
-        # Calcular asignación final
-        asignacion_final = asignacion_base * factor_score * factor_diversificacion
-        
-        # Limitar a un rango razonable
-        return min(max(asignacion_final, 0.002), 0.05)  # Entre 0.2% y 5%
-    
-    async def _verificar_liquidez(self, symbol: str) -> bool:
-        """
-        Verificar si hay liquidez suficiente según nivel actual.
-        
-        Args:
-            symbol: Símbolo de la criptomoneda
-            
-        Returns:
-            True si hay liquidez suficiente
-        """
-        # En un sistema real, verificaríamos datos reales de liquidez
-        # Para esta implementación simulada, verificamos los datos almacenados
-        
-        async with db.session() as session:
-            # Buscar datos de liquidez para este símbolo
-            from sqlalchemy import select, func
-            from genesis.db.models.crypto_classifier_models import LiquidityData
-            
-            stmt = select(LiquidityData).where(
-                LiquidityData.symbol == symbol
-            ).order_by(LiquidityData.timestamp.desc()).limit(1)
-            
-            result = await session.execute(stmt)
-            liquidity = result.scalars().first()
-            
-            if not liquidity:
-                # Si no hay datos, generar datos simulados
-                # En un sistema real, este sería un punto donde obtendríamos datos reales
-                return await self._generar_liquidez_simulada(symbol)
-            
-            # Verificar profundidad de libro de órdenes contra umbral del nivel actual
-            if liquidity.total_depth and liquidity.total_depth >= self.min_liquidez_usd:
-                return True
-                
-            # Verificar slippage contra umbral del nivel actual
-            if liquidity.slippage_10000usd and liquidity.slippage_10000usd <= self.max_slippage:
-                return True
-                
-            return False
-    
-    async def _generar_metricas_simuladas(self, symbol: str) -> CryptoMetrics:
-        """
-        Generar métricas simuladas para una criptomoneda.
-        
-        En un sistema real, estas métricas vendrían de APIs de mercado,
-        aquí las simulamos para fines de demostración.
-        
-        Args:
-            symbol: Símbolo de la criptomoneda
-            
-        Returns:
-            Objeto CryptoMetrics con datos simulados
-        """
-        import random
-        
-        # Determinar nivel de calidad simulada basado en si es una de las top cryptos
-        top_tier = symbol in ["BTC", "ETH", "BNB", "SOL", "XRP", "ADA"]
-        mid_tier = symbol in ["AVAX", "DOT", "MATIC", "LINK", "UNI", "ATOM"]
-        
-        if top_tier:
-            base_quality = 0.8
-        elif mid_tier:
-            base_quality = 0.6
-        else:
-            base_quality = 0.4
-            
-        # Añadir aleatoriedad
-        quality = base_quality + (random.random() * 0.2 - 0.1)  # ±10%
-        
-        # Precio base simulado
-        if symbol == "BTC":
-            price = random.uniform(45000, 65000)
-        elif symbol == "ETH":
-            price = random.uniform(2500, 4000)
-        elif top_tier:
-            price = random.uniform(50, 500)
-        elif mid_tier:
-            price = random.uniform(10, 100)
-        else:
-            price = random.uniform(0.1, 10)
-            
-        # Calcular otras métricas basadas en calidad y precio
-        volume_24h = price * random.uniform(1000, 100000) * quality
-        market_cap = price * random.uniform(1000000, 10000000) * quality
-        
-        # Volatilidad - mayor para cryptos de menor calidad
-        volatility = 0.05 + ((1 - quality) * 0.15)
-        
-        # Crear objeto de métricas
-        metrics = CryptoMetrics(
-            symbol=symbol,
-            timestamp=datetime.now(),
-            
-            # Métricas de volumen
-            volume_24h=volume_24h,
-            volume_usd_24h=volume_24h * price,
-            volume_change_24h=random.uniform(-0.1, 0.3) * quality,
-            
-            # Métricas de precio
-            price=price,
-            price_change_24h=random.uniform(-0.05, 0.1) * (1 + quality),
-            price_change_7d=random.uniform(-0.1, 0.2) * (1 + quality),
-            
-            # Métricas de mercado
-            market_cap=market_cap,
-            market_cap_rank=int(100 - (quality * 90)),
-            
-            # Métricas técnicas
-            rsi_14=random.uniform(30, 70) * quality,
-            macd=random.uniform(-2, 2) * (price * 0.01),
-            ema_fast=price * (1 + random.uniform(-0.02, 0.02)),
-            ema_slow=price * (1 + random.uniform(-0.05, 0.05)),
-            adx=random.uniform(15, 40) * quality,
-            atr=price * volatility,
-            atr_percent=volatility,
-            stoch_rsi=random.uniform(20, 80) * quality,
-            bb_width=random.uniform(0.5, 2.0) * (1 + (1-quality)),
-            
-            # Métricas de exchange
-            spread_percent=random.uniform(0.0005, 0.005) * (2 - quality),
-            exchange_count=int(5 + (15 * quality)),
-            
-            # Niveles Fibonacci y soporte/resistencia
-            fib_382_level=price * (1 - (0.382 * volatility)),
-            fib_618_level=price * (1 - (0.618 * volatility)),
-            near_support=random.random() > 0.5,
-            near_resistance=random.random() > 0.6
+        logger.info(
+            f"Clasificación completada en {time.time() - start_time:.2f}s: "
+            f"{len(results)} criptomonedas, {len(self.hot_cryptos)} hot"
         )
         
-        # Generar datos de liquidez relacionados
-        await self._generar_liquidez_simulada(symbol, metrics_id=None)
-        
-        return metrics
+        return results
     
-    async def _calcular_puntuaciones(self, metrics: CryptoMetrics) -> CryptoScores:
+    async def classify_crypto(self, crypto: Any) -> Optional[Dict[str, Any]]:
         """
-        Calcular puntuaciones para una criptomoneda basadas en sus métricas.
+        Clasificar una única criptomoneda.
         
         Args:
-            metrics: Objeto CryptoMetrics con datos
+            crypto: Objeto Cryptocurrency
             
         Returns:
-            Objeto CryptoScores con puntuaciones calculadas
+            Clasificación como diccionario o None si no hay suficientes datos
         """
-        # Normalizar volumen (0-1)
-        volume_score = min(1.0, metrics.volume_usd_24h / 50000000) if metrics.volume_usd_24h else 0.0
+        symbol = crypto.symbol
         
-        # Puntuar cambio de precio (favoreciendo cambios positivos pero no extremos)
-        change_score = 0.5
-        if metrics.price_change_24h is not None:
-            if metrics.price_change_24h > 0:
-                # Cambio positivo (0.5-1.0)
-                change_score = 0.5 + min(0.5, metrics.price_change_24h / 0.2)
-            else:
-                # Cambio negativo (0-0.5)
-                change_score = 0.5 + max(-0.5, metrics.price_change_24h)
+        # Obtener métricas actuales
+        metrics = await self._get_crypto_metrics(crypto.id)
         
-        # Puntuar market cap (favoreciendo capitalizaciones medianas)
-        market_cap_score = 0.0
-        if metrics.market_cap:
-            if metrics.market_cap < 100000000:  # < 100M: pequeña
-                market_cap_score = metrics.market_cap / 100000000
-            elif metrics.market_cap < 5000000000:  # 100M-5B: mediana (óptima)
-                market_cap_score = 0.7 + (0.3 * ((5000000000 - metrics.market_cap) / 4900000000))
-            else:  # > 5B: grande
-                market_cap_score = 0.7 * (10000000000 / metrics.market_cap)
+        if not metrics:
+            logger.warning(f"No hay métricas disponibles para {symbol}, omitiendo clasificación")
+            return None
         
-        # Puntuar spread (menor es mejor)
-        spread_score = 0.0
-        if metrics.spread_percent:
-            spread_score = max(0, 1.0 - (metrics.spread_percent / 0.01))
+        # Calcular puntuaciones por factor
+        raw_scores = self._calculate_factor_scores(crypto, metrics)
         
-        # Calcular puntuación total combinada
-        # En un sistema real, incluiríamos las puntuaciones de sentimiento y adopción
-        # Para esta demostración, simulamos esos valores
-        sentiment_score = 0.5 + (volume_score * 0.5 - 0.25)  # Correlacionado con volumen parcialmente
-        adoption_score = 0.7 if metrics.exchange_count and metrics.exchange_count > 10 else 0.4
-        
-        # Crear objeto de puntuaciones
-        scores = CryptoScores(
-            metrics_id=metrics.id,
-            timestamp=datetime.now(),
-            symbol=metrics.symbol,
-            
-            # Puntuaciones individuales
-            volume_score=volume_score,
-            change_score=change_score,
-            market_cap_score=market_cap_score,
-            spread_score=spread_score,
-            sentiment_score=sentiment_score,
-            adoption_score=adoption_score,
-            
-            # Puntuación total ponderada
-            total_score=0.0,  # Se calculará a continuación
-            
-            # Flags y parámetros iniciales
-            is_hot=False,
-            allocation=0.0
+        # Aplicar ajustes adaptativos basados en el capital actual
+        adjusted_scores = self.score_adjuster.adjust_score(
+            symbol, raw_scores, self.current_capital, metrics
         )
         
-        # Calcular puntuación total ponderada
+        # Calcular puntuación final combinada
         weights = {
-            'volume_score': 0.15,
-            'change_score': 0.25,
-            'market_cap_score': 0.1,
-            'spread_score': 0.15,
-            'sentiment_score': 0.2,
-            'adoption_score': 0.15
+            "alpha_score": 0.20,
+            "liquidity_score": 0.25,
+            "volatility_score": 0.15,
+            "momentum_score": 0.10,
+            "trend_score": 0.15,
+            "correlation_score": 0.10,
+            "exchange_quality_score": 0.05
         }
         
-        total = 0.0
-        for field, weight in weights.items():
-            value = getattr(scores, field) or 0.0
-            total += value * weight
+        final_score = sum(adjusted_scores[factor] * weights[factor] for factor in adjusted_scores)
         
-        scores.total_score = min(max(total, 0.0), 1.0)  # Normalizar entre 0 y 1
+        # Determinar si es "hot" (usando umbral dinámico)
+        hot_threshold = 0.75  # Umbral base
+        
+        # Ajustar umbral según tamaño de capital
+        if self.current_capital > self.initial_capital:
+            capital_ratio = min(10, self.current_capital / self.initial_capital)
+            # Mayor capital = umbral más exigente
+            hot_threshold += 0.05 * np.log10(capital_ratio)
+        
+        is_hot = final_score >= hot_threshold
+        
+        # Crear clasificación en base de datos
+        classification_id = await self._store_classification(
+            crypto.id, raw_scores, adjusted_scores, final_score, is_hot
+        )
+        
+        # Estimar punto de saturación
+        saturation_point = self.score_adjuster.estimate_saturation_point(symbol, metrics)
+        
+        # Calcular distribución óptima entre exchanges
+        exchange_distribution = self.score_adjuster.get_optimal_exchange_distribution(
+            symbol, min(self.current_capital * 0.1, saturation_point * 0.5), self.exchanges, metrics
+        )
+        
+        # Compilar resultado
+        result = {
+            "symbol": symbol,
+            "name": crypto.name,
+            "classification_id": classification_id,
+            "raw_scores": raw_scores,
+            "adjusted_scores": adjusted_scores,
+            "final_score": final_score,
+            "is_hot": is_hot,
+            "saturation_point": saturation_point,
+            "capital_efficiency": 1.0 if self.current_capital <= saturation_point else saturation_point / self.current_capital,
+            "exchange_distribution": exchange_distribution,
+            "market_cap": crypto.market_cap,
+            "current_price": crypto.current_price,
+            "classification_time": datetime.now().isoformat()
+        }
+        
+        return result
+    
+    async def get_hot_cryptos(self, refresh: bool = False) -> Dict[str, Dict[str, Any]]:
+        """
+        Obtener criptomonedas clasificadas como "hot".
+        
+        Args:
+            refresh: Si se debe refrescar la clasificación
+            
+        Returns:
+            Diccionario con criptomonedas hot
+        """
+        # Si se solicita refresh o ha pasado más de 1 hora desde la última clasificación
+        if (
+            refresh or 
+            not self.hot_cryptos or 
+            (datetime.now() - self.last_classification_time) > timedelta(hours=1)
+        ):
+            await self.classify_all()
+        
+        return self.hot_cryptos
+    
+    async def analyze_capital_scaling(
+        self, 
+        symbol: str, 
+        capital_levels: Optional[List[float]] = None
+    ) -> Dict[str, Any]:
+        """
+        Analizar cómo se comporta la clasificación con diferentes niveles de capital.
+        
+        Args:
+            symbol: Símbolo de la criptomoneda
+            capital_levels: Niveles de capital a evaluar
+            
+        Returns:
+            Resultados del análisis de escalabilidad
+        """
+        # Niveles de capital por defecto
+        if not capital_levels:
+            capital_levels = [10_000, 100_000, 1_000_000, 10_000_000]
+        
+        # Obtener criptomoneda y métricas
+        async def get_crypto_query():
+            return (
+                select(Cryptocurrency)
+                .where(Cryptocurrency.symbol == symbol)
+            ), []
+        
+        cryptos = await transcendental_db.execute_query(get_crypto_query)
+        if not cryptos:
+            return {"error": f"Criptomoneda {symbol} no encontrada"}
+        
+        crypto = cryptos[0]
+        metrics = await self._get_crypto_metrics(crypto.id)
+        
+        if not metrics:
+            return {"error": f"No hay métricas disponibles para {symbol}"}
+        
+        # Calcular puntuaciones base
+        raw_scores = self._calculate_factor_scores(crypto, metrics)
+        
+        # Analizar para cada nivel de capital
+        scores_by_capital = {}
+        for capital in capital_levels:
+            adjusted_scores = self.score_adjuster.adjust_score(
+                symbol, raw_scores, capital, metrics
+            )
+            
+            # Calcular puntuación final con pesos
+            weights = {
+                "alpha_score": 0.20,
+                "liquidity_score": 0.25,
+                "volatility_score": 0.15,
+                "momentum_score": 0.10,
+                "trend_score": 0.15,
+                "correlation_score": 0.10,
+                "exchange_quality_score": 0.05
+            }
+            
+            final_score = sum(adjusted_scores[factor] * weights[factor] for factor in adjusted_scores)
+            scores_by_capital[str(capital)] = final_score
+        
+        # Calcular sensibilidad a escala
+        base_score = scores_by_capital[str(capital_levels[0])]
+        max_score = base_score
+        min_score = base_score
+        
+        for score in scores_by_capital.values():
+            max_score = max(max_score, score)
+            min_score = min(min_score, score)
+        
+        scale_sensitivity = 0.0
+        if base_score > 0:
+            scale_sensitivity = (base_score - min_score) / base_score
+        
+        # Estimar punto de saturación
+        saturation_point = self.score_adjuster.estimate_saturation_point(symbol, metrics)
+        
+        # Determinar factor limitante
+        factors = list(raw_scores.keys())
+        factor_sensitivities = {}
+        
+        for factor in factors:
+            temp_scores = raw_scores.copy()
+            temp_scores[factor] = temp_scores[factor] * 2  # Duplicar este factor
+            
+            # Ver cómo afecta a los diferentes niveles
+            impact = 0
+            for capital in capital_levels:
+                adj_normal = self.score_adjuster.adjust_score(
+                    symbol, raw_scores, capital, metrics
+                )
+                adj_modified = self.score_adjuster.adjust_score(
+                    symbol, temp_scores, capital, metrics
+                )
+                
+                # Diferencia relativa
+                normal_weighted = sum(adj_normal[f] * weights[f] for f in adj_normal)
+                modified_weighted = sum(adj_modified[f] * weights[f] for f in adj_modified)
+                
+                impact += abs(modified_weighted - normal_weighted) / max(normal_weighted, 0.001)
+            
+            factor_sensitivities[factor] = impact / len(capital_levels)
+        
+        # El factor con mayor sensibilidad es el limitante
+        limiting_factor = max(factor_sensitivities.items(), key=lambda x: x[1])[0]
+        
+        # Almacenar análisis en base de datos
+        await self._store_capital_scale_analysis(
+            crypto.id, 
+            {str(c): s for c, s in zip(capital_levels, [scores_by_capital[str(c)] for c in capital_levels])},
+            scale_sensitivity,
+            limiting_factor,
+            saturation_point
+        )
+        
+        return {
+            "symbol": symbol,
+            "raw_scores": raw_scores,
+            "scores_by_capital": scores_by_capital,
+            "scale_sensitivity": scale_sensitivity,
+            "saturation_point": saturation_point,
+            "limiting_factor": limiting_factor,
+            "factor_sensitivities": factor_sensitivities,
+            "analysis_time": datetime.now().isoformat()
+        }
+    
+    async def update_capital(self, new_capital: float) -> Dict[str, Any]:
+        """
+        Actualizar el capital usado para clasificaciones.
+        
+        Args:
+            new_capital: Nuevo capital en USD
+            
+        Returns:
+            Resultados de la actualización
+        """
+        if new_capital <= 0:
+            return {"error": "El capital debe ser positivo"}
+        
+        old_capital = self.current_capital
+        self.current_capital = new_capital
+        
+        logger.info(f"Capital actualizado: {old_capital} -> {new_capital}")
+        
+        # Si el capital cambia significativamente, refrescar clasificaciones
+        if abs(new_capital / old_capital - 1) > 0.1:  # Cambio > 10%
+            logger.info(f"Cambio significativo de capital, refrescando clasificaciones")
+            await self.classify_all()
+            
+            return {
+                "previous_capital": old_capital,
+                "new_capital": new_capital,
+                "classifications_updated": True,
+                "hot_cryptos_count": len(self.hot_cryptos)
+            }
+        
+        return {
+            "previous_capital": old_capital,
+            "new_capital": new_capital,
+            "classifications_updated": False
+        }
+    
+    async def _get_crypto_metrics(self, crypto_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Obtener métricas para una criptomoneda.
+        
+        Args:
+            crypto_id: ID de la criptomoneda
+            
+        Returns:
+            Métricas como diccionario o None si no hay datos
+        """
+        async def get_metrics_query():
+            return (
+                select(CryptoMetrics)
+                .where(CryptoMetrics.cryptocurrency_id == crypto_id)
+                .order_by(CryptoMetrics.updated_at.desc())
+                .limit(1)
+            ), []
+        
+        metrics_result = await transcendental_db.execute_query(get_metrics_query)
+        
+        if not metrics_result:
+            return None
+        
+        metrics_obj = metrics_result[0]
+        return metrics_obj.to_dict()
+    
+    def _calculate_factor_scores(self, crypto: Any, metrics: Dict[str, Any]) -> Dict[str, float]:
+        """
+        Calcular puntuaciones por factor para una criptomoneda.
+        
+        Args:
+            crypto: Objeto Cryptocurrency
+            metrics: Métricas disponibles
+            
+        Returns:
+            Puntuaciones por factor
+        """
+        scores = {}
+        
+        # Alpha score (rentabilidad ajustada por riesgo)
+        alpha = 0.5  # Valor por defecto
+        if metrics.get("sharpe_ratio"):
+            sharpe = float(metrics["sharpe_ratio"])
+            # Normalizar: 2+ es excelente, 1 es bueno, 0 es neutral, <0 es malo
+            alpha = min(1.0, max(0.0, (sharpe + 0.5) / 2.5))
+        scores["alpha_score"] = alpha
+        
+        # Liquidity score
+        liquidity = 0.5  # Valor por defecto
+        if metrics.get("orderbook_depth_usd") and metrics.get("slippage_10000usd"):
+            depth = float(metrics["orderbook_depth_usd"])
+            slippage = float(metrics["slippage_10000usd"])
+            
+            # Normalizar: profundidad > $5M es excelente
+            depth_score = min(1.0, depth / 5_000_000)
+            
+            # Normalizar: slippage < 0.1% es excelente
+            slippage_score = min(1.0, max(0.0, 1.0 - slippage * 10))
+            
+            # Combinar (profundidad 60%, slippage 40%)
+            liquidity = (depth_score * 0.6) + (slippage_score * 0.4)
+        scores["liquidity_score"] = liquidity
+        
+        # Volatility score (menor volatilidad = mejor puntuación)
+        volatility = 0.5  # Valor por defecto
+        if metrics.get("volatility_30d"):
+            vol = float(metrics["volatility_30d"])
+            # Normalizar: volatilidad < 50% anualizada es excelente
+            # (aunque para estables, puede ser mucho menor)
+            volatility = min(1.0, max(0.0, 1.0 - vol / 1.5))
+        scores["volatility_score"] = volatility
+        
+        # Momentum score
+        momentum = 0.5  # Valor por defecto
+        if crypto.price_change_percentage_24h is not None:
+            change_24h = float(crypto.price_change_percentage_24h)
+            # Normalizar: >5% es excelente, <-5% es pésimo
+            momentum = min(1.0, max(0.0, (change_24h + 5) / 10))
+        scores["momentum_score"] = momentum
+        
+        # Trend score (fuerza de la tendencia)
+        trend = 0.5  # Valor por defecto
+        # Idealmente se calcularía con indicadores técnicos
+        # Por ahora usamos un proxy basado en price_change + volatilidad
+        if crypto.price_change_percentage_24h is not None and metrics.get("volatility_30d"):
+            change_24h = float(crypto.price_change_percentage_24h)
+            vol = float(metrics["volatility_30d"])
+            
+            # Tendencia = cambio normalizado por volatilidad
+            raw_trend = abs(change_24h) / (vol * 100) if vol > 0 else 0
+            trend = min(1.0, raw_trend * 5)  # Normalizar
+        scores["trend_score"] = trend
+        
+        # Correlation score (menor correlación = mejor diversificación)
+        correlation = 0.5  # Valor por defecto (neutral)
+        # En un sistema real se calcularía la correlación con BTC/ETH
+        # Por simplicidad, usamos un valor aleatorio estable por símbolo
+        random.seed(crypto.symbol)
+        correlation = min(1.0, max(0.0, 1.0 - (random.random() * 0.5 + 0.3)))
+        scores["correlation_score"] = correlation
+        
+        # Exchange quality score
+        exchange_quality = 0.5  # Valor por defecto
+        if metrics.get("exchange_metrics"):
+            ex_metrics = metrics["exchange_metrics"]
+            quality_scores = [
+                ex_metrics[ex].get("quality", 0.5) 
+                for ex in ex_metrics 
+                if ex in self.exchanges
+            ]
+            if quality_scores:
+                exchange_quality = sum(quality_scores) / len(quality_scores)
+        scores["exchange_quality_score"] = exchange_quality
         
         return scores
     
-    async def _generar_liquidez_simulada(self, symbol: str, metrics_id: Optional[int] = None) -> bool:
+    async def _store_classification(
+        self,
+        crypto_id: int,
+        raw_scores: Dict[str, float],
+        adjusted_scores: Dict[str, float],
+        final_score: float,
+        is_hot: bool
+    ) -> int:
         """
-        Generar datos de liquidez simulados para un símbolo.
-        
-        En un sistema real, estos datos vendrían del orderbook de exchanges.
+        Almacenar clasificación en la base de datos.
         
         Args:
-            symbol: Símbolo de la criptomoneda
-            metrics_id: ID opcional de métricas relacionadas
+            crypto_id: ID de la criptomoneda
+            raw_scores: Puntuaciones originales
+            adjusted_scores: Puntuaciones ajustadas
+            final_score: Puntuación final
+            is_hot: Si es una criptomoneda "hot"
             
         Returns:
-            True si la liquidez generada es suficiente para el nivel actual
+            ID de la clasificación
         """
-        import random
+        # Verificar si ya existe una clasificación reciente (< 1 día)
+        async def check_recent_classification():
+            return (
+                select(CryptoClassification)
+                .where(
+                    and_(
+                        CryptoClassification.cryptocurrency_id == crypto_id,
+                        CryptoClassification.classification_date > datetime.now() - timedelta(days=1)
+                    )
+                )
+                .order_by(CryptoClassification.classification_date.desc())
+                .limit(1)
+            ), []
         
-        # Liquidez base según la "calidad" del activo
-        top_tier = symbol in ["BTC", "ETH", "BNB", "SOL", "XRP", "ADA"]
-        mid_tier = symbol in ["AVAX", "DOT", "MATIC", "LINK", "UNI", "ATOM"]
+        recent = await transcendental_db.execute_query(check_recent_classification)
         
-        if top_tier:
-            liquidity_factor = random.uniform(0.8, 1.0)
-        elif mid_tier:
-            liquidity_factor = random.uniform(0.5, 0.8)
+        if recent:
+            # Existe clasificación reciente, actualizarla
+            classification = recent[0]
+            old_score = classification.final_score
+            old_hot = classification.hot_rating
+            classification_id = classification.id
+            
+            # Calcular cambio de puntuación
+            score_change_pct = ((final_score - old_score) / old_score * 100) if old_score > 0 else 0
+            
+            # Preparar actualización
+            async def update_classification():
+                return (
+                    update(CryptoClassification)
+                    .where(CryptoClassification.id == classification_id)
+                    .values(
+                        alpha_score=adjusted_scores["alpha_score"],
+                        liquidity_score=adjusted_scores["liquidity_score"],
+                        volatility_score=adjusted_scores["volatility_score"],
+                        momentum_score=adjusted_scores["momentum_score"],
+                        trend_score=adjusted_scores["trend_score"],
+                        correlation_score=adjusted_scores["correlation_score"],
+                        exchange_quality_score=adjusted_scores["exchange_quality_score"],
+                        final_score=final_score,
+                        hot_rating=is_hot,
+                        capital_base=self.current_capital,
+                        classification_date=datetime.now(),
+                        confidence=self.confidence_threshold
+                    )
+                ), []
+            
+            await transcendental_db.execute_query(update_classification)
+            
+            # Registrar cambio si es significativo o cambia estado hot
+            if abs(score_change_pct) > 5 or old_hot != is_hot:
+                await self._store_classification_history(
+                    classification_id, old_score, final_score, old_hot, is_hot, score_change_pct
+                )
         else:
-            liquidity_factor = random.uniform(0.2, 0.5)
+            # No existe, crear nueva clasificación
+            async def insert_classification():
+                return (
+                    insert(CryptoClassification).values(
+                        cryptocurrency_id=crypto_id,
+                        alpha_score=adjusted_scores["alpha_score"],
+                        liquidity_score=adjusted_scores["liquidity_score"],
+                        volatility_score=adjusted_scores["volatility_score"],
+                        momentum_score=adjusted_scores["momentum_score"],
+                        trend_score=adjusted_scores["trend_score"],
+                        correlation_score=adjusted_scores["correlation_score"],
+                        exchange_quality_score=adjusted_scores["exchange_quality_score"],
+                        final_score=final_score,
+                        hot_rating=is_hot,
+                        capital_base=self.current_capital,
+                        classification_date=datetime.now(),
+                        confidence=self.confidence_threshold
+                    ).returning(CryptoClassification.id)
+                ), []
+            
+            result = await transcendental_db.execute_query(insert_classification)
+            classification_id = result[0][0]
         
-        # Generar datos para cada exchange soportado
-        for exchange in self.exchanges[:3]:  # Simular solo en algunos exchanges
-            # Obtener o generar ID de métricas
-            if not metrics_id:
-                # Buscar métricas existentes
-                async with db.session() as session:
-                    from sqlalchemy import select
-                    stmt = select(CryptoMetrics.id).where(
-                        CryptoMetrics.symbol == symbol
-                    ).order_by(CryptoMetrics.timestamp.desc()).limit(1)
-                    
-                    result = await session.execute(stmt)
-                    metrics_id_result = result.scalar_one_or_none()
-                    
-                    if metrics_id_result:
-                        metrics_id = metrics_id_result
-            
-            # Saltear si no tenemos ID de métricas
-            if not metrics_id:
-                continue
-                
-            # Generar profundidad de orderbook simulada
-            orderbook_depth = random.uniform(500000, 10000000) * liquidity_factor
-            
-            # Generar spread simulado
-            bid_ask_spread = random.uniform(0.0005, 0.005) * (2 - liquidity_factor)
-            
-            # Generar slippage simulado
-            slippage_1000usd = random.uniform(0.001, 0.01) * (2 - liquidity_factor)
-            slippage_10000usd = slippage_1000usd * random.uniform(1.5, 2.5)
-            
-            # Calcular liquidez score
-            liquidity_score = liquidity_factor * (
-                0.5 + 0.5 * (1 - (slippage_10000usd / 0.02))
-            )
-            
-            # Crear y guardar objeto de liquidez
-            liquidity = LiquidityData(
-                metrics_id=metrics_id,
-                symbol=symbol,
-                timestamp=datetime.now(),
-                exchange=exchange,
-                
-                bid_ask_spread=bid_ask_spread,
-                orderbook_depth_bids=orderbook_depth * 0.6,  # 60% en bids
-                orderbook_depth_asks=orderbook_depth * 0.4,  # 40% en asks
-                liquidity_score=liquidity_score,
-                slippage_1000usd=slippage_1000usd,
-                slippage_10000usd=slippage_10000usd
-            )
-            
-            await db.add(liquidity)
+        return classification_id
+    
+    async def _store_classification_history(
+        self,
+        classification_id: int,
+        old_score: float,
+        new_score: float,
+        old_hot: bool,
+        new_hot: bool,
+        change_magnitude: float
+    ) -> None:
+        """
+        Almacenar historia de cambios en clasificación.
         
-        # Devolver True si la liquidez es suficiente para el nivel actual
-        return (orderbook_depth >= self.min_liquidez_usd and 
-                slippage_10000usd <= self.max_slippage)
+        Args:
+            classification_id: ID de la clasificación
+            old_score: Puntuación anterior
+            new_score: Puntuación nueva
+            old_hot: Estado hot anterior
+            new_hot: Estado hot nuevo
+            change_magnitude: Magnitud del cambio (porcentaje)
+        """
+        # Determinar condición de mercado
+        market_condition = "neutral"
+        if change_magnitude > 10:
+            market_condition = "bull"
+        elif change_magnitude < -10:
+            market_condition = "bear"
+        
+        # Determinar razón del cambio
+        if old_hot != new_hot:
+            reason = "Cambio de estado hot" + (" → hot" if new_hot else " → normal")
+        else:
+            reason = f"Cambio de puntuación ({change_magnitude:.1f}%)"
+        
+        async def insert_history():
+            return (
+                insert(ClassificationHistory).values(
+                    classification_id=classification_id,
+                    previous_final_score=old_score,
+                    new_final_score=new_score,
+                    previous_hot_rating=old_hot,
+                    new_hot_rating=new_hot,
+                    capital_base=self.current_capital,
+                    market_condition=market_condition,
+                    change_magnitude=change_magnitude,
+                    change_reason=reason,
+                    change_date=datetime.now()
+                )
+            ), []
+        
+        await transcendental_db.execute_query(insert_history)
+    
+    async def _store_capital_scale_analysis(
+        self,
+        crypto_id: int,
+        scores_by_capital: Dict[str, float],
+        scale_sensitivity: float,
+        limiting_factor: str,
+        saturation_point: float
+    ) -> None:
+        """
+        Almacenar análisis de efecto de escala.
+        
+        Args:
+            crypto_id: ID de la criptomoneda
+            scores_by_capital: Puntuaciones por nivel de capital
+            scale_sensitivity: Sensibilidad a la escala
+            limiting_factor: Factor limitante
+            saturation_point: Punto de saturación
+        """
+        # Verificar si ya existe un análisis reciente (< 7 días)
+        async def check_recent_analysis():
+            return (
+                select(CapitalScaleEffect)
+                .where(
+                    and_(
+                        CapitalScaleEffect.cryptocurrency_id == crypto_id,
+                        CapitalScaleEffect.analysis_date > datetime.now() - timedelta(days=7)
+                    )
+                )
+                .limit(1)
+            ), []
+        
+        recent = await transcendental_db.execute_query(check_recent_analysis)
+        
+        if recent:
+            # Existe análisis reciente, actualizarlo
+            analysis_id = recent[0].id
+            
+            async def update_analysis():
+                return (
+                    update(CapitalScaleEffect)
+                    .where(CapitalScaleEffect.id == analysis_id)
+                    .values(
+                        score_10k=scores_by_capital.get("10000", 0.0),
+                        score_100k=scores_by_capital.get("100000", 0.0),
+                        score_1m=scores_by_capital.get("1000000", 0.0),
+                        score_10m=scores_by_capital.get("10000000", 0.0),
+                        scale_sensitivity=scale_sensitivity,
+                        max_effective_capital=saturation_point,
+                        limiting_factor=limiting_factor,
+                        saturation_point=saturation_point,
+                        analysis_date=datetime.now()
+                    )
+                ), []
+            
+            await transcendental_db.execute_query(update_analysis)
+        else:
+            # No existe, crear nuevo análisis
+            async def insert_analysis():
+                return (
+                    insert(CapitalScaleEffect).values(
+                        cryptocurrency_id=crypto_id,
+                        score_10k=scores_by_capital.get("10000", 0.0),
+                        score_100k=scores_by_capital.get("100000", 0.0),
+                        score_1m=scores_by_capital.get("1000000", 0.0),
+                        score_10m=scores_by_capital.get("10000000", 0.0),
+                        scale_sensitivity=scale_sensitivity,
+                        max_effective_capital=saturation_point,
+                        limiting_factor=limiting_factor,
+                        saturation_point=saturation_point,
+                        analysis_date=datetime.now()
+                    )
+                ), []
+            
+            await transcendental_db.execute_query(insert_analysis)
 
-# Instancia global para acceso desde cualquier módulo
-crypto_classifier = TranscendentalCryptoClassifier()
 
-async def initialize_classifier():
-    """Inicializar el clasificador con configuración predeterminada."""
-    logger.info("Inicializando TranscendentalCryptoClassifier...")
-    # En un sistema real, aquí cargaríamos configuración desde base de datos
-    return crypto_classifier
+# Instancia global del clasificador
+classifier = TranscendentalCryptoClassifier()
