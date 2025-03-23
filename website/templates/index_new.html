@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Genesis - Sistema Trascendental de Trading{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <div class="hero">
+        <div class="floating-logo">
+            <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo">
+        </div>
+        <h2 class="subtitle glow-text">Sistema Trascendental de Trading</h2>
+        <div class="description">
+            <p>
+                Bienvenido al sistema de trading de próxima generación con resiliencia extrema y capacidades trascendentales.
+            </p>
+            <p>
+                Genesis incorpora tecnología de Singularidad V4, algoritmos de inteligencia artificial adaptativa, y aprendizaje por refuerzo
+                para lograr un rendimiento sin precedentes en el mercado de criptomonedas.
+            </p>
+        </div>
+        <div class="cta-buttons">
+            {% if not session.get('logged_in') %}
+            <a href="{{ url_for('login') }}" class="btn btn-primary glow-button">Ingresar al Sistema</a>
+            {% else %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary glow-button">Ir al Dashboard</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="capabilities-section">
+    <h2 class="section-title">Capacidades Trascendentales</h2>
+    <div class="capabilities-grid">
+        <div class="capability-card">
+            <div class="capability-icon"><i class="fas fa-brain"></i></div>
+            <h3>Singularidad V4</h3>
+            <p>Arquitectura híbrida de procesamiento que alcanza intensidades superiores a 1000.0 con 100% de eficacia en condiciones extremas.</p>
+        </div>
+        <div class="capability-card">
+            <div class="capability-icon"><i class="fas fa-shield-alt"></i></div>
+            <h3>Resiliencia Total</h3>
+            <p>Mecanismos de Colapso Dimensional, Horizonte de Eventos y Tiempo Cuántico que garantizan operación continua incluso durante fallas catastróficas.</p>
+        </div>
+        <div class="capability-card">
+            <div class="capability-icon"><i class="fas fa-atom"></i></div>
+            <h3>Database Trascendental</h3>
+            <p>Sistema de almacenamiento con persistencia interdimensional que transmuta errores y mantiene coherencia de datos en todo momento.</p>
+        </div>
+        <div class="capability-card">
+            <div class="capability-icon"><i class="fas fa-chart-line"></i></div>
+            <h3>Reinforcement Ensemble</h3>
+            <p>Estrategia adaptativa que combina múltiples algoritmos de aprendizaje por refuerzo para optimizar decisiones de trading.</p>
+        </div>
+        <div class="capability-card">
+            <div class="capability-icon"><i class="fas fa-sync-alt"></i></div>
+            <h3>Escalabilidad Adaptativa</h3>
+            <p>Ajuste automático de operaciones según el capital disponible, manteniendo rendimiento óptimo desde pequeñas a grandes inversiones.</p>
+        </div>
+        <div class="capability-card">
+            <div class="capability-icon"><i class="fas fa-project-diagram"></i></div>
+            <h3>WebSocket Trascendental</h3>
+            <p>Comunicación híbrida API+WebSocket que elimina deadlocks y garantiza flujo de datos ininterrumpido entre componentes.</p>
+        </div>
+    </div>
+</div>
+
+<div class="modes-section">
+    <h2 class="section-title">Modos Trascendentales</h2>
+    <div class="modes-carousel">
+        <div class="mode-card active" data-mode="SINGULARIDAD_V4">
+            <div class="mode-title">Singularidad V4</div>
+            <div class="mode-description">Núcleo del sistema que combina todos los mecanismos trascendentales para crear un sistema de trading perfecto.</div>
+            <div class="mode-metrics">
+                <div class="mode-metric">
+                    <span class="metric-value">100%</span>
+                    <span class="metric-label">Tasa de Éxito</span>
+                </div>
+                <div class="mode-metric">
+                    <span class="metric-value">1000.0</span>
+                    <span class="metric-label">Intensidad</span>
+                </div>
+            </div>
+        </div>
+        <div class="mode-card" data-mode="LUZ">
+            <div class="mode-title">Modo Luz</div>
+            <div class="mode-description">Optimizado para velocidad y precisión. Corrige anomalías temporales y mantiene la estabilidad del sistema.</div>
+        </div>
+        <div class="mode-card" data-mode="MATERIA_OSCURA">
+            <div class="mode-title">Materia Oscura</div>
+            <div class="mode-description">Máxima resiliencia. Convierte errores en éxitos y mantiene el sistema funcionando incluso cuando parece caído.</div>
+        </div>
+        <div class="mode-card" data-mode="DIVINO">
+            <div class="mode-title">Modo Divino</div>
+            <div class="mode-description">Análisis y predicción con capacidades que trascienden los límites convencionales del trading algorítmico.</div>
+        </div>
+    </div>
+    <div class="mode-indicators">
+        <span class="mode-indicator active" data-index="0"></span>
+        <span class="mode-indicator" data-index="1"></span>
+        <span class="mode-indicator" data-index="2"></span>
+        <span class="mode-indicator" data-index="3"></span>
+    </div>
+</div>
+
+<div class="system-status">
+    <h2 class="section-title">Estado del Sistema</h2>
+    <div class="status-container">
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-title">Modo Operativo</span>
+                <span class="status-value mode-name">{{ system_status.mode if system_status else "SINGULARIDAD_V4" }}</span>
+            </div>
+            <div class="status-meter">
+                <div class="meter-track">
+                    <div class="meter-fill" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-title">Tasa de Éxito</span>
+                <span class="status-value">{{ system_status.success_rate if system_status else "100" }}%</span>
+            </div>
+            <div class="status-meter">
+                <div class="meter-track">
+                    <div class="meter-fill" style="width: {{ system_status.success_rate if system_status else 100 }}%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-title">Componentes Activos</span>
+                <span class="status-value">{{ system_status.components_active if system_status else "5" }}/5</span>
+            </div>
+            <div class="status-meter">
+                <div class="meter-track">
+                    <div class="meter-fill" style="width: {{ (system_status.components_active if system_status else 5) * 20 }}%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-card">
+            <div class="status-header">
+                <span class="status-title">Tiempo de Actividad</span>
+                <span class="status-value">{{ system_status.uptime_hours if system_status else "267" }} horas</span>
+            </div>
+            <div class="status-meter">
+                <div class="meter-track">
+                    <div class="meter-fill pulse" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+{% endblock %}
