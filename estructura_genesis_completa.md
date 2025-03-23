@@ -44,7 +44,14 @@ genesis/db/
     ├── trading.py - Modelos para operaciones de trading
     ├── config.py - Modelos para configuración
     ├── metrics.py - Modelos para métricas y logs
-    └── user.py - Modelos para usuarios y permisos
+    ├── user.py - Modelos para usuarios y permisos
+    └── crypto_classifier_models.py - Modelos para el Cripto Classifier
+        ├── crypto_metrics - Métricas en tiempo real
+        ├── crypto_scores - Puntuaciones y clasificaciones
+        ├── crypto_predictions - Predicciones del modelo LSTM
+        ├── social_trends - Datos de tendencias sociales
+        ├── liquidity_data - Datos de liquidez y profundidad
+        └── classifier_logs - Registro de actividades
 ```
 
 ## 3. Módulos de Trading
@@ -119,7 +126,12 @@ genesis/security/
 ├── signature_manager.py - Gestor de firmas criptográficas
 ├── api_key_manager.py - Gestor de claves API
 ├── encryption.py - Funciones de cifrado
-└── rate_limiter.py - Limitador de tasas
+├── rate_limiter.py - Limitador de tasas
+├── aes_cipher.py - Cifrador AES con modos GCM y CBC+HMAC
+├── key_derivation.py - Funciones para derivación segura de claves
+├── crypto_utils.py - Utilidades criptográficas diversas
+├── encrypted_storage.py - Almacenamiento cifrado de datos sensibles
+└── hmac_validator.py - Validador de integridad con HMAC
 ```
 
 ## 8. Módulos de Configuración
@@ -195,7 +207,32 @@ scripts/
 └── deployment/ - Scripts de despliegue
 ```
 
-## 15. Integración Interdimensional
+## 15. Módulos de Contabilidad
+```
+genesis/accounting/
+├── balance_manager.py - Gestor principal de balances
+├── balance_updater.py - Actualizador periódico de balances
+├── balance_history.py - Historial de balances con almacenamiento
+├── concurrent_balance_fetcher.py - Obtenedor concurrente de balances
+├── circuit_breaker.py - Circuit breaker para APIs de balances
+├── inversionistas_manager.py - Gestor principal de inversionistas
+├── profit_distributor.py - Distribuidor de ganancias entre inversionistas
+├── investor_history.py - Historial de inversiones y ganancias
+├── investor_backup.py - Sistema de respaldo de datos de inversionistas
+└── portfolio_summary.py - Generador de resúmenes de cartera
+```
+
+## 16. Módulos de Analytics
+```
+genesis/analytics/
+├── analytics_manager.py - Gestor principal de análisis
+├── performance_tracker.py - Seguimiento de rendimiento de estrategias
+├── strategy_evaluator.py - Evaluador de estrategias
+├── visualization.py - Generador de gráficos y visualizaciones
+└── anomaly_detector.py - Detector de anomalías en datos de mercado
+```
+
+## 17. Integración Interdimensional
 Nuevos módulos integrando capacidades entre dimensiones:
 ```
 genesis/interdimensional/
