@@ -1,39 +1,21 @@
 """
-Módulo de base de datos para el sistema Genesis.
+Módulo para interacción con la base de datos en el Sistema Genesis.
 
-Este módulo proporciona la capa de acceso a datos y modelos
-para la persistencia de información del sistema de trading.
+Este módulo proporciona interfaces para trabajar con la base de datos PostgreSQL,
+tanto de forma asíncrona como síncrona, facilitando la integración con diferentes
+componentes del sistema.
 """
 
-# Importar modelos principales si existen
-try:
-    from genesis.db.models import Base, User, Trade, Candle, BacktestResult, SystemLog, ApiKey, Alert, PerformanceMetric
-except ImportError:
-    # Si los modelos principales no existen, crear variables vacías para evitar errores
-    Base = None
-    User = Trade = Candle = BacktestResult = SystemLog = ApiKey = Alert = PerformanceMetric = None
-
-# Importar el repositorio
-try:
-    from genesis.db.repository import Repository
-except ImportError:
-    Repository = None
-
-# Importar modelos de paper trading
-from genesis.db.paper_trading_models import (
-    Base as PaperTradingBase,
-    PaperTradingAccount, 
-    PaperTradingBalance, 
-    PaperTradingOrder, 
-    PaperTradingTrade, 
-    MarketData,
-    PaperTradingSettings
-)
+from genesis.db.base import db_manager, get_db_session
+from genesis.db.transcendental_database import TranscendentalDatabase
+from genesis.db.sync_database import SyncDatabase
+from genesis.db.database_adapter import DatabaseAdapter, get_db_adapter
 
 __all__ = [
-    "Base", "User", "Trade", "Candle", "BacktestResult", 
-    "SystemLog", "ApiKey", "Alert", "PerformanceMetric",
-    "Repository", 
-    "PaperTradingBase", "PaperTradingAccount", "PaperTradingBalance", 
-    "PaperTradingOrder", "PaperTradingTrade", "MarketData", "PaperTradingSettings"
+    'db_manager',
+    'get_db_session',
+    'TranscendentalDatabase',
+    'SyncDatabase',
+    'DatabaseAdapter',
+    'get_db_adapter',
 ]
