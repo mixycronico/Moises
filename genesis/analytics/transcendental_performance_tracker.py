@@ -1462,22 +1462,34 @@ async def initialize_performance_tracker(capital_inicial: float = 10000.0, confi
         capital_inicial: Capital inicial en USD
         config: Configuración adicional (opcional)
     """
-    # Aplicar configuración si se proporciona
-    if config:
-        benchmark = config.get("benchmark", "crypto_top10")
-        
-        # Crear nueva instancia con configuración
-        global performance_tracker
-        performance_tracker = TranscendentalPerformanceTracker(
-            capital_inicial=capital_inicial,
-            benchmark=benchmark
-        )
-        
-        # Activar modo trascendental si se especifica
-        modo_trascendental = config.get("modo_trascendental", "SINGULARITY_V4")
-        await performance_tracker.activar_modo_trascendental(modo_trascendental)
-    else:
-        # Actualizar capital de la instancia existente
-        await performance_tracker.actualizar_capital(capital_inicial, "inicializacion")
+    global performance_tracker
     
-    logger.info(f"TranscendentalPerformanceTracker inicializado con capital: ${capital_inicial:,.2f}")
+    try:
+        # Aplicar configuración si se proporciona
+        if config:
+            benchmark = config.get("benchmark", "crypto_top10")
+            
+            # Crear nueva instancia con configuración
+            performance_tracker = TranscendentalPerformanceTracker(
+                capital_inicial=capital_inicial,
+                benchmark=benchmark
+            )
+            
+            # Activar modo trascendental si se especifica
+            modo_trascendental = config.get("modo_trascendental", "SINGULARITY_V4")
+            await performance_tracker.activar_modo_trascendental(modo_trascendental)
+        else:
+            # Verificar si ya existe una instancia, si no, crearla
+            if 'performance_tracker' not in globals() or performance_tracker is None:
+                performance_tracker = TranscendentalPerformanceTracker(capital_inicial=capital_inicial)
+            else:
+                # Actualizar capital de la instancia existente
+                await performance_tracker.actualizar_capital(capital_inicial, "inicializacion")
+        
+        logger.info(f"TranscendentalPerformanceTracker inicializado con capital: ${capital_inicial:,.2f}")
+    except Exception as e:
+        logger.error(f"Error al inicializar TranscendentalPerformanceTracker: {str(e)}")
+        # Asegurar que existe una instancia en caso de error
+        if 'performance_tracker' not in globals() or performance_tracker is None:
+            performance_tracker = TranscendentalPerformanceTracker(capital_inicial=capital_inicial)
+            logger.info(f"Instancia de TranscendentalPerformanceTracker creada con valores por defecto (capital: ${capital_inicial:,.2f})")

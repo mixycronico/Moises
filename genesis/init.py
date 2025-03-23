@@ -79,11 +79,15 @@ async def initialize_system(config_path: str = "genesis_config.json") -> Dict[st
         init_status["risk_manager"] = True
         
         # Inicializar seguidor de rendimiento
-        await initialize_performance_tracker(
-            config.get("performance_tracker", {}).get("capital_inicial", 10000.0),
-            config.get("performance_tracker", {})
-        )
-        init_status["performance_tracker"] = True
+        try:
+            await initialize_performance_tracker(
+                config.get("performance_tracker", {}).get("capital_inicial", 10000.0),
+                config.get("performance_tracker", {})
+            )
+            init_status["performance_tracker"] = True
+        except Exception as e:
+            logger.warning(f"Fallo en la inicialización del performance tracker: {str(e)}")
+            # Continuar con la inicialización aunque falle este componente
         
         # Estado exitoso
         init_status["mensaje"] = "Sistema Genesis inicializado correctamente"
@@ -166,8 +170,14 @@ async def get_system_status() -> Dict[str, Any]:
     # Obtener información del seguidor de rendimiento
     try:
         performance_info = await performance_tracker.obtener_resumen_rendimiento()
+        performance_status = {
+            "capital_actual": performance_tracker.capital_actual,
+            "rendimiento_total": performance_tracker.metricas.get("rendimiento_total", 0),
+            **performance_info
+        }
     except Exception as e:
-        performance_info = {"error": str(e)}
+        logger.warning(f"Error al obtener información del performance tracker: {str(e)}")
+        performance_status = {"error": str(e)}
     
     # Compilar estado completo
     status = {
@@ -176,10 +186,7 @@ async def get_system_status() -> Dict[str, Any]:
         "cache": cache_status,
         "classifier": classifier_info,
         "risk_manager": risk_info,
-        "performance_tracker": {
-            "capital_actual": performance_tracker.capital_actual,
-            "rendimiento_total": performance_tracker.metricas.get("rendimiento_total", 0)
-        }
+        "performance_tracker": performance_status
     }
     
     return status
@@ -199,19 +206,34 @@ async def actualizar_capital_sistema(nuevo_capital: float) -> Dict[str, Any]:
     """
     resultados = {}
     
+    if nuevo_capital <= 0:
+        logger.warning(f"Capital inválido en actualizar_capital_sistema: {nuevo_capital}")
+        resultados["error"] = "El capital debe ser un valor positivo"
+        return resultados
+    
+    capital_anterior = 0
+    
     # Actualizar capital en clasificador
     try:
         resultado_clasificador = await classifier.update_capital(nuevo_capital)
         resultados["classifier"] = resultado_clasificador
     except Exception as e:
-        resultados["classifier"] = {"error": str(e)}
+        error_msg = str(e)
+        logger.warning(f"Error al actualizar capital en classifier: {error_msg}")
+        resultados["classifier"] = {"error": error_msg}
     
     # Actualizar capital en gestor de riesgo
     try:
         resultado_risk = await risk_manager.actualizar_capital(nuevo_capital)
         resultados["risk_manager"] = resultado_risk
+        
+        # Obtener capital anterior del risk manager si está disponible
+        if isinstance(resultado_risk, dict) and "capital_anterior" in resultado_risk:
+            capital_anterior = resultado_risk["capital_anterior"]
     except Exception as e:
-        resultados["risk_manager"] = {"error": str(e)}
+        error_msg = str(e)
+        logger.warning(f"Error al actualizar capital en risk_manager: {error_msg}")
+        resultados["risk_manager"] = {"error": error_msg}
     
     # Actualizar capital en seguidor de rendimiento
     try:
@@ -220,12 +242,20 @@ async def actualizar_capital_sistema(nuevo_capital: float) -> Dict[str, Any]:
         )
         resultados["performance_tracker"] = resultado_performance
     except Exception as e:
-        resultados["performance_tracker"] = {"error": str(e)}
+        error_msg = str(e)
+        logger.warning(f"Error al actualizar capital en performance_tracker: {error_msg}")
+        resultados["performance_tracker"] = {"error": error_msg}
     
     # Resultado global
-    resultados["capital_anterior"] = resultados.get("risk_manager", {}).get("capital_anterior", 0)
+    resultados["capital_anterior"] = capital_anterior  # Usando el valor capturado
     resultados["capital_nuevo"] = nuevo_capital
-    resultados["cambio_porcentual"] = ((nuevo_capital / resultados["capital_anterior"]) - 1) * 100 if resultados["capital_anterior"] > 0 else 0
+    
+    # Calcular cambio porcentual con verificación de división por cero
+    if capital_anterior > 0:
+        resultados["cambio_porcentual"] = ((nuevo_capital / capital_anterior) - 1) * 100
+    else:
+        resultados["cambio_porcentual"] = 0
+        logger.warning("No se pudo calcular cambio porcentual: capital_anterior es cero o negativo")
     
     return resultados
 
@@ -235,29 +265,52 @@ async def activar_modo_trascendental(modo: str = "SINGULARITY_V4") -> Dict[str, 
     
     Args:
         modo: Modo trascendental a activar 
-              ("SINGULARITY_V4", "LIGHT", "DARK_MATTER", etc.)
+              ("SINGULARITY_V4", "LIGHT", "DARK_MATTER", "DIVINE", "BIG_BANG", "INTERDIMENSIONAL")
         
     Returns:
         Diccionario con resultados de la activación
     """
     resultados = {}
     
+    # Validar modo trascendental
+    modos_validos = ["SINGULARITY_V4", "LIGHT", "DARK_MATTER", "DIVINE", "BIG_BANG", "INTERDIMENSIONAL"]
+    if modo not in modos_validos:
+        logger.warning(f"Modo trascendental inválido: {modo}. Usando SINGULARITY_V4 por defecto.")
+        modo = "SINGULARITY_V4"
+    
+    logger.info(f"Activando modo trascendental: {modo}")
+    
     # Activar en gestor de riesgo
     try:
         resultado_risk = await risk_manager.activar_modo_trascendental(modo)
         resultados["risk_manager"] = resultado_risk
+        logger.info(f"Modo {modo} activado en risk_manager")
     except Exception as e:
-        resultados["risk_manager"] = {"error": str(e)}
+        error_msg = str(e)
+        logger.warning(f"Error al activar modo {modo} en risk_manager: {error_msg}")
+        resultados["risk_manager"] = {"error": error_msg}
     
     # Activar en seguidor de rendimiento
     try:
         resultado_performance = await performance_tracker.activar_modo_trascendental(modo)
         resultados["performance_tracker"] = resultado_performance
+        logger.info(f"Modo {modo} activado en performance_tracker")
     except Exception as e:
-        resultados["performance_tracker"] = {"error": str(e)}
+        error_msg = str(e)
+        logger.warning(f"Error al activar modo {modo} en performance_tracker: {error_msg}")
+        resultados["performance_tracker"] = {"error": error_msg}
     
     # Resultado global
     resultados["modo"] = modo
     resultados["timestamp"] = asyncio.get_event_loop().time()
+    resultados["status"] = "success"
+    
+    # Verificar si hubo errores en algún componente
+    if any("error" in resultado for componente, resultado in resultados.items() 
+           if componente not in ["modo", "timestamp", "status"]):
+        resultados["status"] = "partial_success"
+        logger.warning(f"Activación del modo {modo} completada parcialmente con errores")
+    else:
+        logger.info(f"Activación del modo {modo} completada exitosamente en todos los componentes")
     
     return resultados
