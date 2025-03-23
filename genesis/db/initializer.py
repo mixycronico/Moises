@@ -18,12 +18,12 @@ _db_adapter = None
 _db_manager = None
 _initialized = False
 
-def initialize_database(dsn: Optional[str] = None) -> DatabaseAdapter:
+async def initialize_database(dsn: Optional[Dict[str, Any]] = None) -> DatabaseAdapter:
     """
     Inicializar adaptador de base de datos.
     
     Args:
-        dsn: Cadena de conexión (opcional)
+        dsn: Configuración de base de datos (opcional)
         
     Returns:
         Adaptador de base de datos configurado
