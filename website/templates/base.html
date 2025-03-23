@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema Genesis{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    {% block additional_styles %}{% endblock %}
+</head>
+<body class="trascendental-theme">
+    <div class="container">
+        <header>
+            <div class="logo">
+                <img src="{{ url_for('static', filename='img/genesis-logo.svg') }}" alt="Genesis Logo">
+                <h1>Sistema Genesis</h1>
+            </div>
+            <nav>
+                {% if session.get('logged_in') %}
+                    <ul class="nav-links">
+                        <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Inicio</a></li>
+                        <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
+                        <li><a href="{{ url_for('portfolio') }}"><i class="fas fa-briefcase"></i> Portfolio</a></li>
+                        <li><a href="{{ url_for('trading_process') }}"><i class="fas fa-exchange-alt"></i> Trading</a></li>
+                        <li><a href="{{ url_for('cryptos') }}"><i class="fas fa-coins"></i> Criptomonedas</a></li>
+                        <li><a href="{{ url_for('analysis') }}"><i class="fas fa-microscope"></i> Análisis</a></li>
+                        {% if session.get('is_admin') %}
+                        <li><a href="{{ url_for('system') }}"><i class="fas fa-cogs"></i> Sistema</a></li>
+                        {% endif %}
+                        <li><a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Ajustes</a></li>
+                        <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Salir</a></li>
+                    </ul>
+                {% else %}
+                    <ul class="nav-links">
+                        <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Inicio</a></li>
+                        <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Ingresar</a></li>
+                    </ul>
+                {% endif %}
+            </nav>
+        </header>
+
+        <main>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer>
+            <div class="footer-content">
+                <p>&copy; 2025 Sistema Genesis - Plataforma Trascendental de Trading</p>
+                <p class="mode-indicator">Modo: <span class="mode-name">{{ system_status.mode if system_status else "SINGULARIDAD_V4" }}</span></p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Genesis - Sistema Trascendental de Trading{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <div class="hero">
+        <h1 class="glow-text">Sistema Genesis</h1>
+        <h2 class="subtitle">Plataforma Trascendental de Trading</h2>
+        <p class="description">
+            Una solución avanzada con resiliencia extrema para trading algorítmico
+            que utiliza tecnología trascendental para maximizar resultados.
+        </p>
+        <div class="cta-buttons">
+            {% if not session.get('logged_in') %}
+            <a href="{{ url_for('login') }}" class="btn btn-primary glow-button">Ingresar al Sistema</a>
+            {% else %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-primary glow-button">Ir al Dashboard</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="features-section">
+    <h2 class="section-title">Características Trascendentales</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-brain"></i></div>
+            <h3>Inteligencia Artificial Avanzada</h3>
+            <p>Incorpora modelos de IA que aprenden y se adaptan al mercado.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+            <h3>Resiliencia Extrema</h3>
+            <p>Garantía de operación ininterrumpida incluso bajo condiciones extremas.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+            <h3>Análisis Predictivo</h3>
+            <p>Anticipa movimientos del mercado con precisión trascendental.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon"><i class="fas fa-sync-alt"></i></div>
+            <h3>Escalabilidad Adaptativa</h3>
+            <p>Se adapta automáticamente al volumen de capital sin pérdida de rendimiento.</p>
+        </div>
+    </div>
+</div>
+
+<div class="system-status">
+    <h2 class="section-title">Estado del Sistema</h2>
+    <div class="status-meters">
+        <div class="meter">
+            <div class="meter-label">Modo Operativo</div>
+            <div class="meter-value mode-name">{{ system_status.mode if system_status else "SINGULARIDAD_V4" }}</div>
+        </div>
+        <div class="meter">
+            <div class="meter-label">Tasa de Éxito</div>
+            <div class="meter-value">{{ system_status.success_rate if system_status else "100" }}%</div>
+        </div>
+        <div class="meter">
+            <div class="meter-label">Componentes Activos</div>
+            <div class="meter-value">{{ system_status.components_active if system_status else "5" }}</div>
+        </div>
+        <div class="meter">
+            <div class="meter-label">Tiempo de Actividad</div>
+            <div class="meter-value">{{ system_status.uptime_hours if system_status else "0" }} horas</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+{% endblock %}
