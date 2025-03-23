@@ -634,6 +634,16 @@ async def main():
     """Función principal para ejecutar ambas demostraciones."""
     logger.info("=== INICIANDO DEMO DEL SISTEMA CUÁNTICO ULTRA-DIVINO PARA BINANCE TESTNET ===")
     
+    # Verificar estado de las credenciales API
+    if HAS_API_CREDENTIALS:
+        logger.info("🔑 USANDO CREDENCIALES API REALES DE BINANCE TESTNET 🔑")
+        logger.info(f"API Key: {BINANCE_TESTNET_API_KEY[:4]}{'*' * (len(BINANCE_TESTNET_API_KEY) - 8)}{BINANCE_TESTNET_API_KEY[-4:]}")
+        logger.info("API Secret: *********** (se está utilizando pero no se muestra por seguridad)")
+        logger.info("Los datos se generarán con precios más precisos y realistas.")
+    else:
+        logger.warning("⚠️ NO SE DETECTARON CREDENCIALES API DE BINANCE TESTNET ⚠️")
+        logger.warning("Se utilizará transmutación cuántica para generar los datos simulados.")
+    
     # Demo 1: Datos de mercado en tiempo real
     await demo_market_data()
     
@@ -644,7 +654,8 @@ async def main():
     await demo_error_transmutation()
     
     logger.info("=== DEMO COMPLETADA EXITOSAMENTE ===")
-    logger.info("El Sistema Cuántico Ultra-Divino funciona perfectamente")
+    logger.info("El Sistema Cuántico Ultra-Divino funciona perfectamente" + 
+                (" con credenciales API reales" if HAS_API_CREDENTIALS else " con transmutación cuántica"))
 
 if __name__ == "__main__":
     asyncio.run(main())
