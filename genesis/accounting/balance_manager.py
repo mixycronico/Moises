@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from genesis.core.base import Component
 from genesis.utils.helpers import generate_id, format_timestamp
 from genesis.utils.logger import setup_logging
-from genesis.accounting.predictive_scaling import PredictiveScalingEngine, ScalingPrediction
+from genesis.accounting.predictive_scaling import PredictiveScalingEngine, EfficiencyPrediction
 
 # Configurar precisión para operaciones con Decimal
 getcontext().prec = 28
