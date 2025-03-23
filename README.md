@@ -15,6 +15,9 @@ La implementación actual utiliza una arquitectura híbrida API+WebSocket que co
 - **Base de Datos Transcendental**: Módulos de base de datos con capacidades avanzadas de sincronización temporal
 - **Gestión de Riesgo Adaptativa**: Sistema inteligente que ajusta parámetros según las condiciones del mercado
 - **Clasificador Transcendental**: Identificación optimizada de oportunidades de trading
+- **Pipeline Completo**: Flujo integral desde adquisición de datos hasta distribución de ganancias
+- **Gestión de Capital**: Sistema automatizado de administración de capital con límites de riesgo
+- **Distribución de Ganancias**: Mecanismo configurable para reinversión, reservas y retiros
 
 ## Estructura del Proyecto
 
@@ -23,6 +26,7 @@ La implementación actual utiliza una arquitectura híbrida API+WebSocket que co
   - **analytics/**: Seguimiento de rendimiento
   - **db/**: Adaptadores y gestión de bases de datos
   - **modes/**: Implementaciones de modos transcendentales
+  - **pipeline/**: Pipeline completo desde adquisición hasta distribución de ganancias
   - **risk/**: Gestión de riesgo adaptativa
   - **...**: (Ver genesis/README.md para estructura completa)
 - **docs/**: Documentación técnica y reportes
@@ -44,6 +48,19 @@ La implementación actual utiliza una arquitectura híbrida API+WebSocket que co
    - `DATABASE_URL`: URL de conexión a la base de datos PostgreSQL
    - `SESSION_SECRET`: Clave secreta para sesiones
 4. Iniciar la aplicación: `gunicorn main:app --bind 0.0.0.0:5000`
+
+## Uso del Pipeline
+
+```python
+# Ejecución del pipeline completo
+python -m genesis.pipeline.run_pipeline --mode full
+
+# Ejecución de etapas específicas
+python -m genesis.pipeline.run_pipeline --mode partial --stages data_acquisition data_preprocessing
+
+# Ejecución continua (cada hora)
+python -m genesis.pipeline.run_pipeline --mode continuous --interval 3600 --iterations 24
+```
 
 ## Modos Transcendentales
 
