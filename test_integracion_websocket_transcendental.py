@@ -1,4 +1,4 @@
-"""
+
 Prueba de Integración del WebSocket Trascendental en Sistema Genesis.
 
 Este script realiza pruebas avanzadas de integración del Sistema Genesis
@@ -8,7 +8,7 @@ con WebSocket Trascendental, verificando:
 3. Rendimiento bajo intensidad extrema (1000.0)
 4. Transmutación de errores en operaciones exitosas
 5. Resiliencia del sistema completo integrado
-"""
+
 
 import asyncio
 import logging
@@ -49,10 +49,10 @@ DEFAULT_PARALLEL_STREAMS = 5
 DEFAULT_MESSAGE_RATE = 100  # mensajes por segundo
 
 class TestStats:
-    """Estadísticas de prueba."""
+    Estadísticas de prueba."""
     
     def __init__(self):
-        """Inicializar estadísticas."""
+        Inicializar estadísticas."""
         self.start_time = time.time()
         self.events_received = 0
         self.events_processed = 0
@@ -64,34 +64,34 @@ class TestStats:
         self.success_rate = 100.0
         
     def update_latency(self, latency: float) -> None:
-        """
+        
         Actualizar estadísticas de latencia.
         
         Args:
             latency: Tiempo de latencia en segundos
-        """
+        
         self.max_latency = max(self.max_latency, latency)
         self.min_latency = min(self.min_latency, latency)
         self.total_latency += latency
     
     def get_avg_latency(self) -> float:
-        """
+        
         Obtener latencia promedio.
         
         Returns:
             Latencia promedio en segundos
-        """
+        
         if self.events_processed == 0:
             return 0.0
         return self.total_latency / self.events_processed
     
     def get_summary(self) -> Dict[str, Any]:
-        """
+        
         Obtener resumen de estadísticas.
         
         Returns:
             Diccionario con resumen de estadísticas
-        """
+        
         elapsed = time.time() - self.start_time
         return {
             "duration": elapsed,
@@ -109,22 +109,22 @@ class TestStats:
         }
 
 class MarketDataSimulator:
-    """
+    
     Simulador de datos de mercado para pruebas.
     
     Este componente simula datos de mercado como si vinieran de un exchange,
     pero generados localmente para pruebas intensivas.
-    """
+    
     
     def __init__(self, exchange_ws: ExchangeWebSocketHandler, event_bus: TranscendentalEventBus, intensity: float = 1000.0):
-        """
+        
         Inicializar simulador.
         
         Args:
             exchange_ws: Manejador de WebSocket para exchanges
             event_bus: Bus de eventos trascendental
             intensity: Intensidad de la prueba (1.0 - 1000.0)
-        """
+        
         self.exchange_ws = exchange_ws
         self.event_bus = event_bus
         self.intensity = intensity
@@ -141,13 +141,13 @@ class MarketDataSimulator:
         logger.info(f"Simulador de datos de mercado inicializado con intensidad {intensity}")
     
     async def start(self, rate: int = 100, duration: int = 60) -> None:
-        """
+        
         Iniciar simulación de datos.
         
         Args:
             rate: Tasa de mensajes por segundo
             duration: Duración en segundos
-        """
+        
         if self.running:
             return
             
@@ -199,17 +199,17 @@ class MarketDataSimulator:
         logger.info(f"Simulación finalizada. Generados {sent_count} mensajes.")
     
     async def stop(self) -> None:
-        """Detener simulación."""
+        Detener simulación."""
         self.running = False
         logger.info("Simulación detenida")
     
     async def _generate_trade(self, symbol: str) -> None:
-        """
+        
         Generar datos de trade simulados.
         
         Args:
             symbol: Símbolo del instrumento
-        """
+        
         # Generar precio base según símbolo
         base_price = {
             "btcusdt": 45000.0,
@@ -254,12 +254,12 @@ class MarketDataSimulator:
         self.stats.events_processed += 1
     
     async def _generate_kline(self, symbol: str) -> None:
-        """
+        
         Generar datos de kline (vela) simulados.
         
         Args:
             symbol: Símbolo del instrumento
-        """
+        
         # Generar precio base según símbolo
         base_price = {
             "btcusdt": 45000.0,
@@ -320,12 +320,12 @@ class MarketDataSimulator:
         self.stats.events_processed += 1
     
     async def _generate_orderbook(self, symbol: str) -> None:
-        """
+        
         Generar datos de orderbook simulados.
         
         Args:
             symbol: Símbolo del instrumento
-        """
+        
         # Generar precio base según símbolo
         base_price = {
             "btcusdt": 45000.0,
@@ -375,14 +375,14 @@ class MarketDataSimulator:
         self.stats.events_processed += 1
     
     async def _process_simulated_exchange_data(self, symbol: str, data_type: str, data: Dict[str, Any]) -> None:
-        """
+        
         Procesar datos simulados como si vinieran de un exchange.
         
         Args:
             symbol: Símbolo del instrumento
             data_type: Tipo de datos (trade, kline, depth)
             data: Datos simulados
-        """
+        
         # Crear mensaje para el bus de eventos
         event_type = f"market_{data_type}"
         event_data = {
@@ -402,19 +402,19 @@ class MarketDataSimulator:
             self.stats.errors += 1
 
 class IntegrationTester:
-    """
+    
     Probador de integración del sistema WebSocket Trascendental.
     
     Este componente orquesta pruebas completas del sistema integrado.
-    """
+    
     
     def __init__(self, intensity: float = 1000.0):
-        """
+        
         Inicializar probador.
         
         Args:
             intensity: Intensidad de la prueba (1.0 - 1000.0)
-        """
+        
         self.intensity = intensity
         self.event_bus = None
         self.exchange_ws = None
@@ -424,7 +424,7 @@ class IntegrationTester:
         logger.info(f"Probador de integración inicializado con intensidad {intensity}")
     
     async def setup(self) -> None:
-        """Configurar componentes para la prueba."""
+        Configurar componentes para la prueba."""
         logger.info("Configurando componentes para prueba de integración...")
         
         # Crear TranscendentalEventBus
@@ -443,7 +443,7 @@ class IntegrationTester:
         logger.info("Componentes configurados correctamente")
     
     async def _setup_event_listeners(self) -> None:
-        """Configurar listeners de eventos para la prueba."""
+        Configurar listeners de eventos para la prueba."""
         # Escuchar eventos de trades
         await self.event_bus.subscribe(
             "market_trade", 
@@ -466,22 +466,22 @@ class IntegrationTester:
         )
     
     async def _handle_trade_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """Manejar evento de trade."""
+        Manejar evento de trade."""
         self.component_stats.setdefault("trades", 0)
         self.component_stats["trades"] += 1
     
     async def _handle_kline_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """Manejar evento de kline."""
+        Manejar evento de kline."""
         self.component_stats.setdefault("klines", 0)
         self.component_stats["klines"] += 1
     
     async def _handle_orderbook_event(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """Manejar evento de orderbook."""
+        Manejar evento de orderbook."""
         self.component_stats.setdefault("orderbooks", 0)
         self.component_stats["orderbooks"] += 1
     
     async def run_test(self, rate: int = 100, duration: int = 60, parallel_streams: int = 5) -> Dict[str, Any]:
-        """
+        
         Ejecutar prueba de integración.
         
         Args:
@@ -491,7 +491,7 @@ class IntegrationTester:
             
         Returns:
             Resultados de la prueba
-        """
+        
         logger.info(f"Iniciando prueba de integración: {rate} msgs/s, {duration}s, {parallel_streams} streams")
         
         try:
@@ -554,13 +554,13 @@ class IntegrationTester:
             raise
     
     async def _simulate_parallel_stream(self, stream_id: int, duration: int) -> None:
-        """
+        
         Simular stream paralelo para carga adicional.
         
         Args:
             stream_id: ID del stream
             duration: Duración en segundos
-        """
+        
         logger.info(f"Iniciando stream paralelo {stream_id}")
         
         event_count = 0
@@ -588,7 +588,7 @@ class IntegrationTester:
         logger.info(f"Stream paralelo {stream_id} finalizado. Eventos enviados: {event_count}")
     
     async def teardown(self) -> None:
-        """Limpiar recursos después de la prueba."""
+        Limpiar recursos después de la prueba."""
         logger.info("Limpiando recursos...")
         
         # Detener simulador
@@ -602,7 +602,7 @@ class IntegrationTester:
         logger.info("Recursos liberados")
 
 async def run_integration_test(intensity: float, rate: int, duration: int, parallel_streams: int) -> Dict[str, Any]:
-    """
+    
     Ejecutar una única prueba de integración.
     
     Args:
@@ -613,7 +613,7 @@ async def run_integration_test(intensity: float, rate: int, duration: int, paral
         
     Returns:
         Resultados de la prueba
-    """
+    
     # Crear y configurar tester
     tester = IntegrationTester(intensity=intensity)
     await tester.setup()
@@ -631,13 +631,13 @@ async def run_integration_test(intensity: float, rate: int, duration: int, paral
         await tester.teardown()
 
 def save_results(results: Dict[str, Any], filename: str = "resultados_integracion_websocket.json") -> None:
-    """
+    
     Guardar resultados en archivo JSON.
     
     Args:
         results: Resultados a guardar
         filename: Nombre del archivo
-    """
+    
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=2)
@@ -646,12 +646,12 @@ def save_results(results: Dict[str, Any], filename: str = "resultados_integracio
         logger.error(f"Error guardando resultados: {e}")
 
 def print_results_summary(results: Dict[str, Any]) -> None:
-    """
+    
     Imprimir resumen de resultados.
     
     Args:
         results: Resultados de la prueba
-    """
+    
     print("\n" + "="*80)
     print(f"RESUMEN DE PRUEBA DE INTEGRACIÓN WEBSOCKET TRASCENDENTAL")
     print("="*80)
@@ -679,7 +679,7 @@ def print_results_summary(results: Dict[str, Any]) -> None:
     print("="*80)
 
 async def run_test_suite(intensities: List[float], parallel_streams: int = 5, duration: int = 60) -> Dict[str, Any]:
-    """
+    
     Ejecutar suite completa de pruebas con diferentes intensidades.
     
     Args:
@@ -689,7 +689,7 @@ async def run_test_suite(intensities: List[float], parallel_streams: int = 5, du
         
     Returns:
         Resultados completos de todas las pruebas
-    """
+    
     results = {
         "test_date": time.strftime("%Y-%m-%d %H:%M:%S"),
         "tests": []
@@ -728,7 +728,7 @@ async def run_test_suite(intensities: List[float], parallel_streams: int = 5, du
     return results
 
 def main():
-    """Función principal."""
+    Función principal."""
     # Configurar argumentos de línea de comandos
     parser = argparse.ArgumentParser(description="Prueba de integración del WebSocket Trascendental")
     parser.add_argument("--intensity", type=float, default=DEFAULT_INTENSITY,
@@ -788,4 +788,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-"""
