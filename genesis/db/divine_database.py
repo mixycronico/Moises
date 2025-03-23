@@ -23,6 +23,7 @@ from contextlib import contextmanager, asynccontextmanager
 import os
 import threading
 import psycopg2
+import psycopg2.pool
 from psycopg2 import extras
 from psycopg2.extensions import ISOLATION_LEVEL_READ_COMMITTED
 import json
@@ -268,6 +269,10 @@ class DivineDatabaseAdapter:
         start_time = time.time()
         conn = None
         
+        # Verificar que el pool esté inicializado
+        if self._sync_pool is None:
+            self._create_sync_pool()
+            
         try:
             # Obtener conexión del pool
             conn = self._sync_pool.getconn()
@@ -290,7 +295,7 @@ class DivineDatabaseAdapter:
             raise
         
         finally:
-            if conn:
+            if conn and self._sync_pool:
                 self._sync_pool.putconn(conn)
     
     async def execute_async(self, query: str, params: Optional[QueryParams] = None) -> int:
@@ -351,6 +356,10 @@ class DivineDatabaseAdapter:
                 self._stats["cache_hits"] += 1
                 return cached_result
             self._stats["cache_misses"] += 1
+        
+        # Verificar que el pool esté inicializado
+        if self._sync_pool is None:
+            self._create_sync_pool()
         
         conn = None
         try:
@@ -457,6 +466,10 @@ class DivineDatabaseAdapter:
                 return cached_result
             self._stats["cache_misses"] += 1
         
+        # Verificar que el pool esté inicializado
+        if self._sync_pool is None:
+            self._create_sync_pool()
+            
         conn = None
         try:
             # Obtener conexión del pool
@@ -723,6 +736,10 @@ class DivineDatabaseAdapter:
         Raises:
             Exception: Si ocurre un error durante la transacción
         """
+        # Verificar que el pool esté inicializado
+        if self._sync_pool is None:
+            self._create_sync_pool()
+            
         conn = self._sync_pool.getconn()
         conn.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
         
@@ -773,6 +790,10 @@ class DivineDatabaseAdapter:
         Raises:
             Exception: Si ocurre un error durante la transacción
         """
+        # Verificar que el pool esté inicializado
+        if self._sync_pool is None:
+            self._create_sync_pool()
+            
         conn = self._sync_pool.getconn()
         conn.set_isolation_level(ISOLATION_LEVEL_READ_COMMITTED)
         
@@ -830,8 +851,14 @@ class DivineDatabaseAdapter:
             raise
         
         finally:
-            cursor.close()
-            self._sync_pool.putconn(conn)
+            try:
+                if 'cursor' in locals():
+                    cursor.close()
+            except Exception as e:
+                logger.warning(f"Error al cerrar cursor: {e}")
+                
+            if self._sync_pool and conn:
+                self._sync_pool.putconn(conn)
     
     # Métodos de utilidad
     
