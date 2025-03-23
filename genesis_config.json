@@ -48,5 +48,39 @@
             "XRP/USDT",
             "LTC/USDT"
         ]
+    },
+    "orchestrator_config": {
+        "min_performance_threshold": 0.5,
+        "eval_cooldown": 60,
+        "max_eval_failures": 5,
+        "strategies": {
+            "adaptive_scaling": {
+                "enabled": true,
+                "priority": 1,
+                "config": {
+                    "efficiency_threshold": 0.7,
+                    "rebalance_threshold": 0.1,
+                    "update_interval": 86400
+                }
+            },
+            "rsi": {
+                "enabled": true,
+                "priority": 2,
+                "config": {
+                    "period": 14,
+                    "overbought": 70,
+                    "oversold": 30
+                }
+            },
+            "moving_average": {
+                "enabled": true,
+                "priority": 3,
+                "config": {
+                    "short_period": 9,
+                    "long_period": 21
+                }
+            }
+        },
+        "default_strategy": "adaptive_scaling"
     }
 }

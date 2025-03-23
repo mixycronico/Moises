@@ -9,6 +9,7 @@ import logging
 import asyncio
 import json
 import os
+import time
 from typing import Dict, List, Any, Tuple, Optional
 
 from genesis.db.transcendental_database import TranscendentalDatabase
@@ -16,6 +17,8 @@ from genesis.init.init_scaling import initialize_scaling_system
 from genesis.analysis.transcendental_crypto_classifier import initialize_classifier
 from genesis.risk.adaptive_risk_manager import initialize_risk_manager
 from genesis.analytics.transcendental_performance_tracker import initialize_performance_tracker
+from genesis.strategies.orchestrator import StrategyOrchestrator
+from genesis.strategies.adaptive_scaling_strategy import AdaptiveScalingStrategy
 
 # Configurar logging
 logger = logging.getLogger("genesis.init")
@@ -126,21 +129,95 @@ async def initialize_system(config_path: str) -> Dict[str, Any]:
             results["scaling_system_status"] = False
             logger.warning(f"Error en la inicialización del sistema de escalabilidad: {e}")
         
-        # 3. Enlazar componentes entre sí si es posible
+        # 3. Inicializar orquestador de estrategias
+        orchestrator_config = config.get("orchestrator_config", {})
         try:
-            # 3.1 Si existe la estrategia adaptativa, enlazarla con risk manager
+            # Inicializar orquestrador
+            orchestrator = StrategyOrchestrator()
+            await orchestrator.start()
+            
+            results["orchestrator"] = orchestrator
+            results["orchestrator_status"] = True
+            logger.info("Orquestador de estrategias inicializado")
+            
+            # Configurar orquestador según la configuración
+            if orchestrator_config:
+                # Establecer threshold de rendimiento
+                min_threshold = orchestrator_config.get("min_performance_threshold")
+                if min_threshold is not None:
+                    orchestrator.min_performance_threshold = float(min_threshold)
+                
+                # Establecer cooldown
+                eval_cooldown = orchestrator_config.get("eval_cooldown")
+                if eval_cooldown is not None:
+                    orchestrator.eval_cooldown = int(eval_cooldown)
+                
+                # Establecer max_failures
+                max_failures = orchestrator_config.get("max_eval_failures")
+                if max_failures is not None:
+                    orchestrator.max_eval_failures = int(max_failures)
+                
+                # Registrar estrategias
+                strategies_config = orchestrator_config.get("strategies", {})
+                
+                # Registrar estrategia adaptativa si existe en los componentes
+                if "adaptive_strategy" in results and "adaptive_scaling" in strategies_config:
+                    adaptive_strategy = results["adaptive_strategy"]
+                    strategy_config = strategies_config["adaptive_scaling"]
+                    
+                    if strategy_config.get("enabled", True):
+                        orchestrator.register_strategy(
+                            "adaptive_scaling", 
+                            adaptive_strategy, 
+                            strategy_config.get("config", {})
+                        )
+                        logger.info("Estrategia adaptativa registrada en el orquestador")
+                
+                # Establecer estrategia por defecto
+                default_strategy = orchestrator_config.get("default_strategy")
+                if default_strategy and default_strategy in orchestrator.strategies:
+                    orchestrator.force_change_strategy(default_strategy)
+                    logger.info(f"Estrategia por defecto establecida: {default_strategy}")
+            
+        except Exception as e:
+            results["orchestrator_status"] = False
+            logger.warning(f"Error en la inicialización del orquestador de estrategias: {e}")
+            
+        # 4. Enlazar componentes entre sí si es posible
+        try:
+            # 4.1 Si existe la estrategia adaptativa, enlazarla con risk manager
             if risk_manager and "adaptive_strategy" in results:
                 adaptive_strategy = results.get("adaptive_strategy")
                 if hasattr(adaptive_strategy, "risk_manager"):
                     adaptive_strategy.risk_manager = risk_manager
                     logger.info("Estrategia adaptativa enlazada con risk manager")
             
-            # 3.2 Si existe el scaling_manager, enlazarlo con performance_tracker
+            # 4.2 Si existe el scaling_manager, enlazarlo con performance_tracker
             if performance_tracker and "scaling_manager" in results:
                 scaling_manager = results.get("scaling_manager")
                 if hasattr(scaling_manager, "register_metrics_provider"):
                     scaling_manager.register_metrics_provider(performance_tracker)
                     logger.info("Scaling manager enlazado con performance tracker")
+                    
+            # 4.3 Si existe el orquestador y performance_tracker, registrar como proveedor de métricas
+            if "orchestrator" in results and performance_tracker:
+                orchestrator = results.get("orchestrator")
+                # Registrar evento de métricas de rendimiento
+                await orchestrator.emit_event("strategy.performance_update", {
+                    "strategy_name": "adaptive_scaling",
+                    "score": 0.85,  # Valor inicial de rendimiento
+                    "timestamp": time.time()
+                })
+                logger.info("Performance inicial registrado en orquestador")
+                
+            # 4.4 Si existe la estrategia adaptativa y el scaling_manager, enlazarlos
+            if "adaptive_strategy" in results and "scaling_manager" in results:
+                adaptive_strategy = results.get("adaptive_strategy")
+                scaling_manager = results.get("scaling_manager")
+                if hasattr(adaptive_strategy, "scaling_manager"):
+                    adaptive_strategy.scaling_manager = scaling_manager
+                    logger.info("Estrategia adaptativa enlazada con scaling manager")
+                
         except Exception as e:
             logger.warning(f"Error al enlazar componentes: {e}")
         
