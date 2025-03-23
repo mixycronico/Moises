@@ -428,7 +428,7 @@ def performance_data():
     if (not last_performance_update or 
         datetime.now() - last_performance_update > timedelta(minutes=5)):
         
-        run_async_function(update_performance_data())
+        run_async_function(lambda: update_performance_data())
     
     try:
         # Obtener resumen de rendimiento
