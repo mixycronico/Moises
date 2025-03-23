@@ -677,19 +677,37 @@ class TranscendentalCryptoClassifier:
         Returns:
             Métricas como diccionario o None si no hay datos
         """
-        # Definir consulta directamente como una tupla
-        metrics_query = (
-            "SELECT * FROM crypto_metrics WHERE cryptocurrency_id = :crypto_id ORDER BY updated_at DESC LIMIT 1",
-            {"crypto_id": crypto_id}
-        )
+        # Definir una función que retorna la consulta
+        def get_metrics_query():
+            return (
+                "SELECT * FROM crypto_metrics WHERE cryptocurrency_id = :crypto_id ORDER BY updated_at DESC LIMIT 1",
+                {"crypto_id": crypto_id}
+            )
         
-        metrics_result = await transcendental_db.execute_query(metrics_query)
+        metrics_result = await transcendental_db.execute_query(get_metrics_query)
         
         if not metrics_result:
             return None
         
-        metrics_obj = metrics_result[0]
-        return metrics_obj.to_dict()
+        # Convert SQLAlchemy Row to dict manually
+        metrics_row = metrics_result[0]
+        metrics_dict = {}
+        
+        # Either get the columns from the row keys or map the values by position
+        if hasattr(metrics_row, "_mapping"):
+            # SQLAlchemy 1.4+ Row objects have _mapping
+            for key, value in metrics_row._mapping.items():
+                metrics_dict[key] = value
+        else:
+            # Manually extract values by using column indexes and names
+            # Assuming we can get columns from db schema
+            for column in ['id', 'cryptocurrency_id', 'sharpe_ratio', 'volatility_30d', 
+                        'orderbook_depth_usd', 'slippage_10000usd', 'exchange_metrics',
+                        'updated_at', 'created_at']:
+                if hasattr(metrics_row, column):
+                    metrics_dict[column] = getattr(metrics_row, column)
+        
+        return metrics_dict
     
     def _calculate_factor_scores(self, crypto: Any, metrics: Dict[str, Any]) -> Dict[str, float]:
         """
@@ -803,19 +821,20 @@ class TranscendentalCryptoClassifier:
             ID de la clasificación
         """
         # Verificar si ya existe una clasificación reciente (< 1 día)
-        check_recent_query = (
-            select(CryptoClassification)
-            .where(
-                and_(
-                    CryptoClassification.cryptocurrency_id == crypto_id,
-                    CryptoClassification.classification_date > datetime.now() - timedelta(days=1)
-                )
+        one_day_ago = datetime.now() - timedelta(days=1)
+        def get_recent_classification():
+            return (
+                """
+                SELECT * FROM crypto_classification 
+                WHERE cryptocurrency_id = :crypto_id 
+                AND classification_date > :one_day_ago
+                ORDER BY classification_date DESC
+                LIMIT 1
+                """,
+                {"crypto_id": crypto_id, "one_day_ago": one_day_ago}
             )
-            .order_by(CryptoClassification.classification_date.desc())
-            .limit(1)
-        ), []
         
-        recent = await transcendental_db.execute_query(check_recent_query)
+        recent = await transcendental_db.execute_query(get_recent_classification)
         
         if recent:
             # Existe clasificación reciente, actualizarla
@@ -828,26 +847,44 @@ class TranscendentalCryptoClassifier:
             score_change_pct = ((final_score - old_score) / old_score * 100) if old_score > 0 else 0
             
             # Preparar actualización
-            update_query = (
-                update(CryptoClassification)
-                .where(CryptoClassification.id == classification_id)
-                .values(
-                    alpha_score=adjusted_scores["alpha_score"],
-                    liquidity_score=adjusted_scores["liquidity_score"],
-                    volatility_score=adjusted_scores["volatility_score"],
-                    momentum_score=adjusted_scores["momentum_score"],
-                    trend_score=adjusted_scores["trend_score"],
-                    correlation_score=adjusted_scores["correlation_score"],
-                    exchange_quality_score=adjusted_scores["exchange_quality_score"],
-                    final_score=final_score,
-                    hot_rating=is_hot,
-                    capital_base=self.current_capital,
-                    classification_date=datetime.now(),
-                    confidence=self.confidence_threshold
+            current_time = datetime.now()
+            def get_update_query():
+                return (
+                    """
+                    UPDATE crypto_classification 
+                    SET 
+                        alpha_score = :alpha_score,
+                        liquidity_score = :liquidity_score,
+                        volatility_score = :volatility_score,
+                        momentum_score = :momentum_score,
+                        trend_score = :trend_score,
+                        correlation_score = :correlation_score,
+                        exchange_quality_score = :exchange_quality_score,
+                        final_score = :final_score,
+                        hot_rating = :hot_rating,
+                        capital_base = :capital_base,
+                        classification_date = :classification_date,
+                        confidence = :confidence
+                    WHERE id = :id
+                    """,
+                    {
+                        "alpha_score": adjusted_scores["alpha_score"],
+                        "liquidity_score": adjusted_scores["liquidity_score"],
+                        "volatility_score": adjusted_scores["volatility_score"],
+                        "momentum_score": adjusted_scores["momentum_score"],
+                        "trend_score": adjusted_scores["trend_score"],
+                        "correlation_score": adjusted_scores["correlation_score"],
+                        "exchange_quality_score": adjusted_scores["exchange_quality_score"],
+                        "final_score": final_score,
+                        "hot_rating": is_hot,
+                        "capital_base": self.current_capital,
+                        "classification_date": current_time,
+                        "confidence": self.confidence_threshold,
+                        "id": classification_id
+                    }
                 )
-            ), []
             
-            await transcendental_db.execute_query(update_query)
+            await transcendental_db.execute_query(get_update_query)
             
             # Registrar cambio si es significativo o cambia estado hot
             if abs(score_change_pct) > 5 or old_hot != is_hot:
@@ -856,25 +893,26 @@ class TranscendentalCryptoClassifier:
                 )
         else:
             # No existe, crear nueva clasificación
-            insert_query = (
-                insert(CryptoClassification).values(
-                    cryptocurrency_id=crypto_id,
-                    alpha_score=adjusted_scores["alpha_score"],
-                    liquidity_score=adjusted_scores["liquidity_score"],
-                    volatility_score=adjusted_scores["volatility_score"],
-                    momentum_score=adjusted_scores["momentum_score"],
-                    trend_score=adjusted_scores["trend_score"],
-                    correlation_score=adjusted_scores["correlation_score"],
-                    exchange_quality_score=adjusted_scores["exchange_quality_score"],
-                    final_score=final_score,
-                    hot_rating=is_hot,
-                    capital_base=self.current_capital,
-                    classification_date=datetime.now(),
-                    confidence=self.confidence_threshold
-                ).returning(CryptoClassification.id)
-            ), []
+            def get_insert_query():
+                return (
+                    insert(CryptoClassification).values(
+                        cryptocurrency_id=crypto_id,
+                        alpha_score=adjusted_scores["alpha_score"],
+                        liquidity_score=adjusted_scores["liquidity_score"],
+                        volatility_score=adjusted_scores["volatility_score"],
+                        momentum_score=adjusted_scores["momentum_score"],
+                        trend_score=adjusted_scores["trend_score"],
+                        correlation_score=adjusted_scores["correlation_score"],
+                        exchange_quality_score=adjusted_scores["exchange_quality_score"],
+                        final_score=final_score,
+                        hot_rating=is_hot,
+                        capital_base=self.current_capital,
+                        classification_date=datetime.now(),
+                        confidence=self.confidence_threshold
+                    ).returning(CryptoClassification.id)
+                ), []
             
-            result = await transcendental_db.execute_query(insert_query)
+            result = await transcendental_db.execute_query(get_insert_query)
             classification_id = result[0][0]
         
         return classification_id
