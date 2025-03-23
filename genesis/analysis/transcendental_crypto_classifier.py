@@ -1014,3 +1014,34 @@ class TranscendentalCryptoClassifier:
 
 # Instancia global del clasificador
 classifier = TranscendentalCryptoClassifier()
+
+async def initialize_classifier(initial_capital: float, config: Dict[str, Any] = None) -> None:
+    """
+    Inicializar el clasificador transcendental con configuración específica.
+    
+    Args:
+        initial_capital: Capital inicial para el clasificador
+        config: Configuración adicional
+    """
+    global classifier
+    
+    if config is None:
+        config = {}
+    
+    # Extraer configuración
+    confidence_threshold = config.get('confidence_threshold', DEFAULT_CONFIDENCE_THRESHOLD)
+    exchanges = config.get('exchanges', DEFAULT_EXCHANGES)
+    
+    # Reinicializar el clasificador con nuevos parámetros
+    classifier = TranscendentalCryptoClassifier(
+        initial_capital=initial_capital,
+        exchanges=exchanges,
+        confidence_threshold=confidence_threshold
+    )
+    
+    logger.info(f"Clasificador transcendental inicializado con capital={initial_capital}, "
+                f"{len(exchanges)} exchanges, threshold={confidence_threshold}")
+    
+    # Realizar clasificación inicial si es necesario
+    if config.get('initial_classification', False):
+        await classifier.classify_all()
