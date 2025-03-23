@@ -1,86 +1,87 @@
 """
-Configuración de bases de datos para el Sistema Genesis.
+Configuración para el módulo de base de datos transcendental.
 
-Este módulo proporciona configuraciones centralizadas para todas las conexiones
-de bases de datos utilizadas en el sistema, incluyendo parámetros para pools
-de conexiones, tiempos de expiración y credenciales.
+Este módulo proporciona funciones y constantes para la configuración
+del sistema de base de datos, incluyendo variables de entorno, valores
+por defecto y utilidades para recuperar configuraciones.
 """
 import os
 import logging
-from typing import Dict, Any, Optional
+from typing import Optional, Dict, Any
 
-# Configurar logger
+# Configuración de logging
 logger = logging.getLogger("genesis.db.config")
 
-# URL de base de datos desde variable de entorno o valor por defecto
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL", 
-    "postgresql://postgres:postgres@localhost:5432/genesis"
-)
+# Modos transcendentales disponibles
+TRASCENDENTAL_MODES = [
+    "SINGULARITY_V4",  # Modo por defecto y más avanzado
+    "LIGHT",           # Modo Luz
+    "DARK_MATTER",     # Modo Materia Oscura
+    "DIVINE",          # Modo Divino
+    "BIG_BANG",        # Modo Big Bang
+    "INTERDIMENSIONAL" # Modo Interdimensional
+]
 
-# Configuración de pool de conexiones
-DEFAULT_POOL_CONFIG = {
+# Valores por defecto para la configuración de base de datos
+DEFAULT_DB_CONFIG = {
     "pool_size": 20,
     "max_overflow": 40,
-    "pool_recycle": 300,  # segundos
-    "pool_timeout": 30,
-    "pool_pre_ping": True
-}
-
-# Configuración de timeout para operaciones
-OPERATION_TIMEOUT = 5.0  # segundos
-
-# Configuración para reintentos de conexión
-RETRY_CONFIG = {
-    "max_retries": 3,
-    "base_delay": 0.1,  # segundos
-    "max_delay": 1.0,  # segundos
-    "jitter": 0.05  # factor de aleatoriedad para evitar tormentas de reintentos
-}
-
-# Configuración para cache de conexiones
-CACHE_CONFIG = {
-    "max_size": 100,
-    "ttl": 60  # segundos
-}
-
-# Configuración para checkpoints de estado
-CHECKPOINT_CONFIG = {
-    "enabled": True,
-    "interval": 300,  # segundos
-    "max_checkpoints": 10
+    "pool_recycle": 300,
+    "pool_pre_ping": True,
+    "connect_args": {"command_timeout": 10},
+    "trascendental_mode": "SINGULARITY_V4"
 }
 
 def get_database_url() -> str:
     """
-    Obtener la URL de conexión a la base de datos.
+    Obtener URL de conexión a la base de datos desde variables de entorno.
     
     Returns:
-        URL de conexión a la base de datos
+        URL de conexión
     """
-    return DATABASE_URL
-
-def get_pool_config() -> Dict[str, Any]:
-    """
-    Obtener configuración para pool de conexiones.
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        logger.warning("Variable de entorno DATABASE_URL no definida, usando valor por defecto")
+        # URL por defecto para desarrollo local
+        database_url = "postgresql://postgres:postgres@localhost:5432/genesis"
     
-    Returns:
-        Diccionario con configuración de pool
-    """
-    return DEFAULT_POOL_CONFIG.copy()
+    return database_url
 
-def get_full_db_config() -> Dict[str, Any]:
+def normalize_database_url(url: str) -> str:
+    """
+    Normalizar URL de base de datos para asegurar compatibilidad.
+    
+    Args:
+        url: URL de conexión original
+        
+    Returns:
+        URL normalizada
+    """
+    # Convertir URL de Heroku a formato SQLAlchemy
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    
+    return url
+
+def get_db_config(config_dict: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Obtener configuración completa de base de datos.
     
+    Args:
+        config_dict: Diccionario opcional con configuración personalizada
+        
     Returns:
-        Diccionario con todas las configuraciones
+        Configuración completa con valores por defecto para campos no especificados
     """
-    return {
-        "database_url": get_database_url(),
-        "pool_config": get_pool_config(),
-        "operation_timeout": OPERATION_TIMEOUT,
-        "retry_config": RETRY_CONFIG.copy(),
-        "cache_config": CACHE_CONFIG.copy(),
-        "checkpoint_config": CHECKPOINT_CONFIG.copy()
-    }
+    result = DEFAULT_DB_CONFIG.copy()
+    
+    # Actualizar con valores proporcionados
+    if config_dict:
+        result.update(config_dict)
+    
+    # Asegurar que el modo trascendental es válido
+    if result.get("trascendental_mode") not in TRASCENDENTAL_MODES:
+        logger.warning(f"Modo trascendental '{result.get('trascendental_mode')}' no válido, usando SINGULARITY_V4")
+        result["trascendental_mode"] = "SINGULARITY_V4"
+    
+    return result

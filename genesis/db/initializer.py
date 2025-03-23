@@ -10,7 +10,9 @@ import asyncio
 import time
 from typing import Dict, Any, Optional, Tuple
 
-from genesis.db.config import get_database_url, get_pool_config, get_full_db_config
+from genesis.db.config import get_database_url, get_db_config
+# Importar extensiones para TranscendentalDatabase
+from genesis.db.transcendental_extension import initialize_extensions
 from genesis.db.base import db_manager
 from genesis.db.transcendental_database import transcendental_db
 
@@ -38,10 +40,11 @@ async def initialize_database(config: Optional[Dict[str, Any]] = None) -> bool:
         if config is None:
             config = {}
         
-        # Configuración del pool
-        pool_size = config.get("pool_size", get_pool_config()["pool_size"])
-        max_overflow = config.get("max_overflow", get_pool_config()["max_overflow"])
-        pool_recycle = config.get("pool_recycle", get_pool_config()["pool_recycle"])
+        # Configuración del pool con valores por defecto
+        db_config = get_db_config(config)
+        pool_size = db_config.get("pool_size", 20)
+        max_overflow = db_config.get("max_overflow", 40)
+        pool_recycle = db_config.get("pool_recycle", 300)
         
         # Configurar DatabaseManager
         db_manager.pool_size = pool_size
@@ -50,7 +53,14 @@ async def initialize_database(config: Optional[Dict[str, Any]] = None) -> bool:
         
         # Configurar URL de base de datos
         db_url = config.get("database_url", get_database_url())
-        db_manager.database_url = db_url
+        # Configurar URL en db_manager si tiene el atributo o método adecuado
+        if hasattr(db_manager, 'setup_url'):
+            db_manager.setup_url(db_url)
+        elif hasattr(db_manager, 'database_url'):
+            db_manager.database_url = db_url
+        elif hasattr(db_manager, 'set_url'):
+            db_manager.set_url(db_url)
+        # En cualquier caso, la URL se usará en setup()
         
         # Configurar y verificar conexiones
         # No intentamos configurar database_url directamente, usamos métodos públicos
