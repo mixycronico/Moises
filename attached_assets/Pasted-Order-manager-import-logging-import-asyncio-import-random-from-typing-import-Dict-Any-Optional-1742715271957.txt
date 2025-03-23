@@ -1,0 +1,245 @@
+Order manager
+
+
+
+
+import logging
+import asyncio
+import random
+from typing import Dict, Any, Optional
+from decimal import Decimal
+from concurrent.futures import ThreadPoolExecutor
+
+# Configuración del log
+logger = logging.getLogger("OrderManager")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+# Simulación de dependencias mínimas
+class ExchangeClient:
+    async def place_order(self, symbol, side, amount, price):
+        if random.random() < 0.2:  # 20% de fallo simulado
+            raise Exception("Simulated API failure")
+        await asyncio.sleep(random.uniform(0.1, 0.5))  # Latencia artificial
+        return {"order_id": f"ord_{random.randint(1000, 9999)}", "executed_price": price * (1 + random.uniform(-0.05, 0.05))}
+
+    async def cancel_order(self, order_id):
+        await asyncio.sleep(0.1)  # Simula latencia
+        return True
+
+class ExchangeManager:
+    def __init__(self):
+        self.exchanges = {"binance": ExchangeClient(), "bybit": ExchangeClient()}
+        self.failures = {"binance": 0, "bybit": 0}
+        self.max_failures = 5
+
+    def get_best_exchange(self, symbol):
+        available = [ex for ex, count in self.failures.items() if count < self.max_failures]
+        return random.choice(available) if available else None
+
+    def report_failure(self, exchange_name):
+        self.failures[exchange_name] += 1
+
+class MarketData:
+    def get_best_price(self, symbol):
+        return random.uniform(40000, 60000)  # Precio volátil
+
+    def get_atr(self, symbol, exchange_name):
+        return random.uniform(0.01, 0.1)  # ATR simulado con volatilidad alta
+
+    def get_order_book_data(self, symbol, exchange_name):
+        price = self.get_best_price(symbol)
+        return {"bid": price * 0.99, "ask": price * 1.01}
+
+class RiskManager:
+    def calculate_position_size(self, capital, price, atr):
+        return (capital * 0.02) / (price * atr) if price > 0 else 0
+
+    def apply_stop_loss(self, price, side, atr):
+        return price * (1 - atr) if side == "buy" else price * (1 + atr)
+
+    def apply_trailing_stop(self, price, current_price, side, atr):
+        return price * (1 - atr / 2) if side == "buy" else price * (1 + atr / 2)
+
+class SlippageController:
+    def __init__(self, max_slippage=0.001):
+        self.max_slippage = max_slippage
+
+    def validate_slippage(self, entry_price, execution_price, liquidity):
+        slippage = abs(execution_price - entry_price) / entry_price
+        return slippage <= self.max_slippage * (1 + liquidity / entry_price)
+
+class FailoverHandler:
+    def __init__(self, retry_attempts=3):
+        self.retries = retry_attempts
+
+    async def execute_with_failover(self, coro):
+        for attempt in range(self.retries + 1):
+            try:
+                result = await coro()
+                return True, result
+            except Exception as e:
+                logger.warning(f"Fallo en intento {attempt + 1}/{self.retries + 1}: {e}")
+                if attempt == self.retries:
+                    return False, str(e)
+                await asyncio.sleep(1)
+
+# OrderManager Mejorado
+class OrderManager:
+    def __init__(self,
+                 exchange_manager: ExchangeManager,
+                 market_data: MarketData,
+                 risk_manager: RiskManager,
+                 slippage_controller: SlippageController,
+                 failover_handler: FailoverHandler,
+                 capital: float):
+        self.exchange_manager = exchange_manager
+        self.market_data = market_data
+        self.risk_manager = risk_manager
+        self.slippage_controller = slippage_controller
+        self.failover_handler = failover_handler
+        self.capital = capital
+        self.open_orders: Dict[str, Any] = {}
+        self.executor = ThreadPoolExecutor(max_workers=20)  # Para concurrencia
+        self.volatility_threshold = 0.05  # Pausar si ATR > 5%
+        self.lock = asyncio.Lock()  # Evitar condiciones de carrera
+
+    async def place_order(self,
+                          symbol: str,
+                          side: str,
+                          strategy_name: str,
+                          base_currency: str = "USDT") -> Dict[str, Any]:
+        # Validación de entrada
+        if not symbol or side not in ["buy", "sell"] or self.capital <= 0:
+            return {"status": "error", "message": "Parámetros inválidos"}
+
+        exchange_name = self.exchange_manager.get_best_exchange(symbol)
+        if not exchange_name:
+            return {"status": "error", "message": "No suitable exchange found"}
+
+        client = self.exchange_manager.exchanges[exchange_name]
+
+        # Obtener datos de mercado
+        price = await asyncio.to_thread(self.market_data.get_best_price, symbol)
+        atr = await asyncio.to_thread(self.market_data.get_atr, symbol, exchange_name)
+
+        if not price or not atr or price <= 0:
+            return {"status": "error", "message": "Invalid market data"}
+
+        # Pausar en volatilidad extrema
+        if atr > self.volatility_threshold:
+            logger.critical(f"Volatilidad extrema (ATR: {atr}). Pausando órdenes.")
+            return {"status": "paused", "reason": "Volatilidad extrema"}
+
+        size = self.risk_manager.calculate_position_size(self.capital, price, atr)
+        stop_loss = self.risk_manager.apply_stop_loss(price, side, atr)
+        trailing_stop = self.risk_manager.apply_trailing_stop(price, price, side, atr)
+
+        async def execute_trade():
+            return await client.place_order(symbol=symbol, side=side, amount=size, price=price)
+
+        success, result = await self.failover_handler.execute_with_failover(execute_trade)
+
+        if not success:
+            self.exchange_manager.report_failure(exchange_name)
+            return {"status": "error", "message": result}
+
+        execution_price = result.get("executed_price", price)
+        order_id = result.get("order_id", "unknown")
+
+        # Validación de slippage
+        order_book = self.market_data.get_order_book_data(symbol, exchange_name)
+        liquidity = max(order_book.get("bid", 1), order_book.get("ask", 1))
+        if not self.slippage_controller.validate_slippage(price, execution_price, liquidity):
+            logger.warning(f"Slippage alto. Cancelando orden {order_id}")
+            await client.cancel_order(order_id)
+            return {"status": "error", "message": "Slippage demasiado alto"}
+
+        # Guardar orden con lock para concurrencia
+        async with self.lock:
+            self.open_orders[order_id] = {
+                "symbol": symbol,
+                "exchange": exchange_name,
+                "side": side,
+                "amount": size,
+                "entry_price": execution_price,
+                "stop_loss": stop_loss,
+                "trailing_stop": trailing_stop,
+                "strategy": strategy_name,
+                "status": "open"
+            }
+
+        logger.info(f"Orden ejecutada: {self.open_orders[order_id]}")
+        return {"status": "success", "order": self.open_orders[order_id]}
+
+    async def monitor_trailing_stops(self):
+        """Monitorea y ajusta trailing stops en tiempo real."""
+        while True:
+            async with self.lock:
+                for order_id, order in list(self.open_orders.items()):
+                    if order["status"] != "open":
+                        continue
+                    current_price = self.market_data.get_best_price(order["symbol"])
+                    atr = self.market_data.get_atr(order["symbol"], order["exchange"])
+                    new_trailing = self.risk_manager.apply_trailing_stop(
+                        order["entry_price"], current_price, order["side"], atr
+                    )
+                    if (order["side"] == "buy" and current_price < new_trailing) or \
+                       (order["side"] == "sell" and current_price > new_trailing):
+                        logger.info(f"Cerrando orden {order_id} por trailing stop.")
+                        await self.cancel_order(order_id)
+                    else:
+                        order["trailing_stop"] = new_trailing
+            await asyncio.sleep(1)
+
+    def get_open_orders(self) -> Dict[str, Any]:
+        return self.open_orders
+
+    async def cancel_order(self, order_id: str) -> bool:
+        order = self.open_orders.get(order_id)
+        if not order or order["status"] != "open":
+            return False
+
+        exchange_name = order["exchange"]
+        client = self.exchange_manager.exchanges[exchange_name]
+        await client.cancel_order(order_id)
+        async with self.lock:
+            order["status"] = "cancelled"
+        logger.info(f"Orden cancelada: {order_id}")
+        return True
+
+    def update_capital(self, new_capital: float):
+        if new_capital < 0:
+            raise ValueError("Capital no puede ser negativo")
+        self.capital = new_capital
+        logger.info(f"Capital actualizado: ${new_capital:.2f}")
+
+    async def stress_test(self, num_orders: int):
+        tasks = [
+            self.place_order("BTC/USDT", random.choice(["buy", "sell"]), "sma_crossover")
+            for _ in range(num_orders)
+        ]
+        results = await asyncio.gather(*tasks)
+        return results
+
+# Prueba
+if __name__ == "__main__":
+    exchange_manager = ExchangeManager()
+    market_data = MarketData()
+    risk_manager = RiskManager()
+    slippage_controller = SlippageController()
+    failover_handler = FailoverHandler()
+    order_manager = OrderManager(exchange_manager, market_data, risk_manager,
+                                 slippage_controller, failover_handler, 10000)
+
+    # Iniciar monitoreo de trailing stops
+    asyncio.create_task(order_manager.monitor_trailing_stops())
+
+    # Prueba simple
+    result = asyncio.run(order_manager.place_order("BTC/USDT", "buy", "sma_crossover"))
+    print("Prueba simple:", result)
+
+    # Prueba de estrés
+    print("\nIniciando prueba de estrés...")
+    stress_results = asyncio.run(order_manager.stress_test(100))
+    successes = sum(1 for r in stress_results if r["status"] == "success")
+    print(f"Prueba de estrés completada: 

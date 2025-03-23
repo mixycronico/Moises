@@ -1,0 +1,166 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Market data
+
+
+
+
+import asyncio
+import logging
+import random
+import numpy as np
+import pandas as pd
+from typing import Dict, List
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+class MarketData:
+    """Gestor de datos de mercado con manejo de concurrencia y cálculo de ATR."""
+
+    def __init__(self, api_clients: Dict[str, object], update_interval: float = 5.0, max_concurrent: int = 50):
+        self.api_clients = api_clients
+        self.update_interval = update_interval
+        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.data = {}
+        self.active_symbols = set()
+        self.logger = logging.getLogger("MarketData")
+
+    async def fetch_symbol_data(self, symbol: str, exchange_name: str, client):
+        """Obtiene datos del mercado de un símbolo desde un exchange."""
+        async with self.semaphore:
+            try:
+                data = await 
+client.fetch_market_data(symbol)
+                if not data or "price" not in data or data["price"] <= 0:
+                    self.logger.error(f"Datos inválidos de {exchange_name} para {symbol}")
+                    return
+                self.data.setdefault(symbol, {})[exchange_name] = data
+                self.logger.info(f"Actualizado {symbol} en {exchange_name}: {data['price']}")
+            except Exception as e:
+                self.logger.warning(f"Error en {exchange_name} para {symbol}: {e}")
+
+    def start_update_loop(self, symbols: List[str]):
+        """Inicia la actualización constante de datos de los símbolos dados."""
+        self.active_symbols = set(symbols)
+        asyncio.create_task(self.update_loop())
+
+    async def update_loop(self):
+        """Loop principal para actualizar datos de todos los símbolos activos."""
+        while True:
+            tasks = [
+                self.fetch_symbol_data(symbol, ex, client)
+                for symbol in self.active_symbols
+                for ex, client in self.api_clients.items()
+            ]
+            await asyncio.gather(*tasks)
+            await asyncio.sleep(self.update_interval)
+
+    def get_price(self, symbol: str, exchange_name: str) -> float:
+        return self.data.get(symbol, {}).get(exchange_name, {}).get("price", 0)
+
+    def get_ohlcv(self, symbol: str, exchange_name: str) -> List:
+        return self.data.get(symbol, {}).get(exchange_name, {}).get("ohlcv", [])
+
+    def get_atr(self, symbol: str, exchange_name: str, period: int = 14) -> float:
+        """Calcula el ATR desde el OHLCV."""
+        ohlcv = self.get_ohlcv(symbol, exchange_name)
+        if len(ohlcv) < period + 1:
+            return 0.0
+        df = pd.DataFrame(ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"])
+        high = df["high"]
+        low = df["low"]
+        close = df["close"]
+        prev_close = close.shift(1)
+        tr = pd.concat([
+            high - low,
+            (high - prev_close).abs(),
+            (low - prev_close).abs()
+        ], axis=1).max(axis=1)
+        atr = tr.rolling(window=period).mean().iloc[-1]
+        return round(atr, 6) if not np.isnan(atr) else 0.0
+
+class SlippageController:
+    """Valida slippage dinámico basado en ATR."""
+    
+    def __init__(self, base_max_slippage: float, market_data: MarketData):
+        self.base_max_slippage = base_max_slippage
+        self.market_data = market_data
+        self.logger = logging.getLogger("SlippageController")
+
+    def get_dynamic_slippage(self, symbol: str, exchange_name: str) -> float:
+        atr = self.market_data.get_atr(symbol, exchange_name)
+        return min(self.base_max_slippage * (1 + atr / 100), 0.01)  # 1% máx
+
+    def validate_slippage(self, entry_price: float, execution_price: float, symbol: str, exchange_name: str) -> bool:
+        max_slippage = self.get_dynamic_slippage(symbol, exchange_name)
+        real_slippage = abs(execution_price - entry_price) / entry_price
+        if real_slippage > max_slippage:
+            self.logger.warning(f"Slippage alto en {symbol}: {real_slippage:.6f} > {max_slippage:.6f}")
+            return False
+        return True
+
+class TradingEngine:
+    """Simulación de motor de trading que valida condiciones antes de operar."""
+
+    def __init__(self, market_data: MarketData):
+        self.market_data = market_data
+        self.logger = logging.getLogger("TradingEngine")
+
+    def execute_trade(self, strategy_name: str, trading_pair: str, side: str, capital: float) -> Dict:
+        atr = self.market_data.get_atr(trading_pair, "binance")
+        if atr > 0.05:  # Umbral de alta volatilidad
+            self.logger.critical(f"ATR elevado en {trading_pair} ({atr}), pausando operación.")
+            return {"status": "paused", "reason": "Volatilidad extrema"}
+        # Aquí vendría la lógica de ejecución real
+        self.logger.info(f"Ejecución de estrategia {strategy_name} en {trading_pair} con ${capital}")
+        return {"status": "executed", "exchange": "binance", "price": self.market_data.get_price(trading_pair, "binance")}
+
+# ===== SIMULACIÓN DE CONDICIONES EXTREMAS =====
+
+async def simulate_extreme_conditions(engine: TradingEngine):
+    symbol = "BTC/USDT"
+    simulated_price = 50000 * (1 + random.uniform(-0.1, 0.1))
+    simulated_ohlcv = [[t, 50000, 51000, 49000,
+                        50000 * (1 + random.uniform(-0.1, 0.1)), 100]
+                       for t in range(100)]
+    
+    engine.market_data.data[symbol] = {
+        "binance": {
+            "price": simulated_price,
+            "ohlcv": simulated_ohlcv
+        }
+    }
+
+    result = engine.execute_trade("sma_crossover", symbol, "buy", 1000)
+    print(f"Resultado: {result}")
+
+# ===== EJECUCIÓN =====
+
+if __name__ == "__main__":
+    class DummyClient:
+        async def fetch_market_data(self, symbol):
+            return {
+                "price": 50000 * (1 + random.uniform(-0.01, 0.01)),
+                "ohlcv": [[t, 50000, 51000, 49000, 50000 * (1 + random.uniform(-0.01, 0.01)), 100] for t in range(100)]
+            }
+
+    dummy_clients = {"binance": DummyClient()}
+    market_data = MarketData(dummy_clients)
+    slippage_controller = SlippageController(base_max_slippage=0.001, market_data=market_data)
+    engine = TradingEngine(market_data)
+
+    asyncio.run(simulate_extreme_conditions(engine))

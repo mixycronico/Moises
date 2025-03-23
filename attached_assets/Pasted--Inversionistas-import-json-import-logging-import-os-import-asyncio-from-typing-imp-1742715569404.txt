@@ -1,0 +1,244 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Inversionistas
+
+
+
+import json
+import logging
+import os
+import asyncio
+from typing import Dict, List, Optional
+from datetime import datetime
+from collections import defaultdict, deque
+from concurrent.futures import ThreadPoolExecutor
+from decimal import Decimal, ROUND_HALF_UP
+
+# Logging
+logger = logging.getLogger("InversionistasManager")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+class InversionistasManager:
+    def __init__(self, archivo_datos: str = "data/inversionistas.json", max_history: int = 1000):
+        self.archivo_datos = archivo_datos
+        self.inversionistas: Dict[str, Dict[str, Any]] = {}
+        self.total_inversion = Decimal('0.0')
+        self.lock = asyncio.Lock()
+        self.executor = ThreadPoolExecutor(max_workers=10)  # Para I/O asíncrono
+        self.max_history = max_history  # Límite de historial por inversionista
+        self.backup_file = f"{archivo_datos}.bak"  # Archivo de respaldo
+        if os.path.exists(self.archivo_datos):
+            self._cargar_datos()
+        else:
+            self._guardar_datos()
+
+    async def agregar_inversionista(self, nombre: str, telefono: str, correo: str, capital: float):
+        if not nombre or not isinstance(nombre, str) or not nombre.strip():
+            raise ValueError("Nombre debe ser una cadena no vacía")
+        if not isinstance(capital, (int, float)) or capital <= 0:
+            raise ValueError("Capital debe ser un número positivo")
+        if not telefono or not correo:  # Validación básica
+            raise ValueError("Teléfono y correo son requeridos")
+
+        async with self.lock:
+            if nombre in self.inversionistas:
+                logger.warning(f"{nombre} ya está registrado. Usa actualizar_inversion().")
+                return
+            self.inversionistas[nombre] = {
+                "telefono": telefono,
+                "correo": correo,
+                "capital": Decimal(str(capital)),
+                "historial": deque(maxlen=self.max_history),
+                "ganancias": Decimal('0.0')
+            }
+            self.total_inversion += Decimal(str(capital))
+            await self._guardar_datos()
+            logger.info(f"Inversionista agregado: {nombre} con ${capital:.2f}")
+
+    async def actualizar_inversion(self, nombre: str, capital_adicional: float):
+        if nombre not in self.inversionistas:
+            raise KeyError(f"Inversionista {nombre} no encontrado")
+        if not isinstance(capital_adicional, (int, float)) or capital_adicional <= 0:
+            raise ValueError("El capital adicional debe ser mayor que cero")
+
+        async with self.lock:
+            self.inversionistas[nombre]["capital"] += Decimal(str(capital_adicional))
+            self.total_inversion += Decimal(str(capital_adicional))
+            await self._guardar_datos()
+            logger.info(f"{nombre} aumentó su inversión en ${capital_adicional:.2f}")
+
+    async def registrar_ganancia(self, monto_total: float):
+        if not isinstance(monto_total, (int, float)) or monto_total <= 0:
+            logger.warning("Monto total inválido. No se registran ganancias.")
+            return
+
+        monto_total_dec = Decimal(str(monto_total))
+        async with self.lock:
+            if self.total_inversion <= 0:
+                logger.error("Total invertido es cero. No se puede distribuir ganancia.")
+                return
+            for nombre, datos in self.inversionistas.items():
+                porcentaje = datos["capital"] / self.total_inversion
+                ganancia = (monto_total_dec * porcentaje).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+                datos["ganancias"] += ganancia
+                datos["historial"].append({
+                    "fecha": datetime.utcnow().isoformat(),
+                    "ganancia": float(ganancia)  # Convertir a float para JSON
+                })
+            await self._guardar_datos()
+            logger.info(f"Ganancia total de ${monto_total:.2f} distribuida entre inversionistas.")
+
+    async def obtener_resumen(self) -> List[Dict[str, Any]]:
+        async with self.lock:
+            resumen = []
+            for nombre, datos in self.inversionistas.items():
+                porcentaje = (datos["capital"] / self.total_inversion * 100) if self.total_inversion > 0 else Decimal('0')
+                resumen.append({
+                    "nombre": nombre,
+                    "capital": float(datos["capital"].quantize(Decimal('0.01'))),
+                    "ganancias": float(datos["ganancias"].quantize(Decimal('0.01'))),
+                    "porcentaje": float(porcentaje.quantize(Decimal('0.01')))
+                })
+            return resumen
+
+    async def obtener_historial(self, nombre: str) -> List[Dict[str, Any]]:
+        async with self.lock:
+            if nombre not in self.inversionistas:
+                return []
+            return list(self.inversionistas[nombre]["historial"])
+
+    async def obtener_inversionista(self, nombre: str) -> Optional[Dict[str, Any]]:
+        async with self.lock:
+            if nombre in self.inversionistas:
+                datos = self.inversionistas[nombre]
+                return {
+                    "telefono": datos["telefono"],
+                    "correo": datos["correo"],
+                    "capital": float(datos["capital"]),
+                    "ganancias": float(datos["ganancias"]),
+                    "historial": list(datos["historial"])
+                }
+            return None
+
+    async def get_total_invertido(self) -> float:
+        async with self.lock:
+            return float(self.total_inversion.quantize(Decimal('0.01')))
+
+    async def _guardar_datos(self):
+        os.makedirs(os.path.dirname(self.archivo_datos), exist_ok=True)
+        loop = asyncio.get_event_loop()
+        data = {
+            nombre: {
+                "telefono": datos["telefono"],
+                "correo": datos["correo"],
+                "capital": str(datos["capital"]),  # Decimal a string para JSON
+                "historial": list(datos["historial"]),
+                "ganancias": str(datos["ganancias"])
+            } for nombre, datos in self.inversionistas.items()
+        }
+        # Guardar en archivo principal y respaldo
+        await loop.run_in_executor(self.executor, self._write_to_file, self.archivo_datos, data)
+        await loop.run_in_executor(self.executor, self._write_to_file, self.backup_file, data)
+
+    def _write_to_file(self, filepath: str, data: Dict):
+        try:
+            with open(filepath, "w") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            logger.error(f"Error al guardar en {filepath}: {e}")
+            raise
+
+    def _cargar_datos(self):
+        try:
+            with open(self.archivo_datos, "r") as f:
+                data = json.load(f)
+            self.inversionistas = {
+                nombre: {
+                    "telefono": datos["telefono"],
+                    "correo": datos["correo"],
+                    "capital": Decimal(datos["capital"]),
+                    "historial": deque(datos["historial"], maxlen=self.max_history),
+                    "ganancias": Decimal(datos["ganancias"])
+                } for nombre, datos in data.items()
+            }
+            self.total_inversion = sum(d["capital"] for d in self.inversionistas.values())
+            logger.info("Datos cargados exitosamente.")
+        except Exception as e:
+            logger.error(f"Error al cargar datos: {e}. Intentando respaldo...")
+            self._cargar_respaldo()
+
+    def _cargar_respaldo(self):
+        if os.path.exists(self.backup_file):
+            try:
+                with open(self.backup_file, "r") as f:
+                    data = json.load(f)
+                self.inversionistas = {
+                    nombre: {
+                        "telefono": datos["telefono"],
+                        "correo": datos["correo"],
+                        "capital": Decimal(datos["capital"]),
+                        "historial": deque(datos["historial"], maxlen=self.max_history),
+                        "ganancias": Decimal(datos["ganancias"])
+                    } for nombre, datos in data.items()
+                }
+                self.total_inversion = sum(d["capital"] for d in self.inversionistas.values())
+                logger.info("Datos cargados desde respaldo.")
+            except Exception as e:
+                logger.critical(f"Error al cargar respaldo: {e}. Iniciando con datos vacíos.")
+                self.inversionistas = {}
+                self.total_inversion = Decimal('0.0')
+
+    async def stress_test(self, num_investors: int, num_ganancias: int):
+        """Prueba de estrés con muchos inversionistas y ganancias."""
+        tasks = []
+        # Agregar inversionistas concurrentemente
+        for i in range(num_investors):
+            tasks.append(self.agregar_inversionista(
+                f"Investor_{i}", f"+123{i:06d}", f"inv{i}@example.com", random.uniform(100, 10000)
+            ))
+        
+        # Actualizar inversiones
+        for i in range(num_investors // 2):
+            tasks.append(self.actualizar_inversion(f"Investor_{i}", random.uniform(50, 5000)))
+        
+        # Registrar ganancias masivas
+        for _ in range(num_ganancias):
+            tasks.append(self.registrar_ganancia(random.uniform(1000, 100000)))
+
+        start_time = time.time()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        elapsed = time.time() - start_time
+
+        resumen = await self.obtener_resumen()
+        total = await self.get_total_invertido()
+        logger.info(f"Prueba de estrés completada en {elapsed:.2f}s. Total invertido: ${total:.2f}")
+        print(f"Resumen (primeros 5): {resumen[:5]}")
+
+# ==== Prueba Rápida ====
+if __name__ == "__main__":
+    import random
+    manager = InversionistasManager()
+
+    # Prueba simple
+    asyncio.run(manager.agregar_inversionista("Carlos", "+123456789", "carlos@example.com", 500))
+    asyncio.run(manager.actualizar_inversion("Carlos", 250))
+    asyncio.run(manager.registrar_ganancia(300))
+    resumen = asyncio.run(manager.obtener_resumen())
+    print("Resumen de inversión:", resumen)
+
+    # Prueba de estrés
+    print("\nIniciando prueba de estrés...")
+    asyncio.run(manager.stress_test(num_investors=1000, num_ganancias=100))

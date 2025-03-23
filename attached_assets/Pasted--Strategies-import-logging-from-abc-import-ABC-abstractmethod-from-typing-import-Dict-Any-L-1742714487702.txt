@@ -1,0 +1,155 @@
+
+Strategies
+
+
+
+
+
+
+import logging
+from abc import ABC, abstractmethod
+from typing import Dict, Any, List, Optional
+import numpy as np
+import pandas as pd
+import joblib
+from functools import lru_cache
+
+# Configuración básica de logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+# ===== CLASE BASE MEJORADA =====
+
+class Strategy(ABC):
+    """Clase base para todas las estrategias de trading."""
+
+    def __init__(self, name: str, config: Dict[str, Any]):
+        self.name = name
+        self.config = self._validate_config(config)
+        self.logger = logging.getLogger(self.name)
+
+    def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+Valida que la configuración contenga los parámetros necesarios."""
+        required = getattr(self, "required_config", [])
+        for param in required:
+            if param not in config:
+                raise ValueError(f"Falta el parámetro requerido '{param}' en la configuración de {self.name}")
+        return config
+
+    @abstractmethod
+    def generate_signal(self, market_data: Dict[str, Any]) -> str:
+        """Genera una señal de trading: 'buy', 'sell' o 'hold'."""
+        pass
+
+# ===== ESTRATEGIAS OPTIMIZADAS =====
+
+class SMACrossoverStrategy(Strategy):
+    """Estrategia de cruce de medias móviles simples (SMA)."""
+    required_config = ["short_window", "long_window"]
+
+    def generate_signal(self, market_data: Dict[str, Any]) -> str:
+        prices = pd.Series(market_data["prices"])
+        if len(prices) < self.config["long_window"]:
+            return "hold"
+
+        short_sma = prices[-self.config["short_window"]:].mean()
+        long_sma = prices[-self.config["long_window"]:].mean()
+
+        return "buy" if short_sma > long_sma else "sell" if short_sma < long_sma else "hold"
+
+class RSIStrategy(Strategy):
+    """Estrategia basada en el Índice de Fuerza Relativa (RSI)."""
+    required_config = ["rsi_period"]
+
+    def generate_signal(self, market_data: Dict[str, Any]) -> str:
+        prices = pd.Series(market_data["prices"])
+        if len(prices) < self.config["rsi_period"] + 1:
+            return "hold"
+
+        delta = prices.diff()
+        gain = delta.where(delta > 0, 0).rolling(window=self.config["rsi_period"]).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=self.config["rsi_period"]).mean() + 0.0001
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+
+        return "sell" if rsi.iloc[-1] > 70 else "buy" if rsi.iloc[-1] < 30 else "hold"
+
+class MACDStrategy(Strategy):
+    """Estrategia basada en MACD."""
+    required_config = ["fast_period", "slow_period", "signal_period"]
+
+    def generate_signal(self, market_data: Dict[str, Any]) -> str:
+        prices = pd.Series(market_data["prices"])
+        if len(prices) < self.config["slow_period"] + self.config["signal_period"]:
+            return "hold"
+
+        ema_fast = prices.ewm(span=self.config["fast_period"], adjust=False).mean()
+        ema_slow = prices.ewm(span=self.config["slow_period"], adjust=False).mean()
+        macd = ema_fast - ema_slow
+        signal_line = macd.ewm(span=self.config["signal_period"], adjust=False).mean()
+
+        return "buy" if macd.iloc[-1] > signal_line.iloc[-1] else "sell" if macd.iloc[-1] < signal_line.iloc[-1] else "hold"
+
+# ===== ESTRATEGIA CON IA REAL =====
+
+class IABasedStrategy(Strategy):
+    """Estrategia basada en un modelo de IA real."""
+    required_config = ["model_path"]
+
+    def __init__(self, name: str, config: Dict[str, Any]):
+        super().__init__(name, config)
+        self.model = joblib.load(config["model_path"])
+
+    def generate_signal(self, market_data: Dict[str, Any]) -> str:
+        features = self._preprocess_features(market_data.get("features", []))
+        prediction = self.model.predict([features])[0]
+        return "buy" if prediction > 0.6 else "sell" if prediction < 0.4 else "hold"
+
+    def _preprocess_features(self, features: List[float]) -> List[float]:
+        return np.array(features[-10:]) if len(features) >= 10 else np.pad(features, (10 - len(features), 0), "constant")
+
+# ===== FACTORY OPTIMIZADA =====
+
+class StrategyFactory:
+    """Fábrica dinámica para crear estrategias."""
+
+    _strategies: Dict[str, type] = {}
+
+    @classmethod
+    def register_strategy(cls, name: str, strategy_class: type):
+        """Registra una nueva estrategia dinámicamente."""
+        cls._strategies[name] = strategy_class
+
+    def create_strategy(self, name: str, config: Dict[str, Any]) -> Strategy:
+        """Crea una instancia de la estrategia especificada."""
+        strategy_class = self._strategies.get(name)
+        if not strategy_class:
+            raise ValueError(f"Estrategia desconocida: {name}")
+        return strategy_class(name, config)
+
+# Registro de estrategias
+StrategyFactory.register_strategy("sma_crossover", SMACrossoverStrategy)
+StrategyFactory.register_strategy("rsi", RSIStrategy)
+StrategyFactory.register_strategy("macd", MACDStrategy)
+StrategyFactory.register_strategy("ia_based", IABasedStrategy)
+
+# ===== EJEMPLO DE USO =====
+
+if __name__ == "__main__":
+    # Configuración de ejemplo
+    config = {
+        "sma_crossover": {"short_window": 5, "long_window": 20},
+        "rsi": {"rsi_period": 14},
+        "macd": {"fast_period": 12, "slow_period": 26, "signal_period": 9},
+        "ia_based": {"model_path": "model.pkl"}
+    }
+
+    # Datos de mercado simulados
+    market_data = {
+        "prices": list(np.random.random(50)),
+        "features": list(np.random.random(15))
+    }
+
+    factory = StrategyFactory()
+    sma_strategy = factory.create_strategy("sma_crossover", config["sma_crossover"])
+    print(f"Señal SMA: {sma_strategy.generate_signal(market_data)}")

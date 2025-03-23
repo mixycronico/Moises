@@ -60,11 +60,23 @@ genesis/trading/
 │   └── mean_reversion.py - Estrategia de reversión a la media
 ├── risk/ - Gestión de riesgo
 │   ├── risk_manager.py - Gestor principal de riesgo
-│   └── position_sizing.py - Cálculo de tamaño de posiciones
-└── backtest/ - Motor de backtesting
-    ├── engine.py - Motor principal de backtesting
-    ├── data_provider.py - Proveedor de datos históricos
-    └── metrics_calculator.py - Calculador de métricas
+│   ├── position_sizing.py - Cálculo de tamaño de posiciones
+│   ├── failover_handler.py - Manejo de fallos y reintentos
+│   ├── liquidity_checker.py - Verificación de liquidez con múltiples niveles
+│   └── slippage.py - Cálculo y control de slippage
+├── backtest/ - Motor de backtesting
+│   ├── engine.py - Motor principal de backtesting
+│   ├── data_provider.py - Proveedor de datos históricos
+│   └── metrics_calculator.py - Calculador de métricas
+├── trading_engine.py - Motor de trading
+├── order_manager.py - Gestor de órdenes y ejecución
+├── trade_executor.py - Ejecutor de operaciones con concurrencia
+├── failover_handler.py - Manejo de fallos específico
+├── performance_analyzer.py - Análisis de rendimiento
+├── stress_tester.py - Pruebas de estrés
+├── trailing_stop_monitor.py - Monitor de trailing stops
+├── volatility_checker.py - Verificador de volatilidad
+└── concurrent_order_processor.py - Procesador concurrente
 ```
 
 ## 4. Módulos de Análisis 
@@ -75,7 +87,12 @@ genesis/analysis/
 ├── pattern_recognition.py - Reconocimiento de patrones
 ├── sentiment_analyzer.py - Análisis de sentimiento
 ├── market_analyzer.py - Análisis de mercado
-└── anomaly_detector.py - Detector de anomalías
+├── anomaly_detector.py - Detector de anomalías
+├── crypto_classifier.py - Clasificador trascendental de criptomonedas
+├── exchange_integrator.py - Integrador de datos de múltiples exchanges
+├── social_analyzer.py - Analizador de tendencias sociales
+├── prediction_model.py - Modelo predictivo LSTM para tendencias
+└── liquidity_analyzer.py - Analizador avanzado de liquidez
 ```
 
 ## 5. Módulos de Notificación
