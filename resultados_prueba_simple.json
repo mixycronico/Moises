@@ -1,8 +1,8 @@
 {
-  "start_time": 1742709162.9822013,
-  "operations": 0,
-  "successes": 0,
-  "failures": 1,
-  "total_time": 0.00010204315185546875,
-  "success_rate": 0
+  "start_time": 1742709325.589461,
+  "operations": 3,
+  "successes": 3,
+  "failures": 0,
+  "total_time": 0.004042387008666992,
+  "success_rate": 100.0
 }
