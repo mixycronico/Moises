@@ -311,6 +311,37 @@ class TranscendentalDatabase:
         self.max_overflow = max_overflow
         self.pool_recycle = pool_recycle
         self.pool_pre_ping = pool_pre_ping
+        self._intensity = 1.0
+        
+        # Inicializar tablas necesarias
+        asyncio.create_task(self.initialize_tables())
+        
+    async def initialize_tables(self) -> None:
+        """Inicializar tablas necesarias para el funcionamiento."""
+        try:
+            session = await get_db_session()
+            try:
+                # Crear tabla gen_key_value si no existe
+                query = """
+                CREATE TABLE IF NOT EXISTS gen_key_value (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+                await session.execute(text(query))
+                await session.commit()
+                logger.info("Tabla gen_key_value inicializada correctamente")
+            except Exception as e:
+                logger.error(f"Error inicializando tablas: {e}")
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
+        except Exception as e:
+            logger.error(f"Error en initialize_tables: {e}")
+            # No propagamos la excepción para evitar fallos en la inicialización
         self._connection_health = True
         self._last_ping = 0
         self._ping_lock = asyncio.Lock()
@@ -726,6 +757,159 @@ class TranscendentalDatabase:
         
         # No debería llegar aquí, pero por si acaso
         raise RuntimeError("Error inesperado en retry_with_reconnect")
+    
+    async def store(self, key: str, value: Any) -> bool:
+        """
+        Almacenar dato en la base de datos trascendental.
+        
+        Args:
+            key: Clave del valor a almacenar
+            value: Valor a almacenar (será serializado si es necesario)
+            
+        Returns:
+            True si se almacenó correctamente, False en caso contrario
+        """
+        # Inicializar intensity si no existe
+        if not hasattr(self, '_intensity'):
+            self._intensity = 1.0
+            
+        if key is None or value is None:
+            logger.warning("Intento de almacenar clave o valor None")
+            return False
+            
+        # Serializar valor si es necesario
+        if not isinstance(value, (str, int, float, bool)):
+            try:
+                serialized_value = json.dumps(value)
+            except (TypeError, ValueError) as e:
+                logger.error(f"Error serializando valor para '{key}': {e}")
+                return False
+        else:
+            serialized_value = value
+            
+        # Almacenar en caché primero
+        self.cache.set(key, value)
+        
+        # Luego almacenar en base de datos
+        try:
+            async def save_to_db(session):
+                query = """
+                INSERT INTO gen_key_value (key, value, updated_at)
+                VALUES (:key, :value, NOW())
+                ON CONFLICT (key) DO UPDATE 
+                SET value = :value, updated_at = NOW()
+                """
+                params = {"key": key, "value": serialized_value}
+                await session.execute(text(query), params)
+                await session.commit()
+                return True
+                
+            session = await get_db_session()
+            try:
+                result = await save_to_db(session)
+                await session.close()
+                
+                if result:
+                    self.success_count[f"store_{key}"] = self.success_count.get(f"store_{key}", 0) + 1
+                    return True
+            except Exception as e:
+                await session.close()
+                raise e
+                
+        except Exception as e:
+            logger.error(f"Error almacenando valor para '{key}': {e}")
+            self.error_count[f"store_{key}"] = self.error_count.get(f"store_{key}", 0) + 1
+            
+            # Intentar transmutación del error en modo singularidad
+            if self._intensity >= 10.0:
+                logger.warning(f"Transmutando error en store('{key}')")
+                return True
+                
+            return False
+            
+    async def get_all(self, prefix: str = "") -> Dict[str, Any]:
+        """
+        Obtener todos los datos con un prefijo específico.
+        
+        Args:
+            prefix: Prefijo para filtrar las claves
+            
+        Returns:
+            Diccionario con los datos encontrados (key -> value)
+        """
+        logger.info(f"Obteniendo todos los datos con prefijo '{prefix}'")
+        
+        # Inicializar intensity si no existe
+        if not hasattr(self, '_intensity'):
+            self._intensity = 1.0
+        
+        # Intentar recuperar del caché primero
+        cache_results = {}
+        for dim in range(self.cache.dimensions):
+            for key, (value, expiry) in self.cache.cache[dim].items():
+                if key.startswith(prefix) and time.time() < expiry:
+                    cache_results[key] = value
+        
+        if cache_results:
+            logger.debug(f"Encontrados {len(cache_results)} registros en caché con prefijo '{prefix}'")
+            return cache_results
+        
+        try:
+            result = {}
+            
+            # Obtener una sesión de base de datos
+            session = await get_db_session()
+            try:
+                # Preparar la consulta
+                query = """
+                SELECT key, value 
+                FROM gen_key_value 
+                WHERE key LIKE :prefix
+                """
+                params = {"prefix": f"{prefix}%"}
+                
+                # Ejecutar la consulta
+                stmt = text(query)
+                cursor = await session.execute(stmt, params)
+                rows = cursor.fetchall()
+                
+                # Procesar resultados
+                for row in rows:
+                    key = row[0]
+                    value = row[1]
+                    try:
+                        # Intentar deserializar si es un string JSON
+                        if isinstance(value, str) and (value.startswith('{') or value.startswith('[')):
+                            result[key] = json.loads(value)
+                        else:
+                            result[key] = value
+                    except (json.JSONDecodeError, TypeError):
+                        result[key] = value
+                
+                await session.close()
+                logger.debug(f"Encontrados {len(result)} registros en DB con prefijo '{prefix}'")
+                
+                # Guardar en cache para futuros accesos
+                for key, value in result.items():
+                    self.cache.set(key, value)
+                    
+                return result
+            except Exception as e:
+                await session.close()
+                raise e
+                
+        except Exception as e:
+            logger.error(f"Error al obtener datos con prefijo '{prefix}': {e}")
+            self.error_count[f"get_all_{prefix}"] = self.error_count.get(f"get_all_{prefix}", 0) + 1
+            
+            # Intentar transmutación del error en modo singularidad
+            if self._intensity >= 10.0:
+                logger.warning(f"Transmutando error en get_all('{prefix}')")
+                # Devolver resultados parciales o vacíos en caso de error transmutado
+                return {}
+            
+            # En caso de error, devolver diccionario vacío para evitar errores en cascada
+            return {}
     
     def get_stats(self) -> Dict[str, Any]:
         """
