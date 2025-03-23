@@ -1,22 +1,811 @@
 """
-Gestor de saldos para el sistema Genesis.
+Gestor de saldos para el sistema Genesis con capacidades de escalabilidad adaptativa.
 
 Este módulo proporciona funcionalidades para gestionar los saldos de los usuarios,
 incluyendo seguimiento de operaciones, cálculo de rentabilidad, y generación
 de informes financieros.
+
+Además, incorpora un sistema avanzado de escalabilidad que se adapta al crecimiento
+del capital, manteniendo la eficiencia del sistema incluso cuando los fondos
+aumentan significativamente.
 """
 
 import logging
 import asyncio
+import time
+import pandas as pd
+import numpy as np
 from typing import Dict, List, Any, Optional, Tuple, Union
 from datetime import datetime, timedelta
 from decimal import Decimal, getcontext
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 
 from genesis.core.base import Component
 from genesis.utils.helpers import generate_id, format_timestamp
+from genesis.utils.logger import setup_logging
 
 # Configurar precisión para operaciones con Decimal
 getcontext().prec = 28
+
+# Constantes de configuración para escalabilidad de capital
+CAPITAL_CONFIG = {
+    'CAPITAL_BASE_POR_DEFECTO': 10000.0,
+    'UMBRAL_EFICIENCIA': 0.85,
+    'MAX_SIMBOLOS': {'pequeño': 5, 'grande': 15},
+    'TIEMPOS': ["15m", "1h", "4h", "1d"],
+    'INTERVALO_REASIGNACION_HORAS': 6,
+    'SATURACION_POR_DEFECTO': 1000000.0
+}
+
+# Clase para monitoreo y métricas
+class Metrics:
+    """Sistema simple de métricas para monitoreo."""
+    def __init__(self):
+        self.registry = {}
+    
+    def gauge(self, name: str, value: float) -> None:
+        """Registrar valor absoluto."""
+        self.registry[name] = value
+    
+    def increment(self, name: str) -> None:
+        """Incrementar contador."""
+        self.registry[name] = self.registry.get(name, 0) + 1
+    
+    def get_metrics(self) -> Dict[str, float]:
+        """Obtener todas las métricas registradas."""
+        return self.registry.copy()
+
+# Instancia global de métricas
+scaling_metrics = Metrics()
+
+@dataclass
+class MetricasInstrumento:
+    """Clase de datos para métricas de instrumentos de trading."""
+    capital_mercado: float = 0.0
+    volumen_24h: float = 0.0
+    puntaje_liquidez: float = 0.5
+    puntaje_final: float = 0.5
+    precio_actual: float = 0.0
+    
+    
+class CapitalScalingManager:
+    """
+    Gestor de escalabilidad de capital para adaptarse al crecimiento de fondos.
+    
+    Este componente proporciona mecanismos avanzados para ajustar la distribución
+    de capital y parámetros operativos según el nivel de fondos, manteniendo
+    la eficiencia incluso cuando el capital crece significativamente.
+    
+    Características:
+    - Integración con Redis para caché de resultados
+    - Sistema de métricas para monitoreo en tiempo real
+    - Almacenamiento en PostgreSQL para análisis histórico
+    - Ajuste adaptativo según el tamaño del capital
+    """
+    
+    def __init__(
+        self, 
+        config: Dict[str, Any] = None,
+        capital_inicial: float = None,
+        umbral_eficiencia: float = None
+    ):
+        """
+        Inicializar el gestor de escalabilidad.
+        
+        Args:
+            config: Configuración completa (opcional, prevalece sobre otros parámetros)
+            capital_inicial: Capital base de referencia (si no se proporciona config)
+            umbral_eficiencia: Umbral mínimo de eficiencia aceptable (si no se proporciona config)
+        """
+        # Configuración base
+        self.config = config or {
+            'capital_base': capital_inicial or CAPITAL_CONFIG['CAPITAL_BASE_POR_DEFECTO'],
+            'efficiency_threshold': umbral_eficiencia or CAPITAL_CONFIG['UMBRAL_EFICIENCIA'],
+            'max_symbols_small': CAPITAL_CONFIG['MAX_SIMBOLOS']['pequeño'],
+            'max_symbols_large': CAPITAL_CONFIG['MAX_SIMBOLOS']['grande'],
+            'timeframes': CAPITAL_CONFIG['TIEMPOS'],
+            'reallocation_interval_hours': CAPITAL_CONFIG['INTERVALO_REASIGNACION_HORAS'],
+            'saturation_default': CAPITAL_CONFIG['SATURACION_POR_DEFECTO'],
+            'redis_cache_enabled': True,
+            'monitoring_enabled': True
+        }
+        
+        # Validar valores
+        self.capital_inicial = max(0.0, self.config['capital_base'])
+        self.umbral_eficiencia = min(1.0, max(0.0, self.config['efficiency_threshold']))
+        self.logger = setup_logging("genesis.accounting.capital_scaling")
+        
+        # Estructuras de datos optimizadas
+        self.registros_eficiencia: Dict[str, Dict[float, float]] = {}
+        self.puntos_saturacion: Dict[str, float] = {}
+        self.historial_distribucion: List[Dict[str, Any]] = []
+        
+        # Pool de hilos para cálculos intensivos
+        self.executor = ThreadPoolExecutor(max_workers=4)
+        
+        # Recursos externos
+        self.redis = None  # Se inicializa en setup()
+        self.db = None  # Se inicializa en setup()
+        
+        self.metricas_rendimiento = {
+            "eficiencia_promedio": 1.0,
+            "utilizacion_capital": 1.0,
+            "factor_escala": 1.0,
+            "entropia_asignacion": 0.0,
+            "registros_distribucion": 0,
+            "ultima_actualizacion": datetime.now()
+        }
+        
+        # Registrar métricas iniciales
+        self._actualizar_metricas_globales()
+        
+        self.logger.info(f"Gestor de escalabilidad inicializado con capital base: ${self.capital_inicial:,.2f}")
+    
+    async def setup(self):
+        """Configurar conexiones a servicios externos como Redis."""
+        if self.config.get('redis_cache_enabled', False):
+            try:
+                import aioredis
+                self.redis = await aioredis.create_redis_pool('redis://localhost')
+                self.logger.info("Redis conectado para caché de escalabilidad")
+            except (ImportError, Exception) as e:
+                self.logger.warning(f"No se pudo conectar a Redis: {str(e)}")
+                self.config['redis_cache_enabled'] = False
+    
+    async def close(self):
+        """Cerrar conexiones externas."""
+        if self.redis:
+            self.redis.close()
+            await self.redis.wait_closed()
+            self.logger.info("Conexión a Redis cerrada")
+        
+        if self.executor:
+            self.executor.shutdown(wait=True)
+            self.logger.info("ThreadPoolExecutor cerrado")
+    
+    def _actualizar_metricas_globales(self):
+        """Actualizar métricas globales para monitoreo."""
+        if not self.config.get('monitoring_enabled', False):
+            return
+            
+        scaling_metrics.gauge("capital_scaling_base_capital", self.capital_inicial)
+        scaling_metrics.gauge("capital_scaling_efficiency_threshold", self.umbral_eficiencia)
+        scaling_metrics.gauge("capital_scaling_average_efficiency", self.metricas_rendimiento["eficiencia_promedio"])
+        scaling_metrics.gauge("capital_scaling_utilization", self.metricas_rendimiento["utilizacion_capital"])
+        scaling_metrics.gauge("capital_scaling_symbols_tracked", len(self.puntos_saturacion))
+        scaling_metrics.gauge("capital_scaling_efficiency_records", sum(len(records) for records in self.registros_eficiencia.values()))
+
+    async def calculate_optimal_allocation(
+        self,
+        capital_disponible: float,
+        instrumentos: List[str],
+        metricas: Dict[str, MetricasInstrumento]
+    ) -> Dict[str, float]:
+        """
+        Calcular distribución óptima de capital entre instrumentos.
+        
+        Esta implementación avanzada considera puntos de saturación, liquidez
+        y otros factores críticos para maximizar la eficiencia a medida que
+        el capital crece.
+        
+        Args:
+            capital_disponible: Capital total disponible
+            instrumentos: Lista de instrumentos (símbolos)
+            metricas: Métricas de cada instrumento
+            
+        Returns:
+            Distribución óptima de capital por instrumento
+        """
+        try:
+            # Registrar tiempo de inicio para medición de rendimiento
+            start_time = time.time()
+            
+            # Validar entradas
+            capital_disponible = max(0.0, capital_disponible)
+            if not instrumentos or capital_disponible <= 0:
+                self.logger.warning("Entrada inválida para asignación de capital")
+                return {}
+            
+            # Calcular factor de escala
+            factor_escala = max(1.0, capital_disponible / self.capital_inicial)
+            self.logger.info(f"Factor de escala: {factor_escala:.2f}x (Capital: ${capital_disponible:,.2f})")
+            
+            # Determinar número máximo de instrumentos según capital
+            max_instrumentos = self._calcular_max_instrumentos(factor_escala)
+            
+            # Limitar instrumentos si es necesario
+            instrumentos_seleccionados = instrumentos[:max_instrumentos]
+            if len(instrumentos) > max_instrumentos:
+                self.logger.info(f"Limitando de {len(instrumentos)} a {max_instrumentos} instrumentos por restricciones de capital")
+            
+            # Verificar caché en Redis primero si está habilitado
+            asignaciones = None
+            cache_key = None
+            cache_hit = False
+            
+            if self.config.get('redis_cache_enabled', False) and self.redis:
+                try:
+                    import pickle
+                    # Crear clave de caché única
+                    key_components = [
+                        f"cap_{int(capital_disponible)}",
+                        f"scale_{factor_escala:.2f}",
+                        f"instr_{'_'.join(sorted(instrumentos_seleccionados[:5]))}",
+                        f"count_{len(instrumentos_seleccionados)}"
+                    ]
+                    cache_key = f"scaling:allocation:{hash('_'.join(key_components))}"
+                    
+                    # Intentar obtener del caché
+                    cached_data = await self.redis.get(cache_key)
+                    if cached_data:
+                        asignaciones = pickle.loads(cached_data)
+                        self.logger.debug(f"Distribución obtenida desde caché: {len(asignaciones)} instrumentos")
+                        cache_hit = True
+                        
+                        # Actualizar métricas para caché hit
+                        if self.config.get('monitoring_enabled', False):
+                            scaling_metrics.increment("capital_scaling_cache_hits")
+                except Exception as e:
+                    self.logger.warning(f"Error accediendo a caché Redis: {str(e)}")
+            
+            # Si no hay caché o falló, calcular normalmente
+            if not asignaciones:
+                # Calcular puntos de saturación en paralelo
+                tareas_saturacion = [
+                    self._estimate_saturation_point(simbolo, metricas.get(simbolo, MetricasInstrumento()))
+                    for simbolo in instrumentos_seleccionados
+                ]
+                resultados_saturacion = await asyncio.gather(*tareas_saturacion)
+                
+                # Actualizar puntos de saturación
+                for i, simbolo in enumerate(instrumentos_seleccionados):
+                    self.puntos_saturacion[simbolo] = resultados_saturacion[i]
+                
+                # Calcular asignaciones iniciales
+                asignaciones = await self._calcular_asignaciones(capital_disponible, instrumentos_seleccionados)
+                
+                # Guardar en caché si está configurado
+                if self.config.get('redis_cache_enabled', False) and self.redis and cache_key:
+                    try:
+                        import pickle
+                        # Almacenar en Redis con un TTL de 1 hora
+                        await self.redis.set(
+                            cache_key, 
+                            pickle.dumps(asignaciones),
+                            expire=3600  # 1 hora
+                        )
+                        self.logger.debug(f"Distribución guardada en caché: {len(asignaciones)} instrumentos")
+                        
+                        # Actualizar métricas para caché miss
+                        if self.config.get('monitoring_enabled', False):
+                            scaling_metrics.increment("capital_scaling_cache_misses")
+                    except Exception as e:
+                        self.logger.warning(f"Error guardando en caché Redis: {str(e)}")
+            
+            # Actualizar métricas y registros
+            self._actualizar_metricas_rendimiento(capital_disponible, asignaciones)
+            self._registrar_distribucion(capital_disponible, factor_escala, asignaciones)
+            
+            # Registrar en base de datos si está configurado
+            if self.db and self.config.get('db_persistence_enabled', False):
+                asyncio.create_task(
+                    self._persist_allocation_history(capital_disponible, factor_escala, asignaciones)
+                )
+            
+            # Registrar métricas de rendimiento
+            if self.config.get('monitoring_enabled', False):
+                elapsed_time = time.time() - start_time
+                scaling_metrics.gauge("capital_scaling_calculation_time", elapsed_time)
+                scaling_metrics.gauge("capital_scaling_instruments_count", len(instrumentos_seleccionados))
+                scaling_metrics.gauge("capital_scaling_capital_scale", factor_escala)
+                
+                # Incrementar contador según si fue caché hit o miss
+                scaling_metrics.increment("capital_scaling_allocation_count")
+            
+            return asignaciones
+            
+        except Exception as e:
+            self.logger.error(f"Error en cálculo de asignación óptima: {str(e)}")
+            
+            # Registrar error en métricas
+            if self.config.get('monitoring_enabled', False):
+                scaling_metrics.increment("capital_scaling_errors")
+                
+            return {}
+
+    async def _calcular_asignaciones(
+        self, 
+        capital: float, 
+        instrumentos: List[str]
+    ) -> Dict[str, float]:
+        """
+        Cálculo optimizado de asignaciones de capital.
+        
+        Args:
+            capital: Capital disponible
+            instrumentos: Lista de instrumentos
+            
+        Returns:
+            Diccionario de asignaciones por instrumento
+        """
+        if not instrumentos:
+            return {}
+            
+        # Calcular saturación total para ponderación
+        saturacion_total = sum(
+            self.puntos_saturacion.get(simbolo, CAPITAL_CONFIG['SATURACION_POR_DEFECTO'])
+            for simbolo in instrumentos
+        )
+        
+        # Primera pasada: asignación proporcional
+        asignaciones = {}
+        capital_restante = capital
+        
+        for simbolo in instrumentos:
+            punto_saturacion = self.puntos_saturacion.get(simbolo, CAPITAL_CONFIG['SATURACION_POR_DEFECTO'])
+            peso = punto_saturacion / saturacion_total if saturacion_total > 0 else 1.0 / len(instrumentos)
+            asignacion = min(capital * peso, punto_saturacion)
+            
+            asignaciones[simbolo] = asignacion
+            capital_restante -= asignacion
+        
+        # Segunda pasada: redistribuir capital no utilizado
+        if capital_restante > 0.01:  # Si queda al menos 1 centavo
+            no_saturados = [
+                s for s in instrumentos 
+                if asignaciones[s] < self.puntos_saturacion.get(s, CAPITAL_CONFIG['SATURACION_POR_DEFECTO'])
+            ]
+            
+            if no_saturados:
+                # Calcular pesos para redistribución
+                pesos_redistribucion = {}
+                total_peso = 0.0
+                
+                for simbolo in no_saturados:
+                    sat_point = self.puntos_saturacion.get(simbolo, CAPITAL_CONFIG['SATURACION_POR_DEFECTO'])
+                    margen = sat_point - asignaciones[simbolo]
+                    pesos_redistribucion[simbolo] = margen
+                    total_peso += margen
+                
+                # Redistribuir según margen disponible
+                if total_peso > 0:
+                    for simbolo, margen in pesos_redistribucion.items():
+                        adicional = capital_restante * (margen / total_peso)
+                        asignaciones[simbolo] += adicional
+        
+        return asignaciones
+
+    def _calcular_max_instrumentos(self, factor_escala: float) -> int:
+        """
+        Calcular número máximo de instrumentos según escala de capital.
+        
+        Args:
+            factor_escala: Factor de escala del capital
+            
+        Returns:
+            Número máximo de instrumentos a utilizar
+        """
+        return int(
+            CAPITAL_CONFIG['MAX_SIMBOLOS']['pequeño'] + 
+            min(10, (CAPITAL_CONFIG['MAX_SIMBOLOS']['grande'] - CAPITAL_CONFIG['MAX_SIMBOLOS']['pequeño']) * 
+                np.log10(max(1, factor_escala)))
+        )
+
+    async def _estimate_saturation_point(
+        self, 
+        simbolo: str, 
+        metricas: MetricasInstrumento
+    ) -> float:
+        """
+        Estimar punto de saturación para un instrumento.
+        
+        El punto de saturación es el nivel de capital donde la eficiencia
+        comienza a deteriorarse por problemas de liquidez o impacto de mercado.
+        
+        Args:
+            simbolo: Símbolo del instrumento
+            metricas: Métricas del instrumento
+            
+        Returns:
+            Punto de saturación estimado
+        """
+        # Verificar si ya tenemos este punto calculado
+        if simbolo in self.puntos_saturacion:
+            return self.puntos_saturacion[simbolo]
+
+        try:
+            # Ejecutar cálculo en pool de hilos para no bloquear
+            saturacion_base = await asyncio.get_event_loop().run_in_executor(
+                self.executor,
+                self._calcular_saturacion_base,
+                metricas.capital_mercado,
+                metricas.volumen_24h
+            )
+            
+            # Ajustar según liquidez
+            factor_liquidez = max(0.1, min(1.0, metricas.puntaje_liquidez))
+            saturacion = max(10000.0, min(10000000.0, saturacion_base * factor_liquidez))
+            
+            self.puntos_saturacion[simbolo] = saturacion
+            return saturacion
+            
+        except Exception as e:
+            self.logger.warning(f"Error estimando saturación para {simbolo}: {str(e)}")
+            return CAPITAL_CONFIG['SATURACION_POR_DEFECTO']
+
+    @staticmethod
+    def _calcular_saturacion_base(capital_mercado: float, volumen_24h: float) -> float:
+        """
+        Calcular saturación base según métricas de mercado.
+        
+        Args:
+            capital_mercado: Capitalización de mercado
+            volumen_24h: Volumen en 24 horas
+            
+        Returns:
+            Saturación base estimada
+        """
+        if capital_mercado > 0 and volumen_24h > 0:
+            # Tomar el menor valor entre:
+            # - 0.01% del market cap (muy conservador)
+            # - 0.1% del volumen diario (estándar en mercados líquidos)
+            return min(capital_mercado * 0.0001, volumen_24h * 0.001)
+            
+        elif volumen_24h > 0:
+            # Si sólo tenemos volumen
+            return volumen_24h * 0.001
+            
+        elif capital_mercado > 0:
+            # Si sólo tenemos market cap
+            return capital_mercado * 0.0001
+            
+        # Valor por defecto conservador
+        return 50000.0
+
+    def _actualizar_metricas_rendimiento(self, capital: float, asignaciones: Dict[str, float]) -> None:
+        """
+        Actualizar métricas de rendimiento del gestor.
+        
+        Args:
+            capital: Capital total disponible
+            asignaciones: Asignaciones realizadas
+        """
+        # Calcular utilización de capital
+        capital_utilizado = sum(asignaciones.values())
+        utilizacion = capital_utilizado / capital if capital > 0 else 0.0
+        
+        # Calcular entropía de distribución (para medir diversificación)
+        entropia = 0.0
+        if asignaciones and capital > 0:
+            proporciones = [monto / capital for monto in asignaciones.values()]
+            for p in proporciones:
+                if p > 0:
+                    entropia -= p * np.log(p)
+            # Normalizar entropía
+            if len(proporciones) > 1:
+                entropia /= np.log(len(proporciones))
+        
+        # Actualizar métricas
+        self.metricas_rendimiento.update({
+            "utilizacion_capital": utilizacion,
+            "factor_escala": capital / self.capital_inicial if self.capital_inicial > 0 else 1.0,
+            "entropia_asignacion": entropia,
+            "ultima_actualizacion": datetime.now()
+        })
+
+    def _registrar_distribucion(
+        self, 
+        capital: float, 
+        factor_escala: float, 
+        asignaciones: Dict[str, float]
+    ) -> None:
+        """
+        Registrar distribución en historial para análisis.
+        
+        Args:
+            capital: Capital total
+            factor_escala: Factor de escala
+            asignaciones: Asignaciones realizadas
+        """
+        registro = {
+            "timestamp": datetime.now().isoformat(),
+            "capital_total": capital,
+            "factor_escala": factor_escala,
+            "num_instrumentos": len(asignaciones),
+            "asignaciones": {k: v for k, v in asignaciones.items()},
+            "metricas": self.metricas_rendimiento.copy()
+        }
+        
+        self.historial_distribucion.append(registro)
+        self.metricas_rendimiento["registros_distribucion"] += 1
+        
+        # Limitar tamaño del historial
+        if len(self.historial_distribucion) > 100:
+            self.historial_distribucion = self.historial_distribucion[-100:]
+
+    async def analizar_eficiencia(
+        self, 
+        simbolo: str, 
+        capital_desplegado: float, 
+        datos_rendimiento: Dict[str, Any]
+    ) -> float:
+        """
+        Analizar eficiencia del capital desplegado en un instrumento.
+        
+        Este método evalúa el rendimiento del capital y actualiza los
+        modelos de eficiencia para futuras asignaciones.
+        
+        Args:
+            simbolo: Símbolo del instrumento
+            capital_desplegado: Capital asignado
+            datos_rendimiento: Datos de rendimiento
+            
+        Returns:
+            Puntuación de eficiencia (0-1)
+        """
+        try:
+            # Validar datos mínimos necesarios
+            if not simbolo or capital_desplegado <= 0:
+                return 0.0
+                
+            # Extraer métricas relevantes
+            roi = float(datos_rendimiento.get("roi", 0))
+            sharpe = float(datos_rendimiento.get("sharpe_ratio", 0))
+            operaciones = int(datos_rendimiento.get("operaciones", 0))
+            win_rate = float(datos_rendimiento.get("win_rate", 0.5))
+            
+            # No podemos evaluar sin operaciones
+            if operaciones <= 0:
+                return 0.5  # Valor neutral
+            
+            # Calcular eficiencia base
+            eficiencia_base = (
+                0.4 * win_rate + 
+                0.3 * max(0, min(3, sharpe)) / 3 + 
+                0.3 * (1.0 if roi > 0 else max(0, 1 + roi))
+            )
+            
+            # Almacenar en registro de eficiencia
+            if simbolo not in self.registros_eficiencia:
+                self.registros_eficiencia[simbolo] = {}
+                
+            self.registros_eficiencia[simbolo][capital_desplegado] = eficiencia_base
+            
+            # Analizar tendencia si tenemos suficientes puntos
+            if len(self.registros_eficiencia[simbolo]) >= 3:
+                await self._analizar_tendencia_eficiencia(simbolo)
+            
+            # Actualizar eficiencia promedio global
+            todas_eficiencias = [
+                eficiencia for registros in self.registros_eficiencia.values()
+                for eficiencia in registros.values()
+            ]
+            
+            if todas_eficiencias:
+                self.metricas_rendimiento["eficiencia_promedio"] = sum(todas_eficiencias) / len(todas_eficiencias)
+            
+            return eficiencia_base
+            
+        except Exception as e:
+            self.logger.error(f"Error analizando eficiencia para {simbolo}: {str(e)}")
+            return 0.5  # Valor neutral en caso de error
+
+    async def _analizar_tendencia_eficiencia(self, simbolo: str) -> None:
+        """
+        Analizar tendencia de eficiencia con diferentes niveles de capital.
+        
+        Args:
+            simbolo: Símbolo a analizar
+        """
+        if simbolo not in self.registros_eficiencia:
+            return
+            
+        # Obtener puntos ordenados por capital
+        puntos = sorted(self.registros_eficiencia[simbolo].items())
+        
+        if len(puntos) < 3:
+            return
+            
+        # Analizar tendencia con regresión lineal simple
+        x = [p[0] for p in puntos]  # Capital
+        y = [p[1] for p in puntos]  # Eficiencia
+        
+        # Calcular pendiente
+        try:
+            pendiente, _ = np.polyfit(x, y, 1)
+            
+            # Si la pendiente es negativa, hay deterioro de eficiencia
+            if pendiente < -0.0001:  # Umbral de significancia
+                # Proyectar punto de saturación
+                ultimo_punto = puntos[-1]
+                capital_actual = ultimo_punto[0]
+                eficiencia_actual = ultimo_punto[1]
+                
+                # Proyectar dónde la eficiencia caería por debajo del umbral
+                if eficiencia_actual > self.umbral_eficiencia:
+                    capital_margen = (eficiencia_actual - self.umbral_eficiencia) / abs(pendiente)
+                    saturacion_proyectada = capital_actual + capital_margen
+                    
+                    # Actualizar punto de saturación si es menor que el actual
+                    saturacion_actual = self.puntos_saturacion.get(simbolo, CAPITAL_CONFIG['SATURACION_POR_DEFECTO'])
+                    if saturacion_proyectada < saturacion_actual * 0.8:  # Solo actualizar si es significativamente menor
+                        self.puntos_saturacion[simbolo] = saturacion_proyectada
+                        self.logger.info(f"Punto de saturación para {simbolo} ajustado a ${saturacion_proyectada:,.2f} basado en análisis de eficiencia")
+        
+        except Exception as e:
+            self.logger.warning(f"Error en análisis de tendencia para {simbolo}: {str(e)}")
+
+    def get_saturation_points(self) -> Dict[str, float]:
+        """
+        Obtener puntos de saturación estimados.
+        
+        Returns:
+            Diccionario con puntos de saturación por instrumento
+        """
+        return self.puntos_saturacion.copy()
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Obtener métricas de rendimiento del gestor.
+        
+        Returns:
+            Diccionario con métricas
+        """
+        return {
+            **self.metricas_rendimiento,
+            "instrumentos_analizados": len(self.registros_eficiencia),
+            "puntos_saturacion_estimados": len(self.puntos_saturacion)
+        }
+    
+    def get_distribution_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Obtener historial de distribuciones.
+        
+        Args:
+            limit: Número máximo de registros a devolver
+            
+        Returns:
+            Lista de registros históricos
+        """
+        return self.historial_distribucion[-limit:]
+        
+    async def _persist_allocation_history(
+        self,
+        capital: float,
+        factor_escala: float,
+        asignaciones: Dict[str, float]
+    ) -> None:
+        """
+        Persistir historial de asignación en la base de datos.
+        
+        Args:
+            capital: Capital total
+            factor_escala: Factor de escala
+            asignaciones: Asignaciones realizadas
+        """
+        if not self.db or not self.config.get('db_persistence_enabled', False):
+            return
+            
+        try:
+            from genesis.db.models.scaling_config_models import AllocationHistory
+            
+            # Crear nuevo registro de asignación
+            allocation_record = AllocationHistory(
+                config_id=self.config.get('id', 1),  # ID de configuración por defecto
+                total_capital=capital,
+                scale_factor=factor_escala,
+                instruments_count=len(asignaciones),
+                capital_utilization=self.metricas_rendimiento["utilizacion_capital"],
+                entropy=self.metricas_rendimiento["entropia_asignacion"],
+                efficiency_avg=self.metricas_rendimiento["eficiencia_promedio"],
+                allocations=asignaciones,
+                metrics=self.metricas_rendimiento
+            )
+            
+            # Guardar en la base de datos
+            async with self.db.transaction():
+                await self.db.execute(
+                    "INSERT INTO allocation_history (config_id, timestamp, total_capital, scale_factor, "
+                    "instruments_count, capital_utilization, entropy, efficiency_avg, allocations, metrics) "
+                    "VALUES (:config_id, :timestamp, :total_capital, :scale_factor, :instruments_count, "
+                    ":capital_utilization, :entropy, :efficiency_avg, :allocations, :metrics)",
+                    allocation_record.to_dict()
+                )
+                
+            # Actualizar métricas
+            if self.config.get('monitoring_enabled', False):
+                scaling_metrics.increment("capital_scaling_db_allocations_saved")
+                
+            self.logger.debug(f"Asignación guardada en la base de datos: {capital:,.2f} USD, {len(asignaciones)} instrumentos")
+            
+        except Exception as e:
+            self.logger.error(f"Error guardando asignación en la base de datos: {str(e)}")
+            
+            # Actualizar métricas de error
+            if self.config.get('monitoring_enabled', False):
+                scaling_metrics.increment("capital_scaling_db_errors")
+                
+    async def persist_saturation_points(self) -> None:
+        """
+        Persistir puntos de saturación actuales en la base de datos.
+        
+        Esto permite reutilizar estos valores en reinicios posteriores.
+        """
+        if not self.db or not self.config.get('db_persistence_enabled', False):
+            return
+            
+        try:
+            from genesis.db.models.scaling_config_models import SaturationPoint
+            
+            # Crear registros para cada punto de saturación
+            async with self.db.transaction():
+                # Primero eliminamos los registros anteriores
+                await self.db.execute(
+                    "DELETE FROM saturation_points WHERE config_id = :config_id",
+                    {"config_id": self.config.get('id', 1)}
+                )
+                
+                # Luego insertamos los nuevos
+                for symbol, value in self.puntos_saturacion.items():
+                    await self.db.execute(
+                        "INSERT INTO saturation_points (config_id, symbol, saturation_value) "
+                        "VALUES (:config_id, :symbol, :saturation_value)",
+                        {
+                            "config_id": self.config.get('id', 1),
+                            "symbol": symbol,
+                            "saturation_value": value
+                        }
+                    )
+            
+            # Actualizar métricas
+            if self.config.get('monitoring_enabled', False):
+                scaling_metrics.gauge("capital_scaling_saturation_points_saved", len(self.puntos_saturacion))
+                
+            self.logger.info(f"Puntos de saturación guardados en la base de datos: {len(self.puntos_saturacion)} símbolos")
+            
+        except Exception as e:
+            self.logger.error(f"Error guardando puntos de saturación: {str(e)}")
+            
+            # Actualizar métricas de error
+            if self.config.get('monitoring_enabled', False):
+                scaling_metrics.increment("capital_scaling_db_errors")
+                
+    async def load_saturation_points(self) -> None:
+        """
+        Cargar puntos de saturación desde la base de datos.
+        
+        Esto permite restaurar los valores aprendidos en ejecuciones anteriores.
+        """
+        if not self.db or not self.config.get('db_persistence_enabled', False):
+            return
+            
+        try:
+            # Consultar los puntos de saturación para esta configuración
+            rows = await self.db.fetch(
+                "SELECT symbol, saturation_value FROM saturation_points WHERE config_id = :config_id",
+                {"config_id": self.config.get('id', 1)}
+            )
+            
+            # Actualizar diccionario en memoria
+            if rows:
+                for row in rows:
+                    self.puntos_saturacion[row['symbol']] = row['saturation_value']
+                
+                self.logger.info(f"Puntos de saturación cargados desde la base de datos: {len(rows)} símbolos")
+                
+                # Actualizar métricas
+                if self.config.get('monitoring_enabled', False):
+                    scaling_metrics.gauge("capital_scaling_saturation_points_loaded", len(rows))
+            else:
+                self.logger.info("No se encontraron puntos de saturación en la base de datos")
+                
+        except Exception as e:
+            self.logger.error(f"Error cargando puntos de saturación: {str(e)}")
+            
+            # Actualizar métricas de error
+            if self.config.get('monitoring_enabled', False):
+                scaling_metrics.increment("capital_scaling_db_errors")
 
 class AccountTransaction:
     """
