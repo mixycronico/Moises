@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional
 
 # Configuración de logging central
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # Cambiar a DEBUG temporalmente para ver más detalles
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger('genesis.init')
@@ -80,13 +80,20 @@ async def initialize_system(config_path: str = "genesis_config.json") -> Dict[st
         
         # Inicializar seguidor de rendimiento
         try:
-            await initialize_performance_tracker(
-                config.get("performance_tracker", {}).get("capital_inicial", 10000.0),
-                config.get("performance_tracker", {})
-            )
+            capital_inicial = config.get("performance_tracker", {}).get("capital_inicial", 10000.0)
+            config_pt = config.get("performance_tracker", {})
+            
+            logger.info(f"Intentando inicializar performance_tracker con capital={capital_inicial}")
+            logger.debug(f"Configuración performance_tracker: {config_pt}")
+            
+            await initialize_performance_tracker(capital_inicial, config_pt)
             init_status["performance_tracker"] = True
+            logger.info("Performance tracker inicializado correctamente")
         except Exception as e:
+            import traceback
+            error_detalle = traceback.format_exc()
             logger.warning(f"Fallo en la inicialización del performance tracker: {str(e)}")
+            logger.debug(f"Detalle del error: {error_detalle}")
             # Continuar con la inicialización aunque falle este componente
         
         # Estado exitoso
@@ -169,15 +176,34 @@ async def get_system_status() -> Dict[str, Any]:
     
     # Obtener información del seguidor de rendimiento
     try:
-        performance_info = await performance_tracker.obtener_resumen_rendimiento()
-        performance_status = {
-            "capital_actual": performance_tracker.capital_actual,
-            "rendimiento_total": performance_tracker.metricas.get("rendimiento_total", 0),
-            **performance_info
-        }
+        # Verificar que el performance_tracker esté correctamente inicializado
+        if performance_tracker is None or not hasattr(performance_tracker, 'obtener_resumen_rendimiento'):
+            logger.warning("Performance tracker no está correctamente inicializado")
+            performance_status = {
+                "error": "Performance tracker no inicializado",
+                "capital_actual": 0.0,
+                "rendimiento_total": 0.0,
+                "estado": "no_inicializado"
+            }
+        else:
+            performance_info = await performance_tracker.obtener_resumen_rendimiento()
+            performance_status = {
+                "capital_actual": getattr(performance_tracker, 'capital_actual', 0.0),
+                "rendimiento_total": getattr(performance_tracker, 'metricas', {}).get("rendimiento_total", 0.0),
+                "estado": "activo",
+                **performance_info
+            }
     except Exception as e:
+        import traceback
+        error_detalle = traceback.format_exc()
         logger.warning(f"Error al obtener información del performance tracker: {str(e)}")
-        performance_status = {"error": str(e)}
+        logger.debug(f"Detalle del error: {error_detalle}")
+        performance_status = {
+            "error": str(e),
+            "capital_actual": 0.0,
+            "rendimiento_total": 0.0,
+            "estado": "error"
+        }
     
     # Compilar estado completo
     status = {
@@ -237,14 +263,25 @@ async def actualizar_capital_sistema(nuevo_capital: float) -> Dict[str, Any]:
     
     # Actualizar capital en seguidor de rendimiento
     try:
-        resultado_performance = await performance_tracker.actualizar_capital(
-            nuevo_capital, "actualizacion_sistema"
-        )
-        resultados["performance_tracker"] = resultado_performance
+        # Verificar que el performance_tracker esté correctamente inicializado
+        if performance_tracker is None or not hasattr(performance_tracker, 'actualizar_capital'):
+            logger.warning("Performance tracker no está correctamente inicializado para actualizar capital")
+            resultados["performance_tracker"] = {
+                "error": "Performance tracker no inicializado",
+                "estado": "no_inicializado"
+            }
+        else:
+            resultado_performance = await performance_tracker.actualizar_capital(
+                nuevo_capital, "actualizacion_sistema"
+            )
+            resultados["performance_tracker"] = resultado_performance
     except Exception as e:
+        import traceback
+        error_detalle = traceback.format_exc()
         error_msg = str(e)
         logger.warning(f"Error al actualizar capital en performance_tracker: {error_msg}")
-        resultados["performance_tracker"] = {"error": error_msg}
+        logger.debug(f"Detalle del error: {error_detalle}")
+        resultados["performance_tracker"] = {"error": error_msg, "estado": "error"}
     
     # Resultado global
     resultados["capital_anterior"] = capital_anterior  # Usando el valor capturado
@@ -292,13 +329,29 @@ async def activar_modo_trascendental(modo: str = "SINGULARITY_V4") -> Dict[str, 
     
     # Activar en seguidor de rendimiento
     try:
-        resultado_performance = await performance_tracker.activar_modo_trascendental(modo)
-        resultados["performance_tracker"] = resultado_performance
-        logger.info(f"Modo {modo} activado en performance_tracker")
+        # Verificar que el performance_tracker esté correctamente inicializado
+        if performance_tracker is None or not hasattr(performance_tracker, 'activar_modo_trascendental'):
+            logger.warning(f"Performance tracker no está correctamente inicializado para activar modo {modo}")
+            resultados["performance_tracker"] = {
+                "error": "Performance tracker no inicializado",
+                "estado": "no_inicializado",
+                "modo_solicitado": modo
+            }
+        else:
+            resultado_performance = await performance_tracker.activar_modo_trascendental(modo)
+            resultados["performance_tracker"] = resultado_performance
+            logger.info(f"Modo {modo} activado en performance_tracker")
     except Exception as e:
+        import traceback
+        error_detalle = traceback.format_exc()
         error_msg = str(e)
         logger.warning(f"Error al activar modo {modo} en performance_tracker: {error_msg}")
-        resultados["performance_tracker"] = {"error": error_msg}
+        logger.debug(f"Detalle del error: {error_detalle}")
+        resultados["performance_tracker"] = {
+            "error": error_msg, 
+            "estado": "error",
+            "modo_solicitado": modo
+        }
     
     # Resultado global
     resultados["modo"] = modo
