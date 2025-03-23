@@ -677,13 +677,13 @@ class TranscendentalCryptoClassifier:
         Returns:
             Métricas como diccionario o None si no hay datos
         """
-        async def get_metrics_query():
-            return (
-                "SELECT * FROM crypto_metrics WHERE cryptocurrency_id = :crypto_id ORDER BY updated_at DESC LIMIT 1",
-                {"crypto_id": crypto_id}
-            )
+        # Definir consulta directamente como una tupla
+        metrics_query = (
+            "SELECT * FROM crypto_metrics WHERE cryptocurrency_id = :crypto_id ORDER BY updated_at DESC LIMIT 1",
+            {"crypto_id": crypto_id}
+        )
         
-        metrics_result = await transcendental_db.execute_query(get_metrics_query)
+        metrics_result = await transcendental_db.execute_query(metrics_query)
         
         if not metrics_result:
             return None
@@ -803,20 +803,19 @@ class TranscendentalCryptoClassifier:
             ID de la clasificación
         """
         # Verificar si ya existe una clasificación reciente (< 1 día)
-        async def check_recent_classification():
-            return (
-                select(CryptoClassification)
-                .where(
-                    and_(
-                        CryptoClassification.cryptocurrency_id == crypto_id,
-                        CryptoClassification.classification_date > datetime.now() - timedelta(days=1)
-                    )
+        check_recent_query = (
+            select(CryptoClassification)
+            .where(
+                and_(
+                    CryptoClassification.cryptocurrency_id == crypto_id,
+                    CryptoClassification.classification_date > datetime.now() - timedelta(days=1)
                 )
-                .order_by(CryptoClassification.classification_date.desc())
-                .limit(1)
-            ), []
+            )
+            .order_by(CryptoClassification.classification_date.desc())
+            .limit(1)
+        ), []
         
-        recent = await transcendental_db.execute_query(check_recent_classification)
+        recent = await transcendental_db.execute_query(check_recent_query)
         
         if recent:
             # Existe clasificación reciente, actualizarla
@@ -829,27 +828,26 @@ class TranscendentalCryptoClassifier:
             score_change_pct = ((final_score - old_score) / old_score * 100) if old_score > 0 else 0
             
             # Preparar actualización
-            async def update_classification():
-                return (
-                    update(CryptoClassification)
-                    .where(CryptoClassification.id == classification_id)
-                    .values(
-                        alpha_score=adjusted_scores["alpha_score"],
-                        liquidity_score=adjusted_scores["liquidity_score"],
-                        volatility_score=adjusted_scores["volatility_score"],
-                        momentum_score=adjusted_scores["momentum_score"],
-                        trend_score=adjusted_scores["trend_score"],
-                        correlation_score=adjusted_scores["correlation_score"],
-                        exchange_quality_score=adjusted_scores["exchange_quality_score"],
-                        final_score=final_score,
-                        hot_rating=is_hot,
-                        capital_base=self.current_capital,
-                        classification_date=datetime.now(),
-                        confidence=self.confidence_threshold
-                    )
-                ), []
+            update_query = (
+                update(CryptoClassification)
+                .where(CryptoClassification.id == classification_id)
+                .values(
+                    alpha_score=adjusted_scores["alpha_score"],
+                    liquidity_score=adjusted_scores["liquidity_score"],
+                    volatility_score=adjusted_scores["volatility_score"],
+                    momentum_score=adjusted_scores["momentum_score"],
+                    trend_score=adjusted_scores["trend_score"],
+                    correlation_score=adjusted_scores["correlation_score"],
+                    exchange_quality_score=adjusted_scores["exchange_quality_score"],
+                    final_score=final_score,
+                    hot_rating=is_hot,
+                    capital_base=self.current_capital,
+                    classification_date=datetime.now(),
+                    confidence=self.confidence_threshold
+                )
+            ), []
             
-            await transcendental_db.execute_query(update_classification)
+            await transcendental_db.execute_query(update_query)
             
             # Registrar cambio si es significativo o cambia estado hot
             if abs(score_change_pct) > 5 or old_hot != is_hot:
@@ -858,26 +856,25 @@ class TranscendentalCryptoClassifier:
                 )
         else:
             # No existe, crear nueva clasificación
-            async def insert_classification():
-                return (
-                    insert(CryptoClassification).values(
-                        cryptocurrency_id=crypto_id,
-                        alpha_score=adjusted_scores["alpha_score"],
-                        liquidity_score=adjusted_scores["liquidity_score"],
-                        volatility_score=adjusted_scores["volatility_score"],
-                        momentum_score=adjusted_scores["momentum_score"],
-                        trend_score=adjusted_scores["trend_score"],
-                        correlation_score=adjusted_scores["correlation_score"],
-                        exchange_quality_score=adjusted_scores["exchange_quality_score"],
-                        final_score=final_score,
-                        hot_rating=is_hot,
-                        capital_base=self.current_capital,
-                        classification_date=datetime.now(),
-                        confidence=self.confidence_threshold
-                    ).returning(CryptoClassification.id)
-                ), []
+            insert_query = (
+                insert(CryptoClassification).values(
+                    cryptocurrency_id=crypto_id,
+                    alpha_score=adjusted_scores["alpha_score"],
+                    liquidity_score=adjusted_scores["liquidity_score"],
+                    volatility_score=adjusted_scores["volatility_score"],
+                    momentum_score=adjusted_scores["momentum_score"],
+                    trend_score=adjusted_scores["trend_score"],
+                    correlation_score=adjusted_scores["correlation_score"],
+                    exchange_quality_score=adjusted_scores["exchange_quality_score"],
+                    final_score=final_score,
+                    hot_rating=is_hot,
+                    capital_base=self.current_capital,
+                    classification_date=datetime.now(),
+                    confidence=self.confidence_threshold
+                ).returning(CryptoClassification.id)
+            ), []
             
-            result = await transcendental_db.execute_query(insert_classification)
+            result = await transcendental_db.execute_query(insert_query)
             classification_id = result[0][0]
         
         return classification_id
@@ -915,23 +912,22 @@ class TranscendentalCryptoClassifier:
         else:
             reason = f"Cambio de puntuación ({change_magnitude:.1f}%)"
         
-        async def insert_history():
-            return (
-                insert(ClassificationHistory).values(
-                    classification_id=classification_id,
-                    previous_final_score=old_score,
-                    new_final_score=new_score,
-                    previous_hot_rating=old_hot,
-                    new_hot_rating=new_hot,
-                    capital_base=self.current_capital,
-                    market_condition=market_condition,
-                    change_magnitude=change_magnitude,
-                    change_reason=reason,
-                    change_date=datetime.now()
-                )
-            ), []
+        insert_history_query = (
+            insert(ClassificationHistory).values(
+                classification_id=classification_id,
+                previous_final_score=old_score,
+                new_final_score=new_score,
+                previous_hot_rating=old_hot,
+                new_hot_rating=new_hot,
+                capital_base=self.current_capital,
+                market_condition=market_condition,
+                change_magnitude=change_magnitude,
+                change_reason=reason,
+                change_date=datetime.now()
+            )
+        ), []
         
-        await transcendental_db.execute_query(insert_history)
+        await transcendental_db.execute_query(insert_history_query)
     
     async def _store_capital_scale_analysis(
         self,
@@ -952,61 +948,58 @@ class TranscendentalCryptoClassifier:
             saturation_point: Punto de saturación
         """
         # Verificar si ya existe un análisis reciente (< 7 días)
-        async def check_recent_analysis():
-            return (
-                select(CapitalScaleEffect)
-                .where(
-                    and_(
-                        CapitalScaleEffect.cryptocurrency_id == crypto_id,
-                        CapitalScaleEffect.analysis_date > datetime.now() - timedelta(days=7)
-                    )
+        check_recent_query = (
+            select(CapitalScaleEffect)
+            .where(
+                and_(
+                    CapitalScaleEffect.cryptocurrency_id == crypto_id,
+                    CapitalScaleEffect.analysis_date > datetime.now() - timedelta(days=7)
                 )
-                .limit(1)
-            ), []
+            )
+            .limit(1)
+        ), []
         
-        recent = await transcendental_db.execute_query(check_recent_analysis)
+        recent = await transcendental_db.execute_query(check_recent_query)
         
         if recent:
             # Existe análisis reciente, actualizarlo
             analysis_id = recent[0].id
             
-            async def update_analysis():
-                return (
-                    update(CapitalScaleEffect)
-                    .where(CapitalScaleEffect.id == analysis_id)
-                    .values(
-                        score_10k=scores_by_capital.get("10000", 0.0),
-                        score_100k=scores_by_capital.get("100000", 0.0),
-                        score_1m=scores_by_capital.get("1000000", 0.0),
-                        score_10m=scores_by_capital.get("10000000", 0.0),
-                        scale_sensitivity=scale_sensitivity,
-                        max_effective_capital=saturation_point,
-                        limiting_factor=limiting_factor,
-                        saturation_point=saturation_point,
-                        analysis_date=datetime.now()
-                    )
-                ), []
+            update_query = (
+                update(CapitalScaleEffect)
+                .where(CapitalScaleEffect.id == analysis_id)
+                .values(
+                    score_10k=scores_by_capital.get("10000", 0.0),
+                    score_100k=scores_by_capital.get("100000", 0.0),
+                    score_1m=scores_by_capital.get("1000000", 0.0),
+                    score_10m=scores_by_capital.get("10000000", 0.0),
+                    scale_sensitivity=scale_sensitivity,
+                    max_effective_capital=saturation_point,
+                    limiting_factor=limiting_factor,
+                    saturation_point=saturation_point,
+                    analysis_date=datetime.now()
+                )
+            ), []
             
-            await transcendental_db.execute_query(update_analysis)
+            await transcendental_db.execute_query(update_query)
         else:
             # No existe, crear nuevo análisis
-            async def insert_analysis():
-                return (
-                    insert(CapitalScaleEffect).values(
-                        cryptocurrency_id=crypto_id,
-                        score_10k=scores_by_capital.get("10000", 0.0),
-                        score_100k=scores_by_capital.get("100000", 0.0),
-                        score_1m=scores_by_capital.get("1000000", 0.0),
-                        score_10m=scores_by_capital.get("10000000", 0.0),
-                        scale_sensitivity=scale_sensitivity,
-                        max_effective_capital=saturation_point,
-                        limiting_factor=limiting_factor,
-                        saturation_point=saturation_point,
-                        analysis_date=datetime.now()
-                    )
-                ), []
+            insert_query = (
+                insert(CapitalScaleEffect).values(
+                    cryptocurrency_id=crypto_id,
+                    score_10k=scores_by_capital.get("10000", 0.0),
+                    score_100k=scores_by_capital.get("100000", 0.0),
+                    score_1m=scores_by_capital.get("1000000", 0.0),
+                    score_10m=scores_by_capital.get("10000000", 0.0),
+                    scale_sensitivity=scale_sensitivity,
+                    max_effective_capital=saturation_point,
+                    limiting_factor=limiting_factor,
+                    saturation_point=saturation_point,
+                    analysis_date=datetime.now()
+                )
+            ), []
             
-            await transcendental_db.execute_query(insert_analysis)
+            await transcendental_db.execute_query(insert_query)
 
 
 # Instancia global del clasificador
