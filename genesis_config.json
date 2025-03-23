@@ -7,7 +7,7 @@
     },
     "classifier_config": {
         "capital_inicial": 10000.0,
-        "modo_trascendental": true,
+        "modo_trascendental": "SINGULARITY_V4",
         "timeframes": [
             "1d",
             "4h",
@@ -19,12 +19,12 @@
     "risk_config": {
         "capital_inicial": 10000.0,
         "nivel_proteccion": 0.8,
-        "modo_trascendental": true
+        "modo_trascendental": "SINGULARITY_V4"
     },
     "performance_config": {
         "capital_inicial": 10000.0,
         "ventana_calculo": 30,
-        "modo_trascendental": true
+        "modo_trascendental": "SINGULARITY_V4"
     },
     "scaling_config": {
         "initial_capital": 10000.0,
