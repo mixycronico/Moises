@@ -1,184 +1,204 @@
 """
-Inicializador central para la base de datos del Sistema Genesis.
+Inicializador de base de datos para el Sistema Genesis.
 
-Este módulo proporciona funciones para inicializar y configurar
-correctamente todas las conexiones de base de datos utilizadas en
-el sistema Genesis, garantizando la consistencia y resiliencia.
+Este módulo proporciona funciones para inicializar la conexión
+a la base de datos y configurarla para su uso con el sistema.
 """
+
 import logging
+import os
 import asyncio
-import time
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 
-from genesis.db.config import get_database_url, get_db_config
-# Importar extensiones para TranscendentalDatabase
-from genesis.db.transcendental_extension import initialize_extensions
-from genesis.db.base import db_manager
-from genesis.db.transcendental_database import transcendental_db
+from .timescaledb_adapter import TimescaleDBManager
+from .db_integration import DatabaseAdapter
 
-# Configuración de logging central
-logger = logging.getLogger("genesis.db.initializer")
+# Singleton para mantener la instancia global
+_db_adapter = None
+_db_manager = None
+_initialized = False
 
-async def initialize_database(config: Optional[Dict[str, Any]] = None) -> bool:
+def initialize_database(dsn: Optional[str] = None) -> DatabaseAdapter:
     """
-    Inicializar todas las conexiones de base de datos del sistema.
-    
-    Esta función centraliza la inicialización de la base de datos,
-    configurando tanto el db_manager como la transcendental_db.
+    Inicializar adaptador de base de datos.
     
     Args:
-        config: Configuración personalizada opcional
+        dsn: Cadena de conexión (opcional)
         
     Returns:
-        True si la inicialización fue exitosa, False en caso contrario
+        Adaptador de base de datos configurado
     """
+    global _db_adapter, _db_manager, _initialized
+    
+    logger = logging.getLogger(__name__)
+    
+    # Si ya está inicializado, devolver instancia existente
+    if _initialized and _db_adapter:
+        logger.info("Base de datos ya inicializada")
+        return _db_adapter
+    
+    # DSN para conexión a PostgreSQL
+    if not dsn:
+        dsn = os.environ.get('DATABASE_URL')
+        if not dsn:
+            logger.warning("Variable DATABASE_URL no definida, usando conexión por defecto")
+            dsn = "postgresql://postgres:postgres@localhost:5432/genesis"
+    
+    # Si dsn es un diccionario, extraer la URL
+    if isinstance(dsn, dict):
+        dsn_url = dsn.get('url', os.environ.get('DATABASE_URL', "postgresql://postgres:postgres@localhost:5432/genesis"))
+        logger.info(f"Iniciando conexión a base de datos (desde config): {dsn_url.split('@')[-1] if '@' in dsn_url else dsn_url}")
+        dsn = dsn_url
+    else:
+        # Es una cadena normal
+        logger.info(f"Iniciando conexión a base de datos: {dsn.split('@')[-1] if '@' in dsn else dsn}")
+    
     try:
-        logger.info("Iniciando inicialización de base de datos")
-        start_time = time.time()
+        # Crear gestor de TimescaleDB
+        db_manager = TimescaleDBManager(
+            dsn=dsn,
+            max_workers=2,
+            retry_attempts=3,
+            enable_checkpoints=True
+        )
         
-        # Obtener configuración, usando la personalizada si se proporcionó
-        if config is None:
-            config = {}
+        # Crear adaptador
+        db_adapter = DatabaseAdapter(db_manager=db_manager)
         
-        # Configuración del pool con valores por defecto
-        db_config = get_db_config(config)
-        pool_size = db_config.get("pool_size", 20)
-        max_overflow = db_config.get("max_overflow", 40)
-        pool_recycle = db_config.get("pool_recycle", 300)
+        # Guardar instancias globales
+        _db_manager = db_manager
+        _db_adapter = db_adapter
+        _initialized = True
         
-        # Configurar DatabaseManager
-        db_manager.pool_size = pool_size
-        db_manager.max_overflow = max_overflow
-        db_manager.pool_recycle = pool_recycle
+        logger.info("Base de datos inicializada correctamente")
         
-        # Configurar URL de base de datos
-        db_url = config.get("database_url", get_database_url())
-        # Configurar URL en db_manager si tiene el atributo o método adecuado
-        if hasattr(db_manager, 'setup_url'):
-            db_manager.setup_url(db_url)
-        elif hasattr(db_manager, 'database_url'):
-            db_manager.database_url = db_url
-        elif hasattr(db_manager, 'set_url'):
-            db_manager.set_url(db_url)
-        # En cualquier caso, la URL se usará en setup()
+        return db_adapter
         
-        # Configurar y verificar conexiones
-        # No intentamos configurar database_url directamente, usamos métodos públicos
+    except Exception as e:
+        logger.error(f"Error inicializando base de datos: {str(e)}")
+        raise
+
+def get_db_adapter() -> Optional[DatabaseAdapter]:
+    """
+    Obtener adaptador de base de datos global.
+    
+    Returns:
+        Adaptador de base de datos o None si no está inicializado
+    """
+    global _db_adapter
+    return _db_adapter
+
+def get_db_manager() -> Optional[TimescaleDBManager]:
+    """
+    Obtener gestor de TimescaleDB global.
+    
+    Returns:
+        Gestor de TimescaleDB o None si no está inicializado
+    """
+    global _db_manager
+    return _db_manager
+
+def shutdown_database() -> bool:
+    """
+    Cerrar conexiones a la base de datos.
+    
+    Returns:
+        True si se cerró correctamente
+    """
+    global _db_adapter, _db_manager, _initialized
+    
+    logger = logging.getLogger(__name__)
+    
+    if not _initialized:
+        logger.warning("Base de datos no inicializada")
+        return False
+    
+    try:
+        # Cerrar adaptador
+        if _db_adapter:
+            _db_adapter.shutdown()
         
-        # Inicializar motor principal
-        db_manager.setup()
+        # Restablecer variables globales
+        _db_adapter = None
+        _db_manager = None
+        _initialized = False
         
-        # Para transcendental_db usamos métodos seguros
-        if hasattr(transcendental_db, 'configure'):
-            transcendental_db.configure(db_url)
-        elif hasattr(transcendental_db, 'set_connection_url'):
-            transcendental_db.set_connection_url(db_url)
-        
-        # Verificar conexión
-        connection_status = await test_connection()
-        if not connection_status:
-            logger.error("No se pudo establecer conexión con la base de datos")
-            return False
-        
-        # Crear tablas si es necesario
-        await db_manager.create_all_tables()
-        
-        end_time = time.time()
-        logger.info(f"Base de datos inicializada con éxito en {end_time - start_time:.2f} segundos")
+        logger.info("Base de datos cerrada correctamente")
         return True
         
     except Exception as e:
-        logger.error(f"Error durante la inicialización de la base de datos: {str(e)}")
+        logger.error(f"Error cerrando base de datos: {str(e)}")
         return False
 
-async def test_connection() -> bool:
+async def test_database_connection(dsn: Optional[str] = None) -> Dict[str, Any]:
     """
-    Probar la conexión a la base de datos.
+    Probar conexión a la base de datos.
     
+    Args:
+        dsn: Cadena de conexión (opcional)
+        
     Returns:
-        True si la conexión es exitosa, False en caso contrario
+        Diccionario con resultado de la prueba
     """
-    try:
-        if not hasattr(db_manager, "engine") or db_manager.engine is None:
-            logger.error("Motor de base de datos no inicializado")
-            return False
-            
-        # Intentar ejecutar una consulta simple
-        async with db_manager.engine.connect() as conn:
-            # Consultamos la versión de PostgreSQL
-            result = await conn.execute("SELECT version()")
-            version = await result.scalar()
-            
-        if version:
-            logger.info(f"Conexión a base de datos exitosa: {version}")
-            return True
-        else:
-            logger.warning("Conexión a base de datos establecida pero sin datos")
-            return True
-            
-    except Exception as e:
-        logger.error(f"Error al probar conexión a base de datos: {str(e)}")
-        return False
-
-async def get_db_status() -> Dict[str, Any]:
-    """
-    Obtener el estado actual de la base de datos.
+    logger = logging.getLogger(__name__)
     
-    Returns:
-        Diccionario con información del estado
-    """
-    status = {
-        "connected": False,
-        "pool_status": {},
-        "transcendental_db_status": {},
-        "table_count": 0
-    }
+    if not dsn:
+        dsn = os.environ.get('DATABASE_URL')
+        if not dsn:
+            logger.warning("Variable DATABASE_URL no definida, usando conexión por defecto")
+            dsn = "postgresql://postgres:postgres@localhost:5432/genesis"
+    
+    # Si dsn es un diccionario, extraer la URL
+    if isinstance(dsn, dict):
+        dsn_url = dsn.get('url', os.environ.get('DATABASE_URL', "postgresql://postgres:postgres@localhost:5432/genesis"))
+        logger.info(f"Probando conexión a base de datos (desde config): {dsn_url.split('@')[-1] if '@' in dsn_url else dsn_url}")
+        dsn = dsn_url
+    else:
+        # Es una cadena normal
+        logger.info(f"Probando conexión a base de datos: {dsn.split('@')[-1] if '@' in dsn else dsn}")
     
     try:
-        # Verificar conexión
-        status["connected"] = await test_connection()
+        # Crear gestor temporal
+        db_manager = TimescaleDBManager(dsn=dsn)
         
-        # Obtener estadísticas del pool
-        if hasattr(db_manager, "engine") and db_manager.engine is not None:
-            if hasattr(db_manager.engine, "pool"):
-                pool = db_manager.engine.pool
-                status["pool_status"] = {
-                    "size": getattr(pool, "size", 0),
-                    "overflow": getattr(pool, "overflow", 0),
-                    "checkedin": getattr(pool, "checkedin", 0),
-                    "checkedout": getattr(pool, "checkedout", 0)
-                }
+        # Probar conexión
+        conn = db_manager.connect()
         
-        # Obtener estado de transcendental_db
-        status["transcendental_db_status"] = transcendental_db.get_stats()
+        if not conn:
+            return {
+                'success': False,
+                'message': "No se pudo establecer conexión a la base de datos"
+            }
         
-        # Contar tablas en la base de datos
-        if status["connected"]:
-            try:
-                async with db_manager.engine.connect() as conn:
-                    result = await conn.execute(
-                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
-                    )
-                    status["table_count"] = await result.scalar()
-            except Exception as e:
-                logger.warning(f"Error al contar tablas: {str(e)}")
-                status["table_count"] = -1
-    
+        # Cerrar conexión
+        conn.close()
+        
+        # Intentar crear hipertablas
+        tables_ok = db_manager.setup_hypertables()
+        
+        # Crear adaptador temporal
+        db_adapter = DatabaseAdapter(db_manager=db_manager, initialize=False)
+        
+        # Probar consulta
+        query_result = await db_adapter.fetch("SELECT NOW() as current_time", as_dict=True)
+        
+        current_time = query_result[0]['current_time'] if query_result else None
+        
+        # Cerrar adaptador
+        db_adapter.shutdown()
+        
+        return {
+            'success': True,
+            'message': "Conexión exitosa a la base de datos",
+            'details': {
+                'current_time': current_time,
+                'tables_configured': tables_ok
+            }
+        }
+        
     except Exception as e:
-        logger.error(f"Error al obtener estado de base de datos: {str(e)}")
-    
-    return status
-
-async def cleanup_database() -> None:
-    """
-    Limpiar y cerrar conexiones de base de datos.
-    
-    Esta función debe llamarse al finalizar la aplicación para cerrar
-    correctamente todas las conexiones.
-    """
-    try:
-        if hasattr(db_manager, "engine") and db_manager.engine is not None:
-            await db_manager.engine.dispose()
-            logger.info("Conexiones de base de datos cerradas correctamente")
-    except Exception as e:
-        logger.error(f"Error al cerrar conexiones de base de datos: {str(e)}")
+        logger.error(f"Error probando conexión a base de datos: {str(e)}")
+        return {
+            'success': False,
+            'message': f"Error: {str(e)}"
+        }
