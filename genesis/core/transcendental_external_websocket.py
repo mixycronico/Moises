@@ -22,8 +22,8 @@ import time
 import asyncio
 import random
 from typing import Dict, Any, List, Optional, Set, Callable, Coroutine, Tuple
-from aiohttp import web
-import aiohttp
+import websockets
+from websockets.server import WebSocketServerProtocol as WebSocket
 
 # Configuración de logging
 logger = logging.getLogger("Genesis.ExternalWS")
@@ -45,9 +45,9 @@ class TranscendentalMechanism:
             "last_invocation": None
         }
         
-    def _register_invocation(self, success: bool = True) -> None:
+    async def _register_invocation(self, success: bool = True) -> None:
         """
-        Registrar invocación del mecanismo (versión no asíncrona).
+        Registrar invocación del mecanismo de forma asíncrona.
         
         Args:
             success: Si la invocación fue exitosa
@@ -61,6 +61,9 @@ class TranscendentalMechanism:
                 0.95 * self.stats["success_rate"] + 
                 (0.05 * (100.0 if success else 0.0))
             )
+        
+        # Permitir cambio de contexto para evitar bloqueos
+        await asyncio.sleep(0)
     
     def get_stats(self) -> Dict[str, Any]:
         """
