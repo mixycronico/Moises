@@ -1101,10 +1101,33 @@ class ReinforcementEnsembleStrategy(Strategy):
                 else:
                     try:
                         # Preparar datos para análisis DeepSeek
+                        # Convertir arrays numpy a listas para evitar problemas de serialización
+                        serializable_ohlcv = {}
+                        for k, v in ohlcv.items():
+                            if hasattr(v, 'tolist'):  # Si es un array numpy
+                                serializable_ohlcv[k] = v.tolist()
+                            else:
+                                serializable_ohlcv[k] = v
+                        
+                        # Serializar indicadores técnicos
+                        serializable_indicators = {}
+                        for k, v in indicators.items():
+                            if hasattr(v, 'tolist'):  # Si es un array numpy
+                                serializable_indicators[k] = v.tolist()
+                            elif isinstance(v, dict):  # Si es un diccionario anidado
+                                serializable_indicators[k] = {}
+                                for k2, v2 in v.items():
+                                    if hasattr(v2, 'tolist'):
+                                        serializable_indicators[k][k2] = v2.tolist()
+                                    else:
+                                        serializable_indicators[k][k2] = v2
+                            else:
+                                serializable_indicators[k] = v
+                        
                         market_data = {
                             'symbol': symbol,
-                            'ohlcv': ohlcv,
-                            'indicators': indicators,
+                            'ohlcv': serializable_ohlcv,
+                            'indicators': serializable_indicators,
                             'technical_analysis': analysis_results,
                             'agent_predictions': agent_predictions,
                             'sentiment': sentiment_data,

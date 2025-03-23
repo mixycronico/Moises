@@ -124,47 +124,74 @@ class DeepSeekIntegrator:
         """
         # Verificar si DeepSeek está habilitado
         if not deepseek_config.is_enabled():
-            return {
-                "error": "DeepSeek está desactivado en la configuración",
-                "status": "disabled",
-                "timestamp": datetime.now().isoformat()
-            }
+            logger.info("DeepSeek está desactivado, generando análisis por defecto")
+            return self._generate_default_trading_opportunities(market_data)
             
         # Verificar si el integrador está inicializado
         if not self.initialized:
             success = await self.initialize()
             if not success:
-                return {"error": "No se pudo inicializar DeepSeekIntegrator"}
+                logger.warning("No se pudo inicializar DeepSeekIntegrator, generando análisis por defecto")
+                return self._generate_default_trading_opportunities(market_data)
         
         try:
+            # Verificar que los datos sean serializables
+            try:
+                # Intentar serializar los datos para detectar problemas temprano
+                json.dumps(market_data)
+                if news_data:
+                    json.dumps(news_data)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Datos no serializables: {str(e)}")
+                # Convertir a formato serializable
+                market_data = self._ensure_serializable(market_data)
+                if news_data:
+                    news_data = self._ensure_serializable(news_data)
+            
             # 1. Realizar análisis de condiciones de mercado
             market_analysis = await self.deepseek_model.analyze_market_conditions(market_data)
+            
+            # Verificar si hay error en el análisis de mercado
+            if isinstance(market_analysis, dict) and "error" in market_analysis:
+                logger.warning(f"Error en análisis de mercado: {market_analysis['error']}")
+                # Intentar continuar con datos por defecto
+                market_analysis = self._generate_default_market_analysis(market_data)
             
             # 2. Analizar sentimiento si hay datos de noticias
             sentiment_analysis = None
             if news_data:
                 sentiment_analysis = await self.deepseek_model.analyze_sentiment(news_data)
+                # Verificar si hay error en el análisis de sentimiento
+                if isinstance(sentiment_analysis, dict) and "error" in sentiment_analysis:
+                    logger.warning(f"Error en análisis de sentimiento: {sentiment_analysis['error']}")
+                    sentiment_analysis = self._generate_default_sentiment_analysis()
             
             # 3. Generar estrategia de trading
             # Ajustar perfil de riesgo basado en el análisis de mercado y sentimiento
             risk_profile = "moderate"
-            if market_analysis.get("risk_assessment") == "high":
+            if isinstance(market_analysis, dict) and market_analysis.get("risk_assessment") == "high":
                 risk_profile = "conservative"
-            elif market_analysis.get("risk_assessment") == "low":
+            elif isinstance(market_analysis, dict) and market_analysis.get("risk_assessment") == "low":
                 risk_profile = "aggressive"
             
-            if sentiment_analysis and sentiment_analysis.get("sentiment_score"):
+            if sentiment_analysis and isinstance(sentiment_analysis, dict) and sentiment_analysis.get("sentiment_score"):
                 sentiment_score = sentiment_analysis.get("sentiment_score")
-                if sentiment_score > 50:
-                    risk_profile = "aggressive" if risk_profile != "conservative" else "moderate"
-                elif sentiment_score < -50:
-                    risk_profile = "conservative" if risk_profile != "aggressive" else "moderate"
+                if isinstance(sentiment_score, (int, float)):
+                    if sentiment_score > 50:
+                        risk_profile = "aggressive" if risk_profile != "conservative" else "moderate"
+                    elif sentiment_score < -50:
+                        risk_profile = "conservative" if risk_profile != "aggressive" else "moderate"
             
             trading_strategy = await self.deepseek_model.generate_trading_strategy(
                 market_data,
                 risk_profile=risk_profile,
                 time_horizon="medium"
             )
+            
+            # Verificar si hay error en la estrategia de trading
+            if isinstance(trading_strategy, dict) and "error" in trading_strategy:
+                logger.warning(f"Error en generación de estrategia: {trading_strategy['error']}")
+                trading_strategy = self._generate_default_trading_strategy(market_data, risk_profile)
             
             # 4. Combinar todos los análisis en un resultado unificado
             opportunities = {
@@ -177,8 +204,16 @@ class DeepSeekIntegrator:
             }
             
             # 5. Extraer y combinar recomendaciones
-            if trading_strategy and "trade_recommendations" in trading_strategy:
+            if isinstance(trading_strategy, dict) and "trade_recommendations" in trading_strategy:
                 opportunities["combined_recommendations"] = trading_strategy["trade_recommendations"]
+            elif isinstance(trading_strategy, dict) and "recommendations" in trading_strategy:
+                opportunities["combined_recommendations"] = trading_strategy["recommendations"]
+            
+            # Si no hay recomendaciones, generar una por defecto
+            if not opportunities["combined_recommendations"]:
+                symbol = market_data.get('symbol', 'desconocido')
+                logger.warning(f"No hay recomendaciones para {symbol}, generando una por defecto")
+                opportunities["combined_recommendations"] = self._generate_default_recommendations(market_data)
             
             # 6. Guardar resultados para uso futuro
             self.last_analysis = market_analysis
@@ -188,14 +223,132 @@ class DeepSeekIntegrator:
             
             # 7. Opcionalmente, guardar en la base de datos
             if self.database:
-                await self._store_analysis_in_db(opportunities)
+                try:
+                    await self._store_analysis_in_db(opportunities)
+                except Exception as db_error:
+                    logger.warning(f"Error al guardar análisis en base de datos: {str(db_error)}")
             
             logger.info(f"Análisis de oportunidades de trading completado con {len(opportunities.get('combined_recommendations', []))} recomendaciones")
             return opportunities
             
         except Exception as e:
             logger.error(f"Error en analyze_trading_opportunities: {str(e)}")
-            return {"error": str(e)}
+            import traceback
+            logger.debug(f"Detalle del error: {traceback.format_exc()}")
+            return self._generate_default_trading_opportunities(market_data)
+    
+    def _generate_default_trading_opportunities(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Generar análisis de oportunidades por defecto cuando DeepSeek no está disponible.
+        
+        Args:
+            market_data: Datos del mercado
+            
+        Returns:
+            Análisis por defecto
+        """
+        symbol = market_data.get('symbol', 'desconocido')
+        logger.info(f"Generando análisis de oportunidades por defecto para {symbol}")
+        
+        current_price = None
+        try:
+            if 'ohlcv' in market_data and 'close' in market_data['ohlcv']:
+                close_data = market_data['ohlcv']['close']
+                if close_data and len(close_data) > 0:
+                    current_price = close_data[-1]
+        except Exception:
+            pass
+        
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "market_analysis": self._generate_default_market_analysis(market_data),
+            "sentiment_analysis": self._generate_default_sentiment_analysis(),
+            "trading_strategy": self._generate_default_trading_strategy(market_data, "moderate"),
+            "intelligence_factor": self.intelligence_factor,
+            "combined_recommendations": self._generate_default_recommendations(market_data)
+        }
+    
+    def _generate_default_market_analysis(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Generar análisis de mercado por defecto."""
+        symbol = market_data.get('symbol', 'desconocido')
+        current_price = None
+        
+        try:
+            if 'ohlcv' in market_data and 'close' in market_data['ohlcv']:
+                close_data = market_data['ohlcv']['close']
+                if close_data and len(close_data) > 0:
+                    current_price = close_data[-1]
+        except Exception:
+            pass
+        
+        return {
+            "price_action": f"Análisis automático para {symbol}",
+            "trend": "neutral",
+            "risk_assessment": "moderate",
+            "strength": 5,
+            "key_levels": {
+                "support": [
+                    current_price * 0.95 if current_price else 0,
+                    current_price * 0.90 if current_price else 0
+                ],
+                "resistance": [
+                    current_price * 1.05 if current_price else 0,
+                    current_price * 1.10 if current_price else 0
+                ]
+            },
+            "volatility": "medium",
+            "patterns_detected": ["No se detectaron patrones claros"]
+        }
+    
+    def _generate_default_sentiment_analysis(self) -> Dict[str, Any]:
+        """Generar análisis de sentimiento por defecto."""
+        return {
+            "sentiment_score": 0,
+            "sentiment_label": "neutral",
+            "confidence": 0.5,
+            "source_quality": "medium",
+            "topics": ["mercado general"],
+            "summary": "No hay datos de sentimiento disponibles"
+        }
+    
+    def _generate_default_trading_strategy(self, market_data: Dict[str, Any], risk_profile: str) -> Dict[str, Any]:
+        """Generar estrategia de trading por defecto."""
+        symbol = market_data.get('symbol', 'desconocido')
+        
+        return {
+            "name": f"Estrategia por defecto para {symbol}",
+            "description": "Estrategia generada automáticamente como respaldo",
+            "risk_profile": risk_profile,
+            "time_horizon": "medium",
+            "indicators_used": ["tendencia", "soporte/resistencia"],
+            "confidence": 0.5,
+            "trade_recommendations": self._generate_default_recommendations(market_data)
+        }
+    
+    def _generate_default_recommendations(self, market_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Generar recomendaciones por defecto."""
+        symbol = market_data.get('symbol', 'desconocido')
+        current_price = None
+        
+        try:
+            if 'ohlcv' in market_data and 'close' in market_data['ohlcv']:
+                close_data = market_data['ohlcv']['close']
+                if close_data and len(close_data) > 0:
+                    current_price = close_data[-1]
+        except Exception:
+            pass
+        
+        return [{
+            "action": "hold",
+            "symbol": symbol,
+            "confidence": 0.5,
+            "timeframe": "medium",
+            "rationale": "Recomendación generada automáticamente por sistema de respaldo",
+            "risk_level": "medium",
+            "suggested_entry": current_price,
+            "suggested_stop_loss": current_price * 0.95 if current_price else None,
+            "suggested_take_profit": current_price * 1.05 if current_price else None
+        }]
     
     async def enhance_trading_signals(self, 
                                     signals: List[Dict[str, Any]],
@@ -213,15 +366,37 @@ class DeepSeekIntegrator:
         Returns:
             Señales de trading mejoradas
         """
+        # Verificar si DeepSeek está habilitado
+        if not deepseek_config.is_enabled():
+            logger.info("DeepSeek está desactivado en la configuración, devolviendo señales originales")
+            return signals
+            
+        # Verificar inicialización
         if not self.initialized:
             success = await self.initialize()
             if not success:
-                return signals  # Devuelve las señales originales si hay error
+                logger.warning("No se pudo inicializar DeepSeekIntegrator, devolviendo señales originales")
+                return signals
         
+        # Verificar señales
         if not signals:
+            logger.warning("No hay señales para mejorar")
             return []
         
         try:
+            # Verificar que los datos de mercado sean serializables
+            try:
+                # Intentar serializar los datos para probar si son JSON compatibles
+                json.dumps(market_data)
+                json.dumps(signals)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Datos de mercado o señales no serializables: {str(e)}")
+                # Intentar convertir los datos a un formato serializable
+                serializable_market_data = self._ensure_serializable(market_data)
+                serializable_signals = self._ensure_serializable(signals)
+                market_data = serializable_market_data
+                signals = serializable_signals
+            
             # Preparar prompt para DeepSeek
             system_prompt = """
             Eres un experto en análisis de señales de trading para criptomonedas. Tu tarea es evaluar 
@@ -265,6 +440,11 @@ class DeepSeekIntegrator:
                 include_context=False
             )
             
+            # Verificar si la respuesta contiene un error
+            if response.startswith("Error:"):
+                logger.warning(f"Error en consulta a DeepSeek: {response}")
+                return self._apply_default_enhancements(signals)
+            
             # Extraer el JSON de la respuesta
             json_start = response.find('{')
             json_end = response.rfind('}') + 1
@@ -275,37 +455,120 @@ class DeepSeekIntegrator:
                     enhanced_data = json.loads(json_str)
                     enhanced_signals = enhanced_data.get("enhanced_signals", [])
                     
+                    # Verificar que haya señales mejoradas
+                    if not enhanced_signals:
+                        logger.warning("No se encontraron señales mejoradas en la respuesta")
+                        return self._apply_default_enhancements(signals)
+                    
                     # Fusionar las señales originales con las mejoras
                     result_signals = []
                     for enhanced in enhanced_signals:
-                        original = enhanced.get("original_signal", {})
+                        original_signal = enhanced.get("original_signal", {})
+                        
+                        # Si no hay señal original, intentar encontrar coincidencia en el conjunto original
+                        if not original_signal:
+                            # Usar la señal original si solo hay una
+                            if len(signals) == 1:
+                                original_signal = signals[0].copy()
+                            # De lo contrario, la ignoramos
+                            else:
+                                logger.warning("No se encontró señal original en la respuesta mejorada")
+                                continue
+                                
+                        # Si original_signal es el objeto completo, usarlo. Si no, buscar coincidencia
+                        if all(key in original_signal for key in ["symbol", "signal"]):
+                            # Ya tiene los datos necesarios
+                            pass
+                        else:
+                            # Buscar en señales originales
+                            for signal in signals:
+                                # Usar la primera señal como fallback si no hay coincidencia clara
+                                original_signal = signal.copy()
+                                break
+                        
                         # Añadir las mejoras al original
-                        original["deepseek_confidence"] = enhanced.get("confidence")
-                        original["deepseek_commentary"] = enhanced.get("commentary")
-                        original["deepseek_risks"] = enhanced.get("additional_risks")
-                        original["deepseek_opportunities"] = enhanced.get("additional_opportunities")
+                        original_signal["deepseek_confidence"] = enhanced.get("confidence", 0.5)
+                        original_signal["deepseek_commentary"] = enhanced.get("commentary", "")
+                        original_signal["deepseek_risks"] = enhanced.get("additional_risks", [])
+                        original_signal["deepseek_opportunities"] = enhanced.get("additional_opportunities", [])
                         
                         # Actualizar niveles si se proporcionan mejoras
                         if enhanced.get("enhanced_take_profit"):
-                            original["enhanced_take_profit"] = enhanced.get("enhanced_take_profit")
+                            original_signal["enhanced_take_profit"] = enhanced.get("enhanced_take_profit")
                         if enhanced.get("enhanced_stop_loss"):
-                            original["enhanced_stop_loss"] = enhanced.get("enhanced_stop_loss")
+                            original_signal["enhanced_stop_loss"] = enhanced.get("enhanced_stop_loss")
                         
-                        result_signals.append(original)
+                        result_signals.append(original_signal)
                     
                     logger.info(f"Señales de trading mejoradas: {len(result_signals)} señales procesadas")
                     return result_signals
                 except json.JSONDecodeError as e:
                     logger.error(f"Error al decodificar respuesta JSON: {str(e)}")
                     logger.debug(f"Respuesta recibida: {response}")
-                    return signals  # Devuelve las señales originales si hay error
+                    return self._apply_default_enhancements(signals)
             else:
                 logger.error("No se encontró JSON en la respuesta")
-                return signals
+                return self._apply_default_enhancements(signals)
             
         except Exception as e:
             logger.error(f"Error en enhance_trading_signals: {str(e)}")
-            return signals  # Devuelve las señales originales si hay error
+            import traceback
+            logger.debug(f"Detalle del error: {traceback.format_exc()}")
+            return self._apply_default_enhancements(signals)
+            
+    def _ensure_serializable(self, data: Any) -> Any:
+        """
+        Asegurar que los datos sean serializables para JSON.
+        
+        Args:
+            data: Datos a procesar
+            
+        Returns:
+            Datos serializables
+        """
+        if isinstance(data, dict):
+            result = {}
+            for key, value in data.items():
+                result[key] = self._ensure_serializable(value)
+            return result
+        elif isinstance(data, list):
+            return [self._ensure_serializable(item) for item in data]
+        elif hasattr(data, 'tolist'):
+            return data.tolist()
+        elif isinstance(data, (int, float, str, bool, type(None))):
+            return data
+        else:
+            # Intentar convertir a string como último recurso
+            try:
+                return str(data)
+            except:
+                return None
+                
+    def _apply_default_enhancements(self, signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Aplicar mejoras por defecto a las señales cuando DeepSeek no está disponible.
+        
+        Args:
+            signals: Señales originales
+            
+        Returns:
+            Señales con mejoras básicas
+        """
+        result = []
+        for signal in signals:
+            enhanced = signal.copy()
+            
+            # Añadir campos DeepSeek con valores por defecto
+            enhanced["deepseek_confidence"] = signal.get("confidence", 0.5)
+            enhanced["deepseek_commentary"] = "Análisis DeepSeek no disponible"
+            enhanced["deepseek_risks"] = ["Riesgo de volatilidad de mercado"]
+            enhanced["deepseek_opportunities"] = ["Oportunidad basada en análisis técnico"]
+            
+            # No modificar niveles de take profit o stop loss
+            result.append(enhanced)
+            
+        logger.info(f"Aplicadas mejoras por defecto a {len(result)} señales")
+        return result
     
     async def analyze_trading_performance(self, 
                                         trade_history: List[Dict[str, Any]],
