@@ -23,6 +23,7 @@ import sqlalchemy
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.sql import text
 
 from genesis.db.base import get_db_session
 
