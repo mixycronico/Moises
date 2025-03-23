@@ -250,45 +250,45 @@ class ReinforcementEnsembleStrategy(Strategy):
                             market_data=market_data,
                             news_data=news_data
                         )
-                    
-                    # Mejorar señales con DeepSeek
-                    if deepseek_analysis and 'error' not in deepseek_analysis:
-                        # Transformar la decisión original a formato de señal
-                        original_signal = [{
-                            'symbol': symbol,
-                            'signal': consensus_signal,
-                            'confidence': confidence,
-                            'risk_assessment': risk_assessment
-                        }]
                         
-                        # Obtener señales mejoradas
-                        enhanced_signals = await self.deepseek_integrator.enhance_trading_signals(
-                            signals=original_signal,
-                            market_data=market_data
-                        )
-                        
-                        if enhanced_signals and len(enhanced_signals) > 0:
-                            # Usar la primera señal mejorada (solo tenemos una)
-                            enhanced = enhanced_signals[0]
-                            logger.info(f"DeepSeek mejoró la señal para {symbol}: confianza ajustada de {confidence} a {enhanced.get('deepseek_confidence', confidence)}")
+                        # Mejorar señales con DeepSeek
+                        if deepseek_analysis and 'error' not in deepseek_analysis:
+                            # Transformar la decisión original a formato de señal
+                            original_signal = [{
+                                'symbol': symbol,
+                                'signal': consensus_signal,
+                                'confidence': confidence,
+                                'risk_assessment': risk_assessment
+                            }]
                             
-                            # Actualizar con las mejoras de DeepSeek
-                            consensus_signal = enhanced.get('signal', consensus_signal)
-                            confidence = enhanced.get('deepseek_confidence', confidence)
+                            # Obtener señales mejoradas
+                            enhanced_signals = await self.deepseek_integrator.enhance_trading_signals(
+                                signals=original_signal,
+                                market_data=market_data
+                            )
                             
-                            # Considerar niveles mejorados en la evaluación de riesgo
-                            if 'enhanced_stop_loss' in enhanced or 'enhanced_take_profit' in enhanced:
-                                risk_assessment = self._adjust_risk_with_deepseek(
-                                    risk_assessment, 
-                                    enhanced.get('enhanced_stop_loss'), 
-                                    enhanced.get('enhanced_take_profit')
-                                )
-                    else:
-                        logger.warning(f"Análisis DeepSeek no disponible o con error: {deepseek_analysis.get('error', 'Error desconocido')}")
+                            if enhanced_signals and len(enhanced_signals) > 0:
+                                # Usar la primera señal mejorada (solo tenemos una)
+                                enhanced = enhanced_signals[0]
+                                logger.info(f"DeepSeek mejoró la señal para {symbol}: confianza ajustada de {confidence} a {enhanced.get('deepseek_confidence', confidence)}")
+                                
+                                # Actualizar con las mejoras de DeepSeek
+                                consensus_signal = enhanced.get('signal', consensus_signal)
+                                confidence = enhanced.get('deepseek_confidence', confidence)
+                                
+                                # Considerar niveles mejorados en la evaluación de riesgo
+                                if 'enhanced_stop_loss' in enhanced or 'enhanced_take_profit' in enhanced:
+                                    risk_assessment = self._adjust_risk_with_deepseek(
+                                        risk_assessment, 
+                                        enhanced.get('enhanced_stop_loss'), 
+                                        enhanced.get('enhanced_take_profit')
+                                    )
+                        else:
+                            logger.warning(f"Análisis DeepSeek no disponible o con error: {deepseek_analysis.get('error', 'Error desconocido')}")
                     
-                except Exception as e:
-                    logger.warning(f"Error en análisis DeepSeek para {symbol}: {str(e)}")
-                    # Continuar con la estrategia normal si falla DeepSeek
+                    except Exception as e:
+                        logger.warning(f"Error en análisis DeepSeek para {symbol}: {str(e)}")
+                        # Continuar con la estrategia normal si falla DeepSeek
             
             # Tomar decisión final
             final_decision = self._make_final_decision(
