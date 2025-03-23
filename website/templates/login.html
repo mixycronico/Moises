@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Ingresar - Sistema Genesis{% endblock %}
+
+{% block additional_styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo" class="login-logo">
+            <h2>Acceso al Sistema</h2>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="login-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST" action="{{ url_for('login') }}" class="login-form">
+            <div class="form-group">
+                <label for="username">Usuario</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" name="username" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <div class="input-with-icon">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" name="password" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="role">Tipo de Usuario</label>
+                <div class="role-selector">
+                    <div class="role-option">
+                        <input type="radio" id="investor" name="role" value="investor" checked>
+                        <label for="investor">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Inversionista</span>
+                        </label>
+                    </div>
+                    <div class="role-option">
+                        <input type="radio" id="admin" name="role" value="admin">
+                        <label for="admin">
+                            <i class="fas fa-user-shield"></i>
+                            <span>Administrador</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary glow-button">Ingresar</button>
+            </div>
+        </form>
+        
+        <div class="system-status-indicator">
+            <div class="status-light {{ 'online' if system_status and system_status.get('success_rate') == 100 else 'offline' }}"></div>
+            <span>Sistema {{ 'Operativo' if system_status and system_status.get('success_rate') == 100 else 'En Mantenimiento' }}</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+{% endblock %}
