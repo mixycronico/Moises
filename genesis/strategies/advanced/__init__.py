@@ -1,57 +1,52 @@
 """
 Módulo de estrategias avanzadas para el Sistema Genesis.
 
-Este módulo contiene estrategias de trading de alta complejidad que integran múltiples
-componentes como Reinforcement Learning, indicadores avanzados, análisis de sentimiento,
-datos on-chain y simulaciones de Monte Carlo.
+Este paquete contiene implementaciones de estrategias de trading avanzadas
+que utilizan técnicas como aprendizaje por refuerzo, ensemble learning,
+análisis de sentimiento, y capacidades de DeepSeek para toma de decisiones.
 """
-from typing import Dict, Any, List, Type
 
-from genesis.strategies.base import Strategy
+from typing import Dict, Any, List, Optional, Union
 
-# Importamos la versión simplificada que no depende de gymnasium ni stable-baselines3
-from genesis.strategies.advanced.reinforcement_ensemble_simple import ReinforcementEnsembleStrategy
+# Importar estrategias avanzadas
+try:
+    from genesis.strategies.advanced.reinforcement_ensemble import ReinforcementEnsembleStrategy
+except ImportError:
+    from genesis.strategies.advanced.reinforcement_ensemble_simple import ReinforcementEnsembleStrategy
 
-# Diccionario de estrategias avanzadas disponibles
+# Diccionario con todas las estrategias avanzadas disponibles
 ADVANCED_STRATEGIES = {
-    'reinforcement_ensemble': ReinforcementEnsembleStrategy
+    "reinforcement_ensemble": ReinforcementEnsembleStrategy,
+    # Otras estrategias avanzadas aquí
 }
 
-def get_advanced_strategy(name: str, config: Dict[str, Any]) -> Strategy:
+def get_advanced_strategy(strategy_name: str, config: Dict[str, Any]) -> Optional[Any]:
     """
-    Obtener una instancia de estrategia avanzada por nombre.
+    Obtener una instancia de una estrategia avanzada por nombre.
     
     Args:
-        name: Nombre de la estrategia
+        strategy_name: Nombre de la estrategia
         config: Configuración para la estrategia
         
     Returns:
-        Instancia de la estrategia
-        
-    Raises:
-        ValueError: Si la estrategia no existe
+        Instancia de la estrategia o None si no existe
     """
-    if name not in ADVANCED_STRATEGIES:
-        raise ValueError(f"Estrategia avanzada '{name}' no encontrada. " 
-                         f"Opciones disponibles: {list(ADVANCED_STRATEGIES.keys())}")
-    
-    strategy_class = ADVANCED_STRATEGIES[name]
-    return strategy_class(config)
+    strategy_class = ADVANCED_STRATEGIES.get(strategy_name)
+    if strategy_class:
+        return strategy_class(config)
+    return None
 
 def list_advanced_strategies() -> List[str]:
     """
     Listar todas las estrategias avanzadas disponibles.
     
     Returns:
-        Lista de nombres de estrategias
+        Lista con los nombres de las estrategias
     """
     return list(ADVANCED_STRATEGIES.keys())
 
-def get_all_advanced_strategy_classes() -> Dict[str, Type[Strategy]]:
-    """
-    Obtener todas las clases de estrategias avanzadas.
-    
-    Returns:
-        Diccionario de nombres y clases
-    """
-    return ADVANCED_STRATEGIES
+__all__ = [
+    'ReinforcementEnsembleStrategy',
+    'get_advanced_strategy',
+    'list_advanced_strategies',
+]
