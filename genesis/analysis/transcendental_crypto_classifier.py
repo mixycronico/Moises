@@ -368,10 +368,9 @@ class TranscendentalCryptoClassifier:
         # Obtener todas las criptomonedas activas
         def get_active_cryptos_query():
             return (
-                select(Cryptocurrency)
-                .where(Cryptocurrency.is_active == True)
-                .order_by(Cryptocurrency.market_cap.desc())
-            ), []
+                "SELECT * FROM cryptocurrency WHERE is_active = :is_active ORDER BY market_cap DESC",
+                {"is_active": True}
+            )
         
         cryptos = await transcendental_db.execute_query(get_active_cryptos_query)
         
@@ -529,9 +528,9 @@ class TranscendentalCryptoClassifier:
         # Obtener criptomoneda y métricas
         async def get_crypto_query():
             return (
-                select(Cryptocurrency)
-                .where(Cryptocurrency.symbol == symbol)
-            ), []
+                "SELECT * FROM cryptocurrency WHERE symbol = :symbol",
+                {"symbol": symbol}
+            )
         
         cryptos = await transcendental_db.execute_query(get_crypto_query)
         if not cryptos:
@@ -680,11 +679,9 @@ class TranscendentalCryptoClassifier:
         """
         async def get_metrics_query():
             return (
-                select(CryptoMetrics)
-                .where(CryptoMetrics.cryptocurrency_id == crypto_id)
-                .order_by(CryptoMetrics.updated_at.desc())
-                .limit(1)
-            ), []
+                "SELECT * FROM crypto_metrics WHERE cryptocurrency_id = :crypto_id ORDER BY updated_at DESC LIMIT 1",
+                {"crypto_id": crypto_id}
+            )
         
         metrics_result = await transcendental_db.execute_query(get_metrics_query)
         
