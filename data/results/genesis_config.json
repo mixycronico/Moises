@@ -1,0 +1,86 @@
+{
+    "database_config": {
+        "connection_string": null,
+        "pool_size": 20,
+        "max_overflow": 40,
+        "singularity_level": 4
+    },
+    "classifier_config": {
+        "capital_inicial": 10000.0,
+        "modo_trascendental": "SINGULARITY_V4",
+        "timeframes": [
+            "1d",
+            "4h",
+            "1h"
+        ],
+        "limite_cryptos": 50,
+        "umbral_hot": 0.8
+    },
+    "risk_config": {
+        "capital_inicial": 10000.0,
+        "nivel_proteccion": 0.8,
+        "modo_trascendental": "SINGULARITY_V4"
+    },
+    "performance_config": {
+        "capital_inicial": 10000.0,
+        "ventana_calculo": 30,
+        "modo_trascendental": "SINGULARITY_V4"
+    },
+    "scaling_config": {
+        "initial_capital": 10000.0,
+        "min_efficiency": 0.5,
+        "default_model_type": "polynomial",
+        "polynomial_degree": 2,
+        "efficiency_threshold": 0.7,
+        "saturation_threshold": 0.05,
+        "auto_train": true,
+        "min_position_size": 100.0,
+        "max_position_percentage": 0.3,
+        "symbols": [
+            "BTC/USDT",
+            "ETH/USDT",
+            "SOL/USDT",
+            "ADA/USDT",
+            "DOT/USDT",
+            "AVAX/USDT",
+            "MATIC/USDT",
+            "LINK/USDT",
+            "XRP/USDT",
+            "LTC/USDT"
+        ]
+    },
+    "orchestrator_config": {
+        "min_performance_threshold": 0.5,
+        "eval_cooldown": 60,
+        "max_eval_failures": 5,
+        "strategies": {
+            "adaptive_scaling": {
+                "enabled": true,
+                "priority": 1,
+                "config": {
+                    "efficiency_threshold": 0.7,
+                    "rebalance_threshold": 0.1,
+                    "update_interval": 86400
+                }
+            },
+            "rsi": {
+                "enabled": true,
+                "priority": 2,
+                "config": {
+                    "period": 14,
+                    "overbought": 70,
+                    "oversold": 30
+                }
+            },
+            "moving_average": {
+                "enabled": true,
+                "priority": 3,
+                "config": {
+                    "short_period": 9,
+                    "long_period": 21
+                }
+            }
+        },
+        "default_strategy": "adaptive_scaling"
+    }
+}
