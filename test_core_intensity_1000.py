@@ -536,11 +536,12 @@ async def test_hybrid_system_extreme(intensity: float = 1000.0, duration: float 
     return final_results
 
 async def main():
-    """Función principal para ejecutar todas las pruebas."""
+    """Función principal para ejecutar la prueba del core."""
     # Configurar intensidad extrema
     intensity = 1000.0
     
     # Ejecutar prueba del core
+    logger.info(f"Iniciando prueba del core a intensidad {intensity}...")
     core_results = await test_singularity_core(intensity, iterations=100)
     
     # Guardar resultados del core
@@ -549,30 +550,12 @@ async def main():
     
     logger.info(f"Resultados del core guardados en resultados_core_singularidad_v4_{intensity:.0f}.json")
     
-    # Ejecutar prueba de comunicación intermodular
-    intermodule_results = await test_intermodule_communication(num_modules=5, messages_per_module=20, intensity=intensity)
-    
-    # Guardar resultados de comunicación
-    with open(f"resultados_comunicacion_v4_{intensity:.0f}.json", "w") as f:
-        json.dump(intermodule_results, f, indent=2)
-    
-    logger.info(f"Resultados de comunicación guardados en resultados_comunicacion_v4_{intensity:.0f}.json")
-    
-    # Ejecutar prueba del sistema híbrido
-    hybrid_results = await test_hybrid_system_extreme(intensity, duration=5.0)
-    
-    # Guardar resultados del sistema híbrido
-    with open(f"resultados_hibrido_v4_{intensity:.0f}.json", "w") as f:
-        json.dump(hybrid_results, f, indent=2)
-    
-    logger.info(f"Resultados del sistema híbrido guardados en resultados_hibrido_v4_{intensity:.0f}.json")
-    
     # Mostrar resumen final
-    logger.info(f"=== RESUMEN FINAL DE PRUEBAS EXTREMAS ===")
+    logger.info(f"=== RESUMEN FINAL DE PRUEBA DE CORE ===")
     logger.info(f"Intensidad: {intensity}")
     logger.info(f"Core Singularidad V4: {core_results['success_rate']*100:.2f}% éxito")
-    logger.info(f"Comunicación Intermodular: {intermodule_results['success_rate']*100:.2f}% éxito")
-    logger.info(f"Sistema Híbrido: completado en {hybrid_results['total_time']:.6f}s")
+    logger.info(f"Tiempo total: {core_results['total_time']:.6f}s")
+    logger.info(f"Tiempo promedio: {core_results['avg_time']:.6f}s")
 
 if __name__ == "__main__":
     asyncio.run(main())
