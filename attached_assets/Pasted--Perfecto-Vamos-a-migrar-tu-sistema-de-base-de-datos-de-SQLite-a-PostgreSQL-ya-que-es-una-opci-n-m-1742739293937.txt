@@ -1,0 +1,449 @@
+¡Perfecto! Vamos a migrar tu sistema de base de datos de SQLite a PostgreSQL, ya que es una opción más robusta y escalable, especialmente para manejar conexiones concurrentes y operaciones asíncronas en un entorno como el que describes. Resolveré los problemas de conexiones que se cierran durante la inicialización y al usar `checkpoint_state`, asegurándome de que `TranscendentalDatabase` y `TranscendentalPerformanceTracker` funcionen perfectamente con PostgreSQL. También optimizaré la gestión de conexiones para evitar cierres inesperados.
+
+Voy a:
+
+1. Configurar PostgreSQL con un motor asíncrono (`asyncpg`).
+2. Ajustar `TranscendentalDatabase` para usar un pool de conexiones robusto.
+3. Implementar un método `checkpoint_state` resiliente.
+4. Integrar todo con tu backend existente.
+
+---
+
+### Paso 1: Configuración de PostgreSQL
+
+Primero, necesitas tener PostgreSQL instalado y una base de datos creada. Aquí te doy un ejemplo de cómo configurarlo:
+
+1. **Instala PostgreSQL** (si no lo tienes):
+ - En Linux: `sudo apt install postgresql`
+ - En Mac: `brew install postgresql`
+ - En Windows: Descarga desde [postgresql.org](https://www.postgresql.org/download/).
+
+2. **Crea una base de datos**:
+ ```bash
+ psql -U postgres
+ CREATE DATABASE genesis_trading;
+ \q
+ ```
+
+3. **Actualiza las dependencias** (`backend/requirements.txt`):
+ ```
+ fastapi==0.95.0
+ uvicorn==0.21.1
+ pyjwt==2.6.0
+ fastapi-socketio==0.0.10
+ sqlalchemy==2.0.0
+ asyncpg==0.28.0 # Driver asíncrono para PostgreSQL
+ tenacity==8.2.3 # Para reintentos
+ ```
+
+---
+
+### Paso 2: Implementación de `TranscendentalDatabase` con PostgreSQL
+
+#### **`backend/transcendental_database.py`**
+
+```python
+import asyncio
+from typing import Dict, Any, List
+from collections import defaultdict
+import time
+import json
+from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+# Configuración de la base de datos PostgreSQL
+DATABASE_URL = "postgresql+asyncpg://postgres:your_password@localhost/genesis_trading"
+engine = create_async_engine(DATABASE_URL, pool_size=20, max_overflow=0, echo=False)
+AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+Base = declarative_base()
+
+# Modelo de Métricas
+class Metric(Base):
+ __tablename__ = "metrics"
+ id = Column(Integer, primary_key=True, index=True)
+ user_id = Column(String, index=True)
+ roi = Column(Float)
+ drawdown = Column(Float)
+ success_rate = Column(Float)
+ volatility = Column(Float)
+ sharpe_ratio = Column(Float)
+ win_loss_ratio = Column(Float)
+ timestamp = Column(Float)
+
+# Inicialización de la base de datos
+async def init_db():
+ async with engine.begin() as conn:
+ await conn.run_sync(Base.metadata.create_all)
+
+class QuantumCache:
+ """Caché cuántico: almacenamiento en memoria con TTL."""
+ def __init__(self, max_size: int = 1000, ttl: int = 300):
+ self.cache: Dict[str, Dict[str, Any]] = {}
+ self.max_size = max_size
+ self.ttl = ttl
+ self.timestamps: Dict[str, float] = {}
+ self.lock = asyncio.Lock()
+
+ async def get(self, key: str) -> Any:
+ async with self.lock:
+ if key in self.cache:
+ if time.time() - self.timestamps[key] < self.ttl:
+ return self.cache[key]
+ else:
+ del self.cache[key]
+ del self.timestamps[key]
+ return None
+
+ async def set(self, key: str, value: Any):
+ async with self.lock:
+ if len(self.cache) >= self.max_size:
+ oldest_key = min(self.timestamps, key=lambda k: self.timestamps[k])
+ del self.cache[oldest_key]
+ del self.timestamps[oldest_key]
+ self.cache[key] = value
+ self.timestamps[key] = time.time()
+
+ async def clear(self):
+ async with self.lock:
+ self.cache.clear()
+ self.timestamps.clear()
+
+class AtemporalCheckpoint:
+ """Checkpoints atemporales: snapshots versionados del estado."""
+ def __init__(self):
+ self.checkpoints: Dict[str, Dict[str, Any]] = {}
+ self.version_history: Dict[str, List[float]] = defaultdict(list)
+ self.lock = asyncio.Lock()
+
+ async def save_checkpoint(self, checkpoint_id: str, state: Dict[str, Any]):
+ async with self.lock:
+ self.checkpoints[checkpoint_id] = state.copy()
+ self.version_history[checkpoint_id].append(time.time())
+
+ async def restore_checkpoint(self, checkpoint_id: str, version: int = -1) -> Dict[str, Any]:
+ async with self.lock:
+ if checkpoint_id in self.checkpoints:
+ return self.checkpoints[checkpoint_id]
+ return None
+
+ async def list_checkpoints(self, checkpoint_id: str) -> List[float]:
+ async with self.lock:
+ return self.version_history.get(checkpoint_id, [])
+
+class TranscendentalDatabase:
+ """Base de datos trascendental con caché cuántico y checkpoints atemporales."""
+ def __init__(self):
+ self.cache = QuantumCache()
+ self.checkpoints = AtemporalCheckpoint()
+ self.engine = engine
+
+ async def get_session(self) -> AsyncSession:
+ """Obtiene una sesión asíncrona fresca."""
+ return AsyncSessionLocal()
+
+ @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+ async def execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+ """Ejecuta una consulta con alta resiliencia."""
+ cache_key = f"{query}:{json.dumps(params)}"
+ cached_result = await self.cache.get(cache_key)
+ if cached_result:
+ return cached_result
+
+ async with self.get_session() as session:
+ try:
+ result = await session.execute(query, params)
+ rows = [dict(row) for row in result.mappings().all()]
+ await self.cache.set(cache_key, rows)
+ return rows
+ except Exception as e:
+ await session.rollback()
+ raise e
+ finally:
+ await session.close()
+
+ @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+ async def insert_metrics(self, user_id: str, metrics: Dict[str, float]):
+ """Inserta métricas en la base de datos."""
+ async with self.get_session() as session:
+ try:
+ db_metric = Metric(
+ user_id=user_id,
+ roi=metrics.get("roi", 0),
+ drawdown=metrics.get("drawdown", 0),
+ success_rate=metrics.get("successRate", 0),
+ volatility=metrics.get("volatility", 0),
+ sharpe_ratio=metrics.get("sharpeRatio", 0),
+ win_loss_ratio=metrics.get("winLossRatio", 0),
+ timestamp=time.time(),
+ )
+ session.add(db_metric)
+ await session.commit()
+ except Exception as e:
+ await session.rollback()
+ raise e
+ finally:
+ await session.close()
+
+ async def get_latest_metrics(self, user_id: str) -> Dict[str, Any]:
+ """Obtiene las métricas más recientes del usuario."""
+ query = (
+ "SELECT roi, drawdown, success_rate, volatility, sharpe_ratio, win_loss_ratio "
+ "FROM metrics WHERE user_id = :user_id ORDER BY timestamp DESC LIMIT 1"
+ )
+ result = await self.execute_query(query, {"user_id": user_id})
+ return result[0] if result else {}
+
+ @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+ async def checkpoint_state(self, checkpoint_id: str, state: Dict[str, Any]):
+ """Guarda un checkpoint y lo persiste en la base de datos."""
+ await self.checkpoints.save_checkpoint(checkpoint_id, state)
+ async with self.get_session() as session:
+ try:
+ # Opcional: Persistir checkpoints en una tabla separada
+ await session.execute(
+ "INSERT INTO checkpoints (checkpoint_id, state, timestamp) "
+ "VALUES (:id, :state, :timestamp) ON CONFLICT (checkpoint_id) DO UPDATE SET state = :state, timestamp = :timestamp",
+ {"id": checkpoint_id, "state": json.dumps(state), "timestamp": time.time()}
+ )
+ await session.commit()
+ except Exception as e:
+ await session.rollback()
+ raise e
+ finally:
+ await session.close()
+
+ async def restore_from_checkpoint(self, checkpoint_id: str) -> Dict[str, Any]:
+ """Restaura el estado desde un checkpoint."""
+ state = await self.checkpoints.restore_checkpoint(checkpoint_id)
+ if not state:
+ async with self.get_session() as session:
+ try:
+ result = await session.execute(
+ "SELECT state FROM checkpoints WHERE checkpoint_id = :id ORDER BY timestamp DESC LIMIT 1",
+ {"id": checkpoint_id}
+ )
+ row = result.scalar()
+ if row:
+ state = json.loads(row)
+ await self.checkpoints.save_checkpoint(checkpoint_id, state)
+ return state
+ finally:
+ await session.close()
+ return state
+
+# Modelo para checkpoints (opcional)
+class Checkpoint(Base):
+ __tablename__ = "checkpoints"
+ id = Column(Integer, primary_key=True, index=True)
+ checkpoint_id = Column(String, unique=True, index=True)
+ state = Column(Text) # Almacena el estado como JSON
+ timestamp = Column(Float)
+
+# Inicializar la base de datos
+asyncio.run(init_db())
+```
+
+**Cambios Clave**:
+- **PostgreSQL**: Usa `asyncpg` para conexiones asíncronas con un pool de conexiones (`pool_size=20`).
+- **Gestión de Sesiones**: Cada operación usa una sesión fresca con `get_session`, y se cierra explícitamente para evitar conexiones colgantes.
+- **Reintentos**: Usa `tenacity` para reintentar operaciones fallidas (hasta 3 veces con espera exponencial).
+- **checkpoint_state**: Persiste checkpoints en memoria y opcionalmente en una tabla `checkpoints` para mayor resili encia.
+- **Cierre de Conexiones**: Evita cierres inesperados cerrando sesiones manualmente y manejando excepciones.
+
+---
+
+### Paso 3: Ajustar `TranscendentalPerformanceTracker`
+
+#### **`backend/transcendental_performance_tracker.py`**
+
+```python
+from typing import Dict
+from transcendental_database import TranscendentalDatabase
+
+class TranscendentalPerformanceTracker:
+ """Rastreador de rendimiento que activa modos basados en métricas."""
+ def __init__(self, db: TranscendentalDatabase):
+ self.db = db
+ self.modes = {
+ "SINGULARITY_V4": {"roi_threshold": 90, "drawdown_limit": 50},
+ "LIGHT": {"roi_threshold": 70, "drawdown_limit": 70},
+ "STABLE": {"roi_threshold": 50, "drawdown_limit": 30},
+ }
+ self.current_mode = "STABLE"
+
+ async def evaluate_performance(self, user_id: str) -> str:
+ """Evalúa las métricas y activa el modo adecuado."""
+ metrics = await self.db.get_latest_metrics(user_id)
+ if not metrics:
+ return self.current_mode
+
+ roi = metrics.get("roi", 0)
+ drawdown = metrics.get("drawdown", 0)
+
+ for mode, thresholds in self.modes.items():
+ if roi >= thresholds["roi_threshold"] and drawdown <= thresholds["drawdown_limit"]:
+ self.current_mode = mode
+ break
+
+ await self.db.checkpoint_state(f"performance_{user_id}", {"mode": self.current_mode, "metrics": metrics})
+ return self.current_mode
+
+ async def optimize_mode(self, user_id: str):
+ """Optimiza el modo actual y ajusta el sistema."""
+ mode = await self.evaluate_performance(user_id)
+ if mode == "SINGULARITY_V4":
+ print("Optimizando para máxima precisión y agresividad...")
+ elif mode == "LIGHT":
+ print("Optimizando para bajo consumo y estabilidad...")
+ elif mode == "STABLE":
+ print("Manteniendo estabilidad conservadora...")
+```
+
+**Cambios**:
+- Guarda el modo y las métricas como un checkpoint después de evaluar el rendimiento.
+
+---
+
+### Paso 4: Integrar con el Backend
+
+#### **`backend/main.py` (Actualizado)**
+
+```python
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi_socketio import SocketManager
+import jwt
+import uvicorn
+from routes import auth, trading
+from transcendental_database import TranscendentalDatabase, init_db
+from transcendental_performance_tracker import TranscendentalPerformanceTracker
+
+app = FastAPI()
+
+# Configuración de CORS
+app.add_middleware(
+ CORSMiddleware,
+ allow_origins=["http://localhost:3000"],
+ allow_credentials=True,
+ allow_methods=["*"],
+ allow_headers=["*"],
+)
+
+# Configuración de WebSocket
+socket_manager = SocketManager(app=app)
+
+# Inicializar la base de datos
+@app.on_event("startup")
+async def startup_event():
+ await init_db()
+
+# Instancias
+db = TranscendentalDatabase()
+tracker = TranscendentalPerformanceTracker(db)
+
+# Autenticación
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+def verify_token(token: str = Depends(oauth2_scheme)):
+ try:
+ payload = jwt.decode(token, "SECRET_KEY", algorithms=["HS256"])
+ return payload
+ except jwt.PyJWTError:
+ raise HTTPException(status_code=401, detail="Invalid token")
+
+# Incluir rutas
+app.include_router(auth.router)
+app.include_router(trading.router)
+
+# Conector para Genesis
+async def genesis_connector(payload: dict):
+ from genesis_connector import genesis_process
+ return await genesis_process(payload)
+
+# WebSocket
+@app.sio.on("connect")
+async def connect(sid, environ):
+ token = environ.get("HTTP_AUTHORIZATION", "").replace("Bearer ", "")
+ try:
+ payload = verify_token(token)
+ await app.sio.emit("message", {"data": "Connected"}, to=sid)
+ 
+ metrics = await db.get_latest_metrics(payload["sub"])
+ if not metrics:
+ metrics = {"roi": 90, "drawdown": 65, "successRate": 76, "volatility": 84, "sharpeRatio": 1.5, "winLossRatio": 2.3}
+ await db.insert_metrics(payload["sub"], metrics)
+ 
+ mode = await tracker.evaluate_performance(payload["sub"])
+ await app.sio.emit("metricsUpdate", {**metrics, "mode": mode}, to=sid)
+ await genesis_connector({**metrics, "mode": mode})
+ except HTTPException:
+ await app.sio.disconnect(sid)
+
+# Endpoint para actualizar métricas
+@app.post("/metrics/update")
+async def update_metrics(metrics: dict, token: str = Depends(verify_token)):
+ await db.insert_metrics(token["sub"], metrics)
+ mode = await tracker.evaluate_performance(token["sub"])
+ updated_metrics = {**metrics, "mode": mode}
+ await app.sio.emit("metricsUpdate", updated_metrics)
+ await genesis_connector(updated_metrics)
+ return {"status": "updated"}
+
+if __name__ == "__main__":
+ uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+**Cambios**:
+- Usa el motor asíncrono de PostgreSQL.
+- Inicializa la base de datos al arrancar la app.
+
+---
+
+### Resolución del Problema
+
+**Por qué se cerraban las conexiones**:
+- **Inicialización**: SQLite no maneja bien múltiples conexiones concurrentes en entornos asíncronos sin configuración especial (`check_same_thread=False` no siempre es suficiente). PostgreSQL con `asyncpg` resuelve esto con un pool de conexiones.
+- **checkpoint_state**: Probablemente intentaba usar una sesión cerrada o no manejaba excepciones. Ahora usa sesiones frescas y reintentos.
+
+**Soluciones Implementadas**:
+1. **Pool de Conexiones**: `pool_size=20` asegura que haya suficientes conexiones disponibles.
+2. **Sesiones Frescas**: Cada operación usa una nueva sesión que se cierra explícitamente.
+3. **Reintentos**: `tenacity` reintenta operaciones fallidas por problemas transitorios de conexión.
+4. **Persistencia de Checkpoints**: Opcionalmente guarda checkpoints en la base de datos para mayor resiliencia.
+
+---
+
+### Instrucciones para Ejecutar
+
+1. **Configura PostgreSQL**:
+ - Actualiza `DATABASE_URL` con tu usuario, contraseña y host:
+ ```python
+ DATABASE_URL = "postgresql+asyncpg://username:password@localhost/genesis_trading"
+ ```
+
+2. **Instala Dependencias**:
+ ```bash
+ cd backend
+ pip install -r requirements.txt
+ ```
+
+3. **Ejecuta**:
+ ```bash
+ uvicorn main:app --host 0.0.0.0 --port 8000
+ ```
+
+4. **Prueba**:
+ - Usa el endpoint `/metrics/update` o conecta un cliente WebSocket para verificar que las conexiones no se cierran.
+
+---
+
+### Próximos Pasos
+
+- **Pruebas**: Si sigues viendo cierres de conexiones, activa `echo=True` en `create_async_engine` para depurar las consultas SQL.
+- **Optimización**: Añade índices a `metrics(user_id, timestamp)` y `checkpoints(checkpoint_id)` para mejorar el rendimiento.
+- **Detalles Adicionales**: Si tienes el código exacto de `checkpoint_state` o un traceback del error, puedo afinar aún más la solución.
+
+Tu sistema ahora usa PostgreSQL con una gestión de conexiones robusta, y los problemas de cierres deberían estar resueltos. ¿Qué te parece? ¿Hay algo más específico que quieras que revise? 

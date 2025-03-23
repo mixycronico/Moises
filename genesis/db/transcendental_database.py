@@ -282,21 +282,40 @@ class TranscendentalDatabase:
     - Protección contra anomalías
     """
     
-    def __init__(self, cache_size: int = 10000, checkpoint_capacity: int = 100):
+    def __init__(
+        self, 
+        cache_size: int = 10000, 
+        checkpoint_capacity: int = 100,
+        pool_size: int = 20,
+        max_overflow: int = 40,
+        pool_recycle: int = 300,
+        pool_pre_ping: bool = True
+    ):
         """
         Inicializar base de datos trascendental.
         
         Args:
             cache_size: Tamaño del cache cuántico
             checkpoint_capacity: Capacidad máxima de checkpoints
+            pool_size: Tamaño del pool de conexiones
+            max_overflow: Máximo de conexiones adicionales temporales
+            pool_recycle: Tiempo en segundos para reciclar conexiones
+            pool_pre_ping: Si se debe hacer ping a la BD antes de usar conexiones
         """
         self.cache = QuantumCache(max_size=cache_size)
         self.checkpoint = AtemporalCheckpoint(max_checkpoints=checkpoint_capacity)
         self.error_count: Dict[str, int] = {}
         self.success_count: Dict[str, int] = {}
         self.anomaly_detection: Set[str] = set()
+        self.pool_size = pool_size
+        self.max_overflow = max_overflow
+        self.pool_recycle = pool_recycle
+        self.pool_pre_ping = pool_pre_ping
+        self._connection_health = True
+        self._last_ping = 0
+        self._ping_lock = asyncio.Lock()
         
-        logger.info("TranscendentalDatabase inicializada con capacidades de Singularidad V4")
+        logger.info(f"TranscendentalDatabase inicializada con capacidades de Singularidad V4, pool_size={pool_size}")
     
     async def execute_query(
         self, 
@@ -492,7 +511,12 @@ class TranscendentalDatabase:
     
     async def checkpoint_state(self, entity_type: str, entity_id: str, data: Dict[str, Any]) -> str:
         """
-        Crear checkpoint del estado de una entidad.
+        Crear checkpoint del estado de una entidad con manejo resiliente de conexiones.
+        
+        Esta versión mejorada implementa:
+        1. Checkpointing dual (memoria + base de datos)
+        2. Reintentos con backoff exponencial
+        3. Verificación de conexión antes de operaciones críticas
         
         Args:
             entity_type: Tipo de entidad
@@ -503,11 +527,71 @@ class TranscendentalDatabase:
             ID del checkpoint
         """
         checkpoint_id = f"{entity_type}_{entity_id}_{int(time.time())}"
-        self.checkpoint.create(checkpoint_id, data, {
-            'entity_type': entity_type,
-            'entity_id': entity_id,
-            'timestamp': time.time()
-        })
+        
+        # Paso 1: Guardar en memoria primero (siempre funciona)
+        try:
+            self.checkpoint.create(checkpoint_id, data, {
+                'entity_type': entity_type,
+                'entity_id': entity_id,
+                'timestamp': time.time()
+            })
+            logger.debug(f"Checkpoint en memoria creado: {checkpoint_id}")
+        except Exception as e:
+            logger.error(f"Error al crear checkpoint en memoria: {e}")
+            # Continuar aunque falle la memoria
+            
+        # Paso 2: Verificar conexión a base de datos (si aplica)
+        try:
+            # Verificar conexión antes de intentar operaciones con DB
+            is_connected = await self.ping()
+            if not is_connected:
+                logger.warning(f"Conexión a BD no disponible para checkpoint {checkpoint_id}, usando solo memoria")
+                return checkpoint_id
+        except Exception as e:
+            logger.error(f"Error al verificar conexión para checkpoint {checkpoint_id}: {e}")
+            return checkpoint_id
+                
+        # Paso 3: Guardar en base de datos si es posible (más persistente)
+        for attempt in range(3):  # 3 intentos
+            try:
+                # Crear registro de checkpoint en tabla (si tenemos una)
+                session = await get_db_session()
+                try:
+                    # Intentar persistir el checkpoint en DB
+                    await session.execute(
+                        text("INSERT INTO gen_checkpoints (checkpoint_id, entity_type, entity_id, data, created_at) VALUES (:id, :type, :eid, :data, :ts)"),
+                        {
+                            "id": checkpoint_id,
+                            "type": entity_type,
+                            "eid": entity_id,
+                            "data": json.dumps(data),
+                            "ts": time.time()
+                        }
+                    )
+                    await session.commit()
+                    logger.debug(f"Checkpoint persistido en BD: {checkpoint_id}")
+                    break  # Éxito, salir del bucle de reintentos
+                except Exception as inner_e:
+                    # Rollback si falla
+                    await session.rollback()
+                    
+                    # Si es el último intento, loguear error detallado
+                    if attempt == 2:
+                        logger.error(f"Error persistente al guardar checkpoint {checkpoint_id} en BD: {inner_e}")
+                    else:
+                        logger.warning(f"Error al guardar checkpoint {checkpoint_id}, reintento {attempt+1}/3: {inner_e}")
+                        
+                    # Backoff exponencial con jitter
+                    delay = 0.1 * (2 ** attempt) + random.uniform(0, 0.1)
+                    await asyncio.sleep(delay)
+                finally:
+                    # Siempre cerrar la sesión apropiadamente
+                    await session.close()
+            except Exception as e:
+                logger.error(f"Error crítico en checkpoint {checkpoint_id}: {e}")
+                # Si fallaron todos los intentos, al menos tenemos el checkpoint en memoria
+                break
+                
         return checkpoint_id
     
     def restore_checkpoint(self, checkpoint_id: str) -> Optional[Dict[str, Any]]:
@@ -581,6 +665,68 @@ class TranscendentalDatabase:
             'timestamp': time.time()
         }
     
+    async def ping(self) -> bool:
+        """
+        Verificar la conexión a la base de datos.
+        
+        Esta función hace una consulta simple para verificar que la conexión
+        esté activa y responda correctamente.
+        
+        Returns:
+            True si la conexión está activa, False en caso contrario
+        """
+        async with self._ping_lock:
+            # Si ya hicimos ping recientemente, usar el resultado almacenado
+            current_time = time.time()
+            if current_time - self._last_ping < 5.0:  # 5 segundos de cache para ping
+                return self._connection_health
+                
+            try:
+                # Hacer una consulta simple que no requiera existencia de tablas
+                session = await get_db_session()
+                try:
+                    await session.execute(text("SELECT 1"))
+                    self._connection_health = True
+                    logger.debug("Conexión a BD verificada: OK")
+                finally:
+                    await session.close()
+            except Exception as e:
+                self._connection_health = False
+                logger.error(f"Error de conexión a BD: {e}")
+                
+            self._last_ping = current_time
+            return self._connection_health
+    
+    async def retry_with_reconnect(self, func: Callable, *args, **kwargs) -> Any:
+        """
+        Ejecutar una función con reintentos y reconexión si es necesario.
+        
+        Args:
+            func: Función a ejecutar
+            *args: Argumentos para la función
+            **kwargs: Argumentos de palabra clave para la función
+            
+        Returns:
+            Resultado de la función
+        """
+        for attempt in range(3):  # 3 intentos
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                if attempt == 2:  # Último intento
+                    raise
+                    
+                logger.warning(f"Error en operación DB (intento {attempt+1}/3): {e}")
+                
+                # Verificar conexión explícitamente
+                is_connected = await self.ping()
+                if not is_connected:
+                    logger.warning("Conexión perdida, esperando antes de reintentar...")
+                    await asyncio.sleep(1.0)  # Esperar antes de reintentar
+        
+        # No debería llegar aquí, pero por si acaso
+        raise RuntimeError("Error inesperado en retry_with_reconnect")
+    
     def get_stats(self) -> Dict[str, Any]:
         """
         Obtener estadísticas de la base de datos trascendental.
@@ -595,7 +741,8 @@ class TranscendentalDatabase:
             'error_count': sum(self.error_count.values()),
             'success_count': sum(self.success_count.values()),
             'anomaly_count': len(self.anomaly_detection),
-            'success_ratio': sum(self.success_count.values()) / (sum(self.error_count.values()) + sum(self.success_count.values()) + 0.001) * 100
+            'success_ratio': sum(self.success_count.values()) / (sum(self.error_count.values()) + sum(self.success_count.values()) + 0.001) * 100,
+            'connection_health': self._connection_health
         }
 
 
