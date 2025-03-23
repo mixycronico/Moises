@@ -52,9 +52,9 @@ class ReinforcementEnsembleStrategy(Strategy):
         Args:
             config: Configuración de la estrategia
         """
-        super().__init__(config)
+        strategy_name = config.get('name', "Reinforcement Ensemble Strategy")
+        super().__init__(strategy_name)
         
-        self.name = "Reinforcement Ensemble Strategy"
         self.description = "Estrategia avanzada que combina RL, indicadores técnicos, sentimiento y análisis DeepSeek"
         
         # Parámetros de configuración

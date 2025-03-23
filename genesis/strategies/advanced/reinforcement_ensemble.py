@@ -9,14 +9,204 @@ Requiere las bibliotecas gymnasium y stable-baselines3 para funcionar completame
 """
 import logging
 import asyncio
-import numpy as np
 import random
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import Dict, Any, List, Optional, Tuple, Union, cast
 import time
 import json
 import os
 from datetime import datetime
-import pandas as pd
+
+# Importar NumPy con manejo de errores
+try:
+    import numpy as np
+except ImportError:
+    logging.warning("NumPy no encontrado. Algunas funciones no estarán disponibles.")
+    # Crear un módulo alternativo mínimo para np
+    class NumpyReplacement:
+        def __init__(self):
+            pass
+        
+        def array(self, data, dtype=None):
+            return data
+            
+        def zeros_like(self, data):
+            if isinstance(data, list):
+                return [0] * len(data)
+            return 0
+            
+        def mean(self, data):
+            if not data:
+                return 0
+            return sum(data) / len(data)
+            
+        def std(self, data):
+            if not data:
+                return 0
+            mean = self.mean(data)
+            variance = sum((x - mean) ** 2 for x in data) / len(data)
+            return variance ** 0.5
+            
+        def diff(self, data):
+            return [data[i+1] - data[i] for i in range(len(data)-1)]
+            
+        def concatenate(self, arrays):
+            result = []
+            for arr in arrays:
+                if isinstance(arr, list):
+                    result.extend(arr)
+                else:
+                    result.append(arr)
+            return result
+            
+        def cumprod(self, data):
+            result = [1]
+            for i in range(len(data)):
+                result.append(result[-1] * (1 + data[i]))
+            return result[1:]
+            
+        def maximum(self):
+            class MaxAccumulate:
+                def accumulate(self, data):
+                    result = []
+                    current_max = data[0] if data else 0
+                    for val in data:
+                        current_max = max(current_max, val)
+                        result.append(current_max)
+                    return result
+            return MaxAccumulate()
+            
+        def max(self, data):
+            if not data:
+                return 0
+            return max(data)
+            
+        def sqrt(self, value):
+            return value ** 0.5
+            
+        def random(self):
+            class RandomGen:
+                def normal(self, mean, std, size):
+                    import random
+                    return [random.normalvariate(mean, std) for _ in range(size)]
+                    
+                def uniform(self, low, high, size):
+                    import random
+                    return [random.uniform(low, high) for _ in range(size)]
+            return RandomGen()
+            
+        def abs(self, value):
+            return abs(value)
+            
+        def inf(self):
+            return float('inf')
+            
+    np = NumpyReplacement()
+
+# Intentar importar pandas
+try:
+    import pandas as pd
+except ImportError:
+    logging.warning("Pandas no encontrado. Algunas funciones no estarán disponibles.")
+
+# Definir clases de espacio para RL
+class GymSpaceReplacement:
+    class Box:
+        def __init__(self, low, high, shape, dtype=None):
+            self.low = low
+            self.high = high
+            self.shape = shape
+            self.dtype = dtype
+            
+    class Discrete:
+        def __init__(self, n):
+            self.n = n
+
+# Clases de reemplazo para RL
+class GymEnvReplacement:
+    """Clase base para entornos de gymnasium."""
+    class Env:
+        """Clase base para entornos."""
+        def __init__(self):
+            pass
+            
+        def reset(self, **kwargs):
+            pass
+            
+        def step(self, action):
+            pass
+    
+    def __init__(self):
+        pass
+        
+    def reset(self, **kwargs):
+        pass
+        
+    def step(self, action):
+        pass
+
+class DQNReplacement:
+    def __init__(self, policy, env, verbose=0, tensorboard_log=None):
+        self.policy = policy
+        self.env = env
+        self.verbose = verbose
+        
+    @staticmethod
+    def load(path, env=None):
+        return DQNReplacement("MlpPolicy", env)
+        
+    def predict(self, observation, deterministic=True):
+        import random
+        return random.randint(0, 2), None
+        
+    def save(self, path):
+        pass
+
+class PPOReplacement:
+    def __init__(self, policy, env, verbose=0, tensorboard_log=None):
+        self.policy = policy
+        self.env = env
+        self.verbose = verbose
+        
+    @staticmethod
+    def load(path, env=None):
+        return PPOReplacement("MlpPolicy", env)
+        
+    def predict(self, observation, deterministic=True):
+        import random
+        return random.randint(0, 2), None
+        
+    def save(self, path):
+        pass
+
+class SACReplacement:
+    def __init__(self, policy, env, verbose=0, tensorboard_log=None):
+        self.policy = policy
+        self.env = env
+        self.verbose = verbose
+        
+    @staticmethod
+    def load(path, env=None):
+        return SACReplacement("MlpPolicy", env)
+        
+    def predict(self, observation, deterministic=True):
+        import random
+        return random.randint(0, 2), None
+        
+    def save(self, path):
+        pass
+
+class BaseCallbackReplacement:
+    def __init__(self, verbose=0):
+        self.verbose = verbose
+        self.n_calls = 0
+        self.model = None
+        
+    def _init_callback(self):
+        pass
+        
+    def _on_step(self):
+        self.n_calls += 1
+        return True
 
 # Intentar importar biblioteca de RL
 try:
@@ -26,8 +216,14 @@ try:
     from stable_baselines3.common.callbacks import BaseCallback
     RL_LIBRARIES_AVAILABLE = True
 except ImportError:
-    RL_LIBRARIES_AVAILABLE = False
     logging.warning("Bibliotecas gymnasium o stable-baselines3 no encontradas. Usando versión simplificada.")
+    RL_LIBRARIES_AVAILABLE = False
+    gym = cast(Any, GymEnvReplacement)
+    spaces = cast(Any, GymSpaceReplacement)
+    DQN = cast(Any, DQNReplacement)
+    PPO = cast(Any, PPOReplacement)
+    SAC = cast(Any, SACReplacement)
+    BaseCallback = cast(Any, BaseCallbackReplacement)
 
 # Importar componentes de DeepSeek si están disponibles
 try:
@@ -37,24 +233,172 @@ try:
 except ImportError:
     DEEPSEEK_AVAILABLE = False
     logging.warning("Módulos DeepSeek no encontrados. La estrategia funcionará sin capacidades avanzadas de análisis.")
+    
+    # Crear clases de reemplazo para DeepSeek
+    class DeepSeekConfigReplacement:
+        @staticmethod
+        def is_enabled():
+            return False
+    
+    class DeepSeekIntegratorReplacement:
+        def __init__(self, api_key=None, intelligence_factor=1.0):
+            self.api_key = api_key
+            self.intelligence_factor = intelligence_factor
+            
+        async def initialize(self):
+            return True
+            
+        async def analyze_trading_opportunities(self, market_data, news_data=None):
+            return {"error": "DeepSeek no disponible"}
+            
+        async def enhance_trading_signals(self, signals, market_data):
+            return signals
+    
+    deepseek_config = cast(Any, DeepSeekConfigReplacement())
+    DeepSeekIntegrator = cast(Any, DeepSeekIntegratorReplacement)
 
 # Componentes del Sistema Genesis
 from genesis.strategies.base import Strategy
-from genesis.analysis.advanced_indicators import (
-    calculate_ichimoku_cloud,
-    calculate_dynamic_bollinger_bands,
-    calculate_directional_movement_index,
-    calculate_vwap,
-    calculate_volume_profile,
-    calculate_market_profile
-)
 
-from genesis.analysis.sentiment import (
-    calculate_sentiment_score,
-    analyze_social_volume
-)
+# Importar indicadores con manejo de errores
+try:
+    from genesis.analysis.advanced_indicators import (
+        calculate_ichimoku_cloud,
+        calculate_dynamic_bollinger_bands,
+        calculate_directional_movement_index,
+    )
+except ImportError:
+    logging.warning("Módulos de indicadores avanzados no encontrados. Usando funciones de reemplazo.")
+    
+    def calculate_ichimoku_cloud(high, low, close, tenkan_period=9, kijun_period=26, 
+                               senkou_span_b_period=52, displacement=26):
+        """Función de reemplazo para ichimoku."""
+        return {
+            "tenkan": [0] * len(close),
+            "kijun": [0] * len(close),
+            "senkou_span_a": [0] * len(close),
+            "senkou_span_b": [0] * len(close),
+            "chikou_span": [0] * len(close),
+            "close": close
+        }
+        
+    def calculate_dynamic_bollinger_bands(close, window=20, num_std_dev=2.0):
+        """Función de reemplazo para bandas de bollinger."""
+        middle = [0] * len(close)
+        upper = [0] * len(close)
+        lower = [0] * len(close)
+        return {
+            "middle": middle,
+            "upper": upper,
+            "lower": lower,
+            "close": close
+        }
+        
+    def calculate_directional_movement_index(high, low, close, window=14):
+        """Función de reemplazo para DMI."""
+        return {
+            "adx": [0] * len(close),
+            "di_plus": [0] * len(close),
+            "di_minus": [0] * len(close)
+        }
+        
+    def calculate_vwap(high, low, close, volume):
+        """Función de reemplazo para VWAP."""
+        return [0] * len(close)
+        
+    def calculate_volume_profile(close, volume, num_bins=10):
+        """Función de reemplazo para perfil de volumen."""
+        return {
+            "bins": [0] * num_bins,
+            "volumes": [0] * num_bins
+        }
+        
+    def calculate_market_profile(high, low, close, num_bins=10):
+        """Función de reemplazo para perfil de mercado."""
+        return {
+            "bins": [0] * num_bins,
+            "frequencies": [0] * num_bins
+        }
+else:
+    # Definir funciones que podrían faltar
+    def calculate_vwap(high, low, close, volume):
+        """Calcular VWAP (Volume Weighted Average Price)."""
+        typical_price = (high + low + close) / 3
+        return (typical_price * volume).cumsum() / volume.cumsum()
+        
+    def calculate_volume_profile(close, volume, num_bins=10):
+        """Calcular perfil de volumen."""
+        # Simplificado
+        min_price = min(close)
+        max_price = max(close)
+        bin_size = (max_price - min_price) / num_bins
+        
+        bins = [min_price + i * bin_size for i in range(num_bins)]
+        volumes = [0] * num_bins
+        
+        for i, price in enumerate(close):
+            bin_idx = min(int((price - min_price) / bin_size), num_bins - 1)
+            volumes[bin_idx] += volume[i]
+            
+        return {"bins": bins, "volumes": volumes}
+        
+    def calculate_market_profile(high, low, close, num_bins=10):
+        """Calcular perfil de mercado."""
+        # Simplificado
+        min_price = min(low)
+        max_price = max(high)
+        bin_size = (max_price - min_price) / num_bins
+        
+        bins = [min_price + i * bin_size for i in range(num_bins)]
+        frequencies = [0] * num_bins
+        
+        for i in range(len(close)):
+            for bin_idx, bin_price in enumerate(bins):
+                if low[i] <= bin_price <= high[i]:
+                    frequencies[bin_idx] += 1
+                    
+        return {"bins": bins, "frequencies": frequencies}
 
-from genesis.api_integration import api_manager
+# Importar análisis de sentimiento con manejo de errores
+try:
+    from genesis.analysis.sentiment import (
+        calculate_sentiment_score,
+        analyze_social_volume
+    )
+except ImportError:
+    logging.warning("Módulos de análisis de sentimiento no encontrados. Usando funciones de reemplazo.")
+    
+    def calculate_sentiment_score(text_data, source="news"):
+        """Función de reemplazo para cálculo de sentimiento."""
+        return {"score": 0.0, "magnitude": 0.0, "label": "neutral"}
+        
+    def analyze_social_volume(symbol, timeframe="1d", sources=None):
+        """Función de reemplazo para análisis de volumen social."""
+        return {"volume": 0, "change": 0.0, "sentiment": "neutral"}
+
+# Importar gestor de APIs con manejo de errores
+try:
+    from genesis.api_integration import api_manager
+except ImportError:
+    logging.warning("Módulo de integración de APIs no encontrado.")
+    
+    class ApiManagerReplacement:
+        def __init__(self):
+            self.initialized = False
+            
+        async def get_alpha_vantage_data(self, **kwargs):
+            return {"error": "API manager no disponible"}
+            
+        async def get_news_api_data(self, **kwargs):
+            return {"error": "API manager no disponible"}
+            
+        async def get_coinmarketcap_data(self, **kwargs):
+            return {"error": "API manager no disponible"}
+            
+        async def call_deepseek_api(self, **kwargs):
+            return {"error": "API manager no disponible"}
+            
+    api_manager = ApiManagerReplacement()
 
 # Logger para esta estrategia
 logger = logging.getLogger('genesis.strategies.advanced.reinforcement_ensemble')
@@ -405,9 +749,9 @@ class ReinforcementEnsembleStrategy(Strategy):
         Args:
             config: Configuración de la estrategia
         """
-        super().__init__(config)
+        strategy_name = config.get('name', "Reinforcement Ensemble Strategy")
+        super().__init__(strategy_name)
         
-        self.name = "Reinforcement Ensemble Strategy"
         self.description = "Estrategia avanzada que combina modelos RL, indicadores técnicos y análisis DeepSeek"
         
         # Parámetros de configuración
