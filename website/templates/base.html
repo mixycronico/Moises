@@ -3,67 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sistema Genesis{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>{% block title %}Genesis - Sistema Trascendental de Trading{% endblock %}</title>
+    
+    <!-- Fuentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <!-- Estilos base -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    
+    <!-- Estilos adicionales específicos de cada página -->
     {% block additional_styles %}{% endblock %}
 </head>
-<body class="trascendental-theme">
-    <div class="container">
-        <header>
-            <div class="logo">
-                <img src="{{ url_for('static', filename='img/genesis-logo.svg') }}" alt="Genesis Logo">
-                <h1>Sistema Genesis</h1>
-            </div>
-            <nav>
-                {% if session.get('logged_in') %}
-                    <ul class="nav-links">
-                        <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Inicio</a></li>
-                        <li><a href="{{ url_for('dashboard') }}"><i class="fas fa-chart-line"></i> Dashboard</a></li>
-                        <li><a href="{{ url_for('portfolio') }}"><i class="fas fa-briefcase"></i> Portfolio</a></li>
-                        <li><a href="{{ url_for('trading_process') }}"><i class="fas fa-exchange-alt"></i> Trading</a></li>
-                        <li><a href="{{ url_for('cryptos') }}"><i class="fas fa-coins"></i> Criptomonedas</a></li>
-                        <li><a href="{{ url_for('analysis') }}"><i class="fas fa-microscope"></i> Análisis</a></li>
-                        {% if session.get('is_admin') %}
-                        <li><a href="{{ url_for('system') }}"><i class="fas fa-cogs"></i> Sistema</a></li>
-                        {% endif %}
-                        <li><a href="{{ url_for('settings') }}"><i class="fas fa-cog"></i> Ajustes</a></li>
-                        <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Salir</a></li>
-                    </ul>
-                {% else %}
-                    <ul class="nav-links">
-                        <li><a href="{{ url_for('index') }}"><i class="fas fa-home"></i> Inicio</a></li>
-                        <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i> Ingresar</a></li>
-                    </ul>
-                {% endif %}
+<body>
+    <div class="page-wrapper">
+        <header class="main-header">
+            <nav class="main-nav">
+                <div class="nav-logo">
+                    <a href="{{ url_for('index') }}" class="logo-link">
+                        <div class="floating-logo">
+                            <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo">
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="nav-links">
+                    <a href="{{ url_for('index') }}" class="nav-item">Inicio</a>
+                    {% if session.get('logged_in') %}
+                        <a href="{{ url_for('dashboard') }}" class="nav-item">Dashboard</a>
+                        <a href="{{ url_for('trading') }}" class="nav-item">Trading</a>
+                        <a href="{{ url_for('portfolio') }}" class="nav-item">Portafolio</a>
+                        <a href="{{ url_for('settings') }}" class="nav-item">Configuración</a>
+                        <a href="{{ url_for('logout') }}" class="nav-item">Cerrar Sesión</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="nav-item">Ingresar</a>
+                    {% endif %}
+                </div>
+                
+                <div class="mobile-menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </div>
             </nav>
         </header>
-
-        <main>
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-messages">
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}">
-                                {{ message }}
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% endif %}
-            {% endwith %}
-
+        
+        <main class="main-content">
             {% block content %}{% endblock %}
         </main>
-
-        <footer>
+        
+        <footer class="main-footer">
             <div class="footer-content">
-                <p>&copy; 2025 Sistema Genesis - Plataforma Trascendental de Trading</p>
-                <p class="mode-indicator">Modo: <span class="mode-name">{{ system_status.mode if system_status else "SINGULARIDAD_V4" }}</span></p>
+                <div class="footer-section">
+                    <h3>Genesis</h3>
+                    <p>Un sistema nacido para proteger, no para explotar. Creado con el propósito de ofrecer una alternativa real y efectiva a las estafas en el mundo del trading.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>Enlaces Rápidos</h3>
+                    <ul>
+                        <li><a href="{{ url_for('index') }}">Inicio</a></li>
+                        {% if session.get('logged_in') %}
+                            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+                            <li><a href="{{ url_for('trading') }}">Trading</a></li>
+                        {% else %}
+                            <li><a href="{{ url_for('login') }}">Ingresar</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h3>Modos del Sistema</h3>
+                    <ul>
+                        <li>Singularidad V4</li>
+                        <li>Luz</li>
+                        <li>Materia Oscura</li>
+                        <li>Divino</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; {{ current_year }} Genesis. Todos los derechos reservados.</p>
+                <p class="purpose-statement">Creado con la misión de proteger a las personas de las estafas en el mundo del trading.</p>
             </div>
         </footer>
     </div>
-
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- Mobile menu -->
+    <div class="mobile-menu">
+        <div class="mobile-menu-close">
+            <i class="fas fa-times"></i>
+        </div>
+        <div class="mobile-menu-links">
+            <a href="{{ url_for('index') }}" class="mobile-nav-item">Inicio</a>
+            {% if session.get('logged_in') %}
+                <a href="{{ url_for('dashboard') }}" class="mobile-nav-item">Dashboard</a>
+                <a href="{{ url_for('trading') }}" class="mobile-nav-item">Trading</a>
+                <a href="{{ url_for('portfolio') }}" class="mobile-nav-item">Portafolio</a>
+                <a href="{{ url_for('settings') }}" class="mobile-nav-item">Configuración</a>
+                <a href="{{ url_for('logout') }}" class="mobile-nav-item">Cerrar Sesión</a>
+            {% else %}
+                <a href="{{ url_for('login') }}" class="mobile-nav-item">Ingresar</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Scripts base -->
+    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    
+    <!-- Scripts adicionales específicos de cada página -->
     {% block scripts %}{% endblock %}
 </body>
 </html>
