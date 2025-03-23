@@ -19,6 +19,8 @@ from genesis.risk.adaptive_risk_manager import initialize_risk_manager
 from genesis.analytics.transcendental_performance_tracker import initialize_performance_tracker
 from genesis.strategies.orchestrator import StrategyOrchestrator
 from genesis.strategies.adaptive_scaling_strategy import AdaptiveScalingStrategy
+from genesis.notifications.initializer import initialize_notifications
+from genesis.users.admin_manager import initialize_admin_manager
 
 # Configurar logging
 logger = logging.getLogger("genesis.init")
@@ -183,23 +185,59 @@ async def initialize_system(config_path: str) -> Dict[str, Any]:
             results["orchestrator_status"] = False
             logger.warning(f"Error en la inicialización del orquestador de estrategias: {e}")
             
-        # 4. Enlazar componentes entre sí si es posible
+        # 4. Inicializar sistema de notificaciones y usuarios
         try:
-            # 4.1 Si existe la estrategia adaptativa, enlazarla con risk manager
+            # 4.1 Inicializar sistema de notificaciones
+            notif_config = config.get("notifications_config", {})
+            enable_email = notif_config.get("enable_email", True)
+            enable_alerts = notif_config.get("enable_alerts", True)
+            
+            notifications_success = await initialize_notifications(
+                enable_email=enable_email,
+                enable_alerts=enable_alerts,
+                email_config=notif_config.get("email_config")
+            )
+            
+            if notifications_success:
+                results["notifications_status"] = True
+                logger.info("Sistema de notificaciones inicializado correctamente")
+            else:
+                results["notifications_status"] = False
+                logger.warning("Fallo en la inicialización del sistema de notificaciones")
+                
+            # 4.2 Inicializar gestor de administradores
+            admin_manager = await initialize_admin_manager()
+            
+            if admin_manager:
+                results["admin_manager"] = admin_manager
+                results["admin_manager_status"] = True
+                logger.info("Gestor de administradores inicializado correctamente")
+            else:
+                results["admin_manager_status"] = False
+                logger.warning("Fallo en la inicialización del gestor de administradores")
+                
+        except Exception as e:
+            logger.warning(f"Error en la inicialización del sistema de notificaciones y usuarios: {e}")
+            results["notifications_status"] = False
+            results["admin_manager_status"] = False
+            
+        # 5. Enlazar componentes entre sí si es posible
+        try:
+            # 5.1 Si existe la estrategia adaptativa, enlazarla con risk manager
             if risk_manager and "adaptive_strategy" in results:
                 adaptive_strategy = results.get("adaptive_strategy")
                 if hasattr(adaptive_strategy, "risk_manager"):
                     adaptive_strategy.risk_manager = risk_manager
                     logger.info("Estrategia adaptativa enlazada con risk manager")
             
-            # 4.2 Si existe el scaling_manager, enlazarlo con performance_tracker
+            # 5.2 Si existe el scaling_manager, enlazarlo con performance_tracker
             if performance_tracker and "scaling_manager" in results:
                 scaling_manager = results.get("scaling_manager")
                 if hasattr(scaling_manager, "register_metrics_provider"):
                     scaling_manager.register_metrics_provider(performance_tracker)
                     logger.info("Scaling manager enlazado con performance tracker")
                     
-            # 4.3 Si existe el orquestador y performance_tracker, registrar como proveedor de métricas
+            # 5.3 Si existe el orquestador y performance_tracker, registrar como proveedor de métricas
             if "orchestrator" in results and performance_tracker:
                 orchestrator = results.get("orchestrator")
                 # Registrar evento de métricas de rendimiento
@@ -210,7 +248,7 @@ async def initialize_system(config_path: str) -> Dict[str, Any]:
                 })
                 logger.info("Performance inicial registrado en orquestador")
                 
-            # 4.4 Si existe la estrategia adaptativa y el scaling_manager, enlazarlos
+            # 5.4 Si existe la estrategia adaptativa y el scaling_manager, enlazarlos
             if "adaptive_strategy" in results and "scaling_manager" in results:
                 adaptive_strategy = results.get("adaptive_strategy")
                 scaling_manager = results.get("scaling_manager")
