@@ -1,4 +1,4 @@
-"""
+
 Ejemplo de Sistema Genesis Integrado con Singularidad Trascendental V4.
 
 Este ejemplo demuestra la integración completa del sistema Genesis utilizando:
@@ -9,7 +9,7 @@ Este ejemplo demuestra la integración completa del sistema Genesis utilizando:
 El sistema se conecta al exchange, recibe datos de mercado en tiempo real,
 los procesa a través de los componentes internos, y demuestra el sistema
 híbrido WebSocket/API Trascendental funcionando a su máximo potencial.
-"""
+
 
 import asyncio
 import logging
@@ -49,22 +49,22 @@ from genesis_singularity_transcendental_v4 import (
 # ===== COMPONENTES DEL SISTEMA =====
 
 class MarketDataComponent:
-    """
+    
     Componente para recibir y procesar datos de mercado externos.
     
     Este componente se conecta con exchanges usando el ExchangeWebSocketHandler
     y distribuye los datos de mercado a través del sistema mediante el
     TranscendentalEventBus.
-    """
+    
     
     def __init__(self, event_bus: TranscendentalEventBus, component_id: str = "market_data"):
-        """
+        
         Inicializar componente de datos de mercado.
         
         Args:
             event_bus: Bus de eventos trascendental
             component_id: ID único del componente
-        """
+        
         self.event_bus = event_bus
         self.component_id = component_id
         self.exchange_ws = ExchangeWebSocketHandler("binance")
@@ -89,7 +89,7 @@ class MarketDataComponent:
         logger.info(f"Componente {self.component_id} inicializado")
     
     async def start(self) -> None:
-        """Iniciar componente y conectarse a exchanges."""
+        Iniciar componente y conectarse a exchanges."""
         if self.running:
             return
             
@@ -110,7 +110,7 @@ class MarketDataComponent:
         logger.info(f"Componente {self.component_id} iniciado")
     
     async def stop(self) -> None:
-        """Detener componente y desconectarse de exchanges."""
+        Detener componente y desconectarse de exchanges."""
         if not self.running:
             return
             
@@ -123,7 +123,7 @@ class MarketDataComponent:
         logger.info(f"Componente {self.component_id} detenido")
     
     async def _connect_to_exchange_streams(self) -> None:
-        """Conectar a streams relevantes del exchange."""
+        Conectar a streams relevantes del exchange."""
         # Conectar a stream de trades
         await self.exchange_ws.connect_to_stream("btcusdt@trade", self._on_trade_data)
         
@@ -136,12 +136,12 @@ class MarketDataComponent:
         logger.info(f"Conectado a streams del exchange")
     
     async def _on_trade_data(self, data: Dict[str, Any]) -> None:
-        """
+        
         Procesar datos de trades recibidos del exchange.
         
         Args:
             data: Datos normalizados del trade
-        """
+        
         self.stats["trades_received"] += 1
         
         # Procesar datos a través de mecanismos trascendentales
@@ -170,12 +170,12 @@ class MarketDataComponent:
             self.stats["errors_transmuted"] += 1
     
     async def _on_kline_data(self, data: Dict[str, Any]) -> None:
-        """
+        
         Procesar datos de klines (velas) recibidos del exchange.
         
         Args:
             data: Datos normalizados de la vela
-        """
+        
         self.stats["klines_received"] += 1
         
         # Emitir evento para otros componentes
@@ -186,12 +186,12 @@ class MarketDataComponent:
         )
     
     async def _on_orderbook_data(self, data: Dict[str, Any]) -> None:
-        """
+        
         Procesar datos de orderbook recibidos del exchange.
         
         Args:
             data: Datos normalizados del orderbook
-        """
+        
         self.stats["orderbook_updates"] += 1
         
         # Emitir evento para otros componentes si hay cambios significativos
@@ -203,7 +203,7 @@ class MarketDataComponent:
             )
     
     def _is_significant_update(self, data: Dict[str, Any]) -> bool:
-        """
+        
         Determinar si una actualización de orderbook es significativa.
         
         Args:
@@ -211,19 +211,19 @@ class MarketDataComponent:
             
         Returns:
             True si la actualización es significativa
-        """
+        
         # Implementación simple: una actualización de cada 5 es "significativa"
         return self.stats["orderbook_updates"] % 5 == 0
     
     async def _handle_data_request(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
+        
         Manejar solicitud de datos de mercado de otro componente.
         
         Args:
             event_type: Tipo de evento
             data: Datos de la solicitud
             source: Componente que envía la solicitud
-        """
+        
         request_type = data.get("type", "unknown")
         symbol = data.get("symbol", "btcusdt")
         
@@ -273,12 +273,12 @@ class MarketDataComponent:
         )
     
     def get_stats(self) -> Dict[str, Any]:
-        """
+        
         Obtener estadísticas del componente.
         
         Returns:
             Diccionario con estadísticas
-        """
+        
         # Combinar estadísticas propias con las del WebSocket
         combined_stats = dict(self.stats)
         if self.exchange_ws:
@@ -288,21 +288,21 @@ class MarketDataComponent:
         return combined_stats
 
 class StrategyComponent:
-    """
+    
     Componente de estrategia de trading.
     
     Este componente recibe datos de mercado, aplica estrategias de trading
     y emite señales de operación.
-    """
+    
     
     def __init__(self, event_bus: TranscendentalEventBus, component_id: str = "strategy"):
-        """
+        
         Inicializar componente de estrategia.
         
         Args:
             event_bus: Bus de eventos trascendental
             component_id: ID único del componente
-        """
+        
         self.event_bus = event_bus
         self.component_id = component_id
         self.running = False
@@ -324,7 +324,7 @@ class StrategyComponent:
         logger.info(f"Componente {self.component_id} inicializado")
     
     async def start(self) -> None:
-        """Iniciar componente y suscribirse a eventos."""
+        Iniciar componente y suscribirse a eventos."""
         if self.running:
             return
             
@@ -356,7 +356,7 @@ class StrategyComponent:
         logger.info(f"Componente {self.component_id} iniciado")
     
     async def stop(self) -> None:
-        """Detener componente."""
+        Detener componente."""
         if not self.running:
             return
             
@@ -365,14 +365,14 @@ class StrategyComponent:
         logger.info(f"Componente {self.component_id} detenido")
     
     async def _handle_trade(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
+        
         Manejar evento de trade.
         
         Args:
             event_type: Tipo de evento
             data: Datos del trade
             source: Componente que envía el evento
-        """
+        
         self.market_data["last_trade"] = data
         self.stats["trades_analyzed"] += 1
         
@@ -381,14 +381,14 @@ class StrategyComponent:
             await self._generate_trading_signal(data.get("symbol", "unknown"), "trade_trigger")
     
     async def _handle_kline(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
+        
         Manejar evento de kline.
         
         Args:
             event_type: Tipo de evento
             data: Datos de la vela
             source: Componente que envía el evento
-        """
+        
         self.market_data["last_kline"] = data
         self.stats["klines_analyzed"] += 1
         
@@ -397,21 +397,21 @@ class StrategyComponent:
             await self._analyze_closed_kline(data)
     
     async def _handle_orderbook(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
+        
         Manejar evento de orderbook.
         
         Args:
             event_type: Tipo de evento
             data: Datos del orderbook
             source: Componente que envía el evento
-        """
+        
         self.market_data["orderbook"] = data
         
         # Analizar orderbook para detectar desequilibrios
         await self._analyze_orderbook_imbalance(data)
     
     def _check_immediate_signal_conditions(self, trade_data: Dict[str, Any]) -> bool:
-        """
+        
         Verificar si un trade cumple condiciones para señal inmediata.
         
         Args:
@@ -419,17 +419,17 @@ class StrategyComponent:
             
         Returns:
             True si hay condiciones para señal
-        """
+        
         # Simplificado: 5% de probabilidad de generar señal por cada trade
         return random.random() < 0.05
     
     async def _analyze_closed_kline(self, kline_data: Dict[str, Any]) -> None:
-        """
+        
         Analizar vela cerrada para posible señal.
         
         Args:
             kline_data: Datos de la vela
-        """
+        
         symbol = kline_data.get("symbol", "unknown")
         interval = kline_data.get("interval", "unknown")
         
@@ -444,12 +444,12 @@ class StrategyComponent:
                 await self._generate_trading_signal(symbol, "bullish_candle")
     
     async def _analyze_orderbook_imbalance(self, orderbook_data: Dict[str, Any]) -> None:
-        """
+        
         Analizar desequilibrios en el orderbook.
         
         Args:
             orderbook_data: Datos del orderbook
-        """
+        
         symbol = orderbook_data.get("symbol", "unknown")
         
         # Ejemplo: detectar desequilibrio entre bids y asks
@@ -476,13 +476,13 @@ class StrategyComponent:
                 await self._generate_trading_signal(symbol, "sell_pressure")
     
     async def _generate_trading_signal(self, symbol: str, signal_type: str) -> None:
-        """
+        
         Generar señal de trading.
         
         Args:
             symbol: Símbolo del instrumento
             signal_type: Tipo de señal
-        """
+        
         # Crear señal
         signal = {
             "symbol": symbol,
@@ -504,7 +504,7 @@ class StrategyComponent:
         logger.info(f"Señal generada: {signal_type} para {symbol} - Dirección: {signal['direction']}")
     
     async def _run_periodic_analysis(self) -> None:
-        """Ejecutar análisis periódico de mercado."""
+        Ejecutar análisis periódico de mercado."""
         while self.running:
             # Esperar intervalo
             await asyncio.sleep(10)  # Cada 10 segundos
@@ -516,7 +516,7 @@ class StrategyComponent:
             await self._perform_comprehensive_analysis()
     
     async def _request_market_data(self) -> None:
-        """Solicitar datos actualizados de mercado."""
+        Solicitar datos actualizados de mercado."""
         # Crear solicitud
         request = {
             "request_id": f"REQ{int(time.time())}-{random.randint(1000, 9999)}",
@@ -533,37 +533,37 @@ class StrategyComponent:
         )
     
     async def _perform_comprehensive_analysis(self) -> None:
-        """Realizar análisis integral de mercado con todos los datos disponibles."""
+        Realizar análisis integral de mercado con todos los datos disponibles."""
         # Simplificado: probabilidad del 20% de generar señal en cada análisis
         if random.random() < 0.2 and self.market_data["last_trade"]:
             symbol = self.market_data["last_trade"].get("symbol", "btcusdt")
             await self._generate_trading_signal(symbol, "complex_analysis")
     
     def get_stats(self) -> Dict[str, Any]:
-        """
+        
         Obtener estadísticas del componente.
         
         Returns:
             Diccionario con estadísticas
-        """
+        
         return dict(self.stats)
 
 class SignalProcessorComponent:
-    """
+    
     Componente para procesar señales de trading.
     
     Este componente recibe señales de trading, las evalúa y emite
     órdenes si cumplen los criterios configurados.
-    """
+    
     
     def __init__(self, event_bus: TranscendentalEventBus, component_id: str = "signal_processor"):
-        """
+        
         Inicializar procesador de señales.
         
         Args:
             event_bus: Bus de eventos trascendental
             component_id: ID único del componente
-        """
+        
         self.event_bus = event_bus
         self.component_id = component_id
         self.running = False
@@ -590,7 +590,7 @@ class SignalProcessorComponent:
         logger.info(f"Componente {self.component_id} inicializado")
     
     async def start(self) -> None:
-        """Iniciar componente y suscribirse a eventos."""
+        Iniciar componente y suscribirse a eventos."""
         if self.running:
             return
             
@@ -614,7 +614,7 @@ class SignalProcessorComponent:
         logger.info(f"Componente {self.component_id} iniciado")
     
     async def stop(self) -> None:
-        """Detener componente."""
+        Detener componente."""
         if not self.running:
             return
             
@@ -623,14 +623,14 @@ class SignalProcessorComponent:
         logger.info(f"Componente {self.component_id} detenido")
     
     async def _handle_signal(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
+        
         Manejar señal de trading.
         
         Args:
             event_type: Tipo de evento
             data: Datos de la señal
             source: Componente que envía la señal
-        """
+        
         self.stats["signals_received"] += 1
         signal_id = data.get("signal_id", "unknown")
         
@@ -659,19 +659,19 @@ class SignalProcessorComponent:
             logger.info(f"Señal {signal_id} rechazada por no cumplir criterios")
     
     async def _handle_market_data_response(self, event_type: str, data: Dict[str, Any], source: str) -> None:
-        """
+        
         Manejar respuesta de datos de mercado.
         
         Args:
             event_type: Tipo de evento
             data: Datos de mercado
             source: Componente que envía los datos
-        """
+        
         # Procesar datos de mercado si hay señales pendientes
         pass  # Simplificado para el ejemplo
     
     async def _validate_signal(self, signal: Dict[str, Any]) -> bool:
-        """
+        
         Validar si una señal cumple los criterios para generar orden.
         
         Args:
@@ -679,7 +679,7 @@ class SignalProcessorComponent:
             
         Returns:
             True si la señal es válida
-        """
+        
         # Verificar fuerza de la señal
         strength = signal.get("strength", 0.0)
         if strength < self.config["min_signal_strength"]:
@@ -700,12 +700,12 @@ class SignalProcessorComponent:
         return True
     
     async def _generate_order(self, signal: Dict[str, Any]) -> None:
-        """
+        
         Generar orden basada en una señal.
         
         Args:
             signal: Datos de la señal
-        """
+        
         # Crear orden
         order = {
             "symbol": signal.get("symbol", "btcusdt"),
@@ -728,26 +728,26 @@ class SignalProcessorComponent:
         logger.info(f"Orden generada: {order['side']} {order['quantity']} {order['symbol']}")
     
     def get_stats(self) -> Dict[str, Any]:
-        """
+        
         Obtener estadísticas del componente.
         
         Returns:
             Diccionario con estadísticas
-        """
+        
         return dict(self.stats)
 
 # ===== SISTEMA INTEGRADO =====
 
 class IntegratedSystem:
-    """
+    
     Sistema Genesis integrado con todos los componentes.
     
     Esta clase orquesta todos los componentes del sistema y demuestra
     la integración del TranscendentalEventBus con el ExchangeWebSocketHandler.
-    """
+    
     
     def __init__(self):
-        """Inicializar sistema integrado."""
+        Inicializar sistema integrado."""
         # Crear event bus trascendental
         self.event_bus = TranscendentalEventBus(test_mode=True)
         
@@ -762,7 +762,7 @@ class IntegratedSystem:
         logger.info("Sistema Genesis integrado inicializado")
     
     async def start(self) -> None:
-        """Iniciar sistema integrado."""
+        Iniciar sistema integrado."""
         if self.running:
             return
             
@@ -780,7 +780,7 @@ class IntegratedSystem:
         logger.info("Sistema Genesis integrado iniciado y funcionando")
     
     async def stop(self) -> None:
-        """Detener sistema integrado."""
+        Detener sistema integrado."""
         if not self.running:
             return
             
@@ -798,12 +798,12 @@ class IntegratedSystem:
         logger.info("Sistema Genesis integrado detenido")
     
     def get_system_stats(self) -> Dict[str, Any]:
-        """
+        
         Obtener estadísticas completas del sistema.
         
         Returns:
             Diccionario con estadísticas de todos los componentes
-        """
+        
         # Recopilar estadísticas de todos los componentes
         stats = {
             "market_data": self.market_data.get_stats(),
@@ -825,7 +825,7 @@ class IntegratedSystem:
 # ===== DEMOSTRACIÓN DEL SISTEMA =====
 
 async def run_demo():
-    """Ejecutar demostración del sistema integrado."""
+    Ejecutar demostración del sistema integrado."""
     logger.info("=== INICIANDO DEMOSTRACIÓN DEL SISTEMA GENESIS INTEGRADO ===")
     
     # Crear sistema
@@ -880,4 +880,3 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Error en la demostración: {e}")
         raise
-"""

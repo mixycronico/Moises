@@ -1,4 +1,4 @@
-"""
+
 Script de migración para integrar el WebSocket Trascendental para Exchanges.
 
 Este script reemplaza los conectores tradicionales de exchanges en el sistema Genesis
@@ -10,7 +10,7 @@ Fases de migración:
 2. Reemplazar conectores tradicionales con WebSocket Trascendental
 3. Actualizar referencias y configuración para usar las nuevas interfaces
 4. Validar funcionamiento y preservar compatibilidad hacia atrás
-"""
+
 
 import os
 import sys
@@ -51,7 +51,7 @@ EXCHANGE_PATTERNS = [
 ]
 
 # Código de reemplazo
-REPLACEMENT_TEMPLATE = """
+REPLACEMENT_TEMPLATE = 
 # Importar WebSocket Trascendental para Exchanges
 from genesis.core.exchange_websocket_connector import ExchangeWebSocketHandler
 
@@ -67,20 +67,20 @@ async def _process_{data_type}_data(data):
 async def connect_to_exchange_streams():
     # Conectar a streams necesarios
     {connect_code}
-"""
+
 
 class MigrationTask:
-    """Tarea de migración para un componente específico."""
+    Tarea de migración para un componente específico."""
     
     def __init__(self, file_path: str, component_name: str, exchange_references: List[str]):
-        """
+        
         Inicializar tarea de migración.
         
         Args:
             file_path: Ruta al archivo fuente
             component_name: Nombre del componente
             exchange_references: Referencias a exchanges encontradas
-        """
+        
         self.file_path = file_path
         self.component_name = component_name
         self.exchange_references = exchange_references
@@ -89,16 +89,16 @@ class MigrationTask:
         self.errors = []
     
     def __str__(self) -> str:
-        """Representación en string de la tarea."""
+        Representación en string de la tarea."""
         return f"MigrationTask(component={self.component_name}, file={os.path.basename(self.file_path)})"
 
 def find_components_using_exchanges() -> List[MigrationTask]:
-    """
+    
     Encontrar todos los componentes que utilizan conexiones a exchanges.
     
     Returns:
         Lista de tareas de migración para los componentes identificados
-    """
+    
     logger.info("Buscando componentes que utilizan conexiones a exchanges...")
     
     tasks = []
@@ -153,7 +153,7 @@ def find_components_using_exchanges() -> List[MigrationTask]:
     return tasks
 
 def analyze_component(task: MigrationTask) -> Dict[str, Any]:
-    """
+    
     Analizar un componente para determinar detalles de su uso de exchanges.
     
     Args:
@@ -161,7 +161,7 @@ def analyze_component(task: MigrationTask) -> Dict[str, Any]:
         
     Returns:
         Diccionario con análisis detallado
-    """
+    
     logger.info(f"Analizando componente: {task.component_name}")
     
     analysis = {
@@ -215,7 +215,7 @@ def analyze_component(task: MigrationTask) -> Dict[str, Any]:
     return analysis
 
 def generate_migration_plan(task: MigrationTask, analysis: Dict[str, Any]) -> Dict[str, Any]:
-    """
+    
     Generar plan de migración para un componente.
     
     Args:
@@ -224,7 +224,7 @@ def generate_migration_plan(task: MigrationTask, analysis: Dict[str, Any]) -> Di
         
     Returns:
         Plan de migración detallado
-    """
+    
     logger.info(f"Generando plan de migración para {task.component_name}")
     
     plan = {
@@ -252,12 +252,12 @@ def generate_migration_plan(task: MigrationTask, analysis: Dict[str, Any]) -> Di
         # Generar callbacks para cada tipo de stream
         for stream_type in analysis["stream_types"]:
             callback_name = f"_on_{stream_type}_data"
-            callback_code = f"""
+            callback_code = f
         async def {callback_name}(self, data):
             # Procesar datos de {stream_type}
             if hasattr(self, "process_{stream_type}"):
                 await self.process_{stream_type}(data)
-            """
+            
             plan["code_to_add"].append(callback_code)
         
         # Código para conectar a streams
@@ -303,7 +303,7 @@ def generate_migration_plan(task: MigrationTask, analysis: Dict[str, Any]) -> Di
     return plan
 
 def create_integration_sample(exchange_id: str = "binance") -> str:
-    """
+    
     Crear código de ejemplo de integración con WebSocket Trascendental.
     
     Args:
@@ -311,8 +311,8 @@ def create_integration_sample(exchange_id: str = "binance") -> str:
         
     Returns:
         Código de ejemplo como string
-    """
-    sample_code = f"""
+    
+    sample_code = f
 '''
 Ejemplo de integración con el WebSocket Trascendental para Exchanges.
 
@@ -488,11 +488,11 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-"""
+
     return sample_code
 
 async def main():
-    """Función principal de migración."""
+    Función principal de migración."""
     logger.info("INICIANDO MIGRACIÓN DE CONECTORES DE EXCHANGE A WEBSOCKET TRASCENDENTAL")
     
     try:
@@ -556,4 +556,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-"""
