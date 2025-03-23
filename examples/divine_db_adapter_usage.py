@@ -1,146 +1,238 @@
 """
-Ejemplo de uso del Adaptador Divino de Base de Datos para el Sistema Genesis.
+Ejemplos de uso del DivineDatabaseAdapter.
 
-Este script demuestra cómo utilizar las capacidades del DivineDatabaseAdapter
-para operaciones síncronas y asíncronas, con manejo de caché y transacciones.
+Este script muestra cómo utilizar el adaptador divino de base de datos
+en diferentes contextos y escenarios, aprovechando sus características
+de resiliencia extrema y soporte híbrido.
 """
-
+import os
+import time
 import asyncio
 import logging
-import time
-from typing import Dict, Any, List
-
-from genesis.db.divine_database import get_divine_db_adapter, divine_db
+from typing import List, Dict, Any
 
 # Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("divine_db_example")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("examples.divine_db")
 
-async def ejemplo_operaciones_basicas():
-    """Demostrar operaciones básicas del adaptador divino."""
-    logger.info("=== EJEMPLO: OPERACIONES BÁSICAS ===")
+# Importar adaptador divino
+from genesis.db.divine_database import (
+    DivineDatabaseAdapter,
+    get_divine_db_adapter
+)
+
+# Ejemplo 1: Uso síncrono simple
+def ejemplo_uso_sincrono():
+    """Demostrar el uso síncrono básico del adaptador."""
+    logger.info("Ejemplo 1: Uso síncrono básico")
     
-    # Obtener instancia global del adaptador
-    db = divine_db
+    # Obtener instancia (singleton)
+    db = get_divine_db_adapter()
     
-    # === Operaciones Síncronas ===
-    logger.info("--- Operaciones Síncronas ---")
-    
-    # Ejecutar una consulta simple
-    count = db.fetch_val_sync("SELECT count(*) FROM information_schema.tables", default=0)
-    logger.info(f"Total de tablas en la base de datos: {count}")
-    
-    # Obtener información de tablas
-    tables = db.fetch_all_sync(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' LIMIT 5"
-    )
-    logger.info(f"Primeras 5 tablas: {', '.join([t['table_name'] for t in tables])}")
-    
-    # Ejemplo con transacción
+    # Ejecutar consulta simple
     try:
-        with db.transaction_sync() as tx:
-            # Esta es una operación de solo lectura para el ejemplo
-            result = tx.fetch_one("SELECT current_timestamp AS tiempo")
-            logger.info(f"Tiempo actual (en transacción): {result['tiempo']}")
+        # Obtener modos de sistema existentes
+        query = """
+            SELECT DISTINCT mode 
+            FROM gen_intensity_results 
+            ORDER BY mode
+        """
+        results = db.fetch_all_sync(query)
+        
+        if results:
+            logger.info(f"Modos de sistema encontrados: {len(results)}")
+            for row in results:
+                logger.info(f"  - {row['mode']}")
+        else:
+            logger.info("No se encontraron modos de sistema")
+        
+        # Otra consulta con parámetros
+        query_params = """
+            SELECT COUNT(*) as total_tests
+            FROM gen_intensity_results
+            WHERE intensity >= %(min_intensity)s
+        """
+        params = {"min_intensity": 5.0}
+        result = db.fetch_one_sync(query_params, params)
+        
+        if result:
+            logger.info(f"Total de pruebas con intensidad >= 5.0: {result['total_tests']}")
+    
     except Exception as e:
-        logger.error(f"Error en transacción: {e}")
+        logger.error(f"Error en ejemplo síncrono: {e}")
+
+# Ejemplo 2: Uso asíncrono simple
+async def ejemplo_uso_asincrono():
+    """Demostrar el uso asíncrono básico del adaptador."""
+    logger.info("Ejemplo 2: Uso asíncrono básico")
     
-    # === Operaciones Asíncronas ===
-    logger.info("--- Operaciones Asíncronas ---")
+    # Obtener instancia (singleton)
+    db = get_divine_db_adapter()
     
-    # Ejecutar una consulta simple
-    count = await db.fetch_val_async(
-        "SELECT count(*) FROM information_schema.tables", 
-        default=0
-    )
-    logger.info(f"Total de tablas en la base de datos (async): {count}")
+    # Ejecutar consulta simple de forma asíncrona
+    try:
+        # Obtener estadísticas por componente
+        query = """
+            SELECT component_id, 
+                   COUNT(*) as count,
+                   AVG(success_rate) as avg_success_rate
+            FROM gen_components
+            GROUP BY component_id
+            ORDER BY avg_success_rate DESC
+        """
+        results = await db.fetch_all_async(query)
+        
+        if results:
+            logger.info(f"Componentes encontrados: {len(results)}")
+            for row in results:
+                logger.info(f"  - {row['component_id']}: {row['avg_success_rate']:.2f} "
+                          f"({row['count']} registros)")
+        else:
+            logger.info("No se encontraron componentes")
+        
+        # Obtener resultado de prueba específico
+        query_params = """
+            SELECT *
+            FROM gen_intensity_results
+            WHERE id = %(id)s
+        """
+        params = {"id": 1}
+        result = await db.fetch_one_async(query_params, params)
+        
+        if result:
+            logger.info(f"Prueba ID 1: {result['mode']} (Intensidad: {result['intensity']}, "
+                      f"Éxito: {result['average_success_rate']:.2f})")
+        else:
+            logger.info("No se encontró la prueba con ID 1")
     
-    # Obtener información de tablas
-    tables = await db.fetch_all_async(
-        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' LIMIT 5"
-    )
-    logger.info(f"Primeras 5 tablas (async): {', '.join([t['table_name'] for t in tables])}")
+    except Exception as e:
+        logger.error(f"Error en ejemplo asíncrono: {e}")
+
+# Ejemplo 3: Transacciones
+async def ejemplo_transacciones():
+    """Demostrar el uso de transacciones en el adaptador."""
+    logger.info("Ejemplo 3: Uso de transacciones")
     
-    # Ejemplo de consultas paralelas
-    start_time = time.time()
-    tasks = [
-        db.fetch_val_async("SELECT pg_sleep(0.1), 1 AS valor"),
-        db.fetch_val_async("SELECT pg_sleep(0.1), 2 AS valor"),
-        db.fetch_val_async("SELECT pg_sleep(0.1), 3 AS valor"),
-    ]
-    results = await asyncio.gather(*tasks)
-    end_time = time.time()
-    logger.info(f"Resultados paralelos: {results}")
-    logger.info(f"Tiempo total para 3 consultas de 0.1s: {end_time - start_time:.2f}s")
+    # Obtener instancia (singleton)
+    db = get_divine_db_adapter()
     
-    # Ejemplo con transacción
+    # Ejemplo de transacción asíncrona
     try:
         async with db.transaction_async() as tx:
-            # Esta es una operación de solo lectura para el ejemplo
-            result = await tx.fetch_one("SELECT current_timestamp AS tiempo")
-            logger.info(f"Tiempo actual (en transacción async): {result['tiempo']}")
+            # Insertar resultado de prueba
+            insert_query = """
+                INSERT INTO gen_intensity_results 
+                (intensity, mode, average_success_rate, components_count, 
+                 total_events, execution_time, timestamp, system_version)
+                VALUES 
+                (%(intensity)s, %(mode)s, %(success_rate)s, %(comp_count)s,
+                 %(events)s, %(exec_time)s, NOW(), %(version)s)
+                RETURNING id
+            """
+            params = {
+                "intensity": 10.0,
+                "mode": "EXAMPLE_MODE",
+                "success_rate": 0.95,
+                "comp_count": 5,
+                "events": 100,
+                "exec_time": 30.5,
+                "version": "example_version"
+            }
+            
+            result = await db.fetch_one_async(insert_query, params, transaction=tx)
+            result_id = result['id']
+            logger.info(f"Insertado registro de prueba con ID: {result_id}")
+            
+            # Insertar componentes asociados
+            for i in range(5):
+                comp_query = """
+                    INSERT INTO gen_components
+                    (results_id, component_id, component_type, success_rate)
+                    VALUES
+                    (%(result_id)s, %(comp_id)s, %(comp_type)s, %(success)s)
+                """
+                comp_params = {
+                    "result_id": result_id,
+                    "comp_id": f"comp_{i}",
+                    "comp_type": "EXAMPLE",
+                    "success": 0.90 + (i * 0.01)
+                }
+                
+                await db.execute_async(comp_query, comp_params, transaction=tx)
+            
+            logger.info("Insertados 5 componentes asociados")
+            
+            # Para demostración: comentar línea siguiente para probar rollback
+            # raise Exception("Forzar rollback para demostración")
+    
     except Exception as e:
-        logger.error(f"Error en transacción async: {e}")
-    
-    # Mostrar estadísticas
-    stats = db.get_stats()
-    logger.info(f"Estadísticas del adaptador: {stats}")
+        logger.error(f"Error en transacción (rollback automático): {e}")
 
-async def ejemplo_cache():
-    """Demostrar el sistema de cache del adaptador divino."""
-    logger.info("\n=== EJEMPLO: SISTEMA DE CACHE ===")
+# Ejemplo 4: Funcionalidades resilientes
+def ejemplo_funcionalidades_resilientes():
+    """Demostrar las funcionalidades resilientes del adaptador."""
+    logger.info("Ejemplo 4: Funcionalidades resilientes")
     
-    # Crear una instancia personalizada con configuración de cache específica
-    db_custom = get_divine_db_adapter()
+    # Obtener instancia personalizada con configuración específica
+    db = DivineDatabaseAdapter(
+        pool_size=10,
+        max_retries=3,
+        retry_delay=0.1,
+        connection_timeout=5.0,
+        statement_timeout=10.0,
+        idle_in_transaction_timeout=30.0,
+        isolation_level="READ COMMITTED"
+    )
     
-    # Configurar cache para una consulta específica
-    query = "SELECT pg_sleep(0.2), current_timestamp AS tiempo"
+    logger.info("Configuración resiliente aplicada")
     
-    # Primera ejecución (sin cache)
-    start = time.time()
-    result1 = await db_custom.fetch_val(query)
-    time1 = time.time() - start
-    logger.info(f"Primera ejecución: {result1} (tiempo: {time1:.4f}s)")
-    
-    # Segunda ejecución (debería usar cache)
-    start = time.time()
-    result2 = await db_custom.fetch_val_sync(query)  # Usando versión síncrona
-    time2 = time.time() - start
-    logger.info(f"Segunda ejecución: {result2} (tiempo: {time2:.4f}s)")
-    
-    # Tercera ejecución (también debería usar cache)
-    start = time.time()
-    result3 = await db_custom.fetch_val(query)
-    time3 = time.time() - start
-    logger.info(f"Tercera ejecución: {result3} (tiempo: {time3:.4f}s)")
-    
-    # Comprobar si se usó el cache
-    logger.info(f"Aceleración con cache: {time1 / time3:.1f}x más rápido")
-    
-    # Verificar estadísticas del cache
-    cache_stats = db_custom.get_stats()["cache_stats"]
-    logger.info(f"Estadísticas del cache:")
-    logger.info(f"  - Hits: {cache_stats['hits']}")
-    logger.info(f"  - Misses: {cache_stats['misses']}")
-    logger.info(f"  - Hit ratio: {cache_stats['hit_ratio']:.2%}")
-    logger.info(f"  - Entradas: {cache_stats['entries']}")
-    logger.info(f"  - Memoria: {cache_stats['memory_usage_bytes'] / 1024:.2f} KB")
-
-async def main():
-    """Función principal del ejemplo."""
-    logger.info("INICIO DEL EJEMPLO DEL ADAPTADOR DIVINO DE BASE DE DATOS")
-    
+    # Demostrar cache
     try:
-        await ejemplo_operaciones_basicas()
-        await ejemplo_cache()
+        # Primera ejecución (sin cache)
+        start = time.time()
+        query = "SELECT * FROM gen_intensity_results LIMIT 10"
+        results1 = db.fetch_all_sync(query, use_cache=True)
+        time1 = time.time() - start
         
-    except Exception as e:
-        logger.error(f"Error en el ejemplo: {e}")
+        # Segunda ejecución (con cache)
+        start = time.time()
+        results2 = db.fetch_all_sync(query, use_cache=True)
+        time2 = time.time() - start
+        
+        if results1 and results2:
+            logger.info(f"Primera ejecución: {time1:.6f}s, {len(results1)} registros")
+            logger.info(f"Segunda ejecución: {time2:.6f}s, {len(results2)} registros")
+            
+            if time2 < time1:
+                improvement = ((time1 - time2) / time1) * 100
+                logger.info(f"Mejora por cache: {improvement:.2f}%")
+        else:
+            logger.info("No hay datos para mostrar mejora de cache")
+        
+        # Estadísticas de cache
+        cache_stats = db.get_cache_stats()
+        logger.info(f"Estadísticas de cache: {cache_stats}")
     
-    logger.info("FIN DEL EJEMPLO DEL ADAPTADOR DIVINO DE BASE DE DATOS")
+    except Exception as e:
+        logger.error(f"Error en ejemplo de funcionalidades resilientes: {e}")
+
+# Función para ejecutar todos los ejemplos
+async def ejecutar_ejemplos():
+    """Ejecutar todos los ejemplos."""
+    # Ejemplos síncronos
+    ejemplo_uso_sincrono()
+    ejemplo_funcionalidades_resilientes()
+    
+    # Ejemplos asíncronos
+    await ejemplo_uso_asincrono()
+    await ejemplo_transacciones()
+
+# Función principal
+async def main():
+    """Función principal para ejecutar todos los ejemplos."""
+    logger.info("Iniciando ejemplos de DivineDatabaseAdapter...")
+    await ejecutar_ejemplos()
+    logger.info("Ejemplos completados.")
 
 if __name__ == "__main__":
     asyncio.run(main())
