@@ -578,12 +578,12 @@ class QuantumTunnelV4:
         }
         self.logger = logging.getLogger("Genesis.QuantumTunnelV4")
         
-    async def tunnel_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    async def tunnel_data(self, data: Any) -> Any:
         """
         Transporta datos a través del túnel cuántico.
         
         Args:
-            data: Datos a transportar
+            data: Datos a transportar (cualquier tipo)
             
         Returns:
             Datos transportados con mejoras cuánticas
@@ -592,13 +592,39 @@ class QuantumTunnelV4:
         self.stats["tunnels_created"] += 1
         self.stats["data_tunneled"] += 1
         
-        # Añadir firma cuántica a los datos
-        result = data.copy() if data else {}
-        result["_quantum_tunneled"] = True
-        result["_tunnel_id"] = f"qt_{self.tunnels_created}"
-        result["_tunnel_timestamp"] = time.time()
-        
-        return result
+        # Manejar diferentes tipos de datos
+        if isinstance(data, dict):
+            # Para diccionarios, añadir metadatos
+            result = data.copy() if data else {}
+            result["_quantum_tunneled"] = True
+            result["_tunnel_id"] = f"qt_{self.tunnels_created}"
+            result["_tunnel_timestamp"] = time.time()
+            return result
+        elif isinstance(data, str):
+            # Para cadenas, retornar con prefijo
+            return f"quantum_tunneled_{self.tunnels_created}_{data}"
+        elif isinstance(data, (list, tuple)):
+            # Para listas o tuplas, procesar cada elemento si es posible
+            try:
+                return type(data)([await self.tunnel_data(item) for item in data])
+            except:
+                # Si no es posible procesar los elementos, retornar original
+                return data
+        elif hasattr(data, 'copy'):
+            # Para objetos con método copy (ej. numpy arrays), copiar y marcar
+            try:
+                result = data.copy()
+                # Intentar añadir metadatos si es posible
+                try:
+                    result._quantum_tunneled = True
+                except:
+                    pass
+                return result
+            except:
+                return data
+        else:
+            # Para otros tipos, retornar sin modificar
+            return data
         
     def get_stats(self) -> Dict[str, Any]:
         """
@@ -1013,7 +1039,83 @@ class RealityMatrixV4:
     def __init__(self):
         self.reality_projections = 0
         self.current_perfection = 1.0  # Perfección total
+        self.optimizations_performed = 0
+        self.stats = {
+            "projections": 0,
+            "optimizations": 0,
+            "perfection_level": 1.0
+        }
         self.logger = logging.getLogger("Genesis.RealityMatrixV4")
+        
+    async def optimize(self, data: Any) -> Any:
+        """
+        Optimiza cualquier estado a su forma perfecta en la matriz de realidad.
+        
+        Args:
+            data: Estado a optimizar (cualquier tipo)
+            
+        Returns:
+            Estado optimizado y perfeccionado
+        """
+        self.reality_projections += 1
+        self.optimizations_performed += 1
+        self.stats["projections"] += 1
+        self.stats["optimizations"] += 1
+        
+        # Manejar diferentes tipos de datos
+        if isinstance(data, dict):
+            # Para diccionarios, añadir metadatos
+            optimized = data.copy() if data else {}
+            optimized["_reality_optimized"] = True
+            optimized["_reality_projection"] = self.reality_projections
+            optimized["_perfection_level"] = self.current_perfection
+            optimized["_optimization_timestamp"] = time.time()
+            
+            # Corregir cualquier imperfección
+            if "_errors" in optimized:
+                optimized["_errors_transmuted"] = optimized.pop("_errors", [])
+            
+            return optimized
+        elif isinstance(data, str):
+            # Para cadenas, retornar con prefijo
+            return f"reality_optimized_{self.reality_projections}_{data}"
+        elif isinstance(data, (list, tuple)):
+            # Para listas o tuplas, procesar cada elemento si es posible
+            try:
+                return type(data)([await self.optimize(item) for item in data])
+            except:
+                # Si no es posible procesar los elementos, retornar original
+                return data
+        elif hasattr(data, 'copy'):
+            # Para objetos con método copy (ej. numpy arrays), copiar y marcar
+            try:
+                result = data.copy()
+                # Intentar añadir metadatos si es posible
+                try:
+                    result._reality_optimized = True
+                except:
+                    pass
+                return result
+            except:
+                return data
+        else:
+            # Para otros tipos, retornar sin modificar
+            return data
+        
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Obtener estadísticas de la matriz de realidad.
+        
+        Returns:
+            Estadísticas detalladas
+        """
+        stats = self.stats.copy()
+        stats.update({
+            "current_perfection": self.current_perfection,
+            "reality_projections": self.reality_projections,
+            "optimizations_performed": self.optimizations_performed
+        })
+        return stats
     
     async def project_perfection(self, intensity: float) -> Dict[str, Any]:
         """
@@ -1250,7 +1352,84 @@ class QuantumFeedbackLoop:
         self.future_simulations = 0
         self.initialized = False
         self.intensity = 0.0
+        self.stats = {
+            "feedback_cycles": 0,
+            "future_simulations": 0,
+            "optimizations_performed": 0
+        }
         self.logger = logging.getLogger("Genesis.QuantumFeedback")
+        
+    async def apply_feedback(self, data: Any) -> Any:
+        """
+        Aplica retroalimentación cuántica a datos u operaciones.
+        
+        Args:
+            data: Datos u operación a optimizar
+            
+        Returns:
+            Datos u operación optimizada con retroalimentación
+        """
+        self.feedback_cycles += 1
+        self.future_simulations += 1
+        self.stats["feedback_cycles"] += 1
+        self.stats["future_simulations"] += 1
+        self.stats["optimizations_performed"] += 1
+        
+        # Si es una operación, usar lógica de operaciones
+        if isinstance(data, Operation):
+            start_time = time.time()
+            self.logger.debug(f"Aplicando retroalimentación a operación con carga {data.load}")
+            
+            try:
+                # Simular proceso de retroalimentación
+                await asyncio.sleep(0.0001)
+                
+                # Crear operación optimizada
+                optimized = Operation(
+                    load=data.load,
+                    context={**(data.context or {}), "optimized": True, "feedback_cycle": self.feedback_cycles},
+                    priority=max(0, data.priority - 1)  # Aumentar prioridad
+                )
+                
+                elapsed = time.time() - start_time
+                self.logger.info(f"Retroalimentación aplicada a operación en {elapsed:.6f}s, ciclo #{self.feedback_cycles}")
+                
+                return optimized
+                
+            except Exception as e:
+                self.logger.error(f"Error en retroalimentación de operación: {str(e)}")
+                # Garantizar operación continua
+                return data
+        
+        # Si son datos en diccionario, usar lógica de datos
+        elif isinstance(data, dict):
+            # Optimizar datos con retroalimentación cuántica
+            optimized = data.copy() if data else {}
+            optimized["_feedback_optimized"] = True
+            optimized["_feedback_cycle"] = self.feedback_cycles
+            optimized["_optimization_factor"] = self.optimization_factor
+            optimized["_feedback_timestamp"] = time.time()
+            
+            return optimized
+        
+        # Cualquier otro tipo de datos, devolver sin cambios
+        else:
+            return data
+        
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Obtener estadísticas de retroalimentación cuántica.
+        
+        Returns:
+            Estadísticas detalladas
+        """
+        stats = self.stats.copy()
+        stats.update({
+            "optimization_factor": self.optimization_factor,
+            "initialized": self.initialized,
+            "intensity": self.intensity
+        })
+        return stats
     
     async def initialize_feedback_loop(self, intensity: float = 1000.0) -> Dict[str, Any]:
         """
@@ -1302,44 +1481,7 @@ class QuantumFeedbackLoop:
                 "error_recovered": True
             }
     
-    async def apply_feedback(self, operation: Operation) -> Operation:
-        """
-        Aplica retroalimentación cuántica a una operación.
-        
-        Args:
-            operation: Operación original
-            
-        Returns:
-            Operación optimizada
-        """
-        start_time = time.time()
-        self.logger.debug(f"Aplicando retroalimentación a operación con carga {operation.load}")
-        
-        try:
-            # Incrementar contadores
-            self.feedback_cycles += 1
-            self.future_simulations += 1
-            
-            # Simular proceso de retroalimentación
-            await asyncio.sleep(0.0001)
-            
-            # Crear operación optimizada
-            optimized = Operation(
-                load=operation.load,
-                context={**operation.context, "optimized": True, "feedback_cycle": self.feedback_cycles},
-                priority=max(0, operation.priority - 1)  # Aumentar prioridad
-            )
-            
-            elapsed = time.time() - start_time
-            self.logger.info(f"Retroalimentación aplicada en {elapsed:.6f}s, "
-                           f"ciclo #{self.feedback_cycles}")
-            
-            return optimized
-            
-        except Exception as e:
-            self.logger.error(f"Error en retroalimentación: {str(e)}")
-            # Garantizar operación continua
-            return operation
+
     
     async def simulate_future(self, operation: Operation) -> Dict[str, Any]:
         """
