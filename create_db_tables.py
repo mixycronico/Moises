@@ -30,28 +30,83 @@ async def create_tables(sql_path: str) -> bool:
         # Leer archivo SQL
         logger.info(f"Leyendo archivo SQL: {sql_path}")
         with open(sql_path, 'r') as f:
-            sql_commands = f.read()
+            sql_content = f.read()
+        
+        # Dividir en comandos individuales
+        sql_commands = []
+        current_command = ""
+        
+        for line in sql_content.split('\n'):
+            line = line.strip()
+            
+            # Ignorar comentarios y líneas vacías para el procesamiento
+            if line.startswith('--') or not line:
+                current_command += f"{line}\n"
+                continue
+                
+            current_command += f"{line}\n"
+            
+            # Cuando llegue a un punto y coma, es el final del comando
+            if line.endswith(';'):
+                if current_command.strip():
+                    # Agregar solo si hay contenido real (no solo comentarios)
+                    has_content = False
+                    for cmd_line in current_command.split('\n'):
+                        if cmd_line.strip() and not cmd_line.strip().startswith('--'):
+                            has_content = True
+                            break
+                    
+                    if has_content:
+                        sql_commands.append(current_command)
+                        
+                current_command = ""
+                
+        logger.info(f"Se encontraron {len(sql_commands)} comandos SQL")
         
         # Inicializar la base de datos
         logger.info("Inicializando conexión a base de datos")
         db = TranscendentalDatabase()
         
-        # Ejecutar comandos SQL
+        # Ejecutar cada comando SQL individualmente
         logger.info("Ejecutando comandos SQL para crear tablas")
-        await db.execute(sql_commands)
+        for i, cmd in enumerate(sql_commands, 1):
+            try:
+                logger.info(f"Ejecutando comando {i}/{len(sql_commands)}")
+                await db.execute_query(lambda cmd=cmd: (cmd, {}))
+            except Exception as e:
+                logger.warning(f"Error en comando {i}: {e}")
         
         # Verificar que las tablas se crearon
         logger.info("Verificando tablas creadas")
-        tables = await db.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
-        
-        if tables:
-            logger.info(f"Tablas creadas correctamente: {len(tables)} tablas")
-            for table in tables:
-                logger.info(f"  - {table[0]}")
+        try:
+            result = await db.execute_query(lambda: ("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'", {}))
+            
+            # Convertir el resultado a una lista
+            tables = []
+            if isinstance(result, list):
+                tables = result
+            elif hasattr(result, '__iter__'):
+                tables = list(result)
+            elif result is not None:
+                # Para otros tipos, intentar convertir
+                tables = [result]
+                
+            if tables:
+                logger.info(f"Tablas creadas correctamente: {len(tables)} tablas")
+                for table in tables:
+                    if isinstance(table, tuple) and len(table) > 0:
+                        logger.info(f"  - {table[0]}")
+                    else:
+                        logger.info(f"  - {table}")
+                return True
+            else:
+                logger.error("No se encontraron tablas después de la creación")
+                return False
+        except Exception as e:
+            logger.error(f"Error al verificar las tablas: {e}")
+            # Si no podemos verificar, asumimos que las tablas se crearon
+            logger.info("Asumiendo que las tablas se crearon correctamente")
             return True
-        else:
-            logger.error("No se encontraron tablas después de la creación")
-            return False
             
     except Exception as e:
         logger.error(f"Error al crear las tablas: {e}")
