@@ -386,36 +386,90 @@ else:
         
     def calculate_volume_profile(close, volume, num_bins=10):
         """Calcular perfil de volumen."""
+        # Manejo defensivo para arrays vacíos o datos inválidos
+        if len(close) == 0 or len(volume) == 0:
+            return {"bins": [0] * num_bins, "volumes": [0] * num_bins}
+            
+        # Verificar si hay NaN y usar valores válidos solamente
+        valid_indices = [i for i, (p, v) in enumerate(zip(close, volume)) 
+                         if not (np.isnan(p) or np.isnan(v))]
+        
+        if not valid_indices:
+            return {"bins": [0] * num_bins, "volumes": [0] * num_bins}
+            
+        valid_prices = [close[i] for i in valid_indices]
+        valid_volumes = [volume[i] for i in valid_indices]
+        
         # Simplificado
-        min_price = min(close)
-        max_price = max(close)
+        min_price = min(valid_prices)
+        max_price = max(valid_prices)
+        
+        # Evitar división por cero
+        if min_price == max_price:
+            bins = [min_price] * num_bins
+            volumes = [sum(valid_volumes) / num_bins] * num_bins
+            return {"bins": bins, "volumes": volumes}
+            
         bin_size = (max_price - min_price) / num_bins
         
         bins = [min_price + i * bin_size for i in range(num_bins)]
         volumes = [0] * num_bins
         
-        for i, price in enumerate(close):
-            bin_idx = min(int((price - min_price) / bin_size), num_bins - 1)
-            volumes[bin_idx] += volume[i]
+        for i, price in enumerate(valid_prices):
+            # Asegurar que el cálculo del índice es seguro
+            try:
+                bin_idx = min(int((price - min_price) / bin_size), num_bins - 1)
+                volumes[bin_idx] += valid_volumes[i]
+            except (ValueError, TypeError, OverflowError):
+                # Ignorar valores que no se pueden procesar
+                continue
             
         return {"bins": bins, "volumes": volumes}
         
     def calculate_market_profile(high, low, close, num_bins=10):
         """Calcular perfil de mercado."""
+        # Manejo defensivo para arrays vacíos o datos inválidos
+        if len(high) == 0 or len(low) == 0 or len(close) == 0:
+            return {"bins": [0] * num_bins, "frequencies": [0] * num_bins}
+        
+        # Verificar si hay NaN y usar valores válidos solamente
+        valid_indices = [i for i, (h, l, c) in enumerate(zip(high, low, close)) 
+                         if not (np.isnan(h) or np.isnan(l) or np.isnan(c))]
+        
+        if not valid_indices:
+            return {"bins": [0] * num_bins, "frequencies": [0] * num_bins}
+            
+        valid_high = [high[i] for i in valid_indices]
+        valid_low = [low[i] for i in valid_indices]
+        valid_close = [close[i] for i in valid_indices]
+        
         # Simplificado
-        min_price = min(low)
-        max_price = max(high)
-        bin_size = (max_price - min_price) / num_bins
-        
-        bins = [min_price + i * bin_size for i in range(num_bins)]
-        frequencies = [0] * num_bins
-        
-        for i in range(len(close)):
-            for bin_idx, bin_price in enumerate(bins):
-                if low[i] <= bin_price <= high[i]:
-                    frequencies[bin_idx] += 1
-                    
-        return {"bins": bins, "frequencies": frequencies}
+        try:
+            min_price = min(valid_low)
+            max_price = max(valid_high)
+            
+            # Evitar división por cero
+            if min_price == max_price:
+                bins = [min_price] * num_bins
+                return {"bins": bins, "frequencies": [len(valid_close) // num_bins] * num_bins}
+                
+            bin_size = (max_price - min_price) / num_bins
+            
+            bins = [min_price + i * bin_size for i in range(num_bins)]
+            frequencies = [0] * num_bins
+            
+            for i in range(len(valid_close)):
+                for bin_idx, bin_price in enumerate(bins):
+                    try:
+                        if valid_low[i] <= bin_price <= valid_high[i]:
+                            frequencies[bin_idx] += 1
+                    except (IndexError, TypeError):
+                        continue
+                        
+            return {"bins": bins, "frequencies": frequencies}
+        except (ValueError, TypeError) as e:
+            # En caso de error, devolver datos vacíos
+            return {"bins": [0] * num_bins, "frequencies": [0] * num_bins}
 
 # Importar análisis de sentimiento con manejo de errores
 try:
@@ -1297,166 +1351,224 @@ class ReinforcementEnsembleStrategy(Strategy):
             }
         }
         
+        # Verificar si el diccionario está vacío
+        if not indicators or not isinstance(indicators, dict):
+            logger.warning("Indicadores no disponibles o con formato inválido")
+            analysis['dominant_signal'] = 'hold'
+            return analysis
+        
         try:
-            # Analizar tendencia con EMAs
-            if 'ema_short' in indicators and 'ema_medium' in indicators and 'ema_long' in indicators:
-                ema_short = indicators['ema_short'][-1]
-                ema_medium = indicators['ema_medium'][-1]
-                ema_long = indicators['ema_long'][-1]
+            # Función auxiliar para obtener valores de indicadores de forma segura
+            def safe_get_value(indicator_dict, key, default=0):
+                """Obtener valor de indicador de forma segura"""
+                if key not in indicator_dict:
+                    return default
                 
-                if ema_short > ema_medium > ema_long:
-                    analysis['trend']['bullish'] += 2
-                    analysis['signals']['buy'] += 1
-                elif ema_short < ema_medium < ema_long:
-                    analysis['trend']['bearish'] += 2
-                    analysis['signals']['sell'] += 1
-                else:
+                value = indicator_dict[key]
+                if not isinstance(value, (list, np.ndarray)) or len(value) == 0:
+                    return default
+                
+                try:
+                    return value[-1]  # Último valor
+                except (IndexError, TypeError):
+                    return default
+            
+            # Analizar tendencia con EMAs
+            have_emas = ('ema_short' in indicators and 
+                        'ema_medium' in indicators and 
+                        'ema_long' in indicators)
+            
+            if have_emas:
+                try:
+                    ema_short = safe_get_value(indicators, 'ema_short')
+                    ema_medium = safe_get_value(indicators, 'ema_medium')
+                    ema_long = safe_get_value(indicators, 'ema_long')
+                    
+                    if ema_short > ema_medium > ema_long:
+                        analysis['trend']['bullish'] += 2
+                        analysis['signals']['buy'] += 1
+                    elif ema_short < ema_medium < ema_long:
+                        analysis['trend']['bearish'] += 2
+                        analysis['signals']['sell'] += 1
+                    else:
+                        analysis['trend']['neutral'] += 1
+                        analysis['signals']['hold'] += 0.5
+                except (TypeError, ValueError):
                     analysis['trend']['neutral'] += 1
-                    analysis['signals']['hold'] += 0.5
+            else:
+                analysis['trend']['neutral'] += 1
             
             # Analizar MACD
-            if 'macd' in indicators and 'macd_signal' in indicators:
-                macd = indicators['macd'][-1]
-                macd_signal = indicators['macd_signal'][-1]
-                macd_hist = indicators.get('macd_hist', [0])[-1]
-                
-                if macd > macd_signal and macd_hist > 0:
-                    analysis['momentum']['bullish'] += 1.5
-                    analysis['signals']['buy'] += 1
-                elif macd < macd_signal and macd_hist < 0:
-                    analysis['momentum']['bearish'] += 1.5
-                    analysis['signals']['sell'] += 1
-                else:
+            have_macd = ('macd' in indicators and 'macd_signal' in indicators)
+            if have_macd:
+                try:
+                    macd = safe_get_value(indicators, 'macd')
+                    macd_signal = safe_get_value(indicators, 'macd_signal')
+                    macd_hist = safe_get_value(indicators, 'macd_hist')
+                    
+                    if macd > macd_signal and macd_hist > 0:
+                        analysis['momentum']['bullish'] += 1.5
+                        analysis['signals']['buy'] += 1
+                    elif macd < macd_signal and macd_hist < 0:
+                        analysis['momentum']['bearish'] += 1.5
+                        analysis['signals']['sell'] += 1
+                    else:
+                        analysis['momentum']['neutral'] += 1
+                except (TypeError, ValueError):
                     analysis['momentum']['neutral'] += 1
+            else:
+                analysis['momentum']['neutral'] += 1
             
             # Analizar RSI
             if 'rsi' in indicators:
-                rsi = indicators['rsi'][-1]
-                
-                if rsi < 30:
-                    analysis['momentum']['bullish'] += 1.5  # Sobrevendido
-                    analysis['signals']['buy'] += 1.5
-                elif rsi > 70:
-                    analysis['momentum']['bearish'] += 1.5  # Sobrecomprado
-                    analysis['signals']['sell'] += 1.5
-                else:
-                    analysis['momentum']['neutral'] += 1
-                
-                # Fuerza del RSI
-                if 30 <= rsi <= 70:
-                    if 45 <= rsi <= 55:
-                        analysis['strength']['medium'] += 1
-                    elif rsi < 45:
-                        analysis['strength']['weak'] += 1
+                try:
+                    rsi = safe_get_value(indicators, 'rsi')
+                    
+                    if rsi < 30:
+                        analysis['momentum']['bullish'] += 1.5  # Sobrevendido
+                        analysis['signals']['buy'] += 1.5
+                    elif rsi > 70:
+                        analysis['momentum']['bearish'] += 1.5  # Sobrecomprado
+                        analysis['signals']['sell'] += 1.5
                     else:
-                        analysis['strength']['strong'] += 1
-                elif rsi < 30:
-                    analysis['strength']['weak'] += 1.5
-                else:  # rsi > 70
-                    analysis['strength']['strong'] += 1.5
+                        analysis['momentum']['neutral'] += 1
+                    
+                    # Fuerza del RSI
+                    if 30 <= rsi <= 70:
+                        if 45 <= rsi <= 55:
+                            analysis['strength']['medium'] += 1
+                        elif rsi < 45:
+                            analysis['strength']['weak'] += 1
+                        else:
+                            analysis['strength']['strong'] += 1
+                    elif rsi < 30:
+                        analysis['strength']['weak'] += 1.5
+                    else:  # rsi > 70
+                        analysis['strength']['strong'] += 1.5
+                except (TypeError, ValueError):
+                    analysis['momentum']['neutral'] += 1
+                    analysis['strength']['medium'] += 1
             
             # Analizar Bollinger Bands
-            if 'bollinger' in indicators:
-                bb = indicators['bollinger']
-                price = bb.get('close', [0])[-1]
-                upper = bb.get('upper', [0])[-1]
-                lower = bb.get('lower', [0])[-1]
-                middle = bb.get('middle', [0])[-1]
-                
-                # Medir volatilidad
-                bandwidth = (upper - lower) / middle if middle > 0 else 0
-                if bandwidth > 0.1:  # Alto
-                    analysis['volatility']['high'] += 2
-                elif bandwidth > 0.05:  # Medio
-                    analysis['volatility']['medium'] += 2
-                else:  # Bajo
-                    analysis['volatility']['low'] += 2
-                
-                # Señales de Bollinger
-                if price <= lower:
-                    analysis['signals']['buy'] += 1.5  # Posible rebote
-                elif price >= upper:
-                    analysis['signals']['sell'] += 1.5  # Posible caída
-                elif price > middle:
-                    analysis['signals']['hold'] += 0.5
-                    analysis['trend']['bullish'] += 0.5
-                elif price < middle:
-                    analysis['signals']['hold'] += 0.5
-                    analysis['trend']['bearish'] += 0.5
+            if 'bollinger' in indicators and isinstance(indicators['bollinger'], dict):
+                try:
+                    bb = indicators['bollinger']
+                    price = safe_get_value(bb, 'close')
+                    upper = safe_get_value(bb, 'upper')
+                    lower = safe_get_value(bb, 'lower')
+                    middle = safe_get_value(bb, 'middle')
+                    
+                    # Medir volatilidad
+                    bandwidth = (upper - lower) / middle if middle > 0 else 0
+                    if bandwidth > 0.1:  # Alto
+                        analysis['volatility']['high'] += 2
+                    elif bandwidth > 0.05:  # Medio
+                        analysis['volatility']['medium'] += 2
+                    else:  # Bajo
+                        analysis['volatility']['low'] += 2
+                    
+                    # Señales de Bollinger
+                    if price <= lower:
+                        analysis['signals']['buy'] += 1.5  # Posible rebote
+                    elif price >= upper:
+                        analysis['signals']['sell'] += 1.5  # Posible caída
+                    elif price > middle:
+                        analysis['signals']['hold'] += 0.5
+                        analysis['trend']['bullish'] += 0.5
+                    elif price < middle:
+                        analysis['signals']['hold'] += 0.5
+                        analysis['trend']['bearish'] += 0.5
+                except (TypeError, ValueError, ZeroDivisionError):
+                    analysis['volatility']['medium'] += 1
+            else:
+                analysis['volatility']['medium'] += 1
             
             # Ichimoku Cloud
-            if 'ichimoku' in indicators:
-                cloud = indicators['ichimoku']
-                tenkan = cloud.get('tenkan', [0])[-1]
-                kijun = cloud.get('kijun', [0])[-1]
-                senkou_a = cloud.get('senkou_span_a', [0])[-1]
-                senkou_b = cloud.get('senkou_span_b', [0])[-1]
-                price = cloud.get('close', [0])[-1]
-                
-                # Tendencia
-                if price > senkou_a and price > senkou_b:  # Precio sobre la nube
-                    analysis['trend']['bullish'] += 2
-                    analysis['signals']['buy'] += 1
-                elif price < senkou_a and price < senkou_b:  # Precio bajo la nube
-                    analysis['trend']['bearish'] += 2
-                    analysis['signals']['sell'] += 1
-                
-                # Señal de cruce
-                if tenkan > kijun:  # Cruce alcista
-                    analysis['signals']['buy'] += 1
-                    analysis['momentum']['bullish'] += 1
-                elif tenkan < kijun:  # Cruce bajista
-                    analysis['signals']['sell'] += 1
-                    analysis['momentum']['bearish'] += 1
+            if 'ichimoku' in indicators and isinstance(indicators['ichimoku'], dict):
+                try:
+                    cloud = indicators['ichimoku']
+                    tenkan = safe_get_value(cloud, 'tenkan')
+                    kijun = safe_get_value(cloud, 'kijun')
+                    senkou_a = safe_get_value(cloud, 'senkou_span_a')
+                    senkou_b = safe_get_value(cloud, 'senkou_span_b')
+                    price = safe_get_value(cloud, 'close')
+                    
+                    # Tendencia
+                    if price > senkou_a and price > senkou_b:  # Precio sobre la nube
+                        analysis['trend']['bullish'] += 2
+                        analysis['signals']['buy'] += 1
+                    elif price < senkou_a and price < senkou_b:  # Precio bajo la nube
+                        analysis['trend']['bearish'] += 2
+                        analysis['signals']['sell'] += 1
+                    
+                    # Señal de cruce
+                    if tenkan > kijun:  # Cruce alcista
+                        analysis['signals']['buy'] += 1
+                        analysis['momentum']['bullish'] += 1
+                    elif tenkan < kijun:  # Cruce bajista
+                        analysis['signals']['sell'] += 1
+                        analysis['momentum']['bearish'] += 1
+                except (TypeError, ValueError):
+                    pass  # No ajustamos nada
             
             # DMI (ADX)
-            if 'dmi' in indicators:
-                dmi = indicators['dmi']
-                adx = dmi.get('adx', [0])[-1]
-                di_plus = dmi.get('di_plus', [0])[-1]
-                di_minus = dmi.get('di_minus', [0])[-1]
-                
-                # Fuerza de la tendencia
-                if adx > 25:
-                    analysis['strength']['strong'] += 1
-                elif adx > 20:
+            if 'dmi' in indicators and isinstance(indicators['dmi'], dict):
+                try:
+                    dmi = indicators['dmi']
+                    adx = safe_get_value(dmi, 'adx')
+                    di_plus = safe_get_value(dmi, 'di_plus')
+                    di_minus = safe_get_value(dmi, 'di_minus')
+                    
+                    # Fuerza de la tendencia
+                    if adx > 25:
+                        analysis['strength']['strong'] += 1
+                    elif adx > 20:
+                        analysis['strength']['medium'] += 1
+                    else:
+                        analysis['strength']['weak'] += 1
+                    
+                    # Dirección
+                    if di_plus > di_minus:
+                        analysis['trend']['bullish'] += 1
+                        analysis['signals']['buy'] += adx / 50  # Ponderado por fuerza
+                    else:
+                        analysis['trend']['bearish'] += 1
+                        analysis['signals']['sell'] += adx / 50  # Ponderado por fuerza
+                except (TypeError, ValueError, ZeroDivisionError):
                     analysis['strength']['medium'] += 1
-                else:
-                    analysis['strength']['weak'] += 1
-                
-                # Dirección
-                if di_plus > di_minus:
-                    analysis['trend']['bullish'] += 1
-                    analysis['signals']['buy'] += adx / 50  # Ponderado por fuerza
-                else:
-                    analysis['trend']['bearish'] += 1
-                    analysis['signals']['sell'] += adx / 50  # Ponderado por fuerza
             
             # Determinar resultados agregados
             for key in ['trend', 'momentum', 'volatility', 'strength']:
-                max_val = max(analysis[key].values())
-                if max_val > 0:
-                    max_keys = [k for k, v in analysis[key].items() if v == max_val]
-                    analysis[key]['result'] = max_keys[0]
-                else:
+                try:
+                    max_val = max(analysis[key].values())
+                    if max_val > 0:
+                        max_keys = [k for k, v in analysis[key].items() if v == max_val]
+                        analysis[key]['result'] = max_keys[0]
+                    else:
+                        analysis[key]['result'] = list(analysis[key].keys())[0]
+                except (ValueError, TypeError, IndexError):
                     analysis[key]['result'] = list(analysis[key].keys())[0]
             
             # Normalizar señales
-            total_signals = sum(analysis['signals'].values())
-            if total_signals > 0:
-                for signal in analysis['signals']:
-                    analysis['signals'][signal] /= total_signals
-                
-                # Determinar señal más fuerte
-                max_signal = max(analysis['signals'], key=analysis['signals'].get)
-                analysis['dominant_signal'] = max_signal
-            else:
+            try:
+                total_signals = sum(analysis['signals'].values())
+                if total_signals > 0:
+                    for signal in analysis['signals']:
+                        analysis['signals'][signal] /= total_signals
+                    
+                    # Determinar señal más fuerte
+                    max_signal = max(analysis['signals'], key=analysis['signals'].get)
+                    analysis['dominant_signal'] = max_signal
+                else:
+                    analysis['dominant_signal'] = 'hold'
+            except (ValueError, TypeError, ZeroDivisionError):
                 analysis['dominant_signal'] = 'hold'
             
             return analysis
             
         except Exception as e:
             logger.warning(f"Error en análisis de indicadores: {str(e)}")
+            analysis['dominant_signal'] = 'hold'
             return analysis
     
     async def _get_real_rl_predictions(self, symbol: str, ohlcv: Dict[str, List[float]], 
