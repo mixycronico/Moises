@@ -17,7 +17,10 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger("db_setup")
 
 # Importar modelos
-from genesis.db.paper_trading_models import Base
+from genesis.db.base import Base
+from genesis.db.paper_trading_models import *
+from genesis.db.models.crypto_classifier_models import *
+from genesis.db.models.scaling_config_models import *
 
 async def setup_database():
     """
