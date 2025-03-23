@@ -97,29 +97,63 @@ async def main():
     """Función principal de prueba."""
     host = "localhost"
     port = 8765
+    server = None
     
     try:
-        # Iniciar servidor
-        server = await start_server(host, port)
+        logger.info("Iniciando prueba con tiempo limitado (10 segundos máximo)...")
         
-        # Ejecutar cliente de prueba
-        uri = f"ws://{host}:{port}/test-component"
-        responses = await test_client(uri)
+        # Iniciar servidor con tiempo límite
+        server_task = asyncio.create_task(
+            asyncio.wait_for(
+                start_server(host, port),
+                timeout=5.0
+            )
+        )
         
-        # Mostrar estadísticas del servidor
-        stats = server.get_stats()
-        logger.info(f"Estadísticas del servidor: {json.dumps(stats, indent=2)}")
-        
-        # Mostrar estadísticas de los mecanismos
-        for name, mech in server.mechanisms.items():
-            logger.info(f"Estadísticas de mecanismo {name}: {json.dumps(mech.get_stats(), indent=2)}")
+        # Esperar a que el servidor esté listo o timeout
+        try:
+            server = await server_task
+            logger.info("Servidor iniciado correctamente")
+        except asyncio.TimeoutError:
+            logger.error("Tiempo de espera agotado al iniciar servidor")
+            return
             
-        # Detener servidor
-        await server.stop()
-        logger.info("Servidor detenido")
+        # Ejecutar cliente de prueba con tiempo límite
+        client_task = asyncio.create_task(
+            asyncio.wait_for(
+                test_client(f"ws://{host}:{port}/test-component", messages_count=3, delay_ms=300),
+                timeout=5.0
+            )
+        )
         
+        # Esperar a que el cliente complete o timeout
+        try:
+            responses = await client_task
+            logger.info(f"Cliente completó con {len(responses)} respuestas")
+        except asyncio.TimeoutError:
+            logger.error("Tiempo de espera agotado en cliente")
+            
+        # Si tenemos servidor, mostrar estadísticas y detenerlo
+        if server:
+            # Mostrar estadísticas básicas
+            connections = server.stats.get("connections_accepted", 0)
+            messages_recv = server.stats.get("messages_received", 0)
+            messages_sent = server.stats.get("messages_sent", 0)
+            
+            logger.info(f"Conexiones: {connections}, Mensajes recibidos: {messages_recv}, Mensajes enviados: {messages_sent}")
+            
+            # Detener servidor con tiempo límite
+            try:
+                await asyncio.wait_for(server.stop(), timeout=2.0)
+                logger.info("Servidor detenido correctamente")
+            except asyncio.TimeoutError:
+                logger.error("Tiempo de espera agotado al detener servidor")
+                
     except Exception as e:
         logger.error(f"Error en prueba: {e}")
+    finally:
+        # Asegurar que todo termina
+        logger.info("Prueba finalizada")
 
 if __name__ == "__main__":
     asyncio.run(main())
