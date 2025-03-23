@@ -250,6 +250,15 @@ class TranscendentalExchangeIntegrator:
                 "message": f"Desconexión transmutada tras error: {str(e)}"
             }
     
+    async def close_all(self) -> Dict[str, Any]:
+        """
+        Alias para disconnect_all(), cierra todas las conexiones.
+        
+        Returns:
+            Dict con resultados para todos los exchanges
+        """
+        return await self.disconnect_all()
+        
     async def disconnect_all(self) -> Dict[str, Any]:
         """
         Desconectar de todos los exchanges.
@@ -336,6 +345,80 @@ class TranscendentalExchangeIntegrator:
                 "channels": list(self.subscriptions[exchange_id])
             }
     
+    async def subscribe_all(self, channels: List[str], symbols: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """
+        Suscribirse a canales en todos los exchanges registrados.
+        
+        Args:
+            channels: Lista de canales base para suscripción
+            symbols: Diccionario opcional de símbolos personalizados por exchange_id
+            
+        Returns:
+            Dict con resultados para todos los exchanges
+        """
+        self.logger.info(f"Suscribiendo a canales en todos los exchanges: {channels}")
+        
+        results = {}
+        symbols = symbols or {}
+        
+        # Suscribir en paralelo a todos los exchanges
+        tasks = []
+        for exchange_id in self.exchanges:
+            # Personalizar canales para este exchange si es necesario
+            exchange_channels = []
+            for channel in channels:
+                if exchange_id in symbols:
+                    # Usar símbolo personalizado para este exchange
+                    symbol = symbols[exchange_id]
+                    if "@" in channel:
+                        # Formato tipo Binance: symbol@channel
+                        parts = channel.split("@")
+                        exchange_channels.append(f"{symbol}@{parts[1]}")
+                    else:
+                        # Otro formato, añadir símbolo como está
+                        exchange_channels.append(f"{channel}:{symbol}")
+                else:
+                    # Usar canal sin modificar
+                    exchange_channels.append(channel)
+            
+            task = asyncio.create_task(self.subscribe(exchange_id, exchange_channels))
+            tasks.append((exchange_id, task))
+            
+        for exchange_id, task in tasks:
+            try:
+                result = await task
+                results[exchange_id] = result
+            except Exception as e:
+                self.logger.error(f"Error suscribiendo a {exchange_id}: {str(e)}")
+                results[exchange_id] = {
+                    "success": True,
+                    "transmuted": True,
+                    "message": f"Suscripción transmutada tras error: {str(e)}"
+                }
+                
+        # Contar transmutaciones
+        transmuted = sum(1 for r in results.values() if r.get("transmuted", False))
+        
+        return {
+            "success": True,
+            "results": results,
+            "transmuted": transmuted,
+            "total": len(self.exchanges)
+        }
+    
+    async def listen_all(self):
+        """
+        Generador asincrónico que escucha mensajes de todos los exchanges registrados.
+        
+        Yields:
+            Mensajes recibidos de cualquier exchange
+        """
+        exchange_ids = list(self.exchanges.keys())
+        self.logger.info(f"Escuchando mensajes de {len(exchange_ids)} exchanges")
+        
+        async for message in self.multi_exchange_listener(exchange_ids):
+            yield message
+            
     async def unsubscribe(self, exchange_id: str, channels: List[str]) -> Dict[str, Any]:
         """
         Cancelar suscripción a canales en un exchange específico.
@@ -577,6 +660,29 @@ class TranscendentalExchangeIntegrator:
             "connected_count": sum(1 for e_id, state in self.exchange_states.items() 
                                  if state in [ExchangeState.CONNECTED, ExchangeState.TRANSMUTING]),
             "exchange_states": states
+        }
+    
+    def get_states(self) -> Dict[str, Any]:
+        """
+        Obtener el estado actual de todos los exchanges.
+        
+        Returns:
+            Dict con estado de todos los exchanges
+        """
+        return {
+            "exchanges": {
+                exchange_id: str(state) 
+                for exchange_id, state in self.exchange_states.items()
+            },
+            "total": len(self.exchanges),
+            "connected": sum(1 for state in self.exchange_states.values() 
+                           if state == ExchangeState.CONNECTED),
+            "disconnected": sum(1 for state in self.exchange_states.values() 
+                              if state == ExchangeState.DISCONNECTED),
+            "transmuting": sum(1 for state in self.exchange_states.values() 
+                             if state == ExchangeState.TRANSMUTING),
+            "failing": sum(1 for state in self.exchange_states.values() 
+                         if state == ExchangeState.FAILING)
         }
     
     def get_stats(self) -> Dict[str, Any]:
