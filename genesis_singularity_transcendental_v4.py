@@ -2382,6 +2382,12 @@ class TranscendentalAPI:
 
     async def initialize(self):
         """Inicializa la sesión API con resiliencia."""
+        self.session = aiohttp.ClientSession()
+        
+        # Análisis predictivo para prevenir fallos
+        await self.mechanisms["predictive"].predict_and_prevent({"url": self.base_url})
+        
+        self.logger.info(f"Sesión API inicializada trascendentalmente para {self.base_url}")
         
     async def close(self):
         """Cierra la sesión API y libera recursos."""
@@ -2465,74 +2471,8 @@ class TranscendentalAPI:
                 stats[f"{name}_stats"] = mechanism.get_stats()
                 
         return stats
-        self.session = aiohttp.ClientSession()
-        
-        # Análisis predictivo para prevenir fallos
-        await self.mechanisms["predictive"].predict_and_prevent({"url": self.base_url})
-        
-        self.logger.info(f"Sesión API inicializada trascendentalmente para {self.base_url}")
 
-    async def fetch_data(self, endpoint: str, params: Dict = None) -> Dict:
-        """Obtiene datos con optimización trascendental."""
-        if params is None:
-            params = {}
-            
-        url = f"{self.base_url}/{endpoint}"
-        self.logger.debug(f"Obteniendo datos de {url}")
-        
-        # Para pruebas: Generar datos simulados
-        # Esto garantiza que siempre haya datos disponibles, incluso cuando
-        # no hay un servidor real para pruebas
-        simulated_data = {
-            "data_points": [
-                {"id": i, "value": random.random() * 100, "type": "measurement"}
-                for i in range(10)
-            ],
-            "metadata": {
-                "source": "trascendental_api",
-                "quality": "high",
-                "parameters": params
-            },
-            "timestamp": time.time()
-        }
-        
-        # Almacenar datos simulados en memoria omniversal para acceso futuro
-        await self.mechanisms["memory"].store_state({
-            "endpoint": endpoint,
-            "data": simulated_data,
-            "timestamp": time.time()
-        })
-        
-        # En un entorno real, intentaríamos conectar al servidor
-        try:
-            # Ejecutar fuera del tiempo
-            async with self.mechanisms["time"].nullify_time():
-                # Tiempo de espera infinitesimal
-                timeout = aiohttp.ClientTimeout(total=1e-12)
-                
-                # Intentar realizar petición real
-                if self.session:
-                    try:
-                        async with self.session.get(url, params=params, timeout=timeout) as response:
-                            data = await response.json()
-                            self.logger.debug(f"Datos obtenidos de {url}")
-                            return data
-                    except Exception as inner_e:
-                        # Error de conexión, usar datos simulados
-                        pass
-                
-                # Si llegamos aquí, usamos los datos simulados
-                return simulated_data
-                    
-        except Exception as e:
-            self.logger.error(f"Error obteniendo datos de {url}: {str(e)}")
-            
-            # Transmutar errores en mejoras
-            improvements = await self.mechanisms["horizon"].absorb_and_improve([{"type": "api_error", "intensity": 7.0}])
-            
-            # Uso de datos simulados como fallback
-            self.logger.info(f"Usando datos simulados para {endpoint}")
-            return simulated_data
+
 
     async def process_api_data(self, data: Dict) -> Dict:
         """Procesa datos API con densidad infinita."""
