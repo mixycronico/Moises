@@ -72,9 +72,14 @@ async def create_tables(sql_path: str) -> bool:
         for i, cmd in enumerate(sql_commands, 1):
             try:
                 logger.info(f"Ejecutando comando {i}/{len(sql_commands)}")
-                await db.execute_query(lambda cmd=cmd: (cmd, {}))
+                # Imprimir el comando completo para una mejor depuración
+                cmd_preview = cmd.strip().replace('\n', ' ')
+                logger.debug(f"SQL Completo: {cmd_preview}")
+                # Enviar el comando como una función que devuelve la tupla (sql, params)
+                result = await db.execute_query(lambda: (cmd, {}))
+                logger.info(f"Comando {i} ejecutado correctamente")
             except Exception as e:
-                logger.warning(f"Error en comando {i}: {e}")
+                logger.error(f"Error en comando {i}: {e}")
         
         # Verificar que las tablas se crearon
         logger.info("Verificando tablas creadas")
