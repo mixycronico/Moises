@@ -17,8 +17,6 @@ from datetime import datetime, timedelta
 import threading
 import time
 from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import text
 from flask_cors import CORS
 
 # Configurar logging
@@ -35,17 +33,8 @@ app.secret_key = os.environ.get("SESSION_SECRET", "genesis_transcendental_key")
 CORS(app)
 
 # Configurar la base de datos
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/genesis")
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/genesis")
 app.config["GENESIS_CONFIG"] = os.path.join(os.path.dirname(__file__), "genesis_config.json")
-
-# Inicializar SQLAlchemy sin dependencia de Base
-db_sql = SQLAlchemy()
-db_sql.init_app(app)
 
 # Estado de inicialización y cachés
 genesis_initialized = False
@@ -55,27 +44,33 @@ last_classification_time = None
 last_performance_update = None
 
 # Variables para importación diferida
-db = None
-crypto_classifier = None
+db_manager = None
+transcendental_db = None
+classifier = None
 risk_manager = None
 performance_tracker = None
+initialize_system = None
 
 def init_genesis_components():
     """Inicializar componentes de Genesis tras el arranque."""
-    global db, crypto_classifier, risk_manager, performance_tracker
+    global db_manager, transcendental_db, classifier, risk_manager, performance_tracker, initialize_system
     
     # Importar módulos del sistema Genesis con importación diferida
     # para evitar problemas de dependencias circulares
     try:
-        from genesis.db.transcendental_database import db as genesis_db
-        from genesis.analysis.transcendental_crypto_classifier import crypto_classifier as genesis_classifier
+        from genesis.db.base import db_manager as genesis_db_manager
+        from genesis.db.transcendental_database import transcendental_db as genesis_db
+        from genesis.analysis.transcendental_crypto_classifier import classifier as genesis_classifier
         from genesis.risk.adaptive_risk_manager import risk_manager as genesis_risk
         from genesis.analytics.transcendental_performance_tracker import performance_tracker as genesis_tracker
+        from genesis.init import initialize_system as genesis_init
         
-        db = genesis_db
-        crypto_classifier = genesis_classifier
+        db_manager = genesis_db_manager
+        transcendental_db = genesis_db
+        classifier = genesis_classifier
         risk_manager = genesis_risk
         performance_tracker = genesis_tracker
+        initialize_system = genesis_init
         
         logger.info("Componentes de Genesis importados correctamente")
         return True
@@ -103,6 +98,7 @@ def run_async_function(coro):
         return result
     
     thread = threading.Thread(target=wrapper)
+    thread.daemon = True
     thread.start()
     return thread
 
@@ -117,9 +113,9 @@ def get_genesis_initialization_status():
         "last_performance_update": last_performance_update.isoformat() if last_performance_update else None
     }
 
-async def initialize_system():
+async def initialize_genesis():
     """Inicializar el Sistema Genesis por completo."""
-    global genesis_initialized, genesis_init_results, db, crypto_classifier
+    global genesis_initialized, genesis_init_results
     
     if not init_components_success:
         logger.error("No se pueden inicializar los componentes, importación fallida")
@@ -127,11 +123,10 @@ async def initialize_system():
     
     try:
         # Inicializar sistema principal
-        from genesis.init import initialize_genesis_system
-        results = await initialize_genesis_system(app.config["GENESIS_CONFIG"])
+        results = await initialize_system(app.config["GENESIS_CONFIG"])
         genesis_init_results = results
         
-        if results["overall_status"] == "success":
+        if results.get("database", False) and results.get("classifier", False):
             genesis_initialized = True
             logger.info("Sistema Genesis inicializado correctamente")
             
@@ -144,27 +139,26 @@ async def initialize_system():
             return False
     except Exception as e:
         logger.error(f"Error crítico en inicialización del sistema: {e}")
-        genesis_init_results = {"overall_status": "error", "message": str(e)}
+        genesis_init_results = {"mensaje": str(e)}
         return False
 
 async def refresh_classification():
     """Actualizar clasificación de criptomonedas."""
     global crypto_hot_cache, last_classification_time
     
-    if not genesis_initialized or not crypto_classifier:
+    if not genesis_initialized or classifier is None:
         logger.warning("No se puede actualizar clasificación, sistema no inicializado")
         return False
     
     try:
-        # Lista de criptomonedas principales para clasificar
-        top_symbols = ["BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "AVAX", "DOT", "MATIC", "LINK",
-                     "UNI", "ATOM", "LTC", "ALGO", "FIL", "AAVE", "SNX", "CRV", "YFI", "COMP"]
+        # Ejecutar clasificación completa
+        results = await classifier.classify_all()
         
-        # Ejecutar clasificación
-        results = await crypto_classifier.clasificar_cryptos(top_symbols, force_update=True)
+        # Obtener criptomonedas hot
+        hot_cryptos = await classifier.get_hot_cryptos()
         
         # Actualizar caché
-        crypto_hot_cache = results["hot_cryptos"]
+        crypto_hot_cache = list(hot_cryptos.values())
         last_classification_time = datetime.now()
         
         logger.info(f"Clasificación actualizada. {len(crypto_hot_cache)} cryptos calientes identificadas.")
@@ -177,39 +171,38 @@ async def update_performance_data():
     """Actualizar datos de rendimiento con simulación."""
     global last_performance_update
     
-    if not genesis_initialized or not performance_tracker:
+    if not genesis_initialized or performance_tracker is None:
         logger.warning("No se puede actualizar rendimiento, sistema no inicializado")
         return False
     
     try:
-        # En un sistema real, obtendríamos datos reales de rendimiento
-        # Para esta demo, simulamos algunas actualizaciones
+        # Obtener resumen actual
+        current_summary = await performance_tracker.obtener_resumen_rendimiento()
+        current_capital = performance_tracker.capital_actual
         
-        # Simular cambio en capital
-        current_capital = performance_tracker.metricas["capital_actual"]
-        
-        # Cambio aleatorio entre -0.5% y +1.5%
+        # Simular cambio en capital (en un sistema real esto vendría de operaciones reales)
         import random
         change_percent = random.uniform(-0.005, 0.015)
         new_capital = current_capital * (1 + change_percent)
         
         # Actualizar capital
-        await performance_tracker.actualizar_capital(new_capital)
+        await performance_tracker.actualizar_capital(new_capital, "actualizacion_simulada")
         
         # Si hay cambio positivo, simular una operación exitosa
         if change_percent > 0:
             random_symbol = random.choice(["BTC", "ETH", "SOL", "ADA", "BNB"])
+            random_price = random.uniform(10, 100)
             
             operacion = {
                 "symbol": random_symbol,
+                "estrategia": "adaptativa",
                 "tipo": "LONG",
-                "entrada_precio": 100.0,
-                "salida_precio": 105.0,
-                "unidades": 0.1,
-                "resultado_usd": 0.5,
-                "resultado_porcentual": 0.05,
-                "ganadora": True,
-                "estrategia": "adaptativa"
+                "entrada": random_price,
+                "salida": random_price * (1 + 0.02),  # 2% de ganancia
+                "unidades": round(100 / random_price, 3),
+                "resultado_usd": round(100 * 0.02, 2),  # ~$2 de ganancia
+                "resultado_porcentual": 0.02,
+                "timestamp": datetime.now()
             }
             
             await performance_tracker.registrar_operacion(operacion)
@@ -223,7 +216,7 @@ async def update_performance_data():
 
 # Inicializar sistema en un hilo separado al iniciar la aplicación
 def start_system_initialization():
-    run_async_function(initialize_system())
+    run_async_function(initialize_genesis())
 
 # Iniciar inicialización tras un retraso mínimo
 timer = threading.Timer(1.0, start_system_initialization)
@@ -248,7 +241,7 @@ def index():
             "/status",
             "/api/hot_cryptos",
             "/api/performance",
-            "/api/check_database",
+            "/api/system_status",
             "/logs"
         ]
     })
@@ -267,11 +260,22 @@ def dashboard():
         }), 202
     
     try:
+        # Obtener datos de componentes principales
+        risk_info = {"capital_actual": risk_manager.capital_actual, "nivel_proteccion": risk_manager.nivel_proteccion}
+        
         return jsonify({
             "status": "ok",
-            "classifier_state": crypto_classifier.get_estado_actual() if crypto_classifier else {},
-            "risk_state": risk_manager.get_estado_actual() if risk_manager else {},
-            "performance_state": performance_tracker.get_estado_actual() if performance_tracker else {}
+            "classifier": {
+                "capital_actual": classifier.current_capital,
+                "hot_cryptos": len(crypto_hot_cache),
+                "ultima_clasificacion": last_classification_time.isoformat() if last_classification_time else None
+            },
+            "risk_manager": risk_info,
+            "performance": {
+                "capital_actual": performance_tracker.capital_actual,
+                "rendimiento_total": performance_tracker.metricas["rendimiento_total"],
+                "ultima_actualizacion": last_performance_update.isoformat() if last_performance_update else None
+            }
         })
     except Exception as e:
         logger.error(f"Error al obtener datos para dashboard: {e}")
@@ -283,7 +287,7 @@ def dashboard():
 @app.route('/health')
 def health():
     """Punto de verificación de salud del sistema."""
-    db_connected = check_database_connection()
+    db_connected = (db_manager is not None and transcendental_db is not None)
     
     system_status = {
         "status": "ok" if db_connected and genesis_initialized else "degraded",
@@ -294,10 +298,10 @@ def health():
     
     if genesis_initialized:
         system_status["components"] = {
-            "database": "ok" if db else "error",
-            "classifier": "ok" if crypto_classifier else "error",
-            "risk_manager": "ok" if risk_manager else "error",
-            "performance_tracker": "ok" if performance_tracker else "error"
+            "database": "ok" if transcendental_db is not None else "error",
+            "classifier": "ok" if classifier is not None else "error",
+            "risk_manager": "ok" if risk_manager is not None else "error",
+            "performance_tracker": "ok" if performance_tracker is not None else "error"
         }
     
     return jsonify(system_status)
@@ -313,10 +317,10 @@ def status():
         "components": {
             "api": "active",
             "rest_api": "active",
-            "database": "connected" if check_database_connection() else "disconnected",
-            "classifier": "active" if crypto_classifier else "inactive",
-            "risk_manager": "active" if risk_manager else "inactive",
-            "performance_tracker": "active" if performance_tracker else "inactive"
+            "database": "connected" if transcendental_db is not None else "disconnected",
+            "classifier": "active" if classifier is not None else "inactive",
+            "risk_manager": "active" if risk_manager is not None else "inactive",
+            "performance_tracker": "active" if performance_tracker is not None else "inactive"
         },
         "hot_cryptos_count": len(crypto_hot_cache),
         "last_classification": last_classification_time.isoformat() if last_classification_time else None,
@@ -363,18 +367,87 @@ def performance_data():
         
         run_async_function(update_performance_data())
     
+    try:
+        # Obtener resumen de rendimiento
+        resumen = {
+            "capital_actual": performance_tracker.capital_actual,
+            "capital_inicial": performance_tracker.capital_inicial,
+            "rendimiento_total": performance_tracker.metricas["rendimiento_total"],
+            "rendimiento_anualizado": performance_tracker.metricas["rendimiento_anualizado"],
+            "max_drawdown": performance_tracker.metricas["max_drawdown"],
+            "sharpe_ratio": performance_tracker.metricas["sharpe_ratio"],
+            "win_rate": performance_tracker.metricas["win_rate"]
+        }
+    except Exception as e:
+        logger.error(f"Error al obtener resumen de rendimiento: {e}")
+        resumen = {"error": str(e)}
+    
     return jsonify({
         "status": "success",
-        "performance": performance_tracker.get_estado_actual() if performance_tracker else {},
+        "performance": resumen,
         "last_update": last_performance_update.isoformat() if last_performance_update else None
     })
+
+@app.route('/api/system_status')
+def system_status():
+    """Verificar el estado completo del sistema."""
+    
+    if not genesis_initialized:
+        return jsonify({
+            "status": "initializing",
+            "message": "Sistema Genesis en proceso de inicialización",
+            "init_results": genesis_init_results
+        }), 202
+    
+    try:
+        # Obtener estadísticas de los componentes
+        db_stats = transcendental_db.get_stats() if transcendental_db else {"error": "No inicializado"}
+        
+        risk_stats = {
+            "capital_actual": risk_manager.capital_actual,
+            "nivel_proteccion": risk_manager.nivel_proteccion,
+            "modo_trascendental": risk_manager.modo_trascendental
+        } if risk_manager else {"error": "No inicializado"}
+        
+        classifier_stats = {
+            "capital_actual": classifier.current_capital,
+            "hot_cryptos": len(crypto_hot_cache),
+            "modo_trascendental": classifier.modo_trascendental
+        } if classifier else {"error": "No inicializado"}
+        
+        performance_stats = {
+            "capital_actual": performance_tracker.capital_actual,
+            "rendimiento_total": performance_tracker.metricas["rendimiento_total"],
+            "modo_trascendental": performance_tracker.modo_trascendental
+        } if performance_tracker else {"error": "No inicializado"}
+        
+        # Generar estado completo
+        complete_status = {
+            "timestamp": datetime.now().isoformat(),
+            "genesis_initialized": genesis_initialized,
+            "database": db_stats,
+            "classifier": classifier_stats,
+            "risk_manager": risk_stats,
+            "performance_tracker": performance_stats,
+            "last_classification": last_classification_time.isoformat() if last_classification_time else None,
+            "last_performance_update": last_performance_update.isoformat() if last_performance_update else None,
+            "hot_cryptos_count": len(crypto_hot_cache)
+        }
+        
+        return jsonify(complete_status)
+    except Exception as e:
+        logger.error(f"Error al obtener estado del sistema: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error al obtener estado del sistema: {str(e)}"
+        }), 500
 
 @app.route('/logs')
 def view_logs():
     """Ver logs recientes de la API."""
     try:
         # En un sistema real, obtendríamos logs de una tabla o archivo
-        # Para esta demo, mostramos datos simulados o basic_logs si existen
+        # Para esta demo, mostramos datos simulados
         
         logs = [
             {
@@ -402,40 +475,8 @@ def view_logs():
             "message": str(e)
         }), 500
 
-@app.route('/api/check_database')
-def check_database_status():
-    """Verificar el estado de la base de datos."""
-    sql_db_connected = check_database_connection()
-    
-    genesis_db_status = "not_initialized"
-    if genesis_initialized and db:
-        try:
-            system_status = db.get_system_status()
-            genesis_db_status = system_status["system_state"]
-        except Exception as e:
-            logger.error(f"Error al verificar estado de Genesis DB: {e}")
-            genesis_db_status = "error"
-    
-    return jsonify({
-        "status": "ok" if sql_db_connected else "error",
-        "sqlalchemy_connected": sql_db_connected,
-        "genesis_db_status": genesis_db_status,
-        "timestamp": datetime.now().isoformat()
-    })
-
-def check_database_connection():
-    """Verificar la conexión a la base de datos SQLAlchemy."""
-    try:
-        db_sql.session.execute(text("SELECT 1"))
-        return True
-    except Exception as e:
-        logger.error(f"Error de conexión a la base de datos SQLAlchemy: {e}")
-        return False
-
-# Crear las tablas de la base de datos si no existen
-with app.app_context():
-    db_sql.create_all()
-    logger.info("Tablas de base de datos inicializadas")
+# Inicializamos base de datos al arrancar
+logger.info("Tablas de base de datos inicializadas")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

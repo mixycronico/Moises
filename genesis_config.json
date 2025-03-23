@@ -1,31 +1,84 @@
 {
     "system": {
-        "name": "Genesis Transcendental",
+        "name": "Genesis Trascendental",
         "version": "2.0.0",
-        "environment": "development",
-        "log_level": "INFO"
+        "mode": "SINGULARITY_V4",
+        "environment": "development"
+    },
+    "database": {
+        "url": "DATABASE_URL",
+        "pool_size": 20,
+        "max_overflow": 40,
+        "pool_recycle": 300,
+        "quantum_cache_size": 1000,
+        "temporal_sync_interval": 300
     },
     "classifier": {
         "capital_inicial": 10000.0,
-        "exchanges": ["binance", "kucoin", "okx", "bybit", "coinbase"],
-        "update_interval_minutes": 15,
-        "hot_threshold": 0.75
+        "refresh_interval": 900,
+        "classification_threshold": 0.75,
+        "modo_trascendental": "SINGULARITY_V4",
+        "backtest_periods": ["1d", "3d", "7d", "14d", "30d"],
+        "features": {
+            "trend": 0.3,
+            "volatility": 0.2,
+            "volume": 0.15,
+            "momentum": 0.2,
+            "market_cap": 0.15
+        }
     },
     "risk_manager": {
         "capital_inicial": 10000.0,
         "max_drawdown_permitido": 0.15,
         "volatilidad_base": 0.02,
-        "capital_allocation_method": "adaptive"
+        "capital_allocation_method": "adaptive",
+        "modo_trascendental": "SINGULARITY_V4",
+        "position_sizing": {
+            "default_risk": 0.01,
+            "min_risk": 0.005,
+            "max_risk": 0.02
+        }
     },
     "performance_tracker": {
         "capital_inicial": 10000.0,
         "benchmark": "crypto_top10",
-        "track_attribution": true
+        "modo_trascendental": "SINGULARITY_V4",
+        "projection_days": 365,
+        "montecarlo_simulations": 1000
     },
-    "database": {
-        "cache_lifetime": 10,
-        "pool_size": 20,
-        "max_overflow": 40,
-        "pool_recycle": 300
+    "api": {
+        "refresh_interval": 300,
+        "classification_interval": 900,
+        "port": 5000,
+        "enable_logs": true,
+        "enable_metrics": true
+    },
+    "exchanges": {
+        "binance": {
+            "api_key": "",
+            "api_secret": "",
+            "testnet": true
+        },
+        "coinbase": {
+            "api_key": "",
+            "api_secret": "",
+            "testnet": true
+        }
+    },
+    "notifications": {
+        "enabled": true,
+        "email": {
+            "enabled": false,
+            "smtp_server": "",
+            "smtp_port": 587,
+            "username": "",
+            "password": "",
+            "from_email": ""
+        },
+        "telegram": {
+            "enabled": false,
+            "bot_token": "",
+            "chat_id": ""
+        }
     }
 }

@@ -1,68 +1,76 @@
 """
-Rastreador de Rendimiento Transcendental para el Sistema Genesis.
+Seguidor de Rendimiento Trascendental del Sistema Genesis.
 
-Este módulo implementa un sistema avanzado de seguimiento de rendimiento con 
-capacidades transcendentales que monitorea y analiza todas las dimensiones
-del desempeño del sistema, incluyendo métricas financieras avanzadas, 
-calidad de ejecución y eficiencia operativa.
+Este módulo implementa un sistema avanzado de seguimiento y análisis de rendimiento
+con capacidades trascendentales, diseñado para rastrear y evaluar el desempeño
+del sistema de trading a lo largo del tiempo y bajo diferentes condiciones de capital.
 
 Características principales:
-- Análisis multidimensional de rendimiento adaptativo
-- Métricas avanzadas de calidad de ejecución y costos implícitos
-- Benchmarking contra diversos índices y estrategias de referencia
-- Análisis de atribución de rendimiento para identificar fuentes de alpha
-- Detección avanzada de desviaciones y anomalías en el rendimiento
+- Registro histórico multicapa del rendimiento del sistema y estrategias
+- Análisis de atribución para identificar fuentes de alfa
+- Proyecciones adaptativas basadas en crecimiento de capital
+- Evaluación comparativa contra benchmarks configurables
+- Sincronización atemporal con estados pasados, presentes y futuros
 """
 
-import logging
 import asyncio
+import logging
+import json
 import time
+from datetime import datetime, timedelta, date
+from typing import Dict, List, Any, Optional, Tuple, Set, Union, cast
+
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Any, Optional, Tuple, Set, Union
-from datetime import datetime, timedelta
-import json
-from decimal import Decimal
 
-from genesis.db.transcendental_database import db
+from genesis.db.transcendental_database import transcendental_db
+from genesis.db.models.crypto_classifier_models import (
+    Cryptocurrency, CryptoClassification, CryptoMetrics
+)
+from sqlalchemy import select, and_, or_, desc, func, text
 
 # Configuración de logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("genesis.analytics.performance_tracker")
 
 class TranscendentalPerformanceTracker:
     """
-    Rastreador de rendimiento avanzado con capacidades transcendentales.
+    Seguidor de rendimiento con capacidades trascendentales.
     
-    Este sistema monitorea y analiza el rendimiento del sistema Genesis en
-    múltiples dimensiones, proporcionando insights avanzados para la
-    optimización continua de la estrategia y la adaptación al crecimiento
-    del capital.
+    Este componente rastrea, analiza y proyecta el rendimiento del sistema
+    adaptándose a diferentes niveles de capital y condiciones del mercado.
     """
     
-    def __init__(self, capital_inicial: float = 10000.0):
+    def __init__(self, 
+                capital_inicial: float = 10000.0,
+                benchmark: str = "crypto_top10"):
         """
-        Inicializar el rastreador de rendimiento.
+        Inicializar el seguidor de rendimiento trascendental.
         
         Args:
             capital_inicial: Capital inicial del sistema en USD
+            benchmark: Benchmark para comparación de rendimiento
         """
         self.capital_inicial = capital_inicial
-        self.fecha_inicio = datetime.now()
+        self.capital_actual = capital_inicial
+        self.benchmark = benchmark
         
-        # Historial de capital
-        self.historial_capital = [{
-            "timestamp": self.fecha_inicio.timestamp(),
-            "capital": capital_inicial,
-            "cambio_diario": 0.0,
-            "cambio_porcentual": 0.0
-        }]
+        # Historial de rendimiento
+        self.historial_rendimiento = []
         
-        # Historial de operaciones
-        self.operaciones = []
+        # Datos de estrategias
+        self.estrategias = {}
+        self.rendimiento_estrategias = {}
         
-        # Métricas de rendimiento
+        # Benchmarks
+        self.benchmarks = {
+            "crypto_top10": self._inicializar_benchmark("crypto_top10"),
+            "btc": self._inicializar_benchmark("btc"),
+            "eth": self._inicializar_benchmark("eth"),
+            "sp500": self._inicializar_benchmark("sp500")
+        }
+        
+        # Métricas clave
         self.metricas = {
-            "capital_actual": capital_inicial,
             "rendimiento_total": 0.0,
             "rendimiento_anualizado": 0.0,
             "volatilidad": 0.0,
@@ -70,1057 +78,1406 @@ class TranscendentalPerformanceTracker:
             "sharpe_ratio": 0.0,
             "sortino_ratio": 0.0,
             "calmar_ratio": 0.0,
-            "omega_ratio": 0.0,
-            "valor_en_riesgo_95": 0.0,
-            "valor_en_riesgo_99": 0.0,
             "win_rate": 0.0,
             "profit_factor": 0.0,
-            "expectativa_matematica": 0.0,
-            "factor_recuperacion": 0.0,
-            "correlacion_mercado": 0.0
+            "expectancy": 0.0,
+            "ratio_recuperacion": 0.0
         }
         
-        # Métricas de ejecución
-        self.metricas_ejecucion = {
-            "slippage_promedio": 0.0,
-            "latencia_promedio": 0.0,
-            "costo_oportunidad": 0.0,
-            "market_impact": 0.0,
-            "desviacion_vwap": 0.0,
-            "eficiencia_ejecucion": 1.0,
-            "fill_ratio": 1.0,
-            "tiempo_ejecucion_promedio": 0.0
+        # Proyecciones y escenarios
+        self.proyecciones = {
+            "escenario_base": {},
+            "escenario_optimista": {},
+            "escenario_pesimista": {},
+            "escenario_extremo": {}
         }
         
-        # Análisis por activo
-        self.rendimiento_por_activo = {}
+        # Estado de trascendencia
+        self.modo_trascendental = "SINGULARITY_V4"
+        self.trascendencia_activada = True
         
-        # Análisis por estrategia
-        self.rendimiento_por_estrategia = {}
-        
-        # Benchmarks y referencias
-        self.benchmarks = {
-            "crypto_top10": [],  # [timestamp, valor]
-            "bitcoin": [],       # [timestamp, valor]
-            "sp500": []          # [timestamp, valor]
+        # Estadísticas específicas por nivel de capital
+        self.estadisticas_por_capital = {
+            "10k": {},
+            "100k": {},
+            "1M": {},
+            "10M": {}
         }
-        
-        # Anomalías detectadas
-        self.anomalias = []
         
         logger.info(f"TranscendentalPerformanceTracker inicializado con capital: ${capital_inicial:,.2f}")
     
-    async def actualizar_capital(self, 
-                              nuevo_capital: float, 
-                              fuente: str = "general") -> Dict[str, Any]:
+    async def registrar_operacion(self, operacion: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Actualizar capital actual y recalcular métricas de rendimiento.
+        Registrar una operación completada y actualizar rendimiento.
         
         Args:
-            nuevo_capital: Nuevo monto de capital en USD
-            fuente: Fuente de la actualización (general, operacion, ajuste, etc.)
+            operacion: Diccionario con detalles de la operación
             
         Returns:
             Diccionario con métricas actualizadas
         """
-        now = datetime.now()
-        timestamp = now.timestamp()
-        capital_anterior = self.metricas["capital_actual"]
-        
-        # Calcular cambios
-        cambio_absoluto = nuevo_capital - capital_anterior
-        cambio_porcentual = (nuevo_capital / capital_anterior) - 1 if capital_anterior > 0 else 0
-        
-        # Actualizar historial
-        self.historial_capital.append({
-            "timestamp": timestamp,
-            "capital": nuevo_capital,
-            "cambio_diario": cambio_absoluto,
-            "cambio_porcentual": cambio_porcentual,
-            "fuente": fuente
-        })
-        
-        # Actualizar capital actual
-        self.metricas["capital_actual"] = nuevo_capital
-        
-        # Recalcular todas las métricas
-        await self._calcular_metricas_rendimiento()
-        
-        # Preparar resultado
-        resultado = {
-            "capital_anterior": capital_anterior,
-            "capital_nuevo": nuevo_capital,
-            "cambio_absoluto": cambio_absoluto,
-            "cambio_porcentual": cambio_porcentual * 100,
-            "timestamp": timestamp,
-            "metricas_actualizadas": {
-                "rendimiento_total": self.metricas["rendimiento_total"] * 100,
-                "volatilidad": self.metricas["volatilidad"] * 100,
-                "max_drawdown": self.metricas["max_drawdown"] * 100,
-                "sharpe_ratio": self.metricas["sharpe_ratio"],
-                "sortino_ratio": self.metricas["sortino_ratio"],
-                "calmar_ratio": self.metricas["calmar_ratio"]
-            }
-        }
-        
-        return resultado
-    
-    async def registrar_operacion(self, operacion: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Registrar una operación completada y actualizar métricas.
-        
-        Args:
-            operacion: Diccionario con detalles de la operación
-            
-        Returns:
-            Diccionario con análisis de la operación
-        """
         # Validar operación
-        campos_requeridos = ["symbol", "tipo", "entrada_precio", "salida_precio", 
-                            "unidades", "resultado_usd"]
+        campos_requeridos = ["symbol", "estrategia", "tipo", "entrada", "salida", "unidades", 
+                            "resultado_usd", "resultado_porcentual", "timestamp"]
+                            
         for campo in campos_requeridos:
             if campo not in operacion:
                 raise ValueError(f"Falta el campo requerido '{campo}' en la operación")
         
-        # Añadir timestamp y campos calculados
-        now = datetime.now()
-        operacion["timestamp"] = now.timestamp()
-        operacion["fecha"] = now.isoformat()
-        
-        if "resultado_porcentual" not in operacion:
-            precio_entrada = operacion["entrada_precio"]
-            precio_salida = operacion["salida_precio"]
-            
-            if operacion["tipo"].upper() == "LONG":
-                operacion["resultado_porcentual"] = (precio_salida / precio_entrada) - 1
-            else:  # SHORT
-                operacion["resultado_porcentual"] = (precio_entrada / precio_salida) - 1
-        
-        operacion["ganadora"] = operacion["resultado_usd"] > 0
-        
-        # Añadir duración si se proporcionan timestamps
-        if "entrada_timestamp" in operacion and "salida_timestamp" in operacion:
-            operacion["duracion_segundos"] = operacion["salida_timestamp"] - operacion["entrada_timestamp"]
-        
-        # Añadir al registro de operaciones
-        self.operaciones.append(operacion)
-        
-        # Actualizar análisis por activo
-        symbol = operacion["symbol"]
-        if symbol not in self.rendimiento_por_activo:
-            self.rendimiento_por_activo[symbol] = {
-                "operaciones_total": 0,
-                "operaciones_ganadas": 0,
-                "operaciones_perdidas": 0,
-                "ganancia_total": 0.0,
-                "perdida_total": 0.0,
-                "resultado_neto": 0.0,
-                "mayor_ganancia": 0.0,
-                "mayor_perdida": 0.0,
-                "win_rate": 0.0,
-                "profit_factor": 0.0,
-                "expectativa": 0.0
-            }
-        
-        activo_stats = self.rendimiento_por_activo[symbol]
-        activo_stats["operaciones_total"] += 1
-        
-        if operacion["ganadora"]:
-            activo_stats["operaciones_ganadas"] += 1
-            activo_stats["ganancia_total"] += operacion["resultado_usd"]
-            activo_stats["mayor_ganancia"] = max(activo_stats["mayor_ganancia"], operacion["resultado_usd"])
+        # Asegurar que timestamp sea datetime
+        if isinstance(operacion["timestamp"], (int, float)):
+            timestamp = datetime.fromtimestamp(operacion["timestamp"])
+        elif isinstance(operacion["timestamp"], str):
+            timestamp = datetime.fromisoformat(operacion["timestamp"].replace("Z", "+00:00"))
         else:
-            activo_stats["operaciones_perdidas"] += 1
-            activo_stats["perdida_total"] += abs(operacion["resultado_usd"])
-            activo_stats["mayor_perdida"] = max(activo_stats["mayor_perdida"], abs(operacion["resultado_usd"]))
+            timestamp = operacion["timestamp"]
         
-        activo_stats["resultado_neto"] = activo_stats["ganancia_total"] - activo_stats["perdida_total"]
-        activo_stats["win_rate"] = activo_stats["operaciones_ganadas"] / activo_stats["operaciones_total"]
-        activo_stats["profit_factor"] = activo_stats["ganancia_total"] / max(1, activo_stats["perdida_total"])
-        activo_stats["expectativa"] = (
-            (activo_stats["ganancia_total"] / max(1, activo_stats["operaciones_ganadas"])) * activo_stats["win_rate"] -
-            (activo_stats["perdida_total"] / max(1, activo_stats["operaciones_perdidas"])) * (1 - activo_stats["win_rate"])
-        )
+        operacion["timestamp"] = timestamp
         
-        # Actualizar análisis por estrategia
-        estrategia = operacion.get("estrategia", "default")
-        if estrategia not in self.rendimiento_por_estrategia:
-            self.rendimiento_por_estrategia[estrategia] = {
-                "operaciones_total": 0,
-                "operaciones_ganadas": 0,
-                "resultado_neto": 0.0,
-                "win_rate": 0.0,
-                "profit_factor": 0.0,
-                "expectativa": 0.0
-            }
-        
-        # Similar al análisis por activo...
-        estr_stats = self.rendimiento_por_estrategia[estrategia]
-        estr_stats["operaciones_total"] += 1
-        if operacion["ganadora"]:
-            estr_stats["operaciones_ganadas"] += 1
-        estr_stats["resultado_neto"] += operacion["resultado_usd"]
-        estr_stats["win_rate"] = estr_stats["operaciones_ganadas"] / estr_stats["operaciones_total"]
+        # Añadir operación al historial
+        self.historial_rendimiento.append({
+            "tipo": "operacion",
+            "symbol": operacion["symbol"],
+            "estrategia": operacion["estrategia"],
+            "operacion_tipo": operacion["tipo"],
+            "entrada": operacion["entrada"],
+            "salida": operacion["salida"],
+            "unidades": operacion["unidades"],
+            "resultado_usd": operacion["resultado_usd"],
+            "resultado_porcentual": operacion["resultado_porcentual"],
+            "timestamp": timestamp,
+            "capital": self.capital_actual
+        })
         
         # Actualizar capital si se proporciona
         if "capital_final" in operacion and operacion["capital_final"] > 0:
-            await self.actualizar_capital(operacion["capital_final"], fuente="operacion")
-        
-        # Analizar calidad de ejecución
-        analisis_ejecucion = await self._analizar_calidad_ejecucion(operacion)
-        
-        # Preparar resultado
-        resultado = {
-            "operacion_id": len(self.operaciones),
-            "symbol": symbol,
-            "tipo": operacion["tipo"],
-            "resultado_usd": operacion["resultado_usd"],
-            "resultado_porcentual": operacion["resultado_porcentual"] * 100,
-            "ganadora": operacion["ganadora"],
-            "metricas_activo": {
-                "win_rate": activo_stats["win_rate"] * 100,
-                "profit_factor": activo_stats["profit_factor"],
-                "expectativa": activo_stats["expectativa"],
-                "operaciones_total": activo_stats["operaciones_total"]
-            },
-            "analisis_ejecucion": analisis_ejecucion
-        }
-        
-        return resultado
-    
-    async def analizar_periodo(self, 
-                            desde: Optional[datetime] = None, 
-                            hasta: Optional[datetime] = None) -> Dict[str, Any]:
-        """
-        Analizar rendimiento durante un período específico.
-        
-        Args:
-            desde: Fecha de inicio para análisis (None = desde el principio)
-            hasta: Fecha de fin para análisis (None = hasta ahora)
-            
-        Returns:
-            Diccionario con análisis detallado del período
-        """
-        if not desde:
-            desde = datetime.fromtimestamp(self.historial_capital[0]["timestamp"])
-        
-        if not hasta:
-            hasta = datetime.now()
-        
-        desde_ts = desde.timestamp()
-        hasta_ts = hasta.timestamp()
-        
-        # Filtrar historial de capital para el período
-        capital_periodo = [
-            entry for entry in self.historial_capital 
-            if desde_ts <= entry["timestamp"] <= hasta_ts
-        ]
-        
-        if not capital_periodo:
-            return {"error": "No hay datos para el período especificado"}
-        
-        # Filtrar operaciones para el período
-        operaciones_periodo = [
-            op for op in self.operaciones 
-            if desde_ts <= op["timestamp"] <= hasta_ts
-        ]
-        
-        # Calcular métricas para el período
-        capital_inicial_periodo = capital_periodo[0]["capital"]
-        capital_final_periodo = capital_periodo[-1]["capital"]
-        rendimiento_total = (capital_final_periodo / capital_inicial_periodo) - 1
-        
-        # Calcular rendimiento diario
-        rendimientos_diarios = []
-        for i in range(1, len(capital_periodo)):
-            rendimiento = (capital_periodo[i]["capital"] / capital_periodo[i-1]["capital"]) - 1
-            rendimientos_diarios.append(rendimiento)
-        
-        # Volatilidad
-        volatilidad = np.std(rendimientos_diarios) if rendimientos_diarios else 0
-        
-        # Calcular drawdown
-        drawdown_max = 0
-        peak = capital_inicial_periodo
-        for entry in capital_periodo:
-            if entry["capital"] > peak:
-                peak = entry["capital"]
-            drawdown_actual = 1 - (entry["capital"] / peak)
-            drawdown_max = max(drawdown_max, drawdown_actual)
-        
-        # Análisis de operaciones
-        ops_ganadoras = [op for op in operaciones_periodo if op["ganadora"]]
-        ops_perdedoras = [op for op in operaciones_periodo if not op["ganadora"]]
-        
-        win_rate = len(ops_ganadoras) / len(operaciones_periodo) if operaciones_periodo else 0
-        
-        ganancia_total = sum(op["resultado_usd"] for op in ops_ganadoras)
-        perdida_total = sum(abs(op["resultado_usd"]) for op in ops_perdedoras)
-        profit_factor = ganancia_total / perdida_total if perdida_total > 0 else float('inf')
-        
-        # Métricas avanzadas
-        duracion_años = (hasta_ts - desde_ts) / (365.25 * 24 * 3600)
-        rendimiento_anualizado = (1 + rendimiento_total) ** (1 / max(duracion_años, 0.01)) - 1
-        
-        tasa_libre_riesgo_anual = 0.02  # 2% anual
-        tasa_libre_riesgo_periodo = (1 + tasa_libre_riesgo_anual) ** duracion_años - 1
-        
-        sharpe_ratio = ((rendimiento_total - tasa_libre_riesgo_periodo) / 
-                        volatilidad) if volatilidad > 0 else 0
-        
-        # Rendimientos negativos para Sortino
-        rendimientos_negativos = [r for r in rendimientos_diarios if r < 0]
-        volatilidad_downside = np.std(rendimientos_negativos) if rendimientos_negativos else 0.01
-        
-        sortino_ratio = ((rendimiento_total - tasa_libre_riesgo_periodo) / 
-                         volatilidad_downside) if volatilidad_downside > 0 else 0
-        
-        calmar_ratio = rendimiento_anualizado / drawdown_max if drawdown_max > 0 else 0
-        
-        # Preparar resultado
-        resultado = {
-            "periodo": {
-                "desde": desde.isoformat(),
-                "hasta": hasta.isoformat(),
-                "duracion_dias": (hasta_ts - desde_ts) / (24 * 3600)
-            },
-            "capital": {
-                "inicial": capital_inicial_periodo,
-                "final": capital_final_periodo,
-                "cambio_absoluto": capital_final_periodo - capital_inicial_periodo,
-                "cambio_porcentual": rendimiento_total * 100
-            },
-            "rendimiento": {
-                "total": rendimiento_total * 100,
-                "anualizado": rendimiento_anualizado * 100,
-                "volatilidad": volatilidad * 100,
-                "drawdown_maximo": drawdown_max * 100,
-                "sharpe_ratio": sharpe_ratio,
-                "sortino_ratio": sortino_ratio,
-                "calmar_ratio": calmar_ratio
-            },
-            "operaciones": {
-                "total": len(operaciones_periodo),
-                "ganadoras": len(ops_ganadoras),
-                "perdedoras": len(ops_perdedoras),
-                "win_rate": win_rate * 100,
-                "profit_factor": profit_factor,
-                "ganancia_total": ganancia_total,
-                "perdida_total": perdida_total,
-                "resultado_neto": ganancia_total - perdida_total
-            },
-            "activos": {}
-        }
-        
-        # Añadir análisis por activo
-        activos_periodo = set(op["symbol"] for op in operaciones_periodo)
-        for symbol in activos_periodo:
-            ops_activo = [op for op in operaciones_periodo if op["symbol"] == symbol]
-            win_ops = [op for op in ops_activo if op["ganadora"]]
-            
-            resultado["activos"][symbol] = {
-                "operaciones": len(ops_activo),
-                "win_rate": (len(win_ops) / len(ops_activo)) * 100 if ops_activo else 0,
-                "resultado_neto": sum(op["resultado_usd"] for op in ops_activo),
-                "mejor_operacion": max([op["resultado_usd"] for op in ops_activo], default=0),
-                "peor_operacion": min([op["resultado_usd"] for op in ops_activo], default=0)
-            }
-        
-        return resultado
-    
-    async def comparar_benchmark(self, benchmark: str = "crypto_top10") -> Dict[str, Any]:
-        """
-        Comparar rendimiento con un benchmark de referencia.
-        
-        Args:
-            benchmark: Benchmark a comparar (crypto_top10, bitcoin, sp500)
-            
-        Returns:
-            Diccionario con análisis comparativo
-        """
-        # En un sistema real, obtendríamos datos históricos reales
-        # Para esta demo, simulamos un benchmark
-        
-        # Simular historia del benchmark si no existe
-        if not self.benchmarks[benchmark]:
-            await self._simular_benchmark(benchmark)
-        
-        # Verificar que tengamos suficientes datos
-        if len(self.benchmarks[benchmark]) < 2:
-            return {"error": "Datos insuficientes del benchmark"}
-        
-        # Alinear períodos para comparación justa
-        inicio_sistema = self.historial_capital[0]["timestamp"]
-        capital_inicial_sistema = self.historial_capital[0]["capital"]
-        
-        # Encontrar punto más cercano en el benchmark
-        benchmark_data = []
-        for timestamp, valor in self.benchmarks[benchmark]:
-            if timestamp >= inicio_sistema:
-                benchmark_data.append((timestamp, valor))
-        
-        if not benchmark_data:
-            return {"error": "No hay datos del benchmark para el período del sistema"}
-        
-        valor_inicial_benchmark = benchmark_data[0][1]
-        
-        # Calcular rendimientos para mismos puntos temporales
-        comparacion = []
-        for i, (timestamp, valor_benchmark) in enumerate(benchmark_data):
-            # Encontrar capital del sistema para el timestamp más cercano
-            capital_sistema = self._interpolar_capital(timestamp)
-            
-            # Calcular rendimientos desde el inicio
-            rendimiento_sistema = (capital_sistema / capital_inicial_sistema) - 1
-            rendimiento_benchmark = (valor_benchmark / valor_inicial_benchmark) - 1
-            
-            comparacion.append({
-                "timestamp": timestamp,
-                "fecha": datetime.fromtimestamp(timestamp).isoformat(),
-                "rendimiento_sistema": rendimiento_sistema,
-                "rendimiento_benchmark": rendimiento_benchmark,
-                "diferencia": rendimiento_sistema - rendimiento_benchmark
-            })
-        
-        # Calcular estadísticas de la comparación
-        rendimiento_final_sistema = comparacion[-1]["rendimiento_sistema"]
-        rendimiento_final_benchmark = comparacion[-1]["rendimiento_benchmark"]
-        
-        # Calcular correlación
-        if len(comparacion) > 1:
-            rend_sistema = [c["rendimiento_sistema"] for c in comparacion]
-            rend_benchmark = [c["rendimiento_benchmark"] for c in comparacion]
-            
-            try:
-                correlacion = np.corrcoef(rend_sistema, rend_benchmark)[0, 1]
-            except:
-                correlacion = 0
+            self.capital_actual = operacion["capital_final"]
         else:
-            correlacion = 0
+            # De lo contrario, actualizar según resultado
+            self.capital_actual += operacion["resultado_usd"]
         
-        # Calcular beta (sensibilidad al mercado)
-        beta = 0
-        if len(comparacion) > 1:
-            try:
-                # Beta = cov(sistema, benchmark) / var(benchmark)
-                cov_matrix = np.cov(
-                    [c["rendimiento_sistema"] for c in comparacion],
-                    [c["rendimiento_benchmark"] for c in comparacion]
-                )
-                beta = cov_matrix[0, 1] / cov_matrix[1, 1] if cov_matrix[1, 1] != 0 else 0
-            except:
-                beta = 0
+        # Actualizar estadísticas de estrategia
+        estrategia = operacion["estrategia"]
+        if estrategia not in self.estrategias:
+            self.estrategias[estrategia] = {
+                "operaciones_totales": 0,
+                "operaciones_ganadoras": 0,
+                "operaciones_perdedoras": 0,
+                "ganancias_totales": 0.0,
+                "perdidas_totales": 0.0,
+                "mayor_ganancia": 0.0,
+                "mayor_perdida": 0.0,
+                "rendimiento_acumulado": 0.0
+            }
+            
+        # Actualizar contadores
+        self.estrategias[estrategia]["operaciones_totales"] += 1
+        if operacion["resultado_usd"] > 0:
+            self.estrategias[estrategia]["operaciones_ganadoras"] += 1
+            self.estrategias[estrategia]["ganancias_totales"] += operacion["resultado_usd"]
+            self.estrategias[estrategia]["mayor_ganancia"] = max(
+                self.estrategias[estrategia]["mayor_ganancia"],
+                operacion["resultado_usd"]
+            )
+        else:
+            self.estrategias[estrategia]["operaciones_perdedoras"] += 1
+            self.estrategias[estrategia]["perdidas_totales"] += abs(operacion["resultado_usd"])
+            self.estrategias[estrategia]["mayor_perdida"] = max(
+                self.estrategias[estrategia]["mayor_perdida"],
+                abs(operacion["resultado_usd"])
+            )
         
-        # Calcular alpha (rendimiento ajustado por riesgo)
-        tasa_libre_riesgo = 0.02 / 365  # Diaria
-        alpha = 0
-        if beta != 0:
-            # Alpha = rendimiento_sistema - (tasa_libre_riesgo + beta * (rendimiento_benchmark - tasa_libre_riesgo))
-            alpha = (rendimiento_final_sistema - 
-                    (tasa_libre_riesgo + beta * (rendimiento_final_benchmark - tasa_libre_riesgo)))
+        # Actualizar rendimiento acumulado
+        self.estrategias[estrategia]["rendimiento_acumulado"] += operacion["resultado_usd"]
         
-        # Preparar resultado
-        resultado = {
-            "benchmark": benchmark,
-            "periodo": {
-                "desde": datetime.fromtimestamp(benchmark_data[0][0]).isoformat(),
-                "hasta": datetime.fromtimestamp(benchmark_data[-1][0]).isoformat(),
-                "duracion_dias": (benchmark_data[-1][0] - benchmark_data[0][0]) / (24 * 3600)
-            },
-            "rendimiento_final": {
-                "sistema": rendimiento_final_sistema * 100,
-                "benchmark": rendimiento_final_benchmark * 100,
-                "diferencia": (rendimiento_final_sistema - rendimiento_final_benchmark) * 100,
-                "ratio": (1 + rendimiento_final_sistema) / (1 + rendimiento_final_benchmark) if (1 + rendimiento_final_benchmark) != 0 else float('inf')
-            },
-            "analisis": {
-                "correlacion": correlacion,
-                "beta": beta,
-                "alpha": alpha * 100,  # En porcentaje
-                "tracking_error": np.std([c["diferencia"] for c in comparacion]) * 100 if len(comparacion) > 1 else 0,
-                "information_ratio": (rendimiento_final_sistema - rendimiento_final_benchmark) / 
-                                    (np.std([c["diferencia"] for c in comparacion]) if len(comparacion) > 1 else 1)
-            },
-            "datos_comparativos": [
+        # Actualizar metricas
+        await self._actualizar_metricas()
+        
+        # Guardar checkpoint de rendimiento con trascendencia
+        if self.trascendencia_activada:
+            checkpoint_id = f"operacion_{operacion['symbol']}_{int(timestamp.timestamp())}"
+            await transcendental_db.checkpoint_state(
+                "performance", 
+                checkpoint_id, 
                 {
-                    "fecha": c["fecha"],
-                    "sistema": c["rendimiento_sistema"] * 100,
-                    "benchmark": c["rendimiento_benchmark"] * 100,
-                    "diferencia": c["diferencia"] * 100
-                } for c in comparacion[::max(1, len(comparacion) // 10)]  # Mostrar ~10 puntos
-            ]
-        }
+                    "operacion": operacion,
+                    "capital_actual": self.capital_actual,
+                    "metricas": self.metricas,
+                    "estrategia_stats": self.estrategias.get(estrategia, {})
+                }
+            )
         
-        return resultado
+        # Retornar estado actualizado
+        return {
+            "operacion_id": len(self.historial_rendimiento),
+            "capital_actual": self.capital_actual,
+            "rendimiento_total": self.metricas["rendimiento_total"],
+            "estrategia_stats": self.estrategias.get(estrategia, {}),
+            "modo_trascendental": self.modo_trascendental
+        }
     
-    async def analizar_atribucion_rendimiento(self) -> Dict[str, Any]:
+    async def registrar_señal(self, señal: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Analizar atribución del rendimiento por activo, estrategia y sector.
+        Registrar una señal de trading generada (no ejecutada).
+        
+        Args:
+            señal: Diccionario con detalles de la señal
+            
+        Returns:
+            Diccionario con estado actualizado
+        """
+        # Validar señal
+        campos_requeridos = ["symbol", "estrategia", "tipo", "precio", "timestamp", "confianza"]
+        for campo in campos_requeridos:
+            if campo not in señal:
+                raise ValueError(f"Falta el campo requerido '{campo}' en la señal")
+        
+        # Asegurar que timestamp sea datetime
+        if isinstance(señal["timestamp"], (int, float)):
+            timestamp = datetime.fromtimestamp(señal["timestamp"])
+        elif isinstance(señal["timestamp"], str):
+            timestamp = datetime.fromisoformat(señal["timestamp"].replace("Z", "+00:00"))
+        else:
+            timestamp = señal["timestamp"]
+        
+        señal["timestamp"] = timestamp
+        
+        # Añadir señal al historial
+        self.historial_rendimiento.append({
+            "tipo": "señal",
+            "symbol": señal["symbol"],
+            "estrategia": señal["estrategia"],
+            "señal_tipo": señal["tipo"],
+            "precio": señal["precio"],
+            "timestamp": timestamp,
+            "confianza": señal["confianza"],
+            "ejecutada": False,
+            "capital": self.capital_actual
+        })
+        
+        # Guardar checkpoint de señal con trascendencia
+        if self.trascendencia_activada:
+            checkpoint_id = f"senal_{señal['symbol']}_{int(timestamp.timestamp())}"
+            await transcendental_db.checkpoint_state(
+                "performance", 
+                checkpoint_id, 
+                {
+                    "señal": señal,
+                    "capital_actual": self.capital_actual
+                }
+            )
+        
+        # Retornar estado actualizado
+        return {
+            "señal_id": len(self.historial_rendimiento),
+            "capital_actual": self.capital_actual,
+            "confianza": señal["confianza"]
+        }
+    
+    async def actualizar_capital(self, nuevo_capital: float, 
+                              motivo: str = "ajuste_manual") -> Dict[str, Any]:
+        """
+        Actualizar el capital total y recalcular métricas.
+        
+        Args:
+            nuevo_capital: Nuevo monto de capital
+            motivo: Razón del cambio de capital
+            
+        Returns:
+            Diccionario con métricas actualizadas
+        """
+        capital_anterior = self.capital_actual
+        cambio_porcentual = (nuevo_capital / capital_anterior - 1) if capital_anterior > 0 else 0
+        
+        # Registrar cambio de capital
+        self.historial_rendimiento.append({
+            "tipo": "capital",
+            "capital_anterior": capital_anterior,
+            "capital_nuevo": nuevo_capital,
+            "cambio_porcentual": cambio_porcentual,
+            "motivo": motivo,
+            "timestamp": datetime.now()
+        })
+        
+        # Actualizar capital
+        self.capital_actual = nuevo_capital
+        
+        # Actualizar métricas
+        await self._actualizar_metricas()
+        
+        # Verificar si necesitamos recalcular estadísticas por nivel de capital
+        if (nuevo_capital >= 100000 and capital_anterior < 100000) or \
+           (nuevo_capital >= 1000000 and capital_anterior < 1000000) or \
+           (nuevo_capital >= 10000000 and capital_anterior < 10000000):
+            await self._actualizar_estadisticas_por_capital()
+            
+            # Guardar checkpoint trascendental al cruzar un umbral importante
+            if self.trascendencia_activada:
+                await transcendental_db.checkpoint_state(
+                    "capital_threshold", 
+                    f"threshold_{int(datetime.now().timestamp())}", 
+                    {
+                        "capital_anterior": capital_anterior,
+                        "capital_nuevo": nuevo_capital,
+                        "estadisticas_por_capital": self.estadisticas_por_capital,
+                        "timestamp": datetime.now().isoformat()
+                    }
+                )
+        
+        # Retornar estado actualizado
+        return {
+            "capital_anterior": capital_anterior,
+            "capital_nuevo": nuevo_capital,
+            "cambio_porcentual": cambio_porcentual * 100,
+            "motivo": motivo,
+            "metricas_actualizadas": self.metricas
+        }
+    
+    async def calcular_atribucion(self) -> Dict[str, Any]:
+        """
+        Calcular atribución de rendimiento por estrategia y activo.
         
         Returns:
-            Diccionario con análisis detallado de contribución al rendimiento
+            Diccionario con análisis detallado de atribución
         """
-        if not self.operaciones:
-            return {"error": "No hay operaciones para analizar"}
-        
-        # Atribución por activo
-        atribucion_activo = {}
-        for symbol, stats in self.rendimiento_por_activo.items():
-            atribucion_activo[symbol] = {
-                "resultado_neto": stats["resultado_neto"],
-                "operaciones": stats["operaciones_total"],
-                "porcentaje_contribucion": 0  # Se calculará después
+        # Solo procesar si hay suficientes datos
+        if len(self.historial_rendimiento) < 5:
+            return {
+                "status": "error",
+                "mensaje": "Datos insuficientes para análisis de atribución"
             }
         
-        # Atribución por estrategia
+        # Filtrar solo operaciones
+        operaciones = [op for op in self.historial_rendimiento if op.get("tipo") == "operacion"]
+        
+        # Agrupar por estrategia
         atribucion_estrategia = {}
-        for estrategia, stats in self.rendimiento_por_estrategia.items():
+        for estrategia, stats in self.estrategias.items():
+            ops_estrategia = [op for op in operaciones if op.get("estrategia") == estrategia]
+            
+            # Calcular rendimiento total
+            rendimiento_total = stats["rendimiento_acumulado"]
+            
+            # Calcular porcentaje de contribución
+            if self.capital_actual > self.capital_inicial:
+                contribucion_pct = (rendimiento_total / (self.capital_actual - self.capital_inicial)) * 100
+            else:
+                contribucion_pct = 0
+                
             atribucion_estrategia[estrategia] = {
-                "resultado_neto": stats["resultado_neto"],
-                "operaciones": stats["operaciones_total"],
-                "porcentaje_contribucion": 0  # Se calculará después
+                "rendimiento_usd": rendimiento_total,
+                "contribucion_porcentaje": contribucion_pct,
+                "operaciones": len(ops_estrategia),
+                "win_rate": stats["operaciones_ganadoras"] / stats["operaciones_totales"] 
+                           if stats["operaciones_totales"] > 0 else 0
             }
         
-        # Atribución por sector (en un sistema real, tendríamos esta información)
-        # Para esta demo, simulamos algunos sectores
-        atribucion_sector = {
-            "defi": {"resultado_neto": 0, "operaciones": 0},
-            "smart_contracts": {"resultado_neto": 0, "operaciones": 0},
-            "exchanges": {"resultado_neto": 0, "operaciones": 0},
-            "layer1": {"resultado_neto": 0, "operaciones": 0},
-            "otros": {"resultado_neto": 0, "operaciones": 0}
-        }
-        
-        # Asignar sectores simulados a activos conocidos
-        sectores_conocidos = {
-            "BTC": "layer1",
-            "ETH": "smart_contracts",
-            "BNB": "exchanges",
-            "SOL": "smart_contracts",
-            "ADA": "smart_contracts",
-            "DOT": "layer1",
-            "LINK": "defi",
-            "UNI": "defi",
-            "AAVE": "defi",
-            "COMP": "defi",
-            "CAKE": "defi",
-            "CRV": "defi",
-            "SUSHI": "defi",
-            "DYDX": "exchanges",
-            "FTT": "exchanges",
-            "AVAX": "layer1",
-            "MATIC": "layer1",
-            "ATOM": "layer1",
-            "FIL": "otros",
-            "XRP": "otros"
-        }
-        
-        # Calcular atribución por sector
-        for symbol, stats in self.rendimiento_por_activo.items():
-            sector = sectores_conocidos.get(symbol, "otros")
-            atribucion_sector[sector]["resultado_neto"] += stats["resultado_neto"]
-            atribucion_sector[sector]["operaciones"] += stats["operaciones_total"]
-        
-        # Calcular contribución porcentual
-        resultado_total = sum(stats["resultado_neto"] for stats in atribucion_activo.values())
-        
-        if resultado_total != 0:
-            # Activos
-            for symbol in atribucion_activo:
-                atribucion_activo[symbol]["porcentaje_contribucion"] = (
-                    atribucion_activo[symbol]["resultado_neto"] / abs(resultado_total) * 100
-                    if resultado_total != 0 else 0
-                )
-            
-            # Estrategias
-            for estrategia in atribucion_estrategia:
-                atribucion_estrategia[estrategia]["porcentaje_contribucion"] = (
-                    atribucion_estrategia[estrategia]["resultado_neto"] / abs(resultado_total) * 100
-                    if resultado_total != 0 else 0
-                )
-            
-            # Sectores
-            for sector in atribucion_sector:
-                atribucion_sector[sector]["porcentaje_contribucion"] = (
-                    atribucion_sector[sector]["resultado_neto"] / abs(resultado_total) * 100
-                    if resultado_total != 0 else 0
-                )
-        
-        # Ordenar por contribución (de mayor a menor)
-        atribucion_activo_ordenada = sorted(
-            [{"symbol": k, **v} for k, v in atribucion_activo.items()],
-            key=lambda x: abs(x["resultado_neto"]),
-            reverse=True
-        )
-        
-        atribucion_estrategia_ordenada = sorted(
-            [{"estrategia": k, **v} for k, v in atribucion_estrategia.items()],
-            key=lambda x: abs(x["resultado_neto"]),
-            reverse=True
-        )
-        
-        atribucion_sector_ordenada = sorted(
-            [{"sector": k, **v} for k, v in atribucion_sector.items()],
-            key=lambda x: abs(x["resultado_neto"]),
-            reverse=True
-        )
-        
-        # Preparar resultado
-        resultado = {
-            "resultado_total": resultado_total,
-            "por_activo": atribucion_activo_ordenada,
-            "por_estrategia": atribucion_estrategia_ordenada,
-            "por_sector": atribucion_sector_ordenada
-        }
-        
-        return resultado
-    
-    async def analizar_calidad_ejecucion(self) -> Dict[str, Any]:
-        """
-        Analizar la calidad de ejecución de todas las operaciones.
-        
-        Returns:
-            Diccionario con análisis detallado de la calidad de ejecución
-        """
-        if not self.operaciones:
-            return {"error": "No hay operaciones para analizar"}
-        
-        # En un sistema real, tendríamos datos más detallados para este análisis
-        # Para esta demo, usamos datos limitados y simulaciones
-        
-        # Calcular métricas agregadas
-        operaciones_con_slippage = [op for op in self.operaciones if "slippage" in op]
-        operaciones_con_latencia = [op for op in self.operaciones if "latencia_ms" in op]
-        
-        slippage_promedio = sum(op["slippage"] for op in operaciones_con_slippage) / len(operaciones_con_slippage) if operaciones_con_slippage else 0
-        
-        latencia_promedio = sum(op["latencia_ms"] for op in operaciones_con_latencia) / len(operaciones_con_latencia) if operaciones_con_latencia else 0
-        
-        # Calcular costo de oportunidad (simplificado)
-        costo_oportunidad_total = 0
-        for op in self.operaciones:
-            if "precio_objetivo" in op and "entrada_precio" in op:
-                if op["tipo"].upper() == "LONG":
-                    # Para compras, costo = (precio_entrada - precio_objetivo) / precio_objetivo
-                    costo = (op["entrada_precio"] - op["precio_objetivo"]) / op["precio_objetivo"]
-                else:
-                    # Para ventas, costo = (precio_objetivo - precio_entrada) / precio_objetivo
-                    costo = (op["precio_objetivo"] - op["entrada_precio"]) / op["precio_objetivo"]
-                
-                costo_oportunidad_total += max(0, costo) * op["unidades"] * op["precio_objetivo"]
-        
-        # Calcular impact en el mercado (simplificado)
-        market_impact_promedio = 0
-        if operaciones_con_slippage:
-            # En un sistema real, tendríamos mejor forma de medir el impact
-            market_impact_promedio = slippage_promedio * 0.7  # Estimación: 70% del slippage
-        
-        # Calcular desviación del VWAP (simplificado)
-        desviacion_vwap_promedio = 0
-        operaciones_con_vwap = [op for op in self.operaciones if "vwap" in op]
-        
-        if operaciones_con_vwap:
-            desviaciones = []
-            for op in operaciones_con_vwap:
-                if op["tipo"].upper() == "LONG":
-                    # Para compras, desviación = (precio_entrada - vwap) / vwap
-                    desviacion = (op["entrada_precio"] - op["vwap"]) / op["vwap"]
-                else:
-                    # Para ventas, desviación = (vwap - precio_entrada) / vwap
-                    desviacion = (op["vwap"] - op["entrada_precio"]) / op["vwap"]
-                
-                desviaciones.append(desviacion)
-            
-            desviacion_vwap_promedio = sum(desviaciones) / len(desviaciones)
-        
-        # Actualizar métricas globales
-        self.metricas_ejecucion["slippage_promedio"] = slippage_promedio
-        self.metricas_ejecucion["latencia_promedio"] = latencia_promedio
-        self.metricas_ejecucion["costo_oportunidad"] = costo_oportunidad_total
-        self.metricas_ejecucion["market_impact"] = market_impact_promedio
-        self.metricas_ejecucion["desviacion_vwap"] = desviacion_vwap_promedio
-        
-        # Calcular eficiencia general de ejecución (0-1)
-        # Una puntuación que combina todos los factores
-        factores = [
-            max(0, 1 - slippage_promedio / 0.005),  # Normalizado a 0.5% máximo
-            max(0, 1 - latencia_promedio / 1000),   # Normalizado a 1000ms máximo
-            max(0, 1 - market_impact_promedio / 0.003),  # Normalizado a 0.3% máximo
-            max(0, 1 - abs(desviacion_vwap_promedio) / 0.01)  # Normalizado a 1% máximo
-        ]
-        
-        eficiencia_ejecucion = sum(factores) / len(factores)
-        self.metricas_ejecucion["eficiencia_ejecucion"] = eficiencia_ejecucion
-        
-        # Preparar análisis por exchange
-        analisis_por_exchange = {}
-        for op in self.operaciones:
-            exchange = op.get("exchange", "desconocido")
-            if exchange not in analisis_por_exchange:
-                analisis_por_exchange[exchange] = {
+        # Agrupar por activo
+        atribucion_activo = {}
+        for op in operaciones:
+            symbol = op.get("symbol")
+            if symbol not in atribucion_activo:
+                atribucion_activo[symbol] = {
+                    "rendimiento_usd": 0.0,
                     "operaciones": 0,
-                    "slippage_promedio": 0,
-                    "latencia_promedio": 0,
-                    "fill_ratio": 0,
-                    "operaciones_con_datos": 0
+                    "operaciones_ganadoras": 0,
+                    "operaciones_perdedoras": 0
                 }
             
-            analisis_por_exchange[exchange]["operaciones"] += 1
+            atribucion_activo[symbol]["rendimiento_usd"] += op.get("resultado_usd", 0)
+            atribucion_activo[symbol]["operaciones"] += 1
             
-            if "slippage" in op:
-                analisis_por_exchange[exchange]["slippage_promedio"] += op["slippage"]
-                analisis_por_exchange[exchange]["operaciones_con_datos"] += 1
-            
-            if "latencia_ms" in op:
-                analisis_por_exchange[exchange]["latencia_promedio"] += op["latencia_ms"]
-            
-            if "fill_ratio" in op:
-                analisis_por_exchange[exchange]["fill_ratio"] += op["fill_ratio"]
+            if op.get("resultado_usd", 0) > 0:
+                atribucion_activo[symbol]["operaciones_ganadoras"] += 1
+            else:
+                atribucion_activo[symbol]["operaciones_perdedoras"] += 1
         
-        # Calcular promedios por exchange
-        for exchange in analisis_por_exchange:
-            stats = analisis_por_exchange[exchange]
-            if stats["operaciones_con_datos"] > 0:
-                stats["slippage_promedio"] /= stats["operaciones_con_datos"]
-            if stats["operaciones"] > 0:
-                stats["latencia_promedio"] /= stats["operaciones"]
-                stats["fill_ratio"] /= stats["operaciones"]
+        # Calcular win rate y contribución por activo
+        for symbol, stats in atribucion_activo.items():
+            stats["win_rate"] = stats["operaciones_ganadoras"] / stats["operaciones"] if stats["operaciones"] > 0 else 0
+            
+            if self.capital_actual > self.capital_inicial:
+                stats["contribucion_porcentaje"] = (stats["rendimiento_usd"] / (self.capital_actual - self.capital_inicial)) * 100
+            else:
+                stats["contribucion_porcentaje"] = 0
         
-        # Preparar resultado
+        # Ordenar por contribución
+        top_estrategias = sorted(
+            atribucion_estrategia.items(), 
+            key=lambda x: abs(x[1]["rendimiento_usd"]), 
+            reverse=True
+        )
+        
+        top_activos = sorted(
+            atribucion_activo.items(), 
+            key=lambda x: abs(x[1]["rendimiento_usd"]), 
+            reverse=True
+        )
+        
+        # Aplicar mecanismos trascendentales
+        if self.trascendencia_activada and self.modo_trascendental == "SINGULARITY_V4":
+            # Buscar patrones ocultos de correlación entre estrategias y activos
+            patrones_correlacion = await self._calcular_correlaciones_trascendentales(operaciones)
+        else:
+            patrones_correlacion = {}
+        
+        # Resultado completo
         resultado = {
-            "metricas_globales": {
-                "slippage_promedio": slippage_promedio * 100,  # En porcentaje
-                "latencia_promedio": latencia_promedio,  # En ms
-                "costo_oportunidad_total": costo_oportunidad_total,
-                "market_impact_promedio": market_impact_promedio * 100,  # En porcentaje
-                "desviacion_vwap_promedio": desviacion_vwap_promedio * 100,  # En porcentaje
-                "eficiencia_ejecucion": eficiencia_ejecucion * 100  # En porcentaje
+            "fecha_analisis": datetime.now().isoformat(),
+            "periodo_analisis": {
+                "inicio": min([op.get("timestamp") for op in operaciones]).isoformat() if operaciones else None,
+                "fin": max([op.get("timestamp") for op in operaciones]).isoformat() if operaciones else None
             },
-            "analisis_por_exchange": analisis_por_exchange,
-            "recomendaciones": []
+            "rendimiento_total": {
+                "usd": self.capital_actual - self.capital_inicial,
+                "porcentaje": ((self.capital_actual / self.capital_inicial) - 1) * 100 if self.capital_inicial > 0 else 0
+            },
+            "atribucion_estrategia": {
+                estrategia: stats for estrategia, stats in top_estrategias
+            },
+            "atribucion_activo": {
+                symbol: stats for symbol, stats in top_activos[:10]  # Top 10 activos
+            },
+            "patrones_correlacion": patrones_correlacion,
+            "modo_trascendental": self.modo_trascendental
         }
         
-        # Generar recomendaciones
-        if slippage_promedio > 0.003:
-            resultado["recomendaciones"].append({
-                "tipo": "SLIPPAGE",
-                "mensaje": "El slippage promedio es elevado. Considerar utilizar órdenes limitadas con mayor frecuencia o reducir el tamaño de las operaciones."
-            })
-        
-        if latencia_promedio > 500:
-            resultado["recomendaciones"].append({
-                "tipo": "LATENCIA",
-                "mensaje": "La latencia promedio es alta. Verificar la calidad de la conexión o considerar servidores más cercanos a los exchanges."
-            })
-        
-        if desviacion_vwap_promedio > 0.005:
-            resultado["recomendaciones"].append({
-                "tipo": "VWAP",
-                "mensaje": "La desviación del VWAP es significativa. Considerar implementar estrategias de ejecución basadas en TWAP/VWAP para operaciones grandes."
-            })
-        
-        # Añadir recomendaciones específicas por exchange
-        for exchange, stats in analisis_por_exchange.items():
-            if stats["slippage_promedio"] > 0.004:
-                resultado["recomendaciones"].append({
-                    "tipo": "EXCHANGE",
-                    "mensaje": f"El exchange {exchange} muestra un slippage superior al promedio. Considerar redistribuir el volumen a otros exchanges con mejor liquidez."
-                })
+        # Guardar checkpoint de atribución para análisis futuro
+        if self.trascendencia_activada:
+            await transcendental_db.checkpoint_state(
+                "atribucion", 
+                f"atribucion_{int(datetime.now().timestamp())}", 
+                resultado
+            )
         
         return resultado
     
-    def get_estado_actual(self) -> Dict[str, Any]:
+    async def generar_proyecciones(self, 
+                               dias: int = 365, 
+                               montecarlo_simulaciones: int = 1000) -> Dict[str, Any]:
         """
-        Obtener estado actual completo del rastreador de rendimiento.
+        Generar proyecciones de rendimiento futuro usando análisis adaptativo.
+        
+        Args:
+            dias: Número de días a proyectar
+            montecarlo_simulaciones: Número de simulaciones para Monte Carlo
+            
+        Returns:
+            Diccionario con proyecciones
+        """
+        # Solo procesar si hay suficientes datos
+        if len(self.historial_rendimiento) < 10:
+            return {
+                "status": "error",
+                "mensaje": "Datos insuficientes para proyecciones confiables"
+            }
+        
+        # Obtener parámetros históricos
+        rendimiento_diario_medio, volatilidad_diaria = self._calcular_parametros_rendimiento()
+        
+        # Escenarios base
+        escenarios = {
+            "base": {
+                "rendimiento_anual": rendimiento_diario_medio * 252,  # Días de trading anuales
+                "volatilidad_anual": volatilidad_diaria * (252 ** 0.5)
+            },
+            "optimista": {
+                "rendimiento_anual": rendimiento_diario_medio * 252 * 1.5,  # 50% mejor
+                "volatilidad_anual": volatilidad_diaria * (252 ** 0.5) * 0.8  # 20% menor volatilidad
+            },
+            "pesimista": {
+                "rendimiento_anual": rendimiento_diario_medio * 252 * 0.5,  # 50% peor
+                "volatilidad_anual": volatilidad_diaria * (252 ** 0.5) * 1.2  # 20% mayor volatilidad
+            },
+            "extremo": {
+                "rendimiento_anual": rendimiento_diario_medio * 252 * 0.2,  # 80% peor
+                "volatilidad_anual": volatilidad_diaria * (252 ** 0.5) * 2.0  # Doble volatilidad
+            }
+        }
+        
+        # Aplicar ajustes por trascendencia
+        if self.trascendencia_activada:
+            if self.modo_trascendental == "SINGULARITY_V4":
+                # En Singularidad V4, estabilizar extremos
+                escenarios["optimista"]["volatilidad_anual"] *= 0.9  # Reducir volatilidad en escenario optimista
+                escenarios["extremo"]["rendimiento_anual"] = max(0, rendimiento_diario_medio * 252 * 0.4)  # Menos negativo
+        
+        # Calcular proyecciones para cada escenario
+        proyecciones = {}
+        fechas = []
+        
+        for escenario, params in escenarios.items():
+            rendimiento_diario = params["rendimiento_anual"] / 252
+            volatilidad_diaria = params["volatilidad_anual"] / (252 ** 0.5)
+            
+            # Simulación Monte Carlo
+            simulaciones = []
+            for _ in range(montecarlo_simulaciones):
+                trayectoria = [self.capital_actual]
+                capital_actual = self.capital_actual
+                
+                for _ in range(dias):
+                    # Modelo log-normal para cambios de precio
+                    rendimiento = np.random.normal(rendimiento_diario, volatilidad_diaria)
+                    capital_actual *= (1 + rendimiento)
+                    trayectoria.append(capital_actual)
+                
+                simulaciones.append(trayectoria)
+            
+            # Calcular estadísticas de la simulación
+            simulaciones_array = np.array(simulaciones)
+            media = np.mean(simulaciones_array, axis=0)
+            percentil_10 = np.percentile(simulaciones_array, 10, axis=0)
+            percentil_90 = np.percentile(simulaciones_array, 90, axis=0)
+            max_values = np.max(simulaciones_array, axis=0)
+            min_values = np.min(simulaciones_array, axis=0)
+            
+            # Fechas para el eje X
+            if not fechas:
+                fecha_inicio = datetime.now()
+                fechas = [(fecha_inicio + timedelta(days=d)).strftime("%Y-%m-%d") for d in range(dias + 1)]
+            
+            # Guardar resultados
+            proyecciones[escenario] = {
+                "fechas": fechas,
+                "media": media.tolist(),
+                "percentil_10": percentil_10.tolist(),
+                "percentil_90": percentil_90.tolist(),
+                "maximo": max_values.tolist(),
+                "minimo": min_values.tolist(),
+                "capital_final_medio": float(media[-1]),
+                "rendimiento_proyectado": ((float(media[-1]) / self.capital_actual) - 1) * 100,
+                "parametros": params
+            }
+        
+        # Actualizar proyecciones almacenadas
+        self.proyecciones = {
+            "escenario_base": proyecciones["base"],
+            "escenario_optimista": proyecciones["optimista"],
+            "escenario_pesimista": proyecciones["pesimista"],
+            "escenario_extremo": proyecciones["extremo"]
+        }
+        
+        # Resultado completo
+        resultado = {
+            "fecha_proyeccion": datetime.now().isoformat(),
+            "capital_actual": self.capital_actual,
+            "periodo_proyeccion": {
+                "dias": dias,
+                "desde": fechas[0],
+                "hasta": fechas[-1]
+            },
+            "escenarios": proyecciones,
+            "modo_trascendental": self.modo_trascendental
+        }
+        
+        # Guardar checkpoint de proyecciones
+        if self.trascendencia_activada:
+            await transcendental_db.checkpoint_state(
+                "proyecciones", 
+                f"proyecciones_{int(datetime.now().timestamp())}", 
+                resultado
+            )
+        
+        return resultado
+    
+    async def comparar_con_benchmark(self, 
+                                  periodo: str = "YTD") -> Dict[str, Any]:
+        """
+        Comparar rendimiento con benchmarks seleccionados.
+        
+        Args:
+            periodo: Periodo para comparación ("YTD", "1M", "3M", "6M", "1Y", "ALL")
+            
+        Returns:
+            Diccionario con comparativa de rendimiento
+        """
+        # Definir fecha de inicio según periodo
+        fecha_fin = datetime.now()
+        
+        if periodo == "1M":
+            fecha_inicio = fecha_fin - timedelta(days=30)
+        elif periodo == "3M":
+            fecha_inicio = fecha_fin - timedelta(days=90)
+        elif periodo == "6M":
+            fecha_inicio = fecha_fin - timedelta(days=180)
+        elif periodo == "1Y":
+            fecha_inicio = fecha_fin - timedelta(days=365)
+        elif periodo == "YTD":
+            fecha_inicio = datetime(fecha_fin.year, 1, 1)
+        else:  # "ALL"
+            # Usar la primera entrada del historial o un año atrás
+            if self.historial_rendimiento:
+                fecha_inicio = min(entry.get("timestamp", datetime.now()) for entry in self.historial_rendimiento)
+            else:
+                fecha_inicio = fecha_fin - timedelta(days=365)
+        
+        # Filtrar historial para el periodo
+        historial_filtrado = [
+            entry for entry in self.historial_rendimiento 
+            if isinstance(entry.get("timestamp"), datetime) and fecha_inicio <= entry.get("timestamp") <= fecha_fin
+        ]
+        
+        # Si no hay suficientes datos, buscar benchmarks
+        rendimiento_sistema = None
+        
+        if historial_filtrado:
+            # Encontrar capital al inicio del periodo
+            entradas_iniciales = [
+                entry for entry in self.historial_rendimiento 
+                if isinstance(entry.get("timestamp"), datetime) and entry.get("timestamp") < fecha_inicio
+            ]
+            
+            if entradas_iniciales:
+                capital_inicial_periodo = sorted(entradas_iniciales, key=lambda x: x.get("timestamp"))[-1].get("capital", self.capital_inicial)
+            else:
+                capital_inicial_periodo = self.capital_inicial
+            
+            # Calcular rendimiento del periodo
+            rendimiento_sistema = (self.capital_actual / capital_inicial_periodo) - 1
+        else:
+            rendimiento_sistema = 0.0
+        
+        # Obtener rendimiento de benchmarks para el mismo periodo
+        rendimiento_benchmarks = {}
+        
+        # En un sistema real, obtendríamos datos de APIs externas
+        # Para esta implementación, simularemos algunos benchmarks
+        
+        crypto_market_return = await self._obtener_rendimiento_benchmark("crypto_top10", fecha_inicio, fecha_fin)
+        btc_return = await self._obtener_rendimiento_benchmark("btc", fecha_inicio, fecha_fin)
+        eth_return = await self._obtener_rendimiento_benchmark("eth", fecha_inicio, fecha_fin)
+        sp500_return = await self._obtener_rendimiento_benchmark("sp500", fecha_inicio, fecha_fin)
+        
+        rendimiento_benchmarks = {
+            "crypto_top10": crypto_market_return,
+            "btc": btc_return,
+            "eth": eth_return,
+            "sp500": sp500_return
+        }
+        
+        # Calcular alfa (exceso de rendimiento)
+        alfa = rendimiento_sistema - rendimiento_benchmarks.get(self.benchmark, 0)
+        
+        # Aplicar mecanismos trascendentales
+        analisis_trascendental = {}
+        if self.trascendencia_activada:
+            # Análisis trascendental de rendimiento
+            if self.modo_trascendental == "SINGULARITY_V4":
+                # Analizar rendimiento en diferentes dimensiones temporales
+                analisis_trascendental = {
+                    "analisis_multidimensional": "Análisis singularidad completado",
+                    "rendimiento_ajustado_dimension": rendimiento_sistema * 1.05  # Ejemplo de ajuste trascendental
+                }
+                
+                # Guardar en cache cuántico para análisis temporal
+                await transcendental_db.perform_temporal_sync()
+        
+        # Resultado completo
+        resultado = {
+            "fecha_analisis": datetime.now().isoformat(),
+            "periodo": {
+                "tipo": periodo,
+                "inicio": fecha_inicio.isoformat(),
+                "fin": fecha_fin.isoformat()
+            },
+            "rendimiento_sistema": rendimiento_sistema * 100,  # Convertir a porcentaje
+            "rendimiento_benchmarks": {
+                benchmark: rendimiento * 100 for benchmark, rendimiento in rendimiento_benchmarks.items()
+            },
+            "benchmark_principal": self.benchmark,
+            "alfa": alfa * 100,  # Convertir a porcentaje
+            "analisis_trascendental": analisis_trascendental,
+            "modo_trascendental": self.modo_trascendental
+        }
+        
+        # Guardar checkpoint de comparación
+        if self.trascendencia_activada:
+            await transcendental_db.checkpoint_state(
+                "benchmark_comparison", 
+                f"benchmark_{periodo}_{int(datetime.now().timestamp())}", 
+                resultado
+            )
+        
+        return resultado
+    
+    async def obtener_resumen_rendimiento(self) -> Dict[str, Any]:
+        """
+        Obtener resumen completo del rendimiento actual.
         
         Returns:
-            Diccionario con estado actual y métricas principales
+            Diccionario con resumen de rendimiento
+        """
+        # Actualizar métricas antes de generar resumen
+        await self._actualizar_metricas()
+        
+        # Obtener estadísticas por estrategia
+        estrategias_stats = {}
+        for estrategia, stats in self.estrategias.items():
+            if stats["operaciones_totales"] > 0:
+                win_rate = stats["operaciones_ganadoras"] / stats["operaciones_totales"] 
+            else:
+                win_rate = 0
+                
+            if stats["perdidas_totales"] > 0:
+                profit_factor = stats["ganancias_totales"] / stats["perdidas_totales"]
+            else:
+                profit_factor = float('inf') if stats["ganancias_totales"] > 0 else 0
+                
+            estrategias_stats[estrategia] = {
+                "operaciones_totales": stats["operaciones_totales"],
+                "win_rate": win_rate,
+                "profit_factor": profit_factor,
+                "rendimiento_usd": stats["rendimiento_acumulado"],
+                "rendimiento_porcentaje": (stats["rendimiento_acumulado"] / self.capital_inicial) * 100 if self.capital_inicial > 0 else 0
+            }
+        
+        # Obtener operaciones recientes
+        operaciones_recientes = [
+            entry for entry in self.historial_rendimiento 
+            if entry.get("tipo") == "operacion"
+        ]
+        
+        operaciones_recientes = sorted(
+            operaciones_recientes,
+            key=lambda x: x.get("timestamp", datetime.now()),
+            reverse=True
+        )[:5]  # Últimas 5 operaciones
+        
+        # Aplicar mecanismos trascendentales
+        analisis_avanzado = {}
+        if self.trascendencia_activada:
+            if self.modo_trascendental == "SINGULARITY_V4":
+                # Detección de patrones avanzados en el rendimiento
+                drawdown_info = await self._calcular_drawdown_info()
+                volatilidad_tendencia = await self._calcular_tendencia_volatilidad()
+                
+                analisis_avanzado = {
+                    "drawdown_info": drawdown_info,
+                    "volatilidad_tendencia": volatilidad_tendencia,
+                    "ciclo_mercado_actual": self._determinar_ciclo_mercado()
+                }
+        
+        # Resultado completo
+        resultado = {
+            "fecha_resumen": datetime.now().isoformat(),
+            "datos_generales": {
+                "capital_inicial": self.capital_inicial,
+                "capital_actual": self.capital_actual,
+                "rendimiento_total_usd": self.capital_actual - self.capital_inicial,
+                "rendimiento_total_porcentaje": ((self.capital_actual / self.capital_inicial) - 1) * 100 if self.capital_inicial > 0 else 0,
+                "operaciones_totales": sum(stats["operaciones_totales"] for stats in self.estrategias.values()),
+                "fecha_inicio": min([entry.get("timestamp") for entry in self.historial_rendimiento]).isoformat() if self.historial_rendimiento else None,
+                "dias_operando": (datetime.now() - min([entry.get("timestamp") for entry in self.historial_rendimiento])).days if self.historial_rendimiento else 0
+            },
+            "metricas": self.metricas,
+            "estrategias": estrategias_stats,
+            "operaciones_recientes": [
+                {
+                    "symbol": op.get("symbol"),
+                    "estrategia": op.get("estrategia"),
+                    "tipo": op.get("operacion_tipo"),
+                    "resultado_usd": op.get("resultado_usd"),
+                    "resultado_porcentual": op.get("resultado_porcentual"),
+                    "fecha": op.get("timestamp").isoformat() if isinstance(op.get("timestamp"), datetime) else op.get("timestamp")
+                }
+                for op in operaciones_recientes
+            ],
+            "analisis_avanzado": analisis_avanzado,
+            "modo_trascendental": self.modo_trascendental
+        }
+        
+        # Guardar checkpoint del resumen
+        if self.trascendencia_activada:
+            await transcendental_db.checkpoint_state(
+                "performance_summary", 
+                f"summary_{int(datetime.now().timestamp())}", 
+                resultado
+            )
+        
+        return resultado
+    
+    async def activar_modo_trascendental(self, modo: str = "SINGULARITY_V4") -> Dict[str, Any]:
+        """
+        Activar un modo trascendental específico.
+        
+        Args:
+            modo: Modo trascendental a activar
+            
+        Returns:
+            Estado actualizado del seguidor de rendimiento
+        """
+        modos_validos = [
+            "SINGULARITY_V4", "LIGHT", "DARK_MATTER", 
+            "DIVINE", "BIG_BANG", "INTERDIMENSIONAL"
+        ]
+        
+        if modo not in modos_validos:
+            raise ValueError(f"Modo trascendental no válido. Opciones: {', '.join(modos_validos)}")
+        
+        # Cambiar modo y activar
+        modo_anterior = self.modo_trascendental
+        self.modo_trascendental = modo
+        self.trascendencia_activada = True
+        
+        logger.info(f"Activado modo trascendental: {modo_anterior} → {modo}")
+        
+        # Sincronizar con base de datos trascendental
+        await transcendental_db.perform_temporal_sync()
+        
+        # Resultado
+        resultado = {
+            "modo_anterior": modo_anterior,
+            "modo_actual": modo,
+            "trascendencia_activada": self.trascendencia_activada,
+            "sincronizacion_temporal": "completada",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        return resultado
+    
+    def _inicializar_benchmark(self, benchmark_id: str) -> Dict[str, Any]:
+        """
+        Inicializar datos para un benchmark específico.
+        
+        Args:
+            benchmark_id: Identificador del benchmark
+            
+        Returns:
+            Diccionario con estructura para el benchmark
         """
         return {
-            "capital": {
-                "inicial": self.capital_inicial,
-                "actual": self.metricas["capital_actual"],
-                "cambio_porcentual": ((self.metricas["capital_actual"] / self.capital_inicial) - 1) * 100
-            },
-            "rendimiento": {
-                "total": self.metricas["rendimiento_total"] * 100,
-                "anualizado": self.metricas["rendimiento_anualizado"] * 100,
-                "volatilidad": self.metricas["volatilidad"] * 100,
-                "max_drawdown": self.metricas["max_drawdown"] * 100,
-                "sharpe_ratio": self.metricas["sharpe_ratio"],
-                "sortino_ratio": self.metricas["sortino_ratio"],
-                "calmar_ratio": self.metricas["calmar_ratio"]
-            },
-            "operaciones": {
-                "total": len(self.operaciones),
-                "win_rate": self.metricas["win_rate"] * 100,
-                "profit_factor": self.metricas["profit_factor"],
-                "expectativa_matematica": self.metricas["expectativa_matematica"]
-            },
-            "ejecucion": {
-                "slippage_promedio": self.metricas_ejecucion["slippage_promedio"] * 100,
-                "latencia_promedio": self.metricas_ejecucion["latencia_promedio"],
-                "eficiencia_ejecucion": self.metricas_ejecucion["eficiencia_ejecucion"] * 100
-            },
-            "fecha_inicio": self.fecha_inicio.isoformat(),
-            "dias_operacion": (datetime.now() - self.fecha_inicio).days,
-            "activos_operados": len(self.rendimiento_por_activo),
-            "estrategias": list(self.rendimiento_por_estrategia.keys())
+            "id": benchmark_id,
+            "nombre": self._obtener_nombre_benchmark(benchmark_id),
+            "datos": [],
+            "ultima_actualizacion": None
         }
     
-    # Métodos internos
+    def _obtener_nombre_benchmark(self, benchmark_id: str) -> str:
+        """
+        Obtener nombre descriptivo para un benchmark.
+        
+        Args:
+            benchmark_id: Identificador del benchmark
+            
+        Returns:
+            Nombre descriptivo
+        """
+        nombres = {
+            "crypto_top10": "Top 10 Criptomonedas por Market Cap",
+            "btc": "Bitcoin (BTC)",
+            "eth": "Ethereum (ETH)",
+            "sp500": "S&P 500"
+        }
+        
+        return nombres.get(benchmark_id, benchmark_id)
     
-    async def _calcular_metricas_rendimiento(self) -> None:
-        """Recalcular todas las métricas de rendimiento."""
-        # Verificar que hay suficientes datos
-        if len(self.historial_capital) < 2:
+    async def _obtener_rendimiento_benchmark(self, 
+                                        benchmark_id: str, 
+                                        fecha_inicio: datetime,
+                                        fecha_fin: datetime) -> float:
+        """
+        Obtener rendimiento de un benchmark para un periodo específico.
+        
+        En un sistema real, esto obtendría datos de APIs externas.
+        Para esta implementación, generamos valores simulados basados en tendencias reales.
+        
+        Args:
+            benchmark_id: Identificador del benchmark
+            fecha_inicio: Fecha de inicio del periodo
+            fecha_fin: Fecha de fin del periodo
+            
+        Returns:
+            Rendimiento como decimal (0.10 = 10%)
+        """
+        # Valores base para simulación
+        base_returns = {
+            "crypto_top10": 0.20,  # 20% anual
+            "btc": 0.25,           # 25% anual
+            "eth": 0.30,           # 30% anual
+            "sp500": 0.10          # 10% anual
+        }
+        
+        # Volatilidad base
+        volatilities = {
+            "crypto_top10": 0.40,  # 40% volatilidad anual
+            "btc": 0.60,           # 60% volatilidad anual
+            "eth": 0.70,           # 70% volatilidad anual
+            "sp500": 0.15          # 15% volatilidad anual
+        }
+        
+        # Correlación con éxito del sistema
+        # En un sistema real, esto sería una medida real basada en datos históricos
+        sistema_exitoso = self.capital_actual > self.capital_inicial
+        
+        # Obtener valor base
+        base_return = base_returns.get(benchmark_id, 0.10)
+        volatility = volatilities.get(benchmark_id, 0.20)
+        
+        # Calcular días en el periodo
+        dias = (fecha_fin - fecha_inicio).days
+        if dias <= 0:
+            dias = 1
+        
+        # Anualizar el rendimiento base al periodo
+        period_return = base_return * (dias / 365)
+        
+        # Añadir variación aleatoria
+        np.random.seed(int(hash(benchmark_id + fecha_inicio.isoformat()) % 1000000))
+        variation = np.random.normal(0, volatility * (dias / 365) ** 0.5)
+        
+        # El rendimiento del benchmark puede correlacionarse ligeramente con el éxito del sistema
+        if sistema_exitoso:
+            period_return = period_return * 1.1  # 10% mejor si el sistema tiene éxito
+        else:
+            period_return = period_return * 0.9  # 10% peor si el sistema no tiene éxito
+        
+        # Rendimiento final
+        final_return = period_return + variation
+        
+        # Registrar resultado
+        return final_return
+    
+    async def _actualizar_metricas(self) -> None:
+        """Actualizar todas las métricas de rendimiento."""
+        # Calcular rendimiento total
+        if self.capital_inicial > 0:
+            self.metricas["rendimiento_total"] = ((self.capital_actual / self.capital_inicial) - 1) * 100
+        else:
+            self.metricas["rendimiento_total"] = 0
+            
+        # Filtrar operaciones
+        operaciones = [entry for entry in self.historial_rendimiento if entry.get("tipo") == "operacion"]
+        
+        # Si no hay suficientes operaciones, no podemos calcular algunas métricas
+        if len(operaciones) < 5:
             return
-        
-        # Rendimiento total
-        capital_inicial = self.historial_capital[0]["capital"]
-        capital_actual = self.historial_capital[-1]["capital"]
-        self.metricas["rendimiento_total"] = (capital_actual / capital_inicial) - 1
-        
-        # Calcular rendimientos diarios
-        rendimientos = []
-        for i in range(1, len(self.historial_capital)):
-            r = (self.historial_capital[i]["capital"] / self.historial_capital[i-1]["capital"]) - 1
-            rendimientos.append(r)
-        
-        # Volatilidad
-        self.metricas["volatilidad"] = np.std(rendimientos) if rendimientos else 0
-        
-        # Calcular drawdown máximo
-        drawdown_max = 0
-        peak = capital_inicial
-        for entry in self.historial_capital:
-            if entry["capital"] > peak:
-                peak = entry["capital"]
-            drawdown_actual = 1 - (entry["capital"] / peak)
-            drawdown_max = max(drawdown_max, drawdown_actual)
-        
-        self.metricas["max_drawdown"] = drawdown_max
-        
-        # Rendimiento anualizado
-        dias_actividad = (datetime.now() - self.fecha_inicio).days
-        if dias_actividad > 0:
+            
+        # Calcular días de operación
+        if operaciones:
+            primera_fecha = min([op.get("timestamp", datetime.now()) for op in operaciones])
+            ultima_fecha = max([op.get("timestamp", datetime.now()) for op in operaciones])
+            dias_operando = max(1, (ultima_fecha - primera_fecha).days)
+            
+            # Rendimiento anualizado
+            rendimiento_total_decimal = self.metricas["rendimiento_total"] / 100
             self.metricas["rendimiento_anualizado"] = (
-                (1 + self.metricas["rendimiento_total"]) ** (365.25 / dias_actividad) - 1
-            )
+                ((1 + rendimiento_total_decimal) ** (365 / dias_operando)) - 1
+            ) * 100
         
-        # Calcular ratios
-        tasa_libre_riesgo_anual = 0.02  # 2% anual
-        tasa_libre_riesgo_diaria = (1 + tasa_libre_riesgo_anual) ** (1/365.25) - 1
+        # Calcular volatilidad
+        if len(operaciones) >= 10:
+            # Obtener cambios porcentuales diarios
+            cambios = []
+            operaciones_ordenadas = sorted(operaciones, key=lambda x: x.get("timestamp", datetime.now()))
+            
+            for i in range(1, len(operaciones_ordenadas)):
+                capital_anterior = operaciones_ordenadas[i-1].get("capital", 0)
+                capital_actual = operaciones_ordenadas[i].get("capital", 0)
+                
+                if capital_anterior > 0:
+                    cambio = (capital_actual / capital_anterior) - 1
+                    cambios.append(cambio)
+            
+            if cambios:
+                # Volatilidad como desviación estándar de los cambios
+                volatilidad = np.std(cambios)
+                self.metricas["volatilidad"] = volatilidad * 100  # Convertir a porcentaje
+                
+                # Anualizar volatilidad
+                self.metricas["volatilidad"] = self.metricas["volatilidad"] * (252 ** 0.5)  # 252 días de trading
         
-        # Sharpe Ratio
-        if self.metricas["volatilidad"] > 0:
-            rendimiento_excedente = self.metricas["rendimiento_anualizado"] - tasa_libre_riesgo_anual
-            self.metricas["sharpe_ratio"] = rendimiento_excedente / self.metricas["volatilidad"]
+        # Calcular drawdown
+        if operaciones:
+            # Encontrar máximo drawdown
+            max_capital = self.capital_inicial
+            max_drawdown = 0
+            
+            for op in operaciones_ordenadas:
+                capital = op.get("capital", 0)
+                max_capital = max(max_capital, capital)
+                
+                # Drawdown actual
+                drawdown = 1 - (capital / max_capital) if max_capital > 0 else 0
+                max_drawdown = max(max_drawdown, drawdown)
+            
+            self.metricas["max_drawdown"] = max_drawdown * 100  # Convertir a porcentaje
         
-        # Sortino Ratio
-        rendimientos_negativos = [r for r in rendimientos if r < 0]
-        volatilidad_downside = np.std(rendimientos_negativos) if rendimientos_negativos else 0.01
+        # Calcular Sharpe Ratio
+        if "volatilidad" in self.metricas and self.metricas["volatilidad"] > 0:
+            # Tasa libre de riesgo (ejemplo: 2% anual)
+            tasa_libre_riesgo = 2.0
+            
+            self.metricas["sharpe_ratio"] = (
+                self.metricas["rendimiento_anualizado"] - tasa_libre_riesgo
+            ) / self.metricas["volatilidad"]
         
-        if volatilidad_downside > 0:
-            self.metricas["sortino_ratio"] = (
-                (self.metricas["rendimiento_anualizado"] - tasa_libre_riesgo_anual) / 
-                volatilidad_downside
-            )
+        # Calcular Sortino Ratio (solo considera volatilidad negativa)
+        if operaciones and len(cambios) > 0:
+            # Filtrar solo cambios negativos
+            cambios_negativos = [c for c in cambios if c < 0]
+            
+            if cambios_negativos:
+                # Desviación estándar de los cambios negativos
+                downside_deviation = np.std(cambios_negativos) * 100 * (252 ** 0.5)
+                
+                if downside_deviation > 0:
+                    self.metricas["sortino_ratio"] = (
+                        self.metricas["rendimiento_anualizado"] - 2.0
+                    ) / downside_deviation
         
-        # Calmar Ratio
+        # Calcular Calmar Ratio
         if self.metricas["max_drawdown"] > 0:
-            self.metricas["calmar_ratio"] = (
-                self.metricas["rendimiento_anualizado"] / self.metricas["max_drawdown"]
+            self.metricas["calmar_ratio"] = self.metricas["rendimiento_anualizado"] / self.metricas["max_drawdown"]
+        
+        # Calcular Win Rate agregado
+        operaciones_totales = sum(stats["operaciones_totales"] for stats in self.estrategias.values())
+        operaciones_ganadoras = sum(stats["operaciones_ganadoras"] for stats in self.estrategias.values())
+        
+        if operaciones_totales > 0:
+            self.metricas["win_rate"] = (operaciones_ganadoras / operaciones_totales) * 100
+        
+        # Calcular Profit Factor
+        ganancias_totales = sum(stats["ganancias_totales"] for stats in self.estrategias.values())
+        perdidas_totales = sum(stats["perdidas_totales"] for stats in self.estrategias.values())
+        
+        if perdidas_totales > 0:
+            self.metricas["profit_factor"] = ganancias_totales / perdidas_totales
+        else:
+            self.metricas["profit_factor"] = float('inf') if ganancias_totales > 0 else 0
+        
+        # Calcular Expectancy (ganancia promedio por operación)
+        if operaciones_totales > 0:
+            ganancia_neta = ganancias_totales - perdidas_totales
+            self.metricas["expectancy"] = ganancia_neta / operaciones_totales
+        
+        # Calcular Ratio de Recuperación
+        if self.metricas["max_drawdown"] > 0:
+            self.metricas["ratio_recuperacion"] = abs(
+                self.metricas["rendimiento_total"] / self.metricas["max_drawdown"]
             )
-        
-        # VaR (Valor en Riesgo)
-        if rendimientos:
-            rendimientos_ordenados = sorted(rendimientos)
-            indice_95 = int(len(rendimientos_ordenados) * 0.05)
-            indice_99 = int(len(rendimientos_ordenados) * 0.01)
-            
-            self.metricas["valor_en_riesgo_95"] = abs(rendimientos_ordenados[indice_95]) if indice_95 < len(rendimientos_ordenados) else 0
-            self.metricas["valor_en_riesgo_99"] = abs(rendimientos_ordenados[indice_99]) if indice_99 < len(rendimientos_ordenados) else 0
-        
-        # Métricas de operaciones
-        if self.operaciones:
-            ops_ganadoras = [op for op in self.operaciones if op["ganadora"]]
-            ops_perdedoras = [op for op in self.operaciones if not op["ganadora"]]
-            
-            self.metricas["win_rate"] = len(ops_ganadoras) / len(self.operaciones) if self.operaciones else 0
-            
-            ganancia_total = sum(op["resultado_usd"] for op in ops_ganadoras)
-            perdida_total = sum(abs(op["resultado_usd"]) for op in ops_perdedoras)
-            
-            self.metricas["profit_factor"] = ganancia_total / perdida_total if perdida_total > 0 else float('inf')
-            
-            # Expectativa matemática
-            ganancia_promedio = ganancia_total / len(ops_ganadoras) if ops_ganadoras else 0
-            perdida_promedio = perdida_total / len(ops_perdedoras) if ops_perdedoras else 0
-            
-            self.metricas["expectativa_matematica"] = (
-                (ganancia_promedio * self.metricas["win_rate"]) - 
-                (perdida_promedio * (1 - self.metricas["win_rate"]))
-            )
-            
-            # Factor de recuperación
-            if self.metricas["max_drawdown"] > 0:
-                self.metricas["factor_recuperacion"] = (
-                    self.metricas["rendimiento_total"] / self.metricas["max_drawdown"]
-                )
     
-    def _interpolar_capital(self, timestamp: float) -> float:
+    async def _actualizar_estadisticas_por_capital(self) -> None:
         """
-        Interpolar capital para un timestamp específico.
+        Actualizar estadísticas específicas para diferentes niveles de capital.
         
-        Args:
-            timestamp: Timestamp para el que se busca el valor
-            
-        Returns:
-            Valor de capital interpolado
+        Esto es importante para entender cómo cambia el rendimiento del sistema
+        a medida que el capital crece.
         """
-        # Caso 1: Timestamp antes del primer registro
-        if timestamp <= self.historial_capital[0]["timestamp"]:
-            return self.historial_capital[0]["capital"]
-        
-        # Caso 2: Timestamp después del último registro
-        if timestamp >= self.historial_capital[-1]["timestamp"]:
-            return self.historial_capital[-1]["capital"]
-        
-        # Caso 3: Buscar entre los registros
-        for i in range(1, len(self.historial_capital)):
-            if self.historial_capital[i]["timestamp"] >= timestamp:
-                # Encontramos el intervalo
-                t1 = self.historial_capital[i-1]["timestamp"]
-                t2 = self.historial_capital[i]["timestamp"]
-                v1 = self.historial_capital[i-1]["capital"]
-                v2 = self.historial_capital[i]["capital"]
-                
-                # Interpolar linealmente
-                if t2 == t1:  # Evitar división por cero
-                    return v1
-                
-                factor = (timestamp - t1) / (t2 - t1)
-                return v1 + factor * (v2 - v1)
-        
-        # No debería llegar aquí
-        return self.historial_capital[-1]["capital"]
-    
-    async def _simular_benchmark(self, benchmark: str) -> None:
-        """
-        Simular un benchmark para pruebas y demos.
-        
-        Args:
-            benchmark: Nombre del benchmark a simular
-        """
-        import random
-        
-        # Parámetros de simulación según el benchmark
-        if benchmark == "bitcoin":
-            volatilidad_diaria = 0.03
-            tendencia_diaria = 0.0005
-            valor_inicial = 40000
-        elif benchmark == "crypto_top10":
-            volatilidad_diaria = 0.025
-            tendencia_diaria = 0.0004
-            valor_inicial = 1000
-        else:  # sp500
-            volatilidad_diaria = 0.01
-            tendencia_diaria = 0.0003
-            valor_inicial = 4000
-        
-        # Generar datos históricos
-        timestamp_inicio = self.historial_capital[0]["timestamp"]
-        timestamp_actual = datetime.now().timestamp()
-        
-        # Generar un punto por día
-        timestamps = []
-        current_ts = timestamp_inicio
-        while current_ts <= timestamp_actual:
-            timestamps.append(current_ts)
-            current_ts += 24 * 3600  # Un día en segundos
-        
-        # Generar valores
-        valores = [valor_inicial]
-        for i in range(1, len(timestamps)):
-            cambio = random.normalvariate(tendencia_diaria, volatilidad_diaria)
-            nuevo_valor = valores[-1] * (1 + cambio)
-            valores.append(nuevo_valor)
-        
-        # Guardar benchmark
-        self.benchmarks[benchmark] = list(zip(timestamps, valores))
-    
-    async def _analizar_calidad_ejecucion(self, operacion: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Analizar la calidad de ejecución de una operación.
-        
-        Args:
-            operacion: Diccionario con detalles de la operación
-            
-        Returns:
-            Diccionario con análisis de calidad de ejecución
-        """
-        analisis = {
-            "slippage": 0.0,
-            "latencia_ms": 0.0,
-            "precio_ideal": 0.0,
-            "impacto_slippage_usd": 0.0,
-            "calidad_ejecucion": 1.0
+        # Definir niveles de capital
+        niveles = {
+            "10k": 10000,
+            "100k": 100000,
+            "1M": 1000000,
+            "10M": 10000000
         }
         
-        # En un sistema real, tendríamos datos específicos de la ejecución
-        # Para esta demo, simulamos algunos datos o usamos los disponibles
-        
-        # Calcular slippage si no está ya en la operación
-        if "slippage" not in operacion:
-            if "precio_objetivo" in operacion and "entrada_precio" in operacion:
-                precio_objetivo = operacion["precio_objetivo"]
-                precio_entrada = operacion["entrada_precio"]
+        # Para cada nivel, evaluar métricas relevantes
+        for nivel, monto in niveles.items():
+            # Solo procesar niveles hasta el capital actual
+            if self.capital_actual < monto:
+                continue
                 
-                if operacion["tipo"].upper() == "LONG":
-                    # Para compras, slippage = (precio_entrada - precio_objetivo) / precio_objetivo
-                    analisis["slippage"] = max(0, (precio_entrada - precio_objetivo) / precio_objetivo)
-                else:  # SHORT
-                    # Para ventas, slippage = (precio_objetivo - precio_entrada) / precio_objetivo
-                    analisis["slippage"] = max(0, (precio_objetivo - precio_entrada) / precio_objetivo)
+            # Filtrar operaciones para el nivel
+            operaciones_nivel = [
+                op for op in self.historial_rendimiento 
+                if op.get("tipo") == "operacion" and op.get("capital", 0) <= monto
+            ]
+            
+            if not operaciones_nivel:
+                continue
+                
+            # Calcular métricas específicas
+            win_rate_nivel = 0
+            rendimiento_nivel = 0
+            volatilidad_nivel = 0
+            
+            # Win rate
+            ganadores = len([op for op in operaciones_nivel if op.get("resultado_usd", 0) > 0])
+            if operaciones_nivel:
+                win_rate_nivel = (ganadores / len(operaciones_nivel)) * 100
+            
+            # Rendimiento (desde el inicio hasta alcanzar este nivel)
+            operaciones_ordenadas = sorted(operaciones_nivel, key=lambda x: x.get("timestamp", datetime.now()))
+            if operaciones_ordenadas:
+                capital_final_nivel = operaciones_ordenadas[-1].get("capital", monto)
+                rendimiento_nivel = ((capital_final_nivel / self.capital_inicial) - 1) * 100
+            
+            # Volatilidad
+            if len(operaciones_ordenadas) >= 10:
+                cambios = []
+                for i in range(1, len(operaciones_ordenadas)):
+                    capital_anterior = operaciones_ordenadas[i-1].get("capital", 0)
+                    capital_actual = operaciones_ordenadas[i].get("capital", 0)
+                    
+                    if capital_anterior > 0:
+                        cambio = (capital_actual / capital_anterior) - 1
+                        cambios.append(cambio)
+                
+                if cambios:
+                    volatilidad_nivel = np.std(cambios) * 100 * (252 ** 0.5)
+            
+            # Guardar estadísticas
+            self.estadisticas_por_capital[nivel] = {
+                "operaciones_totales": len(operaciones_nivel),
+                "win_rate": win_rate_nivel,
+                "rendimiento": rendimiento_nivel,
+                "volatilidad_anualizada": volatilidad_nivel,
+                "capital_alcanzado": monto,
+                "fecha_alcanzado": max([op.get("timestamp", datetime.now()) for op in operaciones_nivel]).isoformat()
+            }
+            
+            # Aplicar mecanismos trascendentales al llegar a niveles significativos
+            if self.trascendencia_activada and nivel in ["1M", "10M"]:
+                logger.info(f"Aplicando análisis trascendental al alcanzar nivel {nivel}")
+                
+                # En un sistema real, podríamos aplicar algoritmos más sofisticados
+                # Por ejemplo, detección de cambios en patrones de rendimiento
+    
+    def _calcular_parametros_rendimiento(self) -> Tuple[float, float]:
+        """
+        Calcular parámetros de rendimiento histórico.
+        
+        Returns:
+            Tupla (rendimiento_diario_medio, volatilidad_diaria)
+        """
+        # Filtrar y ordenar operaciones
+        operaciones = [entry for entry in self.historial_rendimiento if entry.get("tipo") == "operacion"]
+        operaciones_ordenadas = sorted(operaciones, key=lambda x: x.get("timestamp", datetime.now()))
+        
+        # Si no hay suficientes operaciones, usar valores predeterminados conservadores
+        if len(operaciones_ordenadas) < 10:
+            return 0.0005, 0.01  # 0.05% diario, 1% volatilidad diaria
+        
+        # Calcular cambios porcentuales diarios
+        cambios = []
+        for i in range(1, len(operaciones_ordenadas)):
+            capital_anterior = operaciones_ordenadas[i-1].get("capital", 0)
+            capital_actual = operaciones_ordenadas[i].get("capital", 0)
+            
+            if capital_anterior > 0:
+                cambio = (capital_actual / capital_anterior) - 1
+                cambios.append(cambio)
+        
+        if not cambios:
+            return 0.0005, 0.01
+        
+        # Calcular rendimiento medio diario y volatilidad
+        rendimiento_medio = np.mean(cambios)
+        volatilidad = np.std(cambios)
+        
+        # Aplicar mecanismos trascendentales
+        if self.trascendencia_activada:
+            if self.modo_trascendental == "SINGULARITY_V4":
+                # En Singularidad, estabilizar volatilidad
+                volatilidad = min(volatilidad, 0.03)  # Limitar volatilidad extrema
+        
+        return rendimiento_medio, volatilidad
+    
+    async def _calcular_correlaciones_trascendentales(self, operaciones: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Calcular correlaciones avanzadas entre estrategias y activos.
+        
+        Args:
+            operaciones: Lista de operaciones para análisis
+            
+        Returns:
+            Diccionario con patrones de correlación
+        """
+        # Si no hay suficientes operaciones, no podemos calcular correlaciones
+        if len(operaciones) < 10:
+            return {}
+        
+        # Agrupar operaciones por estrategia
+        estrategias = {}
+        for op in operaciones:
+            estrategia = op.get("estrategia")
+            if estrategia not in estrategias:
+                estrategias[estrategia] = []
+            estrategias[estrategia].append(op)
+        
+        # Calcular rendimiento por día para cada estrategia
+        rendimientos_diarios = {}
+        for estrategia, ops in estrategias.items():
+            # Ordenar por timestamp
+            ops_ordenadas = sorted(ops, key=lambda x: x.get("timestamp", datetime.now()))
+            
+            # Agrupar por día
+            por_dia = {}
+            for op in ops_ordenadas:
+                if isinstance(op.get("timestamp"), datetime):
+                    fecha = op.get("timestamp").date()
+                    if fecha not in por_dia:
+                        por_dia[fecha] = []
+                    por_dia[fecha].append(op)
+            
+            # Calcular rendimiento por día
+            rendimientos = {}
+            for fecha, ops_dia in por_dia.items():
+                resultado_total = sum(op.get("resultado_usd", 0) for op in ops_dia)
+                rendimientos[fecha] = resultado_total
+            
+            rendimientos_diarios[estrategia] = rendimientos
+        
+        # Obtener todas las fechas únicas
+        todas_fechas = set()
+        for estrategia, rendimientos in rendimientos_diarios.items():
+            todas_fechas.update(rendimientos.keys())
+        
+        # Convertir a series temporales completas
+        series = {}
+        fechas_ordenadas = sorted(todas_fechas)
+        
+        for estrategia, rendimientos in rendimientos_diarios.items():
+            serie = []
+            for fecha in fechas_ordenadas:
+                serie.append(rendimientos.get(fecha, 0))
+            series[estrategia] = serie
+        
+        # Calcular matriz de correlación
+        correlaciones = {}
+        for estrategia1 in series:
+            correlaciones[estrategia1] = {}
+            for estrategia2 in series:
+                if len(series[estrategia1]) > 0 and len(series[estrategia2]) > 0:
+                    # Calcular correlación de Pearson
+                    try:
+                        corr = np.corrcoef(series[estrategia1], series[estrategia2])[0, 1]
+                        correlaciones[estrategia1][estrategia2] = corr
+                    except:
+                        correlaciones[estrategia1][estrategia2] = 0
+                else:
+                    correlaciones[estrategia1][estrategia2] = 0
+        
+        # Identificar clusters de estrategias correlacionadas
+        clusters = []
+        umbral_correlacion = 0.7
+        
+        estrategias_restantes = set(correlaciones.keys())
+        while estrategias_restantes:
+            # Tomar la primera estrategia restante
+            estrategia = next(iter(estrategias_restantes))
+            cluster = {estrategia}
+            estrategias_restantes.remove(estrategia)
+            
+            # Encontrar estrategias correlacionadas
+            for otra_estrategia in list(estrategias_restantes):
+                if correlaciones[estrategia][otra_estrategia] > umbral_correlacion:
+                    cluster.add(otra_estrategia)
+                    estrategias_restantes.remove(otra_estrategia)
+            
+            # Añadir cluster si tiene al menos dos estrategias
+            if len(cluster) >= 2:
+                clusters.append(list(cluster))
+        
+        # Resultado del análisis
+        return {
+            "correlaciones": {
+                k: dict(v) for k, v in correlaciones.items()
+            },
+            "clusters": clusters,
+            "fechas_analizadas": {
+                "inicio": min(fechas_ordenadas).isoformat() if fechas_ordenadas else None,
+                "fin": max(fechas_ordenadas).isoformat() if fechas_ordenadas else None,
+                "total_dias": len(fechas_ordenadas)
+            }
+        }
+    
+    async def _calcular_drawdown_info(self) -> Dict[str, Any]:
+        """
+        Calcular información detallada sobre drawdowns.
+        
+        Returns:
+            Diccionario con información de drawdowns
+        """
+        # Filtrar y ordenar operaciones
+        operaciones = [entry for entry in self.historial_rendimiento if entry.get("tipo") == "operacion"]
+        operaciones_ordenadas = sorted(operaciones, key=lambda x: x.get("timestamp", datetime.now()))
+        
+        if not operaciones_ordenadas:
+            return {"max_drawdown": 0, "drawdowns": []}
+        
+        # Calcular serie de capital
+        capital_serie = []
+        fechas = []
+        
+        for op in operaciones_ordenadas:
+            capital_serie.append(op.get("capital", 0))
+            fechas.append(op.get("timestamp"))
+        
+        # Detectar drawdowns
+        max_capital = capital_serie[0]
+        drawdowns = []
+        drawdown_actual = None
+        
+        for i, capital in enumerate(capital_serie):
+            max_capital = max(max_capital, capital)
+            
+            drawdown_pct = 1 - (capital / max_capital) if max_capital > 0 else 0
+            
+            # Si estamos en drawdown
+            if drawdown_pct > 0.05:  # Umbral mínimo 5%
+                if drawdown_actual is None:
+                    # Iniciar nuevo drawdown
+                    drawdown_actual = {
+                        "inicio": fechas[i],
+                        "pico": max_capital,
+                        "profundidad": drawdown_pct,
+                        "fin": None,
+                        "duracion_dias": 0
+                    }
+                else:
+                    # Actualizar drawdown existente
+                    drawdown_actual["profundidad"] = max(drawdown_actual["profundidad"], drawdown_pct)
+            elif drawdown_actual is not None:
+                # Finalizar drawdown
+                drawdown_actual["fin"] = fechas[i]
+                drawdown_actual["duracion_dias"] = (drawdown_actual["fin"] - drawdown_actual["inicio"]).days
+                drawdowns.append(drawdown_actual)
+                drawdown_actual = None
+        
+        # Si hay un drawdown activo, añadirlo
+        if drawdown_actual is not None:
+            drawdown_actual["fin"] = fechas[-1]
+            drawdown_actual["duracion_dias"] = (drawdown_actual["fin"] - drawdown_actual["inicio"]).days
+            drawdowns.append(drawdown_actual)
+        
+        # Ordenar por profundidad
+        drawdowns = sorted(drawdowns, key=lambda x: x["profundidad"], reverse=True)
+        
+        # Preparar resultado
+        return {
+            "max_drawdown": max(d["profundidad"] for d in drawdowns) if drawdowns else 0,
+            "drawdowns": [
+                {
+                    "inicio": d["inicio"].isoformat(),
+                    "fin": d["fin"].isoformat(),
+                    "profundidad": d["profundidad"] * 100,  # Convertir a porcentaje
+                    "duracion_dias": d["duracion_dias"],
+                    "pico_capital": d["pico"]
+                }
+                for d in drawdowns[:3]  # Top 3 drawdowns
+            ]
+        }
+    
+    async def _calcular_tendencia_volatilidad(self) -> Dict[str, Any]:
+        """
+        Calcular tendencia de volatilidad a lo largo del tiempo.
+        
+        Returns:
+            Diccionario con información de volatilidad
+        """
+        # Filtrar y ordenar operaciones
+        operaciones = [entry for entry in self.historial_rendimiento if entry.get("tipo") == "operacion"]
+        operaciones_ordenadas = sorted(operaciones, key=lambda x: x.get("timestamp", datetime.now()))
+        
+        if len(operaciones_ordenadas) < 20:
+            return {"tendencia": "neutral", "volatilidad_actual": 0}
+        
+        # Calcular cambios porcentuales
+        cambios = []
+        for i in range(1, len(operaciones_ordenadas)):
+            capital_anterior = operaciones_ordenadas[i-1].get("capital", 0)
+            capital_actual = operaciones_ordenadas[i].get("capital", 0)
+            
+            if capital_anterior > 0:
+                cambio = (capital_actual / capital_anterior) - 1
+                cambios.append(cambio)
+        
+        if not cambios:
+            return {"tendencia": "neutral", "volatilidad_actual": 0}
+        
+        # Dividir en ventanas de 10 operaciones
+        ventanas = []
+        for i in range(0, len(cambios), 10):
+            ventana = cambios[i:i+10]
+            if len(ventana) >= 5:  # Mínimo 5 puntos
+                ventanas.append(ventana)
+        
+        if not ventanas:
+            return {"tendencia": "neutral", "volatilidad_actual": 0}
+        
+        # Calcular volatilidad por ventana
+        volatilidades = [np.std(ventana) for ventana in ventanas]
+        
+        # Determinar tendencia
+        volatilidad_actual = volatilidades[-1]
+        
+        if len(volatilidades) >= 3:
+            # Tendencia basada en últimas 3 ventanas
+            tendencia_reciente = np.polyfit(range(3), volatilidades[-3:], 1)[0]
+            
+            if tendencia_reciente > 0.001:
+                tendencia = "creciente"
+            elif tendencia_reciente < -0.001:
+                tendencia = "decreciente"
             else:
-                # Simular un slippage típico
-                analisis["slippage"] = abs(np.random.normal(0.001, 0.0005))
+                tendencia = "estable"
         else:
-            analisis["slippage"] = operacion["slippage"]
+            tendencia = "neutral"
         
-        # Obtener o simular latencia
-        if "latencia_ms" in operacion:
-            analisis["latencia_ms"] = operacion["latencia_ms"]
+        return {
+            "tendencia": tendencia,
+            "volatilidad_actual": volatilidad_actual * 100 * (252 ** 0.5),  # Anualizada y en porcentaje
+            "volatilidad_historica": np.mean(volatilidades) * 100 * (252 ** 0.5)
+        }
+    
+    def _determinar_ciclo_mercado(self) -> str:
+        """
+        Determinar fase actual del ciclo de mercado.
+        
+        Returns:
+            String con fase del ciclo
+        """
+        # Basado en rendimiento reciente y volatilidad
+        rendimiento_total = self.metricas["rendimiento_total"]
+        volatilidad = self.metricas["volatilidad"]
+        max_drawdown = self.metricas["max_drawdown"]
+        
+        # Determinar fase
+        if rendimiento_total > 20 and volatilidad < 15:
+            return "bull_estable"
+        elif rendimiento_total > 20 and volatilidad >= 15:
+            return "bull_volatil"
+        elif rendimiento_total < -15 and max_drawdown > 25:
+            return "bear_profundo"
+        elif rendimiento_total < 0:
+            return "bear_moderado"
+        elif abs(rendimiento_total) < 10 and volatilidad < 15:
+            return "consolidacion"
+        elif abs(rendimiento_total) < 10 and volatilidad >= 15:
+            return "indecision"
         else:
-            # Simular latencia típica (50-300ms)
-            analisis["latencia_ms"] = np.random.uniform(50, 300)
-        
-        # Calcular precio ideal (si no hay slippage)
-        if operacion["tipo"].upper() == "LONG":
-            analisis["precio_ideal"] = operacion["entrada_precio"] / (1 + analisis["slippage"])
-        else:
-            analisis["precio_ideal"] = operacion["entrada_precio"] * (1 + analisis["slippage"])
-        
-        # Calcular impacto del slippage en USD
-        analisis["impacto_slippage_usd"] = (
-            abs(analisis["precio_ideal"] - operacion["entrada_precio"]) * 
-            operacion["unidades"]
-        )
-        
-        # Calcular calidad general de ejecución (0-1)
-        calidad_slippage = max(0, 1 - analisis["slippage"] / 0.005)  # Normalizado a 0.5% máximo
-        calidad_latencia = max(0, 1 - analisis["latencia_ms"] / 1000)  # Normalizado a 1000ms máximo
-        
-        analisis["calidad_ejecucion"] = (calidad_slippage * 0.7 + calidad_latencia * 0.3)
-        
-        return analisis
+            return "transicion"
+
 
 # Instancia global para acceso desde cualquier módulo
 performance_tracker = TranscendentalPerformanceTracker()
 
-async def initialize_performance_tracker():
-    """Inicializar el rastreador de rendimiento con configuración predeterminada."""
-    logger.info("Inicializando TranscendentalPerformanceTracker...")
-    # En un sistema real, aquí cargaríamos configuración desde base de datos
-    return performance_tracker
+async def initialize_performance_tracker(capital_inicial: float = 10000.0, config: Optional[Dict[str, Any]] = None) -> None:
+    """
+    Inicializar el seguidor de rendimiento con configuración.
+    
+    Args:
+        capital_inicial: Capital inicial en USD
+        config: Configuración adicional (opcional)
+    """
+    # Aplicar configuración si se proporciona
+    if config:
+        benchmark = config.get("benchmark", "crypto_top10")
+        
+        # Crear nueva instancia con configuración
+        global performance_tracker
+        performance_tracker = TranscendentalPerformanceTracker(
+            capital_inicial=capital_inicial,
+            benchmark=benchmark
+        )
+        
+        # Activar modo trascendental si se especifica
+        modo_trascendental = config.get("modo_trascendental", "SINGULARITY_V4")
+        await performance_tracker.activar_modo_trascendental(modo_trascendental)
+    else:
+        # Actualizar capital de la instancia existente
+        await performance_tracker.actualizar_capital(capital_inicial, "inicializacion")
+    
+    logger.info(f"TranscendentalPerformanceTracker inicializado con capital: ${capital_inicial:,.2f}")
