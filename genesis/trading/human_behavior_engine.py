@@ -327,9 +327,9 @@ class GabrielBehaviorEngine:
             emotional_approval = True
             decision_factors['emotional_state'] = self.emotional_state.name
             
-            # Si hay miedo extremo, rechazar compras salvo señales muy fuertes
+            # Si hay miedo extremo, rechazar compras salvo señales perfectas (100%)
             if self.emotional_state == EmotionalState.FEARFUL:
-                if side == 'buy' and confidence < 0.85:
+                if side == 'buy' and confidence < 1.0:
                     emotional_approval = False
                     decision_factors['fearful_rejection'] = True
                     
