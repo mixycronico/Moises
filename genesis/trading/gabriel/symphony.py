@@ -1,398 +1,335 @@
 """
-La Sinfonía de Gabriel - Orquestador del comportamiento humano celestial
+Gabriel Symphony - Orquestador del Motor de Comportamiento Humano
 
-Este módulo integra todos los componentes del motor de comportamiento humano
-en una interfaz coherente y elegante, uniendo Alma, Mirada y Voluntad en
-una simulación humana trascendente.
+Este módulo implementa el orquestador principal que coordina los tres componentes esenciales
+del motor de comportamiento humano Gabriel: Alma (Soul), Mirada (Gaze) y Voluntad (Will).
+
+El nombre "Symphony" representa la armonía perfecta entre estos tres componentes, que
+trabajan juntos para generar comportamientos humanos realistas en el trading.
+
+Autor: Genesis AI Assistant
+Versión: 1.0.0 (Divina)
 """
 
-from typing import Dict, Tuple, Any, Optional, List
-from datetime import datetime, timedelta
 import logging
-import random
 import asyncio
+from typing import Dict, Any, Optional, List, Tuple
+from datetime import datetime, timedelta
+import random
 
-from .soul import Soul, Mood
-from .gaze import Gaze
-from .will import Will
-from .essence import essence, archetypes
+from genesis.trading.gabriel.soul import Soul, Mood
+from genesis.trading.gabriel.gaze import Gaze, Perspective
+from genesis.trading.gabriel.will import Will, Decision
+from genesis.trading.gabriel.essence import archetypes
 
 logger = logging.getLogger(__name__)
 
 class Gabriel:
     """
-    Orquestador principal del comportamiento humano celestial.
+    Orquestador principal del motor de comportamiento humano Gabriel.
     
-    Este compositor une los tres movimientos (Alma, Mirada, Voluntad)
-    en una sinfonía armoniosa que simula comportamiento humano avanzado
-    para trading, con especial énfasis en el estado FEARFUL (100% implementado).
+    Esta clase integra los tres componentes del motor:
+    - Alma (Soul): Estado emocional y personalidad
+    - Mirada (Gaze): Percepción e interpretación de la realidad
+    - Voluntad (Will): Toma de decisiones y acciones
+    
+    Juntos, estos componentes generan comportamientos humanos auténticos
+    que hacen que el sistema de trading se comporte de manera más natural
+    y menos predecible por algoritmos de detección.
     """
     
-    def __init__(self, archetype: str = "balanced_operator", custom_config: Optional[Dict[str, Any]] = None):
-        """
-        Inicializar Gabriel con un arquetipo de personalidad.
-        
-        Args:
-            archetype: Tipo de personalidad predefinida ("cautious_investor", "bold_trader", etc.)
-            custom_config: Configuración personalizada que anula valores predeterminados
-        """
-        # Cargar configuración del arquetipo seleccionado
-        config = archetypes.get(archetype, archetypes["balanced_operator"]).copy()
-        
-        # Aplicar configuraciones personalizadas si se proporcionan
-        if custom_config:
-            config.update(custom_config)
-            
-        # Inicializar los componentes principales
-        self.soul = Soul(
-            mood=getattr(Mood, config.get("base_mood", "SERENE")),
-            stability=config.get("stability", 0.7),
-            whimsy=config.get("whimsy", 0.15)
-        )
-        
+    def __init__(self):
+        """Inicializar el orquestador Gabriel con sus tres componentes."""
+        # Crear los tres componentes fundamentales
+        self.soul = Soul()
         self.gaze = Gaze()
+        self.will = Will()
         
-        self.will = Will(
-            courage=config.get("courage", "BALANCED"),
-            resolve=config.get("resolve", "THOUGHTFUL"),
-            tenets=essence
-        )
-        
-        # Atributos adicionales
-        self.archetype = archetype
-        self.config = config
-        self.market_data_cache = {}
-        self.last_major_decision = None
-        self.last_market_analysis = None
-        self.creation_time = datetime.now()
-        self.emotional_triggers = {}
-        
-        logger.info(f"Gabriel inicializado con arquetipo: {archetype}")
-        logger.info(f"Estado emocional inicial: {self.soul.mood.name}")
-        logger.info(f"Configuración: Valor={self.will.courage}, Resolución={self.will.resolve}")
-    
-    # === INTERFAZ PRINCIPAL ===
-    
-    async def hear(self, whisper: str, intensity: float = 1.0) -> Mood:
-        """
-        Escucha los susurros del mundo y permite que el alma responda.
-        
-        Args:
-            whisper: El estímulo o evento emocional ("victory", "loss", etc.)
-            intensity: Intensidad del evento (0.0-1.0)
-            
-        Returns:
-            El estado de ánimo resultante
-        """
-        # Si el evento es crítico y nos encontramos en un ciclo bajista, siempre ir a DREAD
-        if whisper in ["market_crash", "system_failure", "catastrophic_loss"] and intensity >= 0.8:
-            self.soul.set_dread(f"Evento crítico: {whisper}")
-            return self.soul.mood
-            
-        # Registro de eventos emocionales
-        if whisper not in self.emotional_triggers:
-            self.emotional_triggers[whisper] = []
-        self.emotional_triggers[whisper].append({
-            "timestamp": datetime.now(),
-            "intensity": intensity,
-            "previous_mood": self.soul.mood.name
-        })
-        
-        # Dejar que el alma procese el evento
-        new_mood = await self.soul.sway(whisper, intensity, essence["emotional_echoes"])
-        
-        # Adaptaciones adicionales (ej. cambiar a estado de miedo manualmente)
-        if whisper == "set_fearful" or (whisper == "loss" and intensity >= 0.9):
-            self.soul.set_dread("Activación manual de estado de miedo")
-            
-        return self.soul.mood
-    
-    async def see(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Analiza el mercado con ojos humanos, influenciados por el estado emocional.
-        
-        Args:
-            market_data: Datos objetivos del mercado
-            
-        Returns:
-            Percepción subjetiva del mercado y insights derivados
-        """
-        # Convertir datos del mercado a "presagios" para la mirada
-        omens = self._translate_market_data(market_data)
-        
-        # Dejar que la mirada interprete los presagios
-        vision = await self.gaze.behold(omens, self.soul.reflect())
-        
-        # Obtener insights adicionales
-        insights = self.gaze.get_insights()
-        
-        # Combinar todo en una percepción completa
-        perception = {**vision, **insights}
-        
-        # Guardar análisis para referencia futura
-        self.last_market_analysis = {
-            "timestamp": datetime.now(),
-            "raw_data": market_data,
-            "perceived": perception,
-            "mood": self.soul.mood.name
+        # Historial para análisis y evolución del comportamiento
+        self.history = {
+            "mood_changes": [],
+            "perspective_shifts": [],
+            "decisions": []
         }
         
-        return perception
+        # Configuración y estado
+        self.archetype = random.choice(list(archetypes.keys()))
+        self.last_update = datetime.now()
+        self.active = True
+        logger.info(f"Gabriel inicializado con arquetipo: {self.archetype}")
     
-    async def decide_entry(self, opportunity_score: float, context: Optional[Dict[str, Any]] = None) -> Tuple[bool, str, Dict[str, Any]]:
+    async def initialize(self) -> bool:
         """
-        Decide si entrar en una operación basándose en la oportunidad y estado emocional.
+        Inicializar completamente el motor Gabriel.
+        
+        Returns:
+            True si la inicialización fue exitosa
+        """
+        try:
+            # Inicializar cada componente
+            await self.soul.initialize()
+            await self.gaze.initialize()
+            await self.will.initialize()
+            
+            # Aplicar el arquetipo seleccionado
+            self._apply_archetype(self.archetype)
+            
+            # Sincronizar componentes
+            self._synchronize_components()
+            
+            logger.info("Motor Gabriel inicializado correctamente")
+            return True
+        except Exception as e:
+            logger.error(f"Error al inicializar Gabriel: {str(e)}")
+            return False
+    
+    def _apply_archetype(self, archetype_name: str) -> None:
+        """
+        Aplicar un arquetipo predefinido a Gabriel.
         
         Args:
-            opportunity_score: Puntuación de la oportunidad (0.0-1.0)
-            context: Contexto adicional para la decisión
+            archetype_name: Nombre del arquetipo a aplicar
+        """
+        if archetype_name not in archetypes:
+            logger.warning(f"Arquetipo {archetype_name} no encontrado, usando BALANCED")
+            archetype_name = "BALANCED"
+        
+        archetype = archetypes[archetype_name]
+        
+        # Aplicar configuración del arquetipo a cada componente
+        self.soul.apply_archetype(archetype.get("soul", {}))
+        self.gaze.apply_archetype(archetype.get("gaze", {}))
+        self.will.apply_archetype(archetype.get("will", {}))
+        
+        logger.info(f"Arquetipo {archetype_name} aplicado a Gabriel")
+    
+    def _synchronize_components(self) -> None:
+        """Sincronizar los tres componentes para mantener coherencia interna."""
+        # Sincronizar Alma con Mirada
+        current_mood = self.soul.get_mood()
+        self.gaze.adapt_to_mood(current_mood)
+        
+        # Sincronizar Mirada con Voluntad
+        current_perspective = self.gaze.get_perspective()
+        self.will.adapt_to_perspective(current_perspective)
+        
+        # Sincronizar Voluntad con Alma (ciclo completo)
+        current_decision_style = self.will.get_decision_style()
+        self.soul.adapt_to_decision_style(current_decision_style)
+    
+    async def update(self, market_data: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Actualizar el estado interno de Gabriel basado en datos de mercado.
+        
+        Args:
+            market_data: Datos de mercado actuales
+        """
+        try:
+            # Actualizar cada componente
+            await self.soul.update(market_data)
+            await self.gaze.update(market_data, self.soul.get_mood())
+            await self.will.update(self.gaze.get_perspective(), self.soul.get_mood())
+            
+            # Registrar cambios importantes en el historial
+            self._update_history()
+            
+            # Marcar tiempo de última actualización
+            self.last_update = datetime.now()
+        except Exception as e:
+            logger.error(f"Error al actualizar Gabriel: {str(e)}")
+    
+    def _update_history(self) -> None:
+        """Actualizar historial de cambios para análisis posterior."""
+        # Registrar cambio de humor si es diferente al último registrado
+        if (not self.history["mood_changes"] or 
+            self.history["mood_changes"][-1]["mood"] != self.soul.get_mood().name):
+            self.history["mood_changes"].append({
+                "timestamp": datetime.now(),
+                "mood": self.soul.get_mood().name,
+                "intensity": self.soul.get_mood_intensity()
+            })
+        
+        # Registrar cambio de perspectiva si es diferente a la última
+        if (not self.history["perspective_shifts"] or 
+            self.history["perspective_shifts"][-1]["perspective"] != self.gaze.get_perspective().name):
+            self.history["perspective_shifts"].append({
+                "timestamp": datetime.now(),
+                "perspective": self.gaze.get_perspective().name,
+                "confidence": self.gaze.get_perspective_confidence()
+            })
+    
+    async def evaluate_trade(self, signal_strength: float, 
+                           market_context: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        Evaluar una oportunidad de trading con comportamiento humano.
+        
+        Args:
+            signal_strength: Fuerza de la señal (0-1)
+            market_context: Contexto del mercado
             
         Returns:
-            (decisión, razón, detalles)
+            Tupla (decisión, razón)
         """
-        # Asegurar que tenemos percepción del mercado
-        market_vision = context.get("market_vision", {}) if context else {}
-        if not market_vision and self.last_market_analysis:
-            market_vision = self.last_market_analysis.get("perceived", {})
-            
-        # Tomar la decisión
-        decision, reason, details = await self.will.dare_to_enter(
-            opportunity_score, 
-            self.soul.reflect(),
-            market_vision
+        # Actualizar el estado basado en el contexto de mercado
+        await self.update(market_context)
+        
+        # Obtener datos de cada componente
+        mood = self.soul.get_mood()
+        perspective = self.gaze.get_perspective()
+        
+        # Dejar que la Voluntad tome la decisión
+        decision, reason = await self.will.decide_trade(
+            signal_strength, 
+            mood, 
+            perspective, 
+            market_context
         )
         
-        # Registrar decisión importante
-        if decision:
-            self.last_major_decision = {
-                "type": "entry",
-                "timestamp": datetime.now(),
-                "result": "approved",
-                "opportunity": opportunity_score,
-                "mood": self.soul.mood.name,
-                "reason": reason
-            }
+        # Registrar la decisión en el historial
+        self.history["decisions"].append({
+            "timestamp": datetime.now(),
+            "decision": "ENTER" if decision else "SKIP",
+            "signal_strength": signal_strength,
+            "mood": mood.name,
+            "perspective": perspective.name,
+            "reason": reason
+        })
         
-        return decision, reason, details
+        return decision, reason
     
-    async def decide_exit(self, position_data: Dict[str, Any]) -> Tuple[bool, str, Dict[str, Any]]:
+    async def adjust_position_size(self, base_size: float, 
+                                 confidence: float,
+                                 is_entry: bool = True) -> float:
         """
-        Decide si salir de una posición existente.
+        Ajustar el tamaño de una posición con comportamiento humano.
         
         Args:
-            position_data: Datos de la posición actual (ganancia, tiempo, etc.)
+            base_size: Tamaño base de la posición
+            confidence: Nivel de confianza en la operación (0-1)
+            is_entry: True si es entrada, False si es salida
             
         Returns:
-            (decisión, razón, detalles)
+            Tamaño ajustado
         """
-        # Extraer información clave
-        profit = position_data.get("profit_percent", 0.0)
-        entry_time = position_data.get("entry_time", datetime.now() - timedelta(hours=1))
-        price_momentum = position_data.get("price_momentum", 0.0)
+        # Obtener el estado actual
+        mood = self.soul.get_mood()
+        perspective = self.gaze.get_perspective()
         
-        # Tomar la decisión
-        decision, reason, details = await self.will.choose_to_flee(
-            profit,
-            entry_time,
-            price_momentum,
-            self.soul.reflect(),
-            position_data
-        )
-        
-        # Registrar decisión importante
-        if decision:
-            self.last_major_decision = {
-                "type": "exit",
-                "timestamp": datetime.now(),
-                "result": "approved",
-                "profit": profit,
-                "mood": self.soul.mood.name,
-                "reason": reason
-            }
-        
-        return decision, reason, details
-    
-    async def size_position(self, base_size: float, is_buy: bool = True, 
-                          context: Optional[Dict[str, Any]] = None) -> Tuple[float, Dict[str, Any]]:
-        """
-        Ajusta el tamaño de la posición según estado emocional y contexto.
-        
-        Args:
-            base_size: Tamaño base recomendado
-            is_buy: Si es una operación de compra
-            context: Contexto adicional
-            
-        Returns:
-            (tamaño_ajustado, detalles)
-        """
-        # Extraer nivel de confianza del contexto
-        confidence = 0.5  # Valor por defecto
-        if context:
-            confidence = context.get("confidence", 0.5)
-        elif self.last_market_analysis:
-            confidence = self.last_market_analysis.get("perceived", {}).get("confidence", 0.5)
-        
-        # Ajustar el tamaño
-        adjusted_size, details = await self.will.adjust_position_size(
+        # Dejar que la Voluntad ajuste el tamaño
+        adjusted_size = await self.will.adjust_size(
             base_size,
-            self.soul.reflect(),
+            mood,
+            perspective,
             confidence,
-            is_buy
+            is_entry
         )
         
-        return adjusted_size, details
+        return adjusted_size
     
-    async def validate_operation(self, operation_params: Dict[str, Any]) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+    async def should_exit_trade(self, 
+                              profit_percent: float, 
+                              time_held_hours: float,
+                              market_volatility: float) -> Tuple[bool, str]:
         """
-        Valida una operación propuesta según criterios subjetivos y estado emocional.
+        Decidir si se debe salir de una operación con comportamiento humano.
         
         Args:
-            operation_params: Parámetros de la operación a validar
+            profit_percent: Porcentaje de beneficio actual
+            time_held_hours: Tiempo manteniendo la posición en horas
+            market_volatility: Volatilidad actual del mercado (0-1)
             
         Returns:
-            (válido, razón_rechazo, detalles)
+            Tupla (decisión, razón)
         """
-        # Validar la operación
-        valid, reject_reason, details = await self.will.validate_trade(
-            operation_params,
-            self.soul.reflect()
+        # Obtener el estado actual
+        mood = self.soul.get_mood()
+        perspective = self.gaze.get_perspective()
+        
+        # Dejar que la Voluntad decida sobre la salida
+        decision, reason = await self.will.decide_exit(
+            profit_percent,
+            time_held_hours,
+            market_volatility,
+            mood,
+            perspective
         )
         
-        # Registrar resultado de validación
-        if not valid:
-            self.last_major_decision = {
-                "type": "validation",
-                "timestamp": datetime.now(),
-                "result": "rejected",
-                "operation": operation_params.get("side", "unknown"),
-                "reason": reject_reason,
-                "mood": self.soul.mood.name
-            }
+        # Registrar la decisión en el historial
+        self.history["decisions"].append({
+            "timestamp": datetime.now(),
+            "decision": "EXIT" if decision else "HOLD",
+            "profit_percent": profit_percent,
+            "time_held_hours": time_held_hours,
+            "mood": mood.name,
+            "perspective": perspective.name,
+            "reason": reason
+        })
         
-        return valid, reject_reason, details
-    
-    # === MÉTODOS DE ESTADO ===
+        return decision, reason
     
     def get_current_state(self) -> Dict[str, Any]:
         """
-        Obtiene el estado completo actual del comportamiento.
+        Obtener un resumen del estado actual del motor Gabriel.
         
         Returns:
-            Diccionario con el estado completo
+            Diccionario con estado actual
         """
-        return {
-            "emotional_state": self.soul.mood.name,
-            "is_fearful": self.soul.mood.is_fearful,
-            "market_perception": self.gaze.visions,
-            "archetype": self.archetype,
-            "courage": self.will.courage,
-            "resolve": self.will.resolve,
-            "emotional_stability": self.soul.stability,
-            "last_mood_change": self.soul.last_shift.isoformat(),
-            "mood_duration_hours": self.soul.mood_duration,
-            "last_decision": self.last_major_decision
+        current_state = {
+            "mood": self.soul.get_mood().name,
+            "mood_intensity": self.soul.get_mood_intensity(),
+            "perspective": self.gaze.get_perspective().name,
+            "perspective_confidence": self.gaze.get_perspective_confidence(),
+            "decision_style": self.will.get_decision_style().name,
+            "risk_preference": self.will.get_risk_preference(),
+            "emotional_stability": self.soul.get_emotional_stability(),
+            "market_perception": self.gaze.get_market_perception(),
+            "last_update": self.last_update.isoformat(),
+            "archetype": self.archetype
         }
-    
-    def set_fearful(self, reason: str = "manual_activation") -> None:
-        """
-        Activa directamente el estado de miedo (FEARFUL/DREAD).
         
-        Args:
-            reason: Motivo para activar el estado de miedo
+        return current_state
+    
+    async def randomize(self) -> Dict[str, Any]:
         """
-        self.soul.set_dread(reason)
-        logger.warning(f"ESTADO DE MIEDO ACTIVADO: {reason}")
+        Aleatorizar el comportamiento humano para mayor variabilidad.
+        
+        Returns:
+            Estado después de la aleatorización
+        """
+        # Aleatorizar cada componente
+        await self.soul.randomize()
+        await self.gaze.randomize(self.soul.get_mood())
+        await self.will.randomize()
+        
+        # Mantener coherencia global
+        self._synchronize_components()
+        
+        # Devolver estado actual
+        return self.get_current_state()
     
     def is_fearful(self) -> bool:
         """
-        Verifica si Gabriel está actualmente en estado de miedo.
+        Verificar si Gabriel está en un estado temeroso.
         
         Returns:
-            True si está en estado DREAD (miedo)
+            True si está en un estado de miedo
         """
-        return self.soul.mood.is_fearful
+        return self.soul.get_mood() == Mood.FEARFUL
     
-    # === MÉTODOS AUXILIARES ===
+    def reset(self) -> None:
+        """Reiniciar el estado del motor Gabriel a valores predeterminados."""
+        self.soul.reset()
+        self.gaze.reset()
+        self.will.reset()
+        self._synchronize_components()
+        logger.info("Motor Gabriel reiniciado")
+
+
+def get_gabriel() -> Gabriel:
+    """
+    Obtener una instancia del motor Gabriel.
     
-    def _translate_market_data(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Traduce datos crudos del mercado a "presagios" para la mirada.
-        
-        Args:
-            market_data: Datos crudos del mercado
-            
-        Returns:
-            Datos traducidos como presagios
-        """
-        # Extraer y normalizar valores clave
-        volatility = market_data.get("volatility", 0.5)
-        trend = "up" if market_data.get("trend_direction", 0) > 0 else \
-                "down" if market_data.get("trend_direction", 0) < 0 else "still"
-        volume_change = market_data.get("volume_change_percent", 0.0) / 100.0
-        price_direction = market_data.get("price_direction", 0.0)
-        
-        # Cachear datos para referencia
-        self.market_data_cache = {
-            "timestamp": datetime.now(),
-            "data": market_data
-        }
-        
-        # Convertir a formato de presagios
-        return {
-            "volatility": volatility,
-            "trend": trend,
-            "volume_change": volume_change,
-            "price_direction": price_direction,
-            "market_sentiment": market_data.get("market_sentiment", "neutral"),
-            "risk_level": market_data.get("risk_level", 0.5)
-        }
-    
-    async def simulate_reaction(self, event: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Simula una reacción completa a un evento del mercado.
-        
-        Args:
-            event: Evento del mercado (datos, tipo, etc.)
-            
-        Returns:
-            Resultado completo de la reacción
-        """
-        # Extraer información del evento
-        event_type = event.get("type", "market_update")
-        event_data = event.get("data", {})
-        event_intensity = event.get("intensity", 0.5)
-        
-        # 1. Respuesta emocional al evento
-        emotional_trigger = {
-            "market_update": "neutral",
-            "price_jump": "opportunity",
-            "price_drop": "stress",
-            "volume_spike": "alert",
-            "trend_change": "recalibration"
-        }.get(event_type, "neutral")
-        
-        await self.hear(emotional_trigger, event_intensity)
-        
-        # 2. Percepción actualizada del mercado
-        perception = await self.see(event_data)
-        
-        # 3. Decisión simulada (si aplica)
-        decision = None
-        if event_type in ["trading_opportunity", "signal_alert"]:
-            score = event.get("opportunity_score", 0.5)
-            would_enter, reason, details = await self.decide_entry(score, {"market_vision": perception})
-            decision = {
-                "would_enter": would_enter,
-                "reason": reason,
-                "details": details
-            }
-        
-        # Resultado completo
-        return {
-            "emotional_state": self.soul.mood.name,
-            "is_fearful": self.soul.mood.is_fearful,
-            "market_perception": perception,
-            "decision": decision,
-            "event_type": event_type,
-            "response_time": datetime.now().isoformat()
-        }
+    Returns:
+        Instancia de Gabriel
+    """
+    return Gabriel()
