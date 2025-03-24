@@ -147,7 +147,15 @@ class SeraphimPool(BaseStrategy):
         try:
             # Inicializar gestores y componentes
             self.risk_manager = AdaptiveRiskManager()
-            self.codicia_manager = CodiciaManager()
+            self.behavior_engine = GabrielBehaviorEngine()
+            
+            # Inicializar motor de comportamiento humano primero
+            await self.behavior_engine.initialize()
+            
+            # Crear CodiciaManager con el motor de comportamiento
+            self.codicia_manager = CodiciaManager(behavior_engine=self.behavior_engine)
+            
+            # Inicializar el resto de componentes
             self.classifier = TranscendentalCryptoClassifier()
             self.capital_manager = CapitalScalingManager(base_capital=10000.0)
             self.database = TranscendentalDatabase()
@@ -155,7 +163,6 @@ class SeraphimPool(BaseStrategy):
             self.checkpoint_manager = DistributedCheckpointManagerV4()
             self.alert_manager = AlertManager()
             self.buddha_integrator = BuddhaIntegrator()
-            self.behavior_engine = GabrielBehaviorEngine()
             
             # Inicializar cada componente
             await self.risk_manager.initialize()
@@ -167,9 +174,6 @@ class SeraphimPool(BaseStrategy):
             await self.checkpoint_manager.initialize()
             await self.alert_manager.initialize()
             await self.buddha_integrator.initialize()
-            
-            # Inicializar motor de comportamiento humano
-            await self.behavior_engine.initialize()
             
             # Actualizar estado
             self.state = SeraphimState.CONTEMPLATING
