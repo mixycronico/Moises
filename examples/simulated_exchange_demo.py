@@ -194,16 +194,19 @@ async def demonstrate_websocket(adapter: SimulatedExchangeAdapter):
                    f"precio = {data['price']:.2f}, "
                    f"cambio = {data['percentage']:.2f}%")
     
-    # Registrar callback para ticker de BTC/USDT
-    await adapter.register_callback("ticker:BTC/USDT", ticker_callback)
-    logger.info("Callback registrado para ticker:BTC/USDT")
+    # Almacenar callback para ticker de BTC/USDT
+    adapter.callbacks["ticker:BTC/USDT"] = ticker_callback
+    
+    # Suscribirse al canal
+    await adapter.subscribe(["ticker:BTC/USDT"])
+    logger.info("Suscripción a ticker:BTC/USDT realizada")
     
     # Esperar algunas actualizaciones
     logger.info("Esperando actualizaciones durante 10 segundos...")
     await asyncio.sleep(10)
     
     # Cancelar suscripción
-    await adapter.unregister_callback("ticker:BTC/USDT")
+    await adapter.unsubscribe(["ticker:BTC/USDT"])
     logger.info("Suscripción cancelada")
     logger.info(f"Total actualizaciones recibidas: {update_count}")
 
@@ -246,4 +249,3 @@ async def run_demo():
 
 if __name__ == "__main__":
     asyncio.run(run_demo())
-"""
