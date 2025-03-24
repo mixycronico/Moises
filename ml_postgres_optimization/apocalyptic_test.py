@@ -145,9 +145,9 @@ class PostgresqlApocalypse:
         try:
             # Mostrar información de debug para la primera conexión
             if self.stats['connection_errors'] == 0:
-                logger.info(f"Intentando conectar a PostgreSQL con: {self.config['db_config']}")
+                logger.info(f"Intentando conectar a PostgreSQL con URL: {self.config['db_url']}")
                 
-            conn = psycopg2.connect(**self.config['db_config'])
+            conn = psycopg2.connect(self.config['db_url'])
             conn.autocommit = True
             
             # Log para la primera conexión exitosa
