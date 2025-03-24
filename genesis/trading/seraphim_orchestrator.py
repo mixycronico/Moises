@@ -356,13 +356,53 @@ class SeraphimOrchestrator:
     
     async def _verify_exchange_connections(self) -> bool:
         """
-        Verificar conexiones a exchanges.
+        Verificar conexiones a exchanges utilizando el adaptador configurado.
         
         Returns:
             True si las conexiones están disponibles
         """
-        # Implementación simulada para demo
-        return True
+        try:
+            # Si aún no existe un adaptador de exchange, intentamos crearlo
+            if not hasattr(self, 'exchange_adapter') or self.exchange_adapter is None:
+                logger.info("No hay adaptador de exchange configurado, utilizando simulador...")
+                
+                # Importar fábrica de adaptadores
+                from genesis.exchanges.adapter_factory import ExchangeAdapterFactory, AdapterType
+                
+                # Crear adaptador simulado por defecto
+                self.exchange_adapter = await ExchangeAdapterFactory.create_adapter(
+                    exchange_id="BINANCE",
+                    adapter_type=AdapterType.SIMULATED,
+                    config={
+                        "tick_interval_ms": 500,
+                        "volatility_factor": 0.005,
+                        "pattern_duration": 120
+                    }
+                )
+                
+                logger.info(f"Adaptador de exchange simulado creado: {self.exchange_adapter.__class__.__name__}")
+            
+            # Verificar estado del adaptador
+            if hasattr(self.exchange_adapter, 'get_state'):
+                adapter_state = self.exchange_adapter.get_state()
+                is_connected = adapter_state.get('connected', False)
+                
+                if not is_connected:
+                    # Intentar (re)conectar
+                    await self.exchange_adapter.connect()
+                    # Verificar estado nuevamente
+                    adapter_state = self.exchange_adapter.get_state()
+                    is_connected = adapter_state.get('connected', False)
+                
+                logger.info(f"Estado de conexión a exchange: {is_connected}")
+                return is_connected
+            else:
+                # Para adaptadores que no implementan get_state
+                return True
+                
+        except Exception as e:
+            logger.error(f"Error al verificar conexiones a exchanges: {str(e)}")
+            return False
     
     async def process_cycle(self) -> Dict[str, Any]:
         """
