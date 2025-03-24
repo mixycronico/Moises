@@ -1,72 +1,79 @@
 #!/bin/bash
-# Script para iniciar la Prueba de Estrés Ultra-Cuántica para PostgreSQL
+# Script para ejecutar el test apocalíptico con parámetros configurables
 
-# Verificar que Python y las dependencias estén instaladas
-echo "Verificando dependencias..."
-python -c "import psycopg2, numpy" > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "❌ Faltan dependencias. Por favor, instale los paquetes necesarios:"
-    echo "   pip install psycopg2-binary numpy"
-    exit 1
-fi
+# Colores para mensajes
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
 
-# Crear directorio de logs si no existe
-mkdir -p logs
+# Valores por defecto
+DURATION=5
+INTENSITY=5
+MEMORY_BOMB=false
+CONNECTION_FLOOD=false
+DATA_ATTACK=false
 
-# Configurar variables de entorno para conexión a PostgreSQL
-echo "Configurando variables de entorno para PostgreSQL..."
-export POSTGRES_DB=${POSTGRES_DB:-"postgres"}
-export POSTGRES_USER=${POSTGRES_USER:-"postgres"}
-export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-""}
-export POSTGRES_HOST=${POSTGRES_HOST:-"localhost"}
-export POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
-
-# Verificar conexión a PostgreSQL
-echo "Verificando conexión a PostgreSQL..."
-python -c "import psycopg2; conn = psycopg2.connect(dbname='$POSTGRES_DB', user='$POSTGRES_USER', password='$POSTGRES_PASSWORD', host='$POSTGRES_HOST', port='$POSTGRES_PORT'); conn.close()" > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "❌ No se pudo conectar a PostgreSQL. Verifique las credenciales."
-    exit 1
-fi
-
-# Función para mostrar ayuda
+# Función de ayuda
 function show_help {
-    echo "Uso: $0 [OPCIONES]"
-    echo "Inicia la Prueba de Estrés Ultra-Cuántica para PostgreSQL"
+    echo -e "${CYAN}Script para pruebas cuánticas de PostgreSQL${NC}"
+    echo ""
+    echo "Uso: $0 [opciones]"
     echo ""
     echo "Opciones:"
-    echo "  -d, --duration MINUTOS   Duración de la prueba en minutos (default: 60)"
-    echo "  -i, --intensity NIVEL    Intensidad de la prueba (1-10, default: 5)"
-    echo "  -c, --connections NUM    Número máximo de conexiones (default: 100)"
-    echo "  -h, --help               Muestra esta ayuda"
+    echo "  --help                Muestra este mensaje de ayuda"
+    echo "  --duration NUM        Duración del test en minutos (default: 5)"
+    echo "  --intensity NUM       Intensidad del test del 1-10 (default: 5)"
+    echo "  --memory              Incluir bombas de memoria"
+    echo "  --flood               Incluir inundación de conexiones"
+    echo "  --dataattack          Incluir ataques masivos de datos"
+    echo "  --apocalypse          Modo apocalíptico (equivale a --memory --flood --dataattack con intensidad 10)"
     echo ""
-    echo "Ejemplo:"
-    echo "  $0 --duration 30 --intensity 8 --connections 50"
+    echo "Ejemplos:"
+    echo "  $0 --duration 10 --intensity 7             # Test de 10 minutos con intensidad 7"
+    echo "  $0 --intensity 3 --memory                  # Test de intensidad 3 con bombas de memoria"
+    echo "  $0 --apocalypse                            # Test apocalíptico total"
+    echo ""
 }
-
-# Valores predeterminados
-DURATION=60
-INTENSITY=5
-CONNECTIONS=100
 
 # Procesar argumentos
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -d|--duration)
-            DURATION="$2"
-            shift 2
-            ;;
-        -i|--intensity)
-            INTENSITY="$2"
-            shift 2
-            ;;
-        -c|--connections)
-            CONNECTIONS="$2"
-            shift 2
-            ;;
-        -h|--help)
+        --help)
             show_help
             exit 0
+            ;;
+        --duration)
+            DURATION="$2"
+            shift
+            shift
+            ;;
+        --intensity)
+            INTENSITY="$2"
+            shift
+            shift
+            ;;
+        --memory)
+            MEMORY_BOMB=true
+            shift
+            ;;
+        --flood)
+            CONNECTION_FLOOD=true
+            shift
+            ;;
+        --dataattack)
+            DATA_ATTACK=true
+            shift
+            ;;
+        --apocalypse)
+            MEMORY_BOMB=true
+            CONNECTION_FLOOD=true
+            DATA_ATTACK=true
+            INTENSITY=10
+            shift
             ;;
         *)
             echo "Opción desconocida: $1"
@@ -76,73 +83,58 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validar argumentos
-if ! [[ "$DURATION" =~ ^[0-9]+$ ]]; then
-    echo "❌ La duración debe ser un número entero."
+# Validar intensidad
+if [[ $INTENSITY -lt 1 || $INTENSITY -gt 10 ]]; then
+    echo -e "${RED}Error: La intensidad debe estar entre 1 y 10${NC}"
     exit 1
-fi
-
-if ! [[ "$INTENSITY" =~ ^[0-9]+$ ]] || [ "$INTENSITY" -lt 1 ] || [ "$INTENSITY" -gt 10 ]; then
-    echo "❌ La intensidad debe ser un número entre 1 y 10."
-    exit 1
-fi
-
-if ! [[ "$CONNECTIONS" =~ ^[0-9]+$ ]] || [ "$CONNECTIONS" -lt 1 ]; then
-    echo "❌ El número de conexiones debe ser un número entero positivo."
-    exit 1
-fi
-
-# Ajustar la configuración según la intensidad
-# - Intensidad 1-3: Baja carga
-# - Intensidad 4-7: Carga media
-# - Intensidad 8-10: Carga extrema
-if [ "$INTENSITY" -le 3 ]; then
-    LOAD_DESC="baja"
-    OPERATIONS_PER_CONN=50
-    FAULT_PROB=0.01
-elif [ "$INTENSITY" -le 7 ]; then
-    LOAD_DESC="media"
-    OPERATIONS_PER_CONN=100
-    FAULT_PROB=0.05
-else
-    LOAD_DESC="extrema"
-    OPERATIONS_PER_CONN=200
-    FAULT_PROB=0.10
 fi
 
 # Mostrar configuración
-echo "🚀 Iniciando Prueba de Estrés Ultra-Cuántica para PostgreSQL"
-echo "   Duración: $DURATION minutos"
-echo "   Intensidad: $INTENSITY/10 (carga $LOAD_DESC)"
-echo "   Conexiones máximas: $CONNECTIONS"
-echo "   Operaciones por conexión: $OPERATIONS_PER_CONN"
-echo "   Probabilidad de fallos: $FAULT_PROB"
-echo ""
-echo "Los resultados se guardarán en el directorio 'logs/'"
+echo -e "${PURPLE}=== CONFIGURACIÓN DEL TEST CUÁNTICO ===${NC}"
+echo -e "${BLUE}Duración:${NC} $DURATION minutos"
+echo -e "${BLUE}Intensidad:${NC} $INTENSITY/10"
+echo -e "${BLUE}Bombas de memoria:${NC} $([ "$MEMORY_BOMB" = true ] && echo "Activadas" || echo "Desactivadas")"
+echo -e "${BLUE}Inundación de conexiones:${NC} $([ "$CONNECTION_FLOOD" = true ] && echo "Activada" || echo "Desactivada")"
+echo -e "${BLUE}Ataques de datos:${NC} $([ "$DATA_ATTACK" = true ] && echo "Activados" || echo "Desactivados")"
 echo ""
 
-# Modificar temporalmente el archivo quantum_stress_test.py para ajustar la configuración
-TMP_FILE=$(mktemp)
-sed "s/'duration_minutes': [0-9][0-9]*/'duration_minutes': $DURATION/" quantum_stress_test.py > $TMP_FILE
-sed -i "s/'max_connections': [0-9][0-9]*/'max_connections': $CONNECTIONS/" $TMP_FILE
-sed -i "s/'operations_per_connection': [0-9][0-9]*/'operations_per_connection': $OPERATIONS_PER_CONN/" $TMP_FILE
-sed -i "s/'probability': [0-9]\.[0-9]*/'probability': $FAULT_PROB/" $TMP_FILE
-
-# Ejecutar la prueba
-echo "Comenzando prueba..."
-python $TMP_FILE
-RESULT=$?
-
-# Limpiar
-rm $TMP_FILE
-
-# Mostrar resultado
-if [ $RESULT -eq 0 ]; then
-    echo "✅ Prueba completada con éxito."
-else
-    echo "❌ La prueba falló o no cumplió con los criterios de éxito."
+# Mostrar advertencia según nivel de intensidad
+if [[ $INTENSITY -ge 8 ]]; then
+    echo -e "${RED}⚠️ ADVERTENCIA: Has seleccionado una intensidad muy alta (${INTENSITY}/10)${NC}"
+    echo -e "${RED}   Este nivel puede causar inestabilidad extrema en el sistema${NC}"
+    echo ""
+    read -p "¿Estás seguro de continuar? (s/n): " confirm
+    if [[ $confirm != "s" && $confirm != "S" ]]; then
+        echo -e "${GREEN}Test cancelado por el usuario.${NC}"
+        exit 0
+    fi
 fi
 
-# Mostrar ubicación de los resultados
-echo "Revise los resultados detallados en el archivo de logs más reciente:"
-ls -t logs/quantum_stress_results_*.json | head -1
+# Preparar ambiente
+mkdir -p logs
+
+# Configurar variables de entorno para la prueba
+export TEST_DURATION_MINUTES=$DURATION
+export TEST_INTENSITY=$INTENSITY
+export TEST_MEMORY_BOMB=$MEMORY_BOMB
+export TEST_CONNECTION_FLOOD=$CONNECTION_FLOOD
+export TEST_DATA_ATTACK=$DATA_ATTACK
+
+# Mostrar mensaje de inicio
+echo -e "${YELLOW}Iniciando test cuántico en 3 segundos...${NC}"
+sleep 3
+
+# Si es intensidad 10 y todas las opciones activadas, usar directamente armageddon.sh
+if [[ $INTENSITY -eq 10 && "$MEMORY_BOMB" = true && "$CONNECTION_FLOOD" = true && "$DATA_ATTACK" = true ]]; then
+    echo -e "${RED}¡INICIANDO MODO ARMAGEDDON!${NC}"
+    cd "$(dirname "$0")"  # Cambiar al directorio del script
+    ./armageddon.sh $DURATION
+else
+    # Ejecutar prueba normal
+    echo -e "${YELLOW}Iniciando prueba cuántica...${NC}"
+    python apocalyptic_test.py $DURATION
+fi
+
+# Mostrar resultados
+echo -e "${GREEN}Prueba completada.${NC}"
+echo -e "Resultados disponibles en: ${BLUE}logs/apocalipsis_resultados_*.json${NC}"

@@ -56,14 +56,21 @@ echo -e "${RED}Se ejecutará múltiples pruebas devastadoras con configuraciones
 echo ""
 
 # Verificar si el usuario desea continuar
-read -p "¿Estás ABSOLUTAMENTE SEGURO de que quieres continuar? (escribe 'ARMAGEDDON' para confirmar): " confirmation
+# Para automatización, aceptar confirmación desde stdin o definir FORCE_ARMAGEDDON=1
+if [ -n "$FORCE_ARMAGEDDON" ] && [ "$FORCE_ARMAGEDDON" -eq 1 ]; then
+    echo -e "${RED}ARMAGEDDON forzado por variable de entorno${NC}"
+    confirmation="ARMAGEDDON"
+else
+    read -p "¿Estás ABSOLUTAMENTE SEGURO de que quieres continuar? (escribe 'ARMAGEDDON' para confirmar): " confirmation
+fi
+
 if [ "$confirmation" != "ARMAGEDDON" ]; then
     echo -e "${GREEN}Test apocalíptico cancelado. Sistema a salvo.${NC}"
     exit 0
 fi
 
 # Iniciar cuenta regresiva
-countdown 10
+countdown 3
 
 # Configurar variables de entorno para PostgreSQL
 export POSTGRES_DB=${POSTGRES_DB:-"postgres"}
