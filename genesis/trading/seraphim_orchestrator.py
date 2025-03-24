@@ -126,10 +126,15 @@ class SeraphimOrchestrator:
             self.alert_manager = AlertManager()
             
             # Inicializar cada componente
+            
+            # Inicializar el motor de comportamiento humano primero, ya que otros componentes lo usan
+            await self.behavior_engine.initialize()
+            logger.info("Motor de comportamiento humano Gabriel inicializado correctamente")
+            
+            # Inicializar el resto de componentes
             components_init_results = await asyncio.gather(
                 self.seraphim_strategy.initialize(),
                 self.buddha_integrator.initialize(),
-                # El motor de comportamiento humano no requiere inicialización asíncrona
                 self.classifier.initialize(),
                 self.circuit_breaker.initialize(),
                 self.checkpoint_manager.initialize(),
