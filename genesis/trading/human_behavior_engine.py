@@ -186,10 +186,13 @@ class GabrielBehaviorEngine:
         
         return self.emotional_state
     
-    async def get_contemplation_time(self) -> float:
+    async def get_contemplation_time(self, operation_type: str = "general") -> float:
         """
         Obtener tiempo de contemplación basado en estado emocional actual.
         
+        Args:
+            operation_type: Tipo de operación ("entry", "exit", "general", etc.)
+            
         Returns:
             Tiempo de contemplación en segundos
         """
@@ -202,6 +205,18 @@ class GabrielBehaviorEngine:
         # Aplicar modificadores
         base_time = random.uniform(time_range[0], time_range[1])
         
+        # Modificador específico para FEARFUL (estado de miedo)
+        if self.emotional_state == EmotionalState.FEARFUL:
+            if operation_type == "entry":
+                # Mucho más tiempo para decidir entrar (miedo a tomar riesgos)
+                base_time *= 2.5
+            elif operation_type == "exit":
+                # Mucho menos tiempo para decidir salir (reacción de pánico)
+                base_time *= 0.3
+            else:
+                # Para otras operaciones, tiempo moderadamente alto (cautela)
+                base_time *= 1.5
+        
         # Modificador por estilo de decisión
         if self.decision_style == DecisionStyle.ANALYTICAL:
             base_time *= 1.3
@@ -213,7 +228,7 @@ class GabrielBehaviorEngine:
         # Aplicar multiplicador de velocidad general
         base_time *= self.decision_speed_multiplier
         
-        logger.debug(f"Tiempo de contemplación calculado: {base_time:.2f}s para estado {self.emotional_state.name}")
+        logger.debug(f"Tiempo de contemplación calculado: {base_time:.2f}s para estado {self.emotional_state.name} en operación {operation_type}")
         
         return base_time
     
@@ -224,10 +239,17 @@ class GabrielBehaviorEngine:
         Args:
             operation_type: Tipo de operación ("analysis", "trade_entry", "trade_exit", etc.)
         """
-        # Calcular tiempo de retraso
-        contemplation_time = await self.get_contemplation_time()
+        # Mapear tipo de operación a nuestros tipos de contemplación
+        contemplation_type = "general"
+        if operation_type in ["trade_entry", "entry_analysis"]:
+            contemplation_type = "entry"
+        elif operation_type in ["trade_exit", "exit_analysis", "emergency_exit"]:
+            contemplation_type = "exit"
         
-        # Ajustar según operación
+        # Calcular tiempo de retraso utilizando el tipo específico
+        contemplation_time = await self.get_contemplation_time(contemplation_type)
+        
+        # Ajustes adicionales según la operación específica
         if operation_type == "quick_decision":
             contemplation_time *= 0.5
         elif operation_type == "emergency_exit":
