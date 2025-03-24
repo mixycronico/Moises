@@ -147,7 +147,7 @@ class SeraphimPool(BaseStrategy):
         try:
             # Inicializar gestores y componentes
             self.risk_manager = AdaptiveRiskManager()
-            self.order_manager = CodiciaManager()
+            self.codicia_manager = CodiciaManager()
             self.classifier = TranscendentalCryptoClassifier()
             self.capital_manager = CapitalScalingManager(base_capital=10000.0)
             self.database = TranscendentalDatabase()
@@ -159,7 +159,7 @@ class SeraphimPool(BaseStrategy):
             
             # Inicializar cada componente
             await self.risk_manager.initialize()
-            await self.order_manager.initialize()
+            await self.codicia_manager.initialize()
             await self.classifier.initialize()
             await self.capital_manager.initialize()
             await self.database.initialize()
@@ -659,8 +659,8 @@ class SeraphimPool(BaseStrategy):
                 )
                 
                 if breaker_result.get("status") == "approved":
-                    # Ejecutar orden a través del OrderManager
-                    order_result = await self.order_manager.place_order(order_params)
+                    # Ejecutar orden a través del CodiciaManager
+                    order_result = await self.codicia_manager.place_order(order_params)
                     
                     if order_result.get("success", False):
                         # Registrar posición abierta
@@ -1267,8 +1267,8 @@ class SeraphimPool(BaseStrategy):
                     "reason": reason
                 }
                 
-                # Ejecutar orden a través del OrderManager
-                order_result = await self.order_manager.place_order(order_params)
+                # Ejecutar orden a través del CodiciaManager
+                order_result = await self.codicia_manager.place_order(order_params)
                 
                 if order_result.get("success", False):
                     # Calcular ganancia/pérdida realizada
