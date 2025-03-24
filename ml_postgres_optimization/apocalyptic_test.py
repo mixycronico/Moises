@@ -81,15 +81,8 @@ APOCALYPSE_CONFIG = {
         'massive': 0.2   # 20% operaciones masivas
     },
     
-    # Configuración de conexión a PostgreSQL
-    'db_config': {
-        'dbname': os.environ.get("POSTGRES_DB", "neondb"),
-        'user': os.environ.get("POSTGRES_USER", "neondb_owner"),
-        'password': os.environ.get("POSTGRES_PASSWORD", ""),
-        'host': os.environ.get("POSTGRES_HOST", "ep-shy-bush-a5z5mx7m.us-east-2.aws.neon.tech"),
-        'port': os.environ.get("POSTGRES_PORT", "5432"),
-        'sslmode': os.environ.get("PGSSLMODE", "require")
-    }
+    # Configuración de conexión a PostgreSQL - Usar DATABASE_URL directamente de Replit
+    'db_url': os.environ.get("DATABASE_URL", "postgresql://neondb_owner:npg_57EIGKaoAkgF@ep-shy-bush-a5z5mx7m.us-east-2.aws.neon.tech/neondb?sslmode=require")
 }
 
 class MemoryBomb:
