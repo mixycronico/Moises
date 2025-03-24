@@ -1,272 +1,202 @@
-#!/usr/bin/env python3
 """
-CloudCircuitBreaker Ultra-Divino.
+CloudCircuitBreaker - Componente de resiliencia divina para el Sistema Genesis.
 
-Este módulo implementa un Circuit Breaker adaptado para entornos cloud,
-que puede funcionar tanto localmente como en servicios serverless.
-Su propósito es proteger el sistema contra fallos en cascada y
-garantizar la recuperación ultrarrápida ante errores.
-
-El CloudCircuitBreaker es compatible con AWS Lambda y funciona perfectamente
-como parte de una arquitectura cloud híbrida, permitiendo una transición
-gradual hacia implementaciones serverless.
+Este módulo implementa el patrón Circuit Breaker con capacidades trascendentales:
+- Prevención de fallos en cascada
+- Recuperación automática con transmutación cuántica de errores
+- Estado coherente en entornos distribuidos
+- Protección contra sobrecarga y latencia extrema
 """
 
-import os
-import sys
-import json
+import asyncio
 import logging
 import time
-import asyncio
 import random
+import functools
+import uuid
 from enum import Enum, auto
+from typing import Dict, List, Any, Optional, Callable, TypeVar, Set, Union
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Union, Callable, TypeVar, Generic
+import traceback
 
 # Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("genesis.cloud.circuit_breaker")
 
-
-# Tipos genéricos para funciones
+# Definir tipos genéricos
 T = TypeVar('T')
-R = TypeVar('R')
 
 
 class CircuitState(Enum):
-    """Estados posibles del Circuit Breaker."""
-    CLOSED = auto()       # Operación normal, permitiendo llamadas
-    OPEN = auto()         # Circuito abierto, rechazando llamadas
-    HALF_OPEN = auto()    # Permitiendo llamadas de prueba
-    RECOVERING = auto()   # Recuperándose de un fallo
-    QUANTUM = auto()      # Modo cuántico para operaciones críticas
+    """Estados posibles para el Circuit Breaker."""
+    CLOSED = auto()    # Estado normal, permite operaciones
+    OPEN = auto()      # Estado de error, rechaza operaciones
+    HALF_OPEN = auto() # Estado de prueba, permite operaciones limitadas
 
 
 class CloudCircuitBreaker:
     """
-    Circuit Breaker diseñado para entornos cloud híbridos.
+    Circuit Breaker con capacidades trascendentales para el Sistema Genesis.
     
-    Implementa el patrón Circuit Breaker con capacidades avanzadas:
-    - Recuperación ultra-rápida (<5 µs)
-    - Modos cuánticos para operaciones críticas
-    - Compatibilidad con arquitecturas serverless
-    - Métricas detalladas para análisis
-    - Capacidades de auto-curación
+    Este componente implementa un Circuit Breaker avanzado con:
+    - Transmutación cuántica de errores
+    - Capacidad de entrelazamiento con otros circuit breakers
+    - Estado coherente en entornos distribuidos
+    - Failsafe cuántico con recuperación dimensional
     """
     
     def __init__(self, 
                  name: str,
-                 failure_threshold: int = 5, 
-                 recovery_timeout: float = 0.000005,  # 5 microsegundos
-                 half_open_capacity: int = 2,
+                 failure_threshold: int = 5,
+                 recovery_timeout: float = 60.0,
+                 half_open_capacity: int = 1,
                  quantum_failsafe: bool = True):
         """
-        Inicializar el Circuit Breaker.
+        Inicializar Circuit Breaker.
         
         Args:
-            name: Nombre identificativo del circuit breaker
-            failure_threshold: Número de fallos para abrir el circuito
-            recovery_timeout: Tiempo mínimo (segundos) de recuperación
-            half_open_capacity: Llamadas permitidas en estado HALF_OPEN
-            quantum_failsafe: Si se debe usar modo QUANTUM para operaciones críticas
+            name: Nombre único del circuit breaker
+            failure_threshold: Número de fallos antes de abrir el circuito
+            recovery_timeout: Tiempo en segundos antes de intentar recuperación
+            half_open_capacity: Número de operaciones permitidas en estado HALF_OPEN
+            quantum_failsafe: Si activar la protección cuántica avanzada
         """
-        self._name = name
-        self._state = CircuitState.CLOSED
-        self._failure_threshold = failure_threshold
-        self._recovery_timeout = recovery_timeout
-        self._half_open_capacity = half_open_capacity
-        self._quantum_failsafe = quantum_failsafe
+        self.name = name
+        self.state = CircuitState.CLOSED
+        self.failure_count = 0
+        self.success_count = 0
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.half_open_capacity = half_open_capacity
+        self.quantum_failsafe = quantum_failsafe
         
-        # Contadores y timestamps
-        self._failure_count = 0
-        self._success_count = 0
-        self._last_failure_time = 0
-        self._last_recovery_time = 0
-        self._half_open_calls = 0
+        self.last_failure_time = None
+        self.last_state_change = datetime.now()
+        self.current_half_open_count = 0
         
-        # Métricas y estadísticas
-        self._metrics = {
-            "calls": {
-                "total": 0,
-                "success": 0,
-                "failure": 0,
-                "rejected": 0,
-                "quantum": 0
-            },
-            "state_transitions": {
-                "to_open": 0,
-                "to_closed": 0,
-                "to_half_open": 0,
-                "to_quantum": 0
-            },
-            "timings": {
-                "avg_recovery_time": 0,
-                "total_recovery_time": 0,
-                "recovery_count": 0,
-                "last_state_change": datetime.now().isoformat()
-            }
+        # Métricas avanzadas
+        self.metrics = {
+            "total_calls": 0,
+            "successful_calls": 0,
+            "failed_calls": 0,
+            "open_transitions": 0,
+            "closed_transitions": 0,
+            "half_open_transitions": 0,
+            "recovery_attempts": 0,
+            "successful_recoveries": 0,
+            "quantum_transmutations": 0,
+            "avg_recovery_time": 0.0,
+            "recovery_times": []
         }
         
-        logger.info(f"CloudCircuitBreaker '{name}' inicializado en estado {self._state.name}")
+        # Entrelazamiento cuántico con otros circuit breakers
+        self.entangled_circuits: Set[str] = set()
+        
+        logger.info(f"Circuit Breaker '{name}' inicializado con umbral de fallos {failure_threshold}")
     
-    async def call(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> Optional[T]:
+    async def before_call(self) -> bool:
         """
-        Ejecutar una función protegida por el Circuit Breaker.
+        Verificar estado antes de una llamada.
         
-        Args:
-            func: Función a ejecutar
-            *args: Argumentos posicionales para la función
-            **kwargs: Argumentos nominales para la función
-            
         Returns:
-            Resultado de la función o None si el circuito está abierto
+            True si la llamada puede proceder, False si debe ser rechazada
         """
-        self._metrics["calls"]["total"] += 1
+        self.metrics["total_calls"] += 1
         
-        if self._state == CircuitState.OPEN:
-            # Verificar si ha pasado suficiente tiempo para recuperación
-            elapsed = time.time() - self._last_failure_time
-            if elapsed > self._recovery_timeout:
-                await self._transition_to(CircuitState.HALF_OPEN)
+        if self.state == CircuitState.CLOSED:
+            # En estado cerrado, las llamadas siempre proceden
+            return True
+            
+        elif self.state == CircuitState.OPEN:
+            # En estado abierto, verificar si es tiempo de recuperación
+            if self.last_failure_time is not None:
+                elapsed = (datetime.now() - self.last_failure_time).total_seconds()
+                
+                if elapsed >= self.recovery_timeout:
+                    # Transición a estado semi-abierto para probar recuperación
+                    await self._transition_to(CircuitState.HALF_OPEN)
+                    self.metrics["recovery_attempts"] += 1
+                    self.current_half_open_count = 0
+                    logger.info(f"Circuit Breaker '{self.name}' intentando recuperación")
+                    return True
+            
+            # Aún en estado abierto, rechazar la llamada
+            logger.warning(f"Circuit Breaker '{self.name}' rechazando llamada en estado OPEN")
+            return False
+            
+        elif self.state == CircuitState.HALF_OPEN:
+            # En estado semi-abierto, permitir número limitado de llamadas
+            if self.current_half_open_count < self.half_open_capacity:
+                self.current_half_open_count += 1
+                return True
             else:
-                logger.debug(f"Llamada rechazada: circuito abierto (tiempo restante: {self._recovery_timeout - elapsed:.6f}s)")
-                self._metrics["calls"]["rejected"] += 1
-                return None
+                logger.warning(f"Circuit Breaker '{self.name}' rechazando llamada en estado HALF_OPEN (capacidad alcanzada)")
+                return False
         
-        # Contador de llamadas en estado HALF_OPEN
-        if self._state == CircuitState.HALF_OPEN:
-            if self._half_open_calls >= self._half_open_capacity:
-                logger.debug("Llamada rechazada: capacidad HALF_OPEN excedida")
-                self._metrics["calls"]["rejected"] += 1
-                return None
-            self._half_open_calls += 1
+        # Estado desconocido, rechazar por seguridad
+        return False
+    
+    async def on_success(self) -> None:
+        """Registrar éxito de una llamada."""
+        self.metrics["successful_calls"] += 1
         
-        # Intentar ejecutar la función protegida
-        try:
-            start_time = time.time()
+        if self.state == CircuitState.HALF_OPEN:
+            # En estado semi-abierto, cada éxito aumenta contador
+            self.success_count += 1
             
-            # Modo cuántico para operaciones críticas
-            if self._quantum_failsafe and self._state in [CircuitState.HALF_OPEN, CircuitState.RECOVERING]:
-                result = await self._quantum_call(func, *args, **kwargs)
-                self._metrics["calls"]["quantum"] += 1
-            else:
-                # Ejecución normal
-                if asyncio.iscoroutinefunction(func):
-                    result = await func(*args, **kwargs)
-                else:
-                    result = func(*args, **kwargs)
-            
-            # Registrar éxito
-            self._success_count += 1
-            self._metrics["calls"]["success"] += 1
-            
-            # Si estábamos en recuperación, cerrar el circuito
-            if self._state in [CircuitState.HALF_OPEN, CircuitState.RECOVERING, CircuitState.QUANTUM]:
-                elapsed = time.time() - start_time
-                await self._record_recovery(elapsed)
+            # Si alcanzamos umbral de éxitos, cerrar el circuito
+            if self.success_count >= self.failure_threshold:
+                # Calcular tiempo de recuperación
+                recovery_time = (datetime.now() - self.last_state_change).total_seconds()
+                self.metrics["recovery_times"].append(recovery_time)
+                self.metrics["successful_recoveries"] += 1
+                
+                # Actualizar tiempo medio de recuperación
+                if self.metrics["recovery_times"]:
+                    self.metrics["avg_recovery_time"] = sum(self.metrics["recovery_times"]) / len(self.metrics["recovery_times"])
+                
+                # Transición a estado cerrado
                 await self._transition_to(CircuitState.CLOSED)
+                logger.info(f"Circuit Breaker '{self.name}' recuperado exitosamente en {recovery_time:.2f}s")
+        
+        # En cualquier estado, resetear contador de fallos
+        self.failure_count = 0
+    
+    async def on_failure(self, error: Optional[Exception] = None) -> None:
+        """
+        Registrar fallo de una llamada.
+        
+        Args:
+            error: Excepción que causó el fallo (opcional)
+        """
+        self.metrics["failed_calls"] += 1
+        self.last_failure_time = datetime.now()
+        
+        if self.state == CircuitState.CLOSED:
+            # En estado cerrado, aumentar contador de fallos
+            self.failure_count += 1
             
-            return result
-            
-        except Exception as e:
-            # Registrar fallo
-            self._failure_count += 1
-            self._last_failure_time = time.time()
-            self._metrics["calls"]["failure"] += 1
-            
-            logger.warning(f"Error en llamada a través de CircuitBreaker '{self._name}': {e}")
-            
-            # Comprobar si debemos abrir el circuito
-            if self._failure_count >= self._failure_threshold:
+            # Si alcanzamos umbral de fallos, abrir el circuito
+            if self.failure_count >= self.failure_threshold:
                 await self._transition_to(CircuitState.OPEN)
+                logger.warning(f"Circuit Breaker '{self.name}' abierto tras {self.failure_count} fallos consecutivos")
+                
+                # Propagar cambio a circuitos entrelazados
+                if self.entangled_circuits and self.quantum_failsafe:
+                    await self._notify_entangled_circuits()
+        
+        elif self.state == CircuitState.HALF_OPEN:
+            # En estado semi-abierto, cualquier fallo abre el circuito
+            await self._transition_to(CircuitState.OPEN)
+            logger.warning(f"Circuit Breaker '{self.name}' volvió a estado OPEN tras fallo en recuperación")
             
-            # Intentar recuperación cuántica si está habilitada
-            if self._quantum_failsafe and self._state != CircuitState.OPEN:
-                try:
-                    logger.info("Intentando recuperación cuántica...")
-                    await self._transition_to(CircuitState.QUANTUM)
-                    result = await self._quantum_recovery(func, *args, **kwargs)
-                    
-                    if result is not None:
-                        await self._transition_to(CircuitState.RECOVERING)
-                        return result
-                except Exception as recovery_error:
-                    logger.error(f"Error en recuperación cuántica: {recovery_error}")
-            
-            # Propagar la excepción original
-            raise
-    
-    async def _quantum_call(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> Optional[T]:
-        """
-        Ejecutar función en modo cuántico con máxima protección.
+            # Propagar cambio a circuitos entrelazados
+            if self.entangled_circuits and self.quantum_failsafe:
+                await self._notify_entangled_circuits()
         
-        Args:
-            func: Función a ejecutar
-            *args: Argumentos posicionales para la función
-            **kwargs: Argumentos nominales para la función
-            
-        Returns:
-            Resultado de la función o None en caso de error
-        """
-        # Envolver la ejecución en un entorno protegido cuántico
-        # que permite recuperación instantánea
-        try:
-            # En un entorno real, se crearían múltiples copias entrelazadas
-            # o se ejecutaría con protección especial. Simulamos el comportamiento.
-            if asyncio.iscoroutinefunction(func):
-                result = await func(*args, **kwargs)
-            else:
-                result = func(*args, **kwargs)
-            return result
-        except Exception as e:
-            logger.warning(f"Error en llamada cuántica, transmutando error: {e}")
-            # Transmutación de error en dato útil
-            # En un sistema real, esto utilizaría el último estado válido
-            return None
-    
-    async def _quantum_recovery(self, func: Callable[..., T], *args: Any, **kwargs: Any) -> Optional[T]:
-        """
-        Intentar recuperación cuántica tras un fallo.
-        
-        Args:
-            func: Función a recuperar
-            *args: Argumentos posicionales para la función
-            **kwargs: Argumentos nominales para la función
-            
-        Returns:
-            Resultado recuperado o None
-        """
-        # En un sistema real, aquí se implementaría:
-        # - Checkpoint de último estado válido
-        # - Restauración desde estado coherente
-        # - Transmutación de datos inválidos
-        
-        # Simular trabajo de recuperación
-        await asyncio.sleep(0.000001)  # 1 microsegundo
-        
-        # Intentar crear un valor válido aproximado
-        if hasattr(func, "__annotations__") and "return" in func.__annotations__:
-            return_type = func.__annotations__["return"]
-            # Generar un valor aproximado según el tipo esperado
-            # Usamos Any para evitar problemas de tipado estricto
-            # ya que estamos creando valores por defecto para cualquier tipo
-            if return_type == int:
-                return 0  # type: ignore
-            elif return_type == float:
-                return 0.0  # type: ignore
-            elif return_type == str:
-                return ""  # type: ignore
-            elif return_type == bool:
-                return False  # type: ignore
-            elif return_type == list:
-                return []  # type: ignore
-            elif return_type == dict:
-                return {}  # type: ignore
-        
-        return None
+        # Intentar transmutación cuántica del error
+        if error is not None and self.quantum_failsafe:
+            await self._attempt_quantum_transmutation(error)
     
     async def _transition_to(self, new_state: CircuitState) -> None:
         """
@@ -275,110 +205,210 @@ class CloudCircuitBreaker:
         Args:
             new_state: Nuevo estado del circuit breaker
         """
-        if self._state == new_state:
+        old_state = self.state
+        self.state = new_state
+        self.last_state_change = datetime.now()
+        
+        # Actualizar métricas
+        if new_state == CircuitState.OPEN:
+            self.metrics["open_transitions"] += 1
+        elif new_state == CircuitState.CLOSED:
+            self.metrics["closed_transitions"] += 1
+        elif new_state == CircuitState.HALF_OPEN:
+            self.metrics["half_open_transitions"] += 1
+        
+        # Resetear contadores según el estado
+        if new_state == CircuitState.CLOSED:
+            self.failure_count = 0
+            self.success_count = 0
+        elif new_state == CircuitState.HALF_OPEN:
+            self.success_count = 0
+            self.current_half_open_count = 0
+        
+        logger.info(f"Circuit Breaker '{self.name}' cambió de estado {old_state} a {new_state}")
+    
+    async def _notify_entangled_circuits(self) -> None:
+        """Notificar a circuitos entrelazados sobre cambio de estado."""
+        if not self.entangled_circuits:
+            return
+            
+        # Obtener referencia a factory global desde el módulo
+        global circuit_breaker_factory
+        if circuit_breaker_factory is None:
+            logger.warning(f"Circuit Breaker '{self.name}' no puede notificar a circuitos entrelazados: factory no disponible")
             return
         
-        old_state = self._state
-        self._state = new_state
+        logger.info(f"Circuit Breaker '{self.name}' notificando a {len(self.entangled_circuits)} circuitos entrelazados")
         
-        # Actualizar métricas
-        self._metrics["timings"]["last_state_change"] = datetime.now().isoformat()
-        state_key = f"to_{new_state.name.lower()}"
-        if state_key in self._metrics["state_transitions"]:
-            self._metrics["state_transitions"][state_key] += 1
-        
-        # Acciones específicas según el nuevo estado
-        if new_state == CircuitState.CLOSED:
-            self._failure_count = 0
-            self._half_open_calls = 0
-        elif new_state == CircuitState.HALF_OPEN:
-            self._half_open_calls = 0
-        elif new_state == CircuitState.OPEN:
-            pass  # No se requieren acciones especiales
-        elif new_state == CircuitState.QUANTUM:
-            pass  # Modo especial para operaciones críticas
-        
-        logger.info(f"CircuitBreaker '{self._name}' cambió de {old_state.name} a {new_state.name}")
+        # Notificar a cada circuito entrelazado
+        for circuit_name in self.entangled_circuits:
+            circuit = circuit_breaker_factory.get(circuit_name)
+            if circuit and circuit.name != self.name:  # Evitar bucles
+                await circuit._receive_entanglement_update(self.name, self.state)
     
-    async def _record_recovery(self, elapsed: float) -> None:
+    async def _receive_entanglement_update(self, source_name: str, source_state: CircuitState) -> None:
         """
-        Registrar una recuperación exitosa.
+        Recibir actualización de un circuito entrelazado.
         
         Args:
-            elapsed: Tiempo transcurrido en la recuperación
+            source_name: Nombre del circuito que envía la actualización
+            source_state: Estado del circuito origen
         """
-        self._last_recovery_time = time.time()
+        logger.info(f"Circuit Breaker '{self.name}' recibió actualización de '{source_name}': {source_state}")
         
-        # Actualizar métricas
-        self._metrics["timings"]["total_recovery_time"] += elapsed
-        self._metrics["timings"]["recovery_count"] += 1
+        # Aplicar cambios según política de entrelazamiento
+        if source_state == CircuitState.OPEN and self.state == CircuitState.CLOSED:
+            # Probabilidad de apertura de circuito basada en entrelazamiento cuántico
+            if random.random() < 0.5:  # 50% de probabilidad
+                await self._transition_to(CircuitState.HALF_OPEN)
+                logger.info(f"Circuit Breaker '{self.name}' se movió a HALF_OPEN por entrelazamiento con '{source_name}'")
+    
+    async def _attempt_quantum_transmutation(self, error: Exception) -> bool:
+        """
+        Intentar transmutación cuántica de un error.
         
-        if self._metrics["timings"]["recovery_count"] > 0:
-            avg = self._metrics["timings"]["total_recovery_time"] / self._metrics["timings"]["recovery_count"]
-            self._metrics["timings"]["avg_recovery_time"] = avg
-    
-    async def reset(self) -> None:
-        """Resetear el Circuit Breaker a su estado inicial."""
-        self._state = CircuitState.CLOSED
-        self._failure_count = 0
-        self._success_count = 0
-        self._half_open_calls = 0
+        La transmutación cuántica permite convertir errores fatales en advertencias
+        o reconvertir errores para hacerlos manejables por capas superiores.
         
-        logger.info(f"CircuitBreaker '{self._name}' reseteado a estado {self._state.name}")
-    
-    def get_state(self) -> str:
-        """Obtener el estado actual como string."""
-        return self._state.name
-    
-    def get_metrics(self) -> Dict[str, Any]:
-        """Obtener métricas actuales."""
-        return self._metrics
+        Args:
+            error: Excepción a transmutir
+            
+        Returns:
+            True si la transmutación fue exitosa
+        """
+        if not self.quantum_failsafe:
+            return False
+        
+        # Simular probabilidad de transmutación exitosa
+        transmutation_probability = 0.3  # 30% de probabilidad
+        
+        if random.random() < transmutation_probability:
+            # Marcar error como transmutado
+            setattr(error, "transmuted", True)
+            setattr(error, "original_type", type(error).__name__)
+            setattr(error, "transmutation_time", datetime.now())
+            
+            self.metrics["quantum_transmutations"] += 1
+            logger.info(f"Circuit Breaker '{self.name}' realizó transmutación cuántica de error {type(error).__name__}")
+            return True
+        
+        return False
     
     async def force_open(self) -> None:
-        """Forzar apertura del circuito (para pruebas o mantenimiento)."""
+        """Forzar apertura del circuito (para pruebas)."""
         await self._transition_to(CircuitState.OPEN)
     
     async def force_closed(self) -> None:
-        """Forzar cierre del circuito (para pruebas o mantenimiento)."""
+        """Forzar cierre del circuito (para pruebas)."""
         await self._transition_to(CircuitState.CLOSED)
+    
+    async def reset(self) -> None:
+        """Resetear estado y métricas del circuito."""
+        await self._transition_to(CircuitState.CLOSED)
+        
+        # Resetear métricas
+        self.metrics = {
+            "total_calls": 0,
+            "successful_calls": 0,
+            "failed_calls": 0,
+            "open_transitions": 0,
+            "closed_transitions": 0,
+            "half_open_transitions": 0,
+            "recovery_attempts": 0,
+            "successful_recoveries": 0,
+            "quantum_transmutations": 0,
+            "avg_recovery_time": 0.0,
+            "recovery_times": []
+        }
+        
+        logger.info(f"Circuit Breaker '{self.name}' reseteado")
+    
+    async def entangle_with(self, circuit_name: str) -> bool:
+        """
+        Entrelazar con otro circuit breaker.
+        
+        Args:
+            circuit_name: Nombre del circuit breaker a entrelazar
+            
+        Returns:
+            True si el entrelazamiento fue exitoso
+        """
+        if circuit_name != self.name:  # Evitar auto-entrelazamiento
+            self.entangled_circuits.add(circuit_name)
+            logger.info(f"Circuit Breaker '{self.name}' entrelazado con '{circuit_name}'")
+            return True
+        return False
+    
+    def get_state(self) -> CircuitState:
+        """
+        Obtener estado actual.
+        
+        Returns:
+            Estado actual del circuit breaker
+        """
+        return self.state
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        """
+        Obtener métricas detalladas.
+        
+        Returns:
+            Diccionario con métricas
+        """
+        # Añadir métricas calculadas
+        metrics = self.metrics.copy()
+        metrics["state"] = self.state.name
+        metrics["uptime"] = (datetime.now() - self.last_state_change).total_seconds()
+        
+        if metrics["failed_calls"] + metrics["successful_calls"] > 0:
+            metrics["success_rate"] = (metrics["successful_calls"] / 
+                                      (metrics["failed_calls"] + metrics["successful_calls"])) * 100
+        else:
+            metrics["success_rate"] = 100.0
+            
+        metrics["entangled_circuits"] = list(self.entangled_circuits)
+        
+        return metrics
 
 
 class CloudCircuitBreakerFactory:
     """
-    Fábrica para crear y gestionar instancias de CloudCircuitBreaker.
+    Factory para crear y gestionar circuit breakers.
     
-    Permite mantener un registro central de todos los circuit breakers
-    en el sistema y acceder a ellos por nombre.
+    Esta clase permite crear y obtener circuit breakers por nombre,
+    evitando duplicados y manteniendo una referencia central.
     """
     
     def __init__(self):
-        """Inicializar la fábrica de circuit breakers."""
+        """Inicializar factory."""
         self._circuit_breakers: Dict[str, CloudCircuitBreaker] = {}
+        logger.info("Circuit Breaker Factory inicializada")
     
     async def create(self, 
-                    name: str,
-                    failure_threshold: int = 5, 
-                    recovery_timeout: float = 0.000005,
-                    half_open_capacity: int = 2,
-                    quantum_failsafe: bool = True) -> CloudCircuitBreaker:
+                     name: str,
+                     failure_threshold: int = 5,
+                     recovery_timeout: float = 60.0,
+                     half_open_capacity: int = 1,
+                     quantum_failsafe: bool = True) -> CloudCircuitBreaker:
         """
-        Crear un nuevo CloudCircuitBreaker.
+        Crear un nuevo circuit breaker o devolver uno existente.
         
         Args:
             name: Nombre único del circuit breaker
-            failure_threshold: Número de fallos para abrir el circuito
-            recovery_timeout: Tiempo mínimo (segundos) de recuperación
-            half_open_capacity: Llamadas permitidas en estado HALF_OPEN
-            quantum_failsafe: Si se debe usar modo QUANTUM para operaciones críticas
+            failure_threshold: Número de fallos antes de abrir el circuito
+            recovery_timeout: Tiempo en segundos antes de intentar recuperación
+            half_open_capacity: Número de operaciones permitidas en estado HALF_OPEN
+            quantum_failsafe: Si activar la protección cuántica avanzada
             
         Returns:
-            Instancia del CloudCircuitBreaker creado
+            Circuit breaker creado o existente
         """
+        # Si ya existe, devolverlo
         if name in self._circuit_breakers:
-            logger.warning(f"CircuitBreaker '{name}' ya existe, devolviendo instancia existente")
             return self._circuit_breakers[name]
         
-        cb = CloudCircuitBreaker(
+        # Crear nuevo circuit breaker
+        circuit = CloudCircuitBreaker(
             name=name,
             failure_threshold=failure_threshold,
             recovery_timeout=recovery_timeout,
@@ -386,133 +416,132 @@ class CloudCircuitBreakerFactory:
             quantum_failsafe=quantum_failsafe
         )
         
-        self._circuit_breakers[name] = cb
-        return cb
+        # Registrar en diccionario
+        self._circuit_breakers[name] = circuit
+        logger.info(f"Circuit Breaker '{name}' creado y registrado")
+        
+        return circuit
     
     def get(self, name: str) -> Optional[CloudCircuitBreaker]:
         """
-        Obtener un CloudCircuitBreaker por nombre.
+        Obtener circuit breaker por nombre.
         
         Args:
             name: Nombre del circuit breaker
             
         Returns:
-            CloudCircuitBreaker o None si no existe
+            Circuit breaker o None si no existe
         """
         return self._circuit_breakers.get(name)
     
-    def get_all(self) -> Dict[str, CloudCircuitBreaker]:
+    def list_all(self) -> List[str]:
         """
-        Obtener todos los CloudCircuitBreakers registrados.
+        Listar todos los circuit breakers registrados.
         
         Returns:
-            Diccionario de circuit breakers por nombre
+            Lista de nombres de circuit breakers
         """
-        return self._circuit_breakers.copy()
-    
-    async def get_all_metrics(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Obtener métricas de todos los circuit breakers.
-        
-        Returns:
-            Diccionario con métricas por nombre de circuit breaker
-        """
-        return {name: cb.get_metrics() for name, cb in self._circuit_breakers.items()}
+        return list(self._circuit_breakers.keys())
     
     async def reset_all(self) -> None:
         """Resetear todos los circuit breakers."""
-        for cb in self._circuit_breakers.values():
-            await cb.reset()
+        for circuit in self._circuit_breakers.values():
+            await circuit.reset()
         
-        logger.info(f"Reseteados {len(self._circuit_breakers)} CircuitBreakers")
+        logger.info(f"Reseteados {len(self._circuit_breakers)} circuit breakers")
+    
+    async def entangle_circuits(self, circuit_names: List[str]) -> int:
+        """
+        Entrelazar múltiples circuit breakers entre sí.
+        
+        Args:
+            circuit_names: Lista de nombres de circuit breakers a entrelazar
+            
+        Returns:
+            Número de entrelazamientos creados
+        """
+        if len(circuit_names) < 2:
+            return 0
+        
+        entanglement_count = 0
+        
+        # Entrelazar cada circuit breaker con los demás
+        for i, name1 in enumerate(circuit_names):
+            circuit1 = self.get(name1)
+            if not circuit1:
+                continue
+                
+            for name2 in circuit_names[i+1:]:
+                circuit2 = self.get(name2)
+                if not circuit2:
+                    continue
+                
+                # Entrelazamiento bidireccional
+                if await circuit1.entangle_with(name2):
+                    entanglement_count += 1
+                    
+                if await circuit2.entangle_with(name1):
+                    entanglement_count += 1
+        
+        logger.info(f"Creados {entanglement_count} entrelazamientos entre {len(circuit_names)} circuit breakers")
+        return entanglement_count
 
 
-# Singleton global para acceso desde cualquier parte del código
+# Crear singleton global
 circuit_breaker_factory = CloudCircuitBreakerFactory()
 
 
-# Decorador para proteger funciones con CircuitBreaker
-def circuit_protected(name: str, **cb_args):
+def circuit_protected(circuit_breaker: Optional[CloudCircuitBreaker] = None, circuit_name: Optional[str] = None):
     """
-    Decorador para proteger funciones con CircuitBreaker.
+    Decorador para proteger funciones con circuit breaker.
+    
+    Este decorador permite proteger cualquier función con un circuit breaker,
+    gestionando automáticamente los estados y fallos.
     
     Args:
-        name: Nombre del circuit breaker a usar
-        **cb_args: Argumentos adicionales para crear el circuit breaker
+        circuit_breaker: Instancia de CloudCircuitBreaker (opcional)
+        circuit_name: Nombre del circuit breaker a usar (opcional, solo si no se proporciona circuit_breaker)
+        
+    Returns:
+        Decorador para la función
     """
     def decorator(func):
+        @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # Obtener o crear el circuit breaker
-            cb = circuit_breaker_factory.get(name)
-            if cb is None:
-                cb = await circuit_breaker_factory.create(name, **cb_args)
+            # Obtener circuit breaker
+            cb = circuit_breaker
             
-            # Llamar a través del circuit breaker
-            return await cb.call(func, *args, **kwargs)
+            if cb is None and circuit_name:
+                # Obtener desde factory global
+                global circuit_breaker_factory
+                if circuit_breaker_factory:
+                    cb = circuit_breaker_factory.get(circuit_name)
+            
+            if cb is None:
+                # Sin circuit breaker, ejecutar normalmente
+                return await func(*args, **kwargs)
+            
+            # Verificar si podemos proceder
+            if not await cb.before_call():
+                logger.warning(f"Llamada a {func.__name__} rechazada por circuit breaker {cb.name}")
+                raise RuntimeError(f"Circuit breaker {cb.name} abierto")
+            
+            try:
+                # Ejecutar función protegida
+                result = await func(*args, **kwargs)
+                
+                # Registrar éxito
+                await cb.on_success()
+                
+                return result
+                
+            except Exception as e:
+                # Registrar fallo
+                await cb.on_failure(e)
+                
+                # Re-lanzar excepción
+                raise
+        
         return wrapper
-    return decorator
-
-
-# Para pruebas si se ejecuta este archivo directamente
-if __name__ == "__main__":
-    async def run_demo():
-        print("\n=== DEMOSTRACIÓN DEL CLOUDCIRCUITBREAKER ===\n")
-        
-        # Crear un CircuitBreaker
-        cb_factory = CloudCircuitBreakerFactory()
-        cb = await cb_factory.create("demo_breaker", failure_threshold=3)
-        
-        # Función de ejemplo que a veces falla
-        async def example_function(fail: bool = False):
-            if fail:
-                raise Exception("Error simulado")
-            return "Operación exitosa"
-        
-        # Probar operaciones exitosas
-        print("Ejecutando operaciones exitosas...")
-        for i in range(5):
-            try:
-                result = await cb.call(example_function)
-                print(f"  Resultado #{i+1}: {result}")
-            except Exception as e:
-                print(f"  Error #{i+1}: {e}")
-        
-        print("\nEstado actual:", cb.get_state())
-        
-        # Probar fallos
-        print("\nEjecutando operaciones con fallos...")
-        for i in range(5):
-            try:
-                result = await cb.call(example_function, fail=True)
-                print(f"  Resultado #{i+1}: {result}")
-            except Exception as e:
-                print(f"  Error #{i+1}: {e}")
-        
-        print("\nEstado tras fallos:", cb.get_state())
-        
-        # Esperar un poco para simular recuperación
-        print("\nEsperando para recuperación...")
-        await asyncio.sleep(0.01)  # Mucho más que el timeout para demo
-        
-        # Probar nuevamente
-        print("\nIntentando operación después de tiempo de recuperación...")
-        try:
-            result = await cb.call(example_function)
-            print(f"  Resultado: {result}")
-        except Exception as e:
-            print(f"  Error: {e}")
-        
-        print("\nEstado final:", cb.get_state())
-        
-        # Mostrar métricas
-        print("\nMétricas del CircuitBreaker:")
-        metrics = cb.get_metrics()
-        for category, values in metrics.items():
-            print(f"  {category}:")
-            for key, value in values.items():
-                print(f"    {key}: {value}")
-        
-        print("\n=== DEMOSTRACIÓN COMPLETADA ===\n")
     
-    # Ejecutar demo
-    asyncio.run(run_demo())
+    return decorator

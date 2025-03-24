@@ -1,10 +1,6 @@
 """
-Genesis Oracle - Módulo de oráculos predictivos con capacidades trascendentales.
+Módulos de oráculos para el Sistema Genesis con capacidades ultra-cuánticas.
 
-Este módulo proporciona componentes para predicción avanzada:
-- QuantumOracle: Oráculo predictivo con capacidades cuánticas
-- ArmageddonAdapter: Adaptador para integración con servicios externos (Alpha Vantage, CoinMarketCap, DeepSeek)
+Este paquete contiene los componentes de oráculos para el Sistema Genesis:
+- ArmageddonAdapter: Para integración con servicios externos (Alpha Vantage, CoinMarketCap, DeepSeek)
 """
-
-# Versión del módulo oracle
-__version__ = "1.0.0-divine"

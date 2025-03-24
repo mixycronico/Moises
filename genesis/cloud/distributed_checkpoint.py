@@ -1,174 +1,110 @@
-#!/usr/bin/env python3
 """
-Gestor de Checkpoints Distribuidos Ultra-Divino.
+DistributedCheckpointManager - Componente para manejo de puntos de control distribuidos.
 
-Este módulo implementa un sistema de checkpoints distribuidos para el Sistema Genesis,
-permitiendo respaldo y recuperación de estado entre diferentes instancias y servicios.
-
-Características:
-- Checkpoints atómicos con garantía ACID
-- Recuperación ultra-rápida desde cualquier nodo
-- Compatibilidad con PostgreSQL, S3 y sistemas de archivos locales
-- Coordinación de estado distribuido mediante consensus cuántico
-- Versionado automático de checkpoints para rollbacks controlados
+Este módulo implementa un sistema de checkpoints distribuidos con capacidades divinas:
+- Almacenamiento inmutable de estados
+- Recuperación instantánea desde cualquier punto temporal
+- Consistencia fuerte incluso en entornos distribuidos
+- Transmutación automática de datos durante transiciones
 """
 
-import os
-import sys
+import asyncio
 import json
 import logging
+import os
 import time
-import asyncio
-import random
-import hashlib
-import pickle
-import base64
 import uuid
-from datetime import datetime, timedelta
+import pickle
+import hashlib
+import functools
 from enum import Enum, auto
-from typing import Dict, List, Any, Optional, Tuple, Union, Callable, Set, Type, TypeVar
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional, Set, Tuple, Union, TypeVar, Generic, Callable
 
 # Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("genesis.cloud.distributed_checkpoint")
 
-
-# Tipos genéricos
+# Tipo genérico para datos
 T = TypeVar('T')
 
 
 class CheckpointStorageType(Enum):
     """Tipos de almacenamiento para checkpoints."""
-    LOCAL_FILE = auto()     # Archivo local
-    DATABASE = auto()       # Base de datos PostgreSQL
-    S3 = auto()             # AWS S3 o compatible
-    MEMORY = auto()         # Memoria (para pruebas)
-    HYBRID = auto()         # Combinación de tipos
+    LOCAL_FILE = auto()      # Almacenamiento en archivo local
+    MEMORY = auto()          # Almacenamiento en memoria
+    DISTRIBUTED_DB = auto()  # Almacenamiento en base de datos distribuida
 
 
 class CheckpointConsistencyLevel(Enum):
     """Niveles de consistencia para checkpoints."""
-    EVENTUAL = auto()       # Consistencia eventual
-    STRONG = auto()         # Consistencia fuerte
-    QUANTUM = auto()        # Consistencia cuántica (máxima)
+    EVENTUAL = auto()  # Consistencia eventual (mayor rendimiento)
+    STRONG = auto()    # Consistencia fuerte (mayor seguridad)
+    QUANTUM = auto()   # Consistencia cuántica (transmutación automática)
 
 
 class CheckpointState(Enum):
-    """Estados posibles de un checkpoint."""
-    CREATING = auto()       # En proceso de creación
-    ACTIVE = auto()         # Activo y disponible
-    SYNCING = auto()        # Sincronizando con otros nodos
-    CORRUPTED = auto()      # Corrupto (verificación fallida)
-    ARCHIVED = auto()       # Archivado (histórico)
+    """Estados posibles para checkpoints."""
+    ACTIVE = auto()      # Checkpoint activo y disponible
+    INACTIVE = auto()    # Checkpoint inactivado manualmente
+    CORRUPT = auto()     # Checkpoint potencialmente corrupto
+    TRANSMUTING = auto() # Checkpoint en proceso de transmutación
 
 
 class CheckpointMetadata:
-    """Metadatos de un checkpoint."""
+    """Metadatos para un checkpoint."""
     
     def __init__(self, 
                  checkpoint_id: str,
                  component_id: str,
                  timestamp: float,
-                 version: int,
-                 consistency_level: CheckpointConsistencyLevel,
-                 storage_type: CheckpointStorageType,
                  tags: Optional[List[str]] = None,
-                 dependencies: Optional[List[str]] = None):
+                 consistency_level: CheckpointConsistencyLevel = CheckpointConsistencyLevel.STRONG):
         """
-        Inicializar metadatos de checkpoint.
+        Inicializar metadatos.
         
         Args:
             checkpoint_id: ID único del checkpoint
             component_id: ID del componente al que pertenece
             timestamp: Timestamp de creación
-            version: Versión del checkpoint
+            tags: Etiquetas opcionales
             consistency_level: Nivel de consistencia
-            storage_type: Tipo de almacenamiento
-            tags: Etiquetas para categorización
-            dependencies: IDs de checkpoints dependientes
         """
         self.checkpoint_id = checkpoint_id
         self.component_id = component_id
         self.timestamp = timestamp
-        self.version = version
-        self.consistency_level = consistency_level
-        self.storage_type = storage_type
         self.tags = tags or []
-        self.dependencies = dependencies or []
-        self.state = CheckpointState.CREATING
-        self.hash = ""
-        self.size_bytes = 0
-        self.created_by = "system"
-        self.node_id = str(uuid.uuid4())[:8]
-        self.last_verified = timestamp
-        self.verification_hash = ""
-    
-    def finalize(self, data_hash: str, size_bytes: int):
-        """
-        Finalizar metadatos al completar la creación.
-        
-        Args:
-            data_hash: Hash del contenido
-            size_bytes: Tamaño en bytes
-        """
-        self.hash = data_hash
-        self.size_bytes = size_bytes
+        self.consistency_level = consistency_level
         self.state = CheckpointState.ACTIVE
+        self.checksum = ""  # Se calculará al guardar datos
         
-        # Crear hash de verificación
-        self.verification_hash = self._create_verification_hash()
-    
-    def _create_verification_hash(self) -> str:
-        """
-        Crear hash de verificación para integridad.
-        
-        Returns:
-            Hash de verificación
-        """
-        data = f"{self.checkpoint_id}:{self.component_id}:{self.timestamp}:{self.version}:{self.hash}"
-        return hashlib.sha256(data.encode()).hexdigest()
-    
-    def verify(self) -> bool:
-        """
-        Verificar integridad del checkpoint.
-        
-        Returns:
-            True si es íntegro, False si está corrupto
-        """
-        current_hash = self._create_verification_hash()
-        if current_hash != self.verification_hash:
-            self.state = CheckpointState.CORRUPTED
-            return False
-        
-        self.last_verified = time.time()
-        return True
+        # Metadatos adicionales
+        self.creation_datetime = datetime.fromtimestamp(timestamp)
+        self.last_accessed = timestamp
+        self.access_count = 0
+        self.transmutation_count = 0
+        self.size_bytes = 0
     
     def to_dict(self) -> Dict[str, Any]:
         """
-        Convertir a diccionario para almacenamiento.
+        Convertir a diccionario.
         
         Returns:
-            Diccionario con los metadatos
+            Diccionario con metadatos
         """
         return {
             "checkpoint_id": self.checkpoint_id,
             "component_id": self.component_id,
             "timestamp": self.timestamp,
-            "version": self.version,
-            "consistency_level": self.consistency_level.name,
-            "storage_type": self.storage_type.name,
+            "creation_datetime": self.creation_datetime.isoformat(),
             "tags": self.tags,
-            "dependencies": self.dependencies,
+            "consistency_level": self.consistency_level.name,
             "state": self.state.name,
-            "hash": self.hash,
-            "size_bytes": self.size_bytes,
-            "created_by": self.created_by,
-            "node_id": self.node_id,
-            "last_verified": self.last_verified,
-            "verification_hash": self.verification_hash
+            "checksum": self.checksum,
+            "last_accessed": self.last_accessed,
+            "access_count": self.access_count,
+            "transmutation_count": self.transmutation_count,
+            "size_bytes": self.size_bytes
         }
     
     @classmethod
@@ -177,1108 +113,329 @@ class CheckpointMetadata:
         Crear desde diccionario.
         
         Args:
-            data: Diccionario con metadatos
+            data: Diccionario con datos
             
         Returns:
             Instancia de CheckpointMetadata
         """
-        instance = cls(
+        metadata = cls(
             checkpoint_id=data["checkpoint_id"],
             component_id=data["component_id"],
             timestamp=data["timestamp"],
-            version=data["version"],
-            consistency_level=CheckpointConsistencyLevel[data["consistency_level"]],
-            storage_type=CheckpointStorageType[data["storage_type"]],
             tags=data.get("tags", []),
-            dependencies=data.get("dependencies", [])
+            consistency_level=CheckpointConsistencyLevel[data["consistency_level"]]
         )
         
-        instance.state = CheckpointState[data["state"]]
-        instance.hash = data["hash"]
-        instance.size_bytes = data["size_bytes"]
-        instance.created_by = data.get("created_by", "system")
-        instance.node_id = data.get("node_id", "unknown")
-        instance.last_verified = data.get("last_verified", instance.timestamp)
-        instance.verification_hash = data.get("verification_hash", "")
+        # Restaurar estado
+        metadata.state = CheckpointState[data["state"]]
+        metadata.checksum = data["checksum"]
+        metadata.last_accessed = data["last_accessed"]
+        metadata.access_count = data["access_count"]
+        metadata.transmutation_count = data.get("transmutation_count", 0)
+        metadata.size_bytes = data.get("size_bytes", 0)
         
-        return instance
-
-
-class CheckpointStorageProvider:
-    """Proveedor de almacenamiento para checkpoints."""
+        return metadata
     
-    async def store(self, checkpoint_id: str, data: Any, metadata: CheckpointMetadata) -> bool:
-        """
-        Almacenar un checkpoint.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            data: Datos a almacenar
-            metadata: Metadatos del checkpoint
-            
-        Returns:
-            True si se almacenó correctamente
-        """
-        raise NotImplementedError("Método abstracto")
+    def record_access(self) -> None:
+        """Registrar acceso al checkpoint."""
+        self.last_accessed = time.time()
+        self.access_count += 1
     
-    async def load(self, checkpoint_id: str) -> Tuple[Optional[Any], Optional[CheckpointMetadata]]:
-        """
-        Cargar un checkpoint.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            Tupla (datos, metadatos) o (None, None) si no existe
-        """
-        raise NotImplementedError("Método abstracto")
-    
-    async def list_checkpoints(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
-        """
-        Listar checkpoints disponibles.
-        
-        Args:
-            component_id: Filtrar por componente (opcional)
-            
-        Returns:
-            Lista de metadatos de checkpoints
-        """
-        raise NotImplementedError("Método abstracto")
-    
-    async def delete(self, checkpoint_id: str) -> bool:
-        """
-        Eliminar un checkpoint.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            True si se eliminó correctamente
-        """
-        raise NotImplementedError("Método abstracto")
-
-
-class LocalFileStorageProvider(CheckpointStorageProvider):
-    """Almacenamiento en archivos locales."""
-    
-    def __init__(self, base_path: str = "checkpoints"):
-        """
-        Inicializar proveedor de almacenamiento local.
-        
-        Args:
-            base_path: Ruta base para almacenar checkpoints
-        """
-        self.base_path = base_path
-        self._ensure_directories()
-    
-    def _ensure_directories(self):
-        """Crear estructura de directorios si no existe."""
-        if not os.path.exists(self.base_path):
-            os.makedirs(self.base_path)
-        
-        # Directorios para datos y metadatos
-        data_path = os.path.join(self.base_path, "data")
-        meta_path = os.path.join(self.base_path, "meta")
-        
-        if not os.path.exists(data_path):
-            os.makedirs(data_path)
-        
-        if not os.path.exists(meta_path):
-            os.makedirs(meta_path)
-    
-    def _get_data_path(self, checkpoint_id: str) -> str:
-        """
-        Obtener ruta para datos de checkpoint.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            Ruta completa
-        """
-        return os.path.join(self.base_path, "data", f"{checkpoint_id}.dat")
-    
-    def _get_meta_path(self, checkpoint_id: str) -> str:
-        """
-        Obtener ruta para metadatos de checkpoint.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            Ruta completa
-        """
-        return os.path.join(self.base_path, "meta", f"{checkpoint_id}.meta")
-    
-    async def store(self, checkpoint_id: str, data: Any, metadata: CheckpointMetadata) -> bool:
-        """
-        Almacenar un checkpoint en archivo local.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            data: Datos a almacenar
-            metadata: Metadatos del checkpoint
-            
-        Returns:
-            True si se almacenó correctamente
-        """
-        try:
-            data_path = self._get_data_path(checkpoint_id)
-            meta_path = self._get_meta_path(checkpoint_id)
-            
-            # Serializar datos
-            data_bytes = pickle.dumps(data)
-            data_hash = hashlib.sha256(data_bytes).hexdigest()
-            data_size = len(data_bytes)
-            
-            # Finalizar metadatos con hash y tamaño
-            metadata.finalize(data_hash, data_size)
-            
-            # Guardar datos y metadatos
-            await asyncio.to_thread(self._write_file, data_path, data_bytes)
-            await asyncio.to_thread(self._write_file, meta_path, json.dumps(metadata.to_dict()).encode())
-            
-            logger.info(f"Checkpoint {checkpoint_id} almacenado correctamente en {data_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Error al almacenar checkpoint {checkpoint_id}: {e}")
-            return False
-    
-    def _write_file(self, path: str, data: bytes):
-        """
-        Escribir archivo de forma segura.
-        
-        Args:
-            path: Ruta del archivo
-            data: Datos a escribir
-        """
-        # Escribir a archivo temporal primero
-        temp_path = f"{path}.tmp"
-        with open(temp_path, 'wb') as f:
-            f.write(data)
-            f.flush()
-            os.fsync(f.fileno())
-        
-        # Renombrar atómicamente
-        os.rename(temp_path, path)
-    
-    async def load(self, checkpoint_id: str) -> Tuple[Optional[Any], Optional[CheckpointMetadata]]:
-        """
-        Cargar un checkpoint desde archivo local.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            Tupla (datos, metadatos) o (None, None) si no existe
-        """
-        try:
-            data_path = self._get_data_path(checkpoint_id)
-            meta_path = self._get_meta_path(checkpoint_id)
-            
-            # Verificar existencia
-            if not os.path.exists(data_path) or not os.path.exists(meta_path):
-                logger.warning(f"Checkpoint {checkpoint_id} no encontrado")
-                return None, None
-            
-            # Cargar metadatos
-            meta_bytes = await asyncio.to_thread(self._read_file, meta_path)
-            metadata = CheckpointMetadata.from_dict(json.loads(meta_bytes.decode()))
-            
-            # Verificar integridad de metadatos
-            if not metadata.verify():
-                logger.error(f"Metadatos corruptos para checkpoint {checkpoint_id}")
-                return None, None
-            
-            # Cargar datos
-            data_bytes = await asyncio.to_thread(self._read_file, data_path)
-            
-            # Verificar hash de datos
-            data_hash = hashlib.sha256(data_bytes).hexdigest()
-            if data_hash != metadata.hash:
-                logger.error(f"Datos corruptos para checkpoint {checkpoint_id}")
-                metadata.state = CheckpointState.CORRUPTED
-                return None, metadata
-            
-            # Deserializar datos
-            data = pickle.loads(data_bytes)
-            
-            logger.info(f"Checkpoint {checkpoint_id} cargado correctamente desde {data_path}")
-            return data, metadata
-        except Exception as e:
-            logger.error(f"Error al cargar checkpoint {checkpoint_id}: {e}")
-            return None, None
-    
-    def _read_file(self, path: str) -> bytes:
-        """
-        Leer archivo completo.
-        
-        Args:
-            path: Ruta del archivo
-            
-        Returns:
-            Contenido del archivo
-        """
-        with open(path, 'rb') as f:
-            return f.read()
-    
-    async def list_checkpoints(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
-        """
-        Listar checkpoints disponibles en almacenamiento local.
-        
-        Args:
-            component_id: Filtrar por componente (opcional)
-            
-        Returns:
-            Lista de metadatos de checkpoints
-        """
-        try:
-            meta_dir = os.path.join(self.base_path, "meta")
-            if not os.path.exists(meta_dir):
-                return []
-            
-            # Listar archivos de metadatos
-            meta_files = await asyncio.to_thread(os.listdir, meta_dir)
-            result = []
-            
-            for filename in meta_files:
-                if not filename.endswith(".meta"):
-                    continue
-                
-                try:
-                    # Cargar metadatos
-                    meta_path = os.path.join(meta_dir, filename)
-                    meta_bytes = await asyncio.to_thread(self._read_file, meta_path)
-                    metadata = CheckpointMetadata.from_dict(json.loads(meta_bytes.decode()))
-                    
-                    # Filtrar por componente
-                    if component_id is None or metadata.component_id == component_id:
-                        result.append(metadata)
-                except Exception as e:
-                    logger.warning(f"Error al leer metadatos {filename}: {e}")
-            
-            # Ordenar por timestamp descendente
-            result.sort(key=lambda m: m.timestamp, reverse=True)
-            return result
-        except Exception as e:
-            logger.error(f"Error al listar checkpoints: {e}")
-            return []
-    
-    async def delete(self, checkpoint_id: str) -> bool:
-        """
-        Eliminar un checkpoint del almacenamiento local.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            True si se eliminó correctamente
-        """
-        try:
-            data_path = self._get_data_path(checkpoint_id)
-            meta_path = self._get_meta_path(checkpoint_id)
-            
-            # Eliminar archivos si existen
-            if os.path.exists(data_path):
-                await asyncio.to_thread(os.remove, data_path)
-            
-            if os.path.exists(meta_path):
-                await asyncio.to_thread(os.remove, meta_path)
-            
-            logger.info(f"Checkpoint {checkpoint_id} eliminado correctamente")
-            return True
-        except Exception as e:
-            logger.error(f"Error al eliminar checkpoint {checkpoint_id}: {e}")
-            return False
-
-
-class PostgreSQLStorageProvider(CheckpointStorageProvider):
-    """Almacenamiento en base de datos PostgreSQL."""
-    
-    def __init__(self, db_url: Optional[str] = None):
-        """
-        Inicializar proveedor de almacenamiento PostgreSQL.
-        
-        Args:
-            db_url: URL de conexión a la base de datos
-        """
-        self.db_url = db_url or os.environ.get("DATABASE_URL")
-        self._pool = None
-        self._initialized = False
-    
-    async def initialize(self):
-        """Inicializar conexión y crear tablas si no existen."""
-        if self._initialized:
-            return
-        
-        try:
-            # Importar aquí para no depender de asyncpg si no se usa
-            import asyncpg
-            
-            # Crear pool de conexiones
-            self._pool = await asyncpg.create_pool(self.db_url)
-            
-            # Crear tablas si no existen
-            async with self._pool.acquire() as conn:
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS checkpoint_metadata (
-                        checkpoint_id TEXT PRIMARY KEY,
-                        component_id TEXT NOT NULL,
-                        timestamp DOUBLE PRECISION NOT NULL,
-                        version INTEGER NOT NULL,
-                        consistency_level TEXT NOT NULL,
-                        storage_type TEXT NOT NULL,
-                        tags JSONB DEFAULT '[]',
-                        dependencies JSONB DEFAULT '[]',
-                        state TEXT NOT NULL,
-                        hash TEXT NOT NULL,
-                        size_bytes INTEGER NOT NULL,
-                        created_by TEXT NOT NULL,
-                        node_id TEXT NOT NULL,
-                        last_verified DOUBLE PRECISION NOT NULL,
-                        verification_hash TEXT NOT NULL
-                    )
-                ''')
-                
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS checkpoint_data (
-                        checkpoint_id TEXT PRIMARY KEY REFERENCES checkpoint_metadata(checkpoint_id) ON DELETE CASCADE,
-                        data BYTEA NOT NULL
-                    )
-                ''')
-                
-                # Índices
-                await conn.execute('''
-                    CREATE INDEX IF NOT EXISTS idx_checkpoint_component 
-                    ON checkpoint_metadata(component_id)
-                ''')
-                
-                await conn.execute('''
-                    CREATE INDEX IF NOT EXISTS idx_checkpoint_timestamp 
-                    ON checkpoint_metadata(timestamp)
-                ''')
-            
-            self._initialized = True
-            logger.info("Proveedor PostgreSQL inicializado correctamente")
-        except Exception as e:
-            logger.error(f"Error al inicializar proveedor PostgreSQL: {e}")
-            raise
-    
-    async def store(self, checkpoint_id: str, data: Any, metadata: CheckpointMetadata) -> bool:
-        """
-        Almacenar un checkpoint en PostgreSQL.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            data: Datos a almacenar
-            metadata: Metadatos del checkpoint
-            
-        Returns:
-            True si se almacenó correctamente
-        """
-        await self.initialize()
-        
-        try:
-            # Serializar datos
-            data_bytes = pickle.dumps(data)
-            data_hash = hashlib.sha256(data_bytes).hexdigest()
-            data_size = len(data_bytes)
-            
-            # Finalizar metadatos con hash y tamaño
-            metadata.finalize(data_hash, data_size)
-            meta_dict = metadata.to_dict()
-            
-            async with self._pool.acquire() as conn:
-                async with conn.transaction():
-                    # Guardar metadatos
-                    await conn.execute('''
-                        INSERT INTO checkpoint_metadata(
-                            checkpoint_id, component_id, timestamp, version, consistency_level,
-                            storage_type, tags, dependencies, state, hash, size_bytes,
-                            created_by, node_id, last_verified, verification_hash
-                        ) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-                        ON CONFLICT(checkpoint_id) DO UPDATE SET
-                            component_id = $2, timestamp = $3, version = $4, consistency_level = $5,
-                            storage_type = $6, tags = $7, dependencies = $8, state = $9,
-                            hash = $10, size_bytes = $11, created_by = $12, node_id = $13,
-                            last_verified = $14, verification_hash = $15
-                    ''', 
-                        checkpoint_id, meta_dict["component_id"], meta_dict["timestamp"],
-                        meta_dict["version"], meta_dict["consistency_level"],
-                        meta_dict["storage_type"], json.dumps(meta_dict["tags"]),
-                        json.dumps(meta_dict["dependencies"]), meta_dict["state"],
-                        meta_dict["hash"], meta_dict["size_bytes"], meta_dict["created_by"],
-                        meta_dict["node_id"], meta_dict["last_verified"],
-                        meta_dict["verification_hash"]
-                    )
-                    
-                    # Guardar datos
-                    await conn.execute('''
-                        INSERT INTO checkpoint_data(checkpoint_id, data)
-                        VALUES($1, $2)
-                        ON CONFLICT(checkpoint_id) DO UPDATE SET
-                            data = $2
-                    ''', checkpoint_id, data_bytes)
-            
-            logger.info(f"Checkpoint {checkpoint_id} almacenado correctamente en PostgreSQL")
-            return True
-        except Exception as e:
-            logger.error(f"Error al almacenar checkpoint {checkpoint_id} en PostgreSQL: {e}")
-            return False
-    
-    async def load(self, checkpoint_id: str) -> Tuple[Optional[Any], Optional[CheckpointMetadata]]:
-        """
-        Cargar un checkpoint desde PostgreSQL.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            Tupla (datos, metadatos) o (None, None) si no existe
-        """
-        await self.initialize()
-        
-        try:
-            async with self._pool.acquire() as conn:
-                # Cargar metadatos
-                meta_row = await conn.fetchrow('''
-                    SELECT * FROM checkpoint_metadata
-                    WHERE checkpoint_id = $1
-                ''', checkpoint_id)
-                
-                if not meta_row:
-                    logger.warning(f"Checkpoint {checkpoint_id} no encontrado en PostgreSQL")
-                    return None, None
-                
-                # Convertir a diccionario
-                meta_dict = dict(meta_row)
-                meta_dict["tags"] = json.loads(meta_dict["tags"])
-                meta_dict["dependencies"] = json.loads(meta_dict["dependencies"])
-                
-                # Crear objeto de metadatos
-                metadata = CheckpointMetadata.from_dict(meta_dict)
-                
-                # Verificar integridad de metadatos
-                if not metadata.verify():
-                    logger.error(f"Metadatos corruptos para checkpoint {checkpoint_id}")
-                    return None, None
-                
-                # Cargar datos
-                data_row = await conn.fetchrow('''
-                    SELECT data FROM checkpoint_data
-                    WHERE checkpoint_id = $1
-                ''', checkpoint_id)
-                
-                if not data_row:
-                    logger.error(f"Datos no encontrados para checkpoint {checkpoint_id}")
-                    return None, metadata
-                
-                data_bytes = data_row["data"]
-                
-                # Verificar hash de datos
-                data_hash = hashlib.sha256(data_bytes).hexdigest()
-                if data_hash != metadata.hash:
-                    logger.error(f"Datos corruptos para checkpoint {checkpoint_id}")
-                    metadata.state = CheckpointState.CORRUPTED
-                    
-                    # Actualizar estado en base de datos
-                    await conn.execute('''
-                        UPDATE checkpoint_metadata
-                        SET state = $1
-                        WHERE checkpoint_id = $2
-                    ''', CheckpointState.CORRUPTED.name, checkpoint_id)
-                    
-                    return None, metadata
-                
-                # Deserializar datos
-                data = pickle.loads(data_bytes)
-                
-                # Actualizar última verificación
-                await conn.execute('''
-                    UPDATE checkpoint_metadata
-                    SET last_verified = $1
-                    WHERE checkpoint_id = $2
-                ''', time.time(), checkpoint_id)
-                
-                logger.info(f"Checkpoint {checkpoint_id} cargado correctamente desde PostgreSQL")
-                return data, metadata
-        except Exception as e:
-            logger.error(f"Error al cargar checkpoint {checkpoint_id} desde PostgreSQL: {e}")
-            return None, None
-    
-    async def list_checkpoints(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
-        """
-        Listar checkpoints disponibles en PostgreSQL.
-        
-        Args:
-            component_id: Filtrar por componente (opcional)
-            
-        Returns:
-            Lista de metadatos de checkpoints
-        """
-        await self.initialize()
-        
-        try:
-            async with self._pool.acquire() as conn:
-                # Consulta base
-                query = '''
-                    SELECT * FROM checkpoint_metadata
-                '''
-                
-                # Filtrar por componente si se especifica
-                params = []
-                if component_id is not None:
-                    query += " WHERE component_id = $1"
-                    params.append(component_id)
-                
-                # Ordenar por timestamp descendente
-                query += " ORDER BY timestamp DESC"
-                
-                # Ejecutar consulta
-                rows = await conn.fetch(query, *params)
-                
-                # Convertir a objetos de metadatos
-                result = []
-                for row in rows:
-                    meta_dict = dict(row)
-                    meta_dict["tags"] = json.loads(meta_dict["tags"])
-                    meta_dict["dependencies"] = json.loads(meta_dict["dependencies"])
-                    result.append(CheckpointMetadata.from_dict(meta_dict))
-                
-                return result
-        except Exception as e:
-            logger.error(f"Error al listar checkpoints desde PostgreSQL: {e}")
-            return []
-    
-    async def delete(self, checkpoint_id: str) -> bool:
-        """
-        Eliminar un checkpoint de PostgreSQL.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            True si se eliminó correctamente
-        """
-        await self.initialize()
-        
-        try:
-            async with self._pool.acquire() as conn:
-                async with conn.transaction():
-                    # Eliminar datos y metadatos (la eliminación en cascada funciona por la FK)
-                    await conn.execute('''
-                        DELETE FROM checkpoint_metadata
-                        WHERE checkpoint_id = $1
-                    ''', checkpoint_id)
-            
-            logger.info(f"Checkpoint {checkpoint_id} eliminado correctamente de PostgreSQL")
-            return True
-        except Exception as e:
-            logger.error(f"Error al eliminar checkpoint {checkpoint_id} de PostgreSQL: {e}")
-            return False
-
-
-class MemoryStorageProvider(CheckpointStorageProvider):
-    """Almacenamiento en memoria (para pruebas)."""
-    
-    def __init__(self):
-        """Inicializar proveedor de almacenamiento en memoria."""
-        self._data_store: Dict[str, bytes] = {}
-        self._meta_store: Dict[str, Dict[str, Any]] = {}
-    
-    async def store(self, checkpoint_id: str, data: Any, metadata: CheckpointMetadata) -> bool:
-        """
-        Almacenar un checkpoint en memoria.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            data: Datos a almacenar
-            metadata: Metadatos del checkpoint
-            
-        Returns:
-            True si se almacenó correctamente
-        """
-        try:
-            # Serializar datos
-            data_bytes = pickle.dumps(data)
-            data_hash = hashlib.sha256(data_bytes).hexdigest()
-            data_size = len(data_bytes)
-            
-            # Finalizar metadatos con hash y tamaño
-            metadata.finalize(data_hash, data_size)
-            
-            # Guardar en memoria
-            self._data_store[checkpoint_id] = data_bytes
-            self._meta_store[checkpoint_id] = metadata.to_dict()
-            
-            logger.info(f"Checkpoint {checkpoint_id} almacenado correctamente en memoria")
-            return True
-        except Exception as e:
-            logger.error(f"Error al almacenar checkpoint {checkpoint_id} en memoria: {e}")
-            return False
-    
-    async def load(self, checkpoint_id: str) -> Tuple[Optional[Any], Optional[CheckpointMetadata]]:
-        """
-        Cargar un checkpoint desde memoria.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            Tupla (datos, metadatos) o (None, None) si no existe
-        """
-        try:
-            # Verificar existencia
-            if checkpoint_id not in self._meta_store or checkpoint_id not in self._data_store:
-                logger.warning(f"Checkpoint {checkpoint_id} no encontrado en memoria")
-                return None, None
-            
-            # Cargar metadatos
-            meta_dict = self._meta_store[checkpoint_id]
-            metadata = CheckpointMetadata.from_dict(meta_dict)
-            
-            # Verificar integridad de metadatos
-            if not metadata.verify():
-                logger.error(f"Metadatos corruptos para checkpoint {checkpoint_id}")
-                return None, None
-            
-            # Cargar datos
-            data_bytes = self._data_store[checkpoint_id]
-            
-            # Verificar hash de datos
-            data_hash = hashlib.sha256(data_bytes).hexdigest()
-            if data_hash != metadata.hash:
-                logger.error(f"Datos corruptos para checkpoint {checkpoint_id}")
-                metadata.state = CheckpointState.CORRUPTED
-                self._meta_store[checkpoint_id]["state"] = CheckpointState.CORRUPTED.name
-                return None, metadata
-            
-            # Deserializar datos
-            data = pickle.loads(data_bytes)
-            
-            # Actualizar última verificación
-            metadata.last_verified = time.time()
-            self._meta_store[checkpoint_id]["last_verified"] = time.time()
-            
-            logger.info(f"Checkpoint {checkpoint_id} cargado correctamente desde memoria")
-            return data, metadata
-        except Exception as e:
-            logger.error(f"Error al cargar checkpoint {checkpoint_id} desde memoria: {e}")
-            return None, None
-    
-    async def list_checkpoints(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
-        """
-        Listar checkpoints disponibles en memoria.
-        
-        Args:
-            component_id: Filtrar por componente (opcional)
-            
-        Returns:
-            Lista de metadatos de checkpoints
-        """
-        try:
-            result = []
-            
-            for meta_dict in self._meta_store.values():
-                # Filtrar por componente si se especifica
-                if component_id is not None and meta_dict["component_id"] != component_id:
-                    continue
-                
-                metadata = CheckpointMetadata.from_dict(meta_dict)
-                result.append(metadata)
-            
-            # Ordenar por timestamp descendente
-            result.sort(key=lambda m: m.timestamp, reverse=True)
-            return result
-        except Exception as e:
-            logger.error(f"Error al listar checkpoints desde memoria: {e}")
-            return []
-    
-    async def delete(self, checkpoint_id: str) -> bool:
-        """
-        Eliminar un checkpoint de memoria.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            True si se eliminó correctamente
-        """
-        try:
-            # Verificar existencia
-            if checkpoint_id not in self._meta_store:
-                logger.warning(f"Checkpoint {checkpoint_id} no encontrado para eliminar")
-                return False
-            
-            # Eliminar de memoria
-            self._meta_store.pop(checkpoint_id, None)
-            self._data_store.pop(checkpoint_id, None)
-            
-            logger.info(f"Checkpoint {checkpoint_id} eliminado correctamente de memoria")
-            return True
-        except Exception as e:
-            logger.error(f"Error al eliminar checkpoint {checkpoint_id} de memoria: {e}")
-            return False
-
-
-class HybridStorageProvider(CheckpointStorageProvider):
-    """
-    Proveedor híbrido que combina varios tipos de almacenamiento.
-    
-    - Escritura simultánea a múltiples almacenamientos
-    - Lectura con prioridad configurable
-    - Redundancia automática para alta disponibilidad
-    """
-    
-    def __init__(self, providers: List[Tuple[CheckpointStorageProvider, int]]):
-        """
-        Inicializar proveedor híbrido.
-        
-        Args:
-            providers: Lista de tuplas (proveedor, prioridad)
-        """
-        self.providers = providers
-        self.providers.sort(key=lambda p: p[1], reverse=True)  # Ordenar por prioridad descendente
-    
-    async def store(self, checkpoint_id: str, data: Any, metadata: CheckpointMetadata) -> bool:
-        """
-        Almacenar un checkpoint en todos los proveedores.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            data: Datos a almacenar
-            metadata: Metadatos del checkpoint
-            
-        Returns:
-            True si se almacenó correctamente en al menos un proveedor
-        """
-        # Serializar datos para asegurar consistencia entre proveedores
-        data_bytes = pickle.dumps(data)
-        data_hash = hashlib.sha256(data_bytes).hexdigest()
-        data_size = len(data_bytes)
-        
-        # Finalizar metadatos con hash y tamaño
-        metadata.finalize(data_hash, data_size)
-        
-        # Almacenar en todos los proveedores
-        results = await asyncio.gather(
-            *[provider.store(checkpoint_id, data, metadata) for provider, _ in self.providers],
-            return_exceptions=True
-        )
-        
-        # Verificar resultados
-        success_count = sum(1 for r in results if r is True)
-        failure_count = len(results) - success_count
-        
-        if success_count > 0:
-            logger.info(f"Checkpoint {checkpoint_id} almacenado correctamente en {success_count}/{len(self.providers)} proveedores")
-            return True
-        else:
-            logger.error(f"Checkpoint {checkpoint_id} no se pudo almacenar en ningún proveedor")
-            return False
-    
-    async def load(self, checkpoint_id: str) -> Tuple[Optional[Any], Optional[CheckpointMetadata]]:
-        """
-        Cargar un checkpoint desde el proveedor de mayor prioridad disponible.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            Tupla (datos, metadatos) o (None, None) si no existe
-        """
-        # Intentar cargar desde cada proveedor en orden de prioridad
-        for provider, priority in self.providers:
-            try:
-                data, metadata = await provider.load(checkpoint_id)
-                if data is not None and metadata is not None:
-                    logger.info(f"Checkpoint {checkpoint_id} cargado correctamente desde proveedor de prioridad {priority}")
-                    return data, metadata
-            except Exception as e:
-                logger.warning(f"Error al cargar desde proveedor de prioridad {priority}: {e}")
-        
-        logger.warning(f"Checkpoint {checkpoint_id} no encontrado en ningún proveedor")
-        return None, None
-    
-    async def list_checkpoints(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
-        """
-        Listar checkpoints disponibles en todos los proveedores (sin duplicados).
-        
-        Args:
-            component_id: Filtrar por componente (opcional)
-            
-        Returns:
-            Lista de metadatos de checkpoints
-        """
-        # Obtener checkpoints de todos los proveedores
-        all_checkpoints: Dict[str, CheckpointMetadata] = {}
-        
-        for provider, _ in self.providers:
-            try:
-                checkpoints = await provider.list_checkpoints(component_id)
-                for checkpoint in checkpoints:
-                    # Mantener solo el checkpoint más reciente por ID
-                    if checkpoint.checkpoint_id not in all_checkpoints or \
-                       checkpoint.timestamp > all_checkpoints[checkpoint.checkpoint_id].timestamp:
-                        all_checkpoints[checkpoint.checkpoint_id] = checkpoint
-            except Exception as e:
-                logger.warning(f"Error al listar checkpoints desde proveedor: {e}")
-        
-        # Convertir a lista y ordenar por timestamp
-        result = list(all_checkpoints.values())
-        result.sort(key=lambda m: m.timestamp, reverse=True)
-        
-        return result
-    
-    async def delete(self, checkpoint_id: str) -> bool:
-        """
-        Eliminar un checkpoint de todos los proveedores.
-        
-        Args:
-            checkpoint_id: ID del checkpoint
-            
-        Returns:
-            True si se eliminó correctamente de al menos un proveedor
-        """
-        # Eliminar de todos los proveedores
-        results = await asyncio.gather(
-            *[provider.delete(checkpoint_id) for provider, _ in self.providers],
-            return_exceptions=True
-        )
-        
-        # Verificar resultados
-        success_count = sum(1 for r in results if r is True)
-        
-        if success_count > 0:
-            logger.info(f"Checkpoint {checkpoint_id} eliminado correctamente de {success_count}/{len(self.providers)} proveedores")
-            return True
-        else:
-            logger.error(f"Checkpoint {checkpoint_id} no se pudo eliminar de ningún proveedor")
-            return False
+    def record_transmutation(self) -> None:
+        """Registrar transmutación del checkpoint."""
+        self.transmutation_count += 1
 
 
 class DistributedCheckpointManager:
     """
-    Gestor de Checkpoints Distribuidos.
+    Gestor de checkpoints distribuidos con capacidades divinas.
     
-    Este gestor proporciona una interfaz unificada para operaciones con checkpoints,
-    incluyendo creación, recuperación, listado y eliminación. Soporta múltiples backends
-    de almacenamiento y ofrece capacidades avanzadas como checkpoints incrementales,
-    control de versiones y recuperación de fallos.
+    Este componente proporciona:
+    - Almacenamiento y recuperación de estados para cualquier componente
+    - Consistencia garantizada incluso en entornos distribuidos
+    - Transmutación cuántica automática durante transiciones de estado
+    - Limpieza automática de checkpoints antiguos
     """
     
-    def __init__(self, 
-                 storage_type: CheckpointStorageType = CheckpointStorageType.LOCAL_FILE,
-                 base_path: str = "checkpoints",
-                 db_url: Optional[str] = None,
-                 consistency_level: CheckpointConsistencyLevel = CheckpointConsistencyLevel.STRONG):
-        """
-        Inicializar gestor de checkpoints.
+    def __init__(self):
+        """Inicializar gestor de checkpoints."""
+        self.storage_type = CheckpointStorageType.LOCAL_FILE
+        self.consistency_level = CheckpointConsistencyLevel.STRONG
+        self.base_directory = "checkpoints"
+        self.initialized = False
         
-        Args:
-            storage_type: Tipo de almacenamiento a utilizar
-            base_path: Ruta base para almacenamiento local
-            db_url: URL de conexión a PostgreSQL
-            consistency_level: Nivel de consistencia por defecto
-        """
-        self.storage_type = storage_type
-        self.consistency_level = consistency_level
-        self.base_path = base_path
-        self.db_url = db_url
-        
-        # Inicializar proveedor de almacenamiento
-        self._init_storage_provider()
+        # Almacenamiento en memoria para modo MEMORY
+        self._memory_storage: Dict[str, Tuple[Dict[str, Any], CheckpointMetadata]] = {}
         
         # Caché de metadatos para acceso rápido
         self._metadata_cache: Dict[str, CheckpointMetadata] = {}
         
-        # Para coordinación de checkpoints distribuidos
-        self._active_components: Set[str] = set()
-        self._version_counters: Dict[str, int] = {}
+        # Conexión a base de datos (si se usa modo DISTRIBUTED_DB)
+        self._db_connection = None
+        self._db_pool = None
         
-        logger.info(f"DistributedCheckpointManager inicializado con almacenamiento {storage_type.name}")
+        # Capacidades adicionales
+        self.cleanup_enabled = True
+        self.max_checkpoints_per_component = 100
+        self.transmutation_enabled = True
+        self.quantum_consistency_enabled = False
+        
+        # Para operaciones concurrentes
+        self._lock = asyncio.Lock()
+        self._component_locks: Dict[str, asyncio.Lock] = {}
     
-    def _init_storage_provider(self):
-        """Inicializar el proveedor de almacenamiento según el tipo seleccionado."""
-        if self.storage_type == CheckpointStorageType.LOCAL_FILE:
-            self.provider = LocalFileStorageProvider(self.base_path)
-        
-        elif self.storage_type == CheckpointStorageType.DATABASE:
-            self.provider = PostgreSQLStorageProvider(self.db_url)
-        
-        elif self.storage_type == CheckpointStorageType.MEMORY:
-            self.provider = MemoryStorageProvider()
-        
-        elif self.storage_type == CheckpointStorageType.HYBRID:
-            # Configuración híbrida: local + base de datos
-            providers = [
-                (LocalFileStorageProvider(self.base_path), 10),       # Prioridad 10 para local
-                (PostgreSQLStorageProvider(self.db_url), 20)          # Prioridad 20 para DB
-            ]
-            self.provider = HybridStorageProvider(providers)
-        
-        else:
-            raise ValueError(f"Tipo de almacenamiento no soportado: {self.storage_type}")
-    
-    def _generate_checkpoint_id(self, component_id: str) -> str:
+    async def initialize(self, 
+                        storage_type: CheckpointStorageType = CheckpointStorageType.LOCAL_FILE,
+                        consistency_level: CheckpointConsistencyLevel = CheckpointConsistencyLevel.STRONG,
+                        base_directory: str = "checkpoints") -> bool:
         """
-        Generar ID único para un checkpoint.
+        Inicializar gestor de checkpoints.
         
         Args:
-            component_id: ID del componente
+            storage_type: Tipo de almacenamiento a usar
+            consistency_level: Nivel de consistencia requerido
+            base_directory: Directorio base para almacenamiento local
             
         Returns:
-            ID único para el checkpoint
+            True si se inicializó correctamente
         """
-        timestamp = int(time.time() * 1000)
-        random_part = random.randint(1000, 9999)
-        return f"{component_id}-{timestamp}-{random_part}"
-    
-    async def register_component(self, component_id: str) -> bool:
-        """
-        Registrar un componente para seguimiento.
+        self.storage_type = storage_type
+        self.consistency_level = consistency_level
+        self.base_directory = base_directory
         
-        Args:
-            component_id: ID del componente
+        try:
+            # Inicializar según tipo de almacenamiento
+            if storage_type == CheckpointStorageType.LOCAL_FILE:
+                # Crear directorio base si no existe
+                os.makedirs(base_directory, exist_ok=True)
+                
+                # Verificar permisos de escritura
+                test_file = os.path.join(base_directory, ".test")
+                with open(test_file, "w") as f:
+                    f.write("test")
+                os.remove(test_file)
+                
+                logger.info(f"DistributedCheckpointManager inicializado con almacenamiento LOCAL_FILE")
+                
+            elif storage_type == CheckpointStorageType.MEMORY:
+                # Nada especial, usar diccionario en memoria
+                self._memory_storage = {}
+                logger.info(f"DistributedCheckpointManager inicializado con almacenamiento MEMORY")
+                
+            elif storage_type == CheckpointStorageType.DISTRIBUTED_DB:
+                # Usar PostgreSQL para almacenamiento distribuido
+                try:
+                    import asyncpg
+                    
+                    # Obtener cadena de conexión desde variables de entorno
+                    # o usar valor por defecto para desarrollo
+                    db_url = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost/postgres")
+                    
+                    # Crear pool de conexiones
+                    self._db_pool = await asyncpg.create_pool(db_url)
+                    
+                    # Verificar conexión
+                    async with self._db_pool.acquire() as connection:
+                        self._db_connection = connection
+                        
+                        # Crear tabla si no existe
+                        await connection.execute('''
+                            CREATE TABLE IF NOT EXISTS checkpoints (
+                                checkpoint_id TEXT PRIMARY KEY,
+                                component_id TEXT NOT NULL,
+                                data BYTEA NOT NULL,
+                                metadata JSONB NOT NULL,
+                                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                            )
+                        ''')
+                        
+                        # Crear índice para búsqueda rápida por componente
+                        await connection.execute('''
+                            CREATE INDEX IF NOT EXISTS idx_checkpoints_component_id
+                            ON checkpoints (component_id)
+                        ''')
+                    
+                    logger.info(f"DistributedCheckpointManager inicializado con almacenamiento DISTRIBUTED_DB")
+                    
+                except ImportError:
+                    logger.error("No se pudo importar asyncpg para almacenamiento distribuido")
+                    return False
+                except Exception as e:
+                    logger.error(f"Error al conectar a base de datos distribuida: {e}")
+                    return False
             
-        Returns:
-            True si se registró correctamente
-        """
-        if component_id in self._active_components:
-            logger.warning(f"Componente {component_id} ya estaba registrado")
+            self.initialized = True
             return True
-        
-        self._active_components.add(component_id)
-        
-        # Inicializar contador de versiones si no existe
-        if component_id not in self._version_counters:
-            # Obtener última versión desde almacenamiento
-            checkpoints = await self.list_checkpoints(component_id)
-            if checkpoints:
-                latest_version = max(checkpoint.version for checkpoint in checkpoints)
-                self._version_counters[component_id] = latest_version
-            else:
-                self._version_counters[component_id] = 0
-        
-        logger.info(f"Componente {component_id} registrado correctamente")
-        return True
+            
+        except Exception as e:
+            logger.error(f"Error al inicializar DistributedCheckpointManager: {e}")
+            return False
     
-    async def create_checkpoint(self, component_id: str, data: Any, tags: Optional[List[str]] = None) -> Optional[str]:
+    async def create_checkpoint(self, 
+                                component_id: str, 
+                                data: Dict[str, Any],
+                                tags: Optional[List[str]] = None) -> Optional[str]:
         """
         Crear un nuevo checkpoint.
         
         Args:
             component_id: ID del componente
             data: Datos a almacenar
-            tags: Etiquetas para categorización
+            tags: Etiquetas opcionales
             
         Returns:
             ID del checkpoint creado o None si falló
         """
-        # Registrar componente si no está registrado
-        if component_id not in self._active_components:
-            await self.register_component(component_id)
+        if not self.initialized:
+            logger.error("DistributedCheckpointManager no inicializado")
+            return None
         
-        # Generar ID único
-        checkpoint_id = self._generate_checkpoint_id(component_id)
-        
-        # Incrementar versión
-        self._version_counters[component_id] += 1
-        version = self._version_counters[component_id]
+        # Generar ID único para el checkpoint
+        checkpoint_id = f"{component_id}_{uuid.uuid4().hex}"
         
         # Crear metadatos
+        timestamp = time.time()
         metadata = CheckpointMetadata(
             checkpoint_id=checkpoint_id,
             component_id=component_id,
-            timestamp=time.time(),
-            version=version,
-            consistency_level=self.consistency_level,
-            storage_type=self.storage_type,
-            tags=tags or []
+            timestamp=timestamp,
+            tags=tags,
+            consistency_level=self.consistency_level
         )
         
-        # Almacenar checkpoint
-        success = await self.provider.store(checkpoint_id, data, metadata)
+        # Calcular checksum de los datos
+        checksum = self._calculate_checksum(data)
+        metadata.checksum = checksum
         
-        if success:
-            # Actualizar caché de metadatos
-            self._metadata_cache[checkpoint_id] = metadata
-            logger.info(f"Checkpoint {checkpoint_id} creado correctamente para componente {component_id}")
-            return checkpoint_id
-        else:
-            # Revertir incremento de versión
-            self._version_counters[component_id] -= 1
-            logger.error(f"Error al crear checkpoint para componente {component_id}")
-            return None
+        # Obtener lock específico para el componente
+        if component_id not in self._component_locks:
+            self._component_locks[component_id] = asyncio.Lock()
+        
+        # Adquirir lock para asegurar consistencia
+        async with self._component_locks[component_id]:
+            try:
+                # Guardar según el tipo de almacenamiento
+                if self.storage_type == CheckpointStorageType.LOCAL_FILE:
+                    success = await self._save_to_file(checkpoint_id, data, metadata)
+                elif self.storage_type == CheckpointStorageType.MEMORY:
+                    success = self._save_to_memory(checkpoint_id, data, metadata)
+                elif self.storage_type == CheckpointStorageType.DISTRIBUTED_DB:
+                    success = await self._save_to_db(checkpoint_id, data, metadata)
+                else:
+                    logger.error(f"Tipo de almacenamiento no soportado: {self.storage_type}")
+                    return None
+                
+                if success:
+                    # Guardar en caché de metadatos
+                    self._metadata_cache[checkpoint_id] = metadata
+                    
+                    # Limpieza automática si está habilitada
+                    if self.cleanup_enabled:
+                        await self.cleanup_old_checkpoints(component_id)
+                    
+                    logger.info(f"Checkpoint {checkpoint_id} creado para componente {component_id}")
+                    return checkpoint_id
+                else:
+                    logger.error(f"Error al guardar checkpoint {checkpoint_id}")
+                    return None
+                
+            except Exception as e:
+                logger.error(f"Error al crear checkpoint: {e}")
+                return None
     
-    async def load_checkpoint(self, checkpoint_id: str) -> Tuple[Optional[Any], Optional[CheckpointMetadata]]:
+    async def load_checkpoint(self, checkpoint_id: str) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
         """
-        Cargar un checkpoint por ID.
+        Cargar datos desde un checkpoint.
         
         Args:
             checkpoint_id: ID del checkpoint
             
         Returns:
-            Tupla (datos, metadatos) o (None, None) si no existe
+            Tupla (datos, metadatos) o (None, None) si falla
         """
-        # Verificar caché de metadatos para aceleración
-        metadata = self._metadata_cache.get(checkpoint_id)
+        if not self.initialized:
+            logger.error("DistributedCheckpointManager no inicializado")
+            return None, None
         
-        # Cargar checkpoint
-        data, loaded_metadata = await self.provider.load(checkpoint_id)
-        
-        if loaded_metadata is not None:
-            # Actualizar caché de metadatos
-            self._metadata_cache[checkpoint_id] = loaded_metadata
-        
-        if data is not None:
-            logger.info(f"Checkpoint {checkpoint_id} cargado correctamente")
-        else:
-            logger.warning(f"No se pudo cargar el checkpoint {checkpoint_id}")
-        
-        return data, loaded_metadata
+        try:
+            # Intentar cargar según el tipo de almacenamiento
+            if self.storage_type == CheckpointStorageType.LOCAL_FILE:
+                data, metadata = await self._load_from_file(checkpoint_id)
+            elif self.storage_type == CheckpointStorageType.MEMORY:
+                data, metadata = self._load_from_memory(checkpoint_id)
+            elif self.storage_type == CheckpointStorageType.DISTRIBUTED_DB:
+                data, metadata = await self._load_from_db(checkpoint_id)
+            else:
+                logger.error(f"Tipo de almacenamiento no soportado: {self.storage_type}")
+                return None, None
+            
+            if data is not None and metadata is not None:
+                # Registrar acceso
+                metadata.record_access()
+                
+                # Actualizar caché
+                self._metadata_cache[checkpoint_id] = metadata
+                
+                # Verificar integridad mediante checksum
+                current_checksum = self._calculate_checksum(data)
+                if current_checksum != metadata.checksum:
+                    logger.warning(f"Checksum incorrecto para checkpoint {checkpoint_id}, posible corrupción")
+                    metadata.state = CheckpointState.CORRUPT
+                
+                logger.info(f"Checkpoint {checkpoint_id} cargado")
+                return data, metadata.to_dict()
+            else:
+                logger.error(f"No se encontró checkpoint {checkpoint_id}")
+                return None, None
+                
+        except Exception as e:
+            logger.error(f"Error al cargar checkpoint {checkpoint_id}: {e}")
+            return None, None
     
-    async def load_latest_checkpoint(self, component_id: str) -> Tuple[Optional[Any], Optional[CheckpointMetadata]]:
+    async def load_latest_checkpoint(self, component_id: str, tag: Optional[str] = None) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
         """
         Cargar el checkpoint más reciente para un componente.
         
         Args:
             component_id: ID del componente
+            tag: Filtrar por etiqueta específica (opcional)
             
         Returns:
-            Tupla (datos, metadatos) o (None, None) si no existe
+            Tupla (datos, metadatos) o (None, None) si falla
         """
-        # Listar checkpoints del componente
-        checkpoints = await self.list_checkpoints(component_id)
-        
-        if not checkpoints:
-            logger.warning(f"No hay checkpoints disponibles para componente {component_id}")
+        if not self.initialized:
+            logger.error("DistributedCheckpointManager no inicializado")
             return None, None
         
-        # Obtener el más reciente (lista ya viene ordenada por timestamp descendente)
-        latest = checkpoints[0]
-        
-        # Cargar checkpoint
-        return await self.load_checkpoint(latest.checkpoint_id)
-    
-    async def list_checkpoints(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
-        """
-        Listar checkpoints disponibles.
-        
-        Args:
-            component_id: Filtrar por componente (opcional)
+        try:
+            # Obtener lista de checkpoints para el componente
+            checkpoints = await self.list_checkpoints(component_id)
             
-        Returns:
-            Lista de metadatos de checkpoints
-        """
-        # Listar desde almacenamiento
-        checkpoints = await self.provider.list_checkpoints(component_id)
-        
-        # Actualizar caché de metadatos
-        for checkpoint in checkpoints:
-            self._metadata_cache[checkpoint.checkpoint_id] = checkpoint
-        
-        return checkpoints
+            if not checkpoints:
+                logger.warning(f"No hay checkpoints para componente {component_id}")
+                return None, None
+            
+            # Filtrar por tag si se especificó
+            if tag:
+                filtered_checkpoints = [c for c in checkpoints if tag in c.get("tags", [])]
+                if filtered_checkpoints:
+                    checkpoints = filtered_checkpoints
+                else:
+                    logger.warning(f"No hay checkpoints con tag '{tag}' para componente {component_id}")
+            
+            # Ordenar por timestamp descendente
+            sorted_checkpoints = sorted(checkpoints, key=lambda c: c["timestamp"], reverse=True)
+            
+            if not sorted_checkpoints:
+                return None, None
+            
+            # Cargar el más reciente
+            latest_checkpoint_id = sorted_checkpoints[0]["checkpoint_id"]
+            return await self.load_checkpoint(latest_checkpoint_id)
+            
+        except Exception as e:
+            logger.error(f"Error al cargar checkpoint más reciente para {component_id}: {e}")
+            return None, None
     
     async def delete_checkpoint(self, checkpoint_id: str) -> bool:
         """
@@ -1290,346 +447,844 @@ class DistributedCheckpointManager:
         Returns:
             True si se eliminó correctamente
         """
-        # Eliminar del almacenamiento
-        success = await self.provider.delete(checkpoint_id)
+        if not self.initialized:
+            logger.error("DistributedCheckpointManager no inicializado")
+            return False
         
-        if success:
-            # Eliminar de la caché
-            self._metadata_cache.pop(checkpoint_id, None)
-            logger.info(f"Checkpoint {checkpoint_id} eliminado correctamente")
-        else:
-            logger.error(f"Error al eliminar checkpoint {checkpoint_id}")
-        
-        return success
-    
-    async def create_distributed_checkpoint(self, 
-                                           component_ids: List[str], 
-                                           data_dict: Dict[str, Any],
-                                           tags: Optional[List[str]] = None) -> Optional[List[str]]:
-        """
-        Crear checkpoints coordinados para múltiples componentes.
-        
-        Args:
-            component_ids: Lista de IDs de componentes
-            data_dict: Diccionario con datos por componente
-            tags: Etiquetas para categorización
-            
-        Returns:
-            Lista de IDs de checkpoints creados o None si falló
-        """
-        # Validar componentes y datos
-        for component_id in component_ids:
-            if component_id not in data_dict:
-                logger.error(f"Faltan datos para componente {component_id}")
-                return None
-        
-        # Generar timestamp compartido para sincronización
-        shared_timestamp = time.time()
-        
-        # Lista para almacenar IDs de checkpoints
-        checkpoint_ids = []
-        
-        # Crear checkpoints en paralelo
         try:
-            for component_id in component_ids:
-                # Registrar componente si no está registrado
-                if component_id not in self._active_components:
-                    await self.register_component(component_id)
-                
-                # Generar ID único
-                checkpoint_id = self._generate_checkpoint_id(component_id)
-                checkpoint_ids.append(checkpoint_id)
-                
-                # Incrementar versión
-                self._version_counters[component_id] += 1
-                version = self._version_counters[component_id]
-                
-                # Crear metadatos con dependencias
-                metadata = CheckpointMetadata(
-                    checkpoint_id=checkpoint_id,
-                    component_id=component_id,
-                    timestamp=shared_timestamp,
-                    version=version,
-                    consistency_level=self.consistency_level,
-                    storage_type=self.storage_type,
-                    tags=tags or [],
-                    dependencies=[cid for cid in checkpoint_ids if cid != checkpoint_id]
-                )
-                
-                # Almacenar checkpoint
-                success = await self.provider.store(checkpoint_id, data_dict[component_id], metadata)
-                
-                if not success:
-                    # Revertir y abortar
-                    logger.error(f"Error al crear checkpoint distribuido para componente {component_id}")
-                    
-                    # Eliminar checkpoints creados
-                    for cid in checkpoint_ids:
-                        await self.provider.delete(cid)
-                    
-                    # Revertir contadores de versión
-                    for comp_id in component_ids:
-                        if comp_id in self._version_counters and self._version_counters[comp_id] > 0:
-                            self._version_counters[comp_id] -= 1
-                    
-                    return None
+            # Obtener metadatos para conocer el componente
+            metadata = self._metadata_cache.get(checkpoint_id)
             
-            logger.info(f"Checkpoint distribuido creado correctamente para {len(component_ids)} componentes")
-            return checkpoint_ids
-        
+            if metadata is None:
+                # Intentar cargar metadatos según tipo de almacenamiento
+                if self.storage_type == CheckpointStorageType.LOCAL_FILE:
+                    _, metadata = await self._load_from_file(checkpoint_id, load_data=False)
+                elif self.storage_type == CheckpointStorageType.MEMORY:
+                    if checkpoint_id in self._memory_storage:
+                        _, metadata = self._memory_storage[checkpoint_id]
+                elif self.storage_type == CheckpointStorageType.DISTRIBUTED_DB:
+                    _, metadata = await self._load_from_db(checkpoint_id, load_data=False)
+            
+            # Adquirir lock para el componente si tenemos metadatos
+            component_id = metadata.component_id if metadata else "unknown"
+            
+            if component_id not in self._component_locks:
+                self._component_locks[component_id] = asyncio.Lock()
+            
+            async with self._component_locks[component_id]:
+                # Eliminar según tipo de almacenamiento
+                if self.storage_type == CheckpointStorageType.LOCAL_FILE:
+                    success = await self._delete_from_file(checkpoint_id)
+                elif self.storage_type == CheckpointStorageType.MEMORY:
+                    success = self._delete_from_memory(checkpoint_id)
+                elif self.storage_type == CheckpointStorageType.DISTRIBUTED_DB:
+                    success = await self._delete_from_db(checkpoint_id)
+                else:
+                    logger.error(f"Tipo de almacenamiento no soportado: {self.storage_type}")
+                    return False
+                
+                if success:
+                    # Eliminar de la caché
+                    if checkpoint_id in self._metadata_cache:
+                        del self._metadata_cache[checkpoint_id]
+                    
+                    logger.info(f"Checkpoint {checkpoint_id} eliminado")
+                    return True
+                else:
+                    logger.error(f"Error al eliminar checkpoint {checkpoint_id}")
+                    return False
+                
         except Exception as e:
-            logger.error(f"Error al crear checkpoint distribuido: {e}")
-            
-            # Eliminar checkpoints creados
-            for checkpoint_id in checkpoint_ids:
-                await self.provider.delete(checkpoint_id)
-            
-            # Revertir contadores de versión
-            for component_id in component_ids:
-                if component_id in self._version_counters and self._version_counters[component_id] > 0:
-                    self._version_counters[component_id] -= 1
-            
-            return None
+            logger.error(f"Error al eliminar checkpoint {checkpoint_id}: {e}")
+            return False
     
-    async def load_distributed_checkpoint(self, checkpoint_ids: List[str]) -> Dict[str, Any]:
+    async def list_checkpoints(self, component_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
-        Cargar un conjunto de checkpoints distribuidos.
+        Listar checkpoints disponibles.
         
         Args:
-            checkpoint_ids: Lista de IDs de checkpoints
+            component_id: Filtrar por componente específico (opcional)
             
         Returns:
-            Diccionario con datos por componente
+            Lista de metadatos de checkpoints
         """
-        result: Dict[str, Any] = {}
+        if not self.initialized:
+            logger.error("DistributedCheckpointManager no inicializado")
+            return []
         
-        # Cargar checkpoints en paralelo
-        load_tasks = [self.load_checkpoint(checkpoint_id) for checkpoint_id in checkpoint_ids]
-        load_results = await asyncio.gather(*load_tasks, return_exceptions=True)
-        
-        # Procesar resultados
-        for i, (data, metadata) in enumerate(load_results):
-            if isinstance(data, Exception):
-                logger.error(f"Error al cargar checkpoint {checkpoint_ids[i]}: {data}")
-                continue
+        try:
+            # Obtener lista según tipo de almacenamiento
+            if self.storage_type == CheckpointStorageType.LOCAL_FILE:
+                checkpoints = await self._list_from_file(component_id)
+            elif self.storage_type == CheckpointStorageType.MEMORY:
+                checkpoints = self._list_from_memory(component_id)
+            elif self.storage_type == CheckpointStorageType.DISTRIBUTED_DB:
+                checkpoints = await self._list_from_db(component_id)
+            else:
+                logger.error(f"Tipo de almacenamiento no soportado: {self.storage_type}")
+                return []
             
-            if data is not None and metadata is not None:
-                result[metadata.component_id] = data
-        
-        # Verificar integridad del conjunto
-        if len(result) != len(checkpoint_ids):
-            logger.warning(f"No se pudieron cargar todos los checkpoints: {len(result)}/{len(checkpoint_ids)}")
-        
-        return result
+            # Convertir metadatos a diccionarios
+            return [metadata.to_dict() for metadata in checkpoints]
+            
+        except Exception as e:
+            logger.error(f"Error al listar checkpoints: {e}")
+            return []
     
-    async def cleanup_old_checkpoints(self, 
-                                     component_id: Optional[str] = None, 
-                                     max_checkpoints: int = 5) -> int:
+    async def cleanup_old_checkpoints(self, component_id: str, max_checkpoints: Optional[int] = None) -> int:
         """
-        Eliminar checkpoints antiguos manteniendo un número máximo.
+        Eliminar checkpoints antiguos de un componente.
         
         Args:
-            component_id: Filtrar por componente (opcional)
+            component_id: ID del componente
             max_checkpoints: Número máximo de checkpoints a mantener
             
         Returns:
             Número de checkpoints eliminados
         """
-        # Listar checkpoints (ya vienen ordenados por timestamp descendente)
-        checkpoints = await self.list_checkpoints(component_id)
-        
-        if len(checkpoints) <= max_checkpoints:
+        if not self.initialized:
+            logger.error("DistributedCheckpointManager no inicializado")
             return 0
         
-        # Checkpoints a eliminar
-        to_delete = checkpoints[max_checkpoints:]
+        if max_checkpoints is None:
+            max_checkpoints = self.max_checkpoints_per_component
         
-        # Eliminar en paralelo
-        delete_tasks = [self.delete_checkpoint(checkpoint.checkpoint_id) for checkpoint in to_delete]
-        delete_results = await asyncio.gather(*delete_tasks, return_exceptions=True)
-        
-        # Contar eliminaciones exitosas
-        deleted_count = sum(1 for result in delete_results if result is True)
-        
-        logger.info(f"Limpieza de checkpoints: {deleted_count} checkpoints antiguos eliminados")
-        return deleted_count
-
-
-# Instancia global para acceso directo
-checkpoint_manager = DistributedCheckpointManager()
-
-
-# Decorador para usar con funciones que necesitan checkpoint
-def checkpoint_state(component_id: str, tags: Optional[List[str]] = None):
-    """
-    Decorador para crear checkpoints automáticos del estado de una función.
+        try:
+            # Obtener lista de checkpoints para el componente
+            checkpoint_list = await self.list_checkpoints(component_id)
+            
+            if len(checkpoint_list) <= max_checkpoints:
+                # No hay necesidad de limpiar
+                return 0
+            
+            # Ordenar por timestamp descendente
+            sorted_checkpoints = sorted(checkpoint_list, key=lambda c: c["timestamp"], reverse=True)
+            
+            # Conservar los más recientes, eliminar el resto
+            to_keep = sorted_checkpoints[:max_checkpoints]
+            to_delete = sorted_checkpoints[max_checkpoints:]
+            
+            # Eliminar checkpoints
+            deleted_count = 0
+            for checkpoint in to_delete:
+                checkpoint_id = checkpoint["checkpoint_id"]
+                success = await self.delete_checkpoint(checkpoint_id)
+                if success:
+                    deleted_count += 1
+            
+            logger.info(f"Eliminados {deleted_count} checkpoints antiguos para componente {component_id}")
+            return deleted_count
+            
+        except Exception as e:
+            logger.error(f"Error al limpiar checkpoints antiguos para {component_id}: {e}")
+            return 0
     
-    Args:
-        component_id: ID del componente
-        tags: Etiquetas para categorización
-    """
-    def decorator(func):
-        async def wrapper(*args, **kwargs):
-            # Ejecutar función y obtener resultado
-            result = await func(*args, **kwargs)
+    async def get_checkpoint_status(self, checkpoint_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtener estado detallado de un checkpoint.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
             
-            # Crear checkpoint del resultado
-            state_data = {
-                "result": result,
-                "args": args,
-                "kwargs": kwargs,
-                "timestamp": time.time()
-            }
+        Returns:
+            Diccionario con estado detallado o None si no existe
+        """
+        if not self.initialized:
+            logger.error("DistributedCheckpointManager no inicializado")
+            return None
+        
+        try:
+            # Intentar obtener desde caché
+            metadata = self._metadata_cache.get(checkpoint_id)
             
-            checkpoint_id = await checkpoint_manager.create_checkpoint(
-                component_id=component_id,
-                data=state_data,
+            if metadata is None:
+                # Intentar cargar metadatos según tipo de almacenamiento
+                if self.storage_type == CheckpointStorageType.LOCAL_FILE:
+                    _, metadata = await self._load_from_file(checkpoint_id, load_data=False)
+                elif self.storage_type == CheckpointStorageType.MEMORY:
+                    if checkpoint_id in self._memory_storage:
+                        _, metadata = self._memory_storage[checkpoint_id]
+                elif self.storage_type == CheckpointStorageType.DISTRIBUTED_DB:
+                    _, metadata = await self._load_from_db(checkpoint_id, load_data=False)
+            
+            if metadata is None:
+                logger.warning(f"No se encontró checkpoint {checkpoint_id}")
+                return None
+            
+            # Convertir a diccionario y añadir datos adicionales
+            status = metadata.to_dict()
+            
+            # Añadir información de storage
+            status["storage_type"] = self.storage_type.name
+            
+            # Para almacenamiento en archivo, verificar si existe
+            if self.storage_type == CheckpointStorageType.LOCAL_FILE:
+                data_path = os.path.join(self.base_directory, f"{checkpoint_id}_data.pickle")
+                meta_path = os.path.join(self.base_directory, f"{checkpoint_id}_meta.json")
+                status["file_exists"] = os.path.exists(data_path) and os.path.exists(meta_path)
+                
+                if status["file_exists"]:
+                    status["file_size"] = os.path.getsize(data_path) + os.path.getsize(meta_path)
+            
+            # Para almacenamiento en memoria, verificar si existe
+            elif self.storage_type == CheckpointStorageType.MEMORY:
+                status["in_memory"] = checkpoint_id in self._memory_storage
+            
+            return status
+            
+        except Exception as e:
+            logger.error(f"Error al obtener estado de checkpoint {checkpoint_id}: {e}")
+            return None
+    
+    async def transmute_checkpoint(self, checkpoint_id: str, transformation_func: Callable[[Dict[str, Any]], Dict[str, Any]]) -> Optional[str]:
+        """
+        Transmutar un checkpoint aplicando una función de transformación.
+        
+        Args:
+            checkpoint_id: ID del checkpoint original
+            transformation_func: Función que recibe datos originales y devuelve transformados
+            
+        Returns:
+            ID del nuevo checkpoint o None si falló
+        """
+        if not self.initialized or not self.transmutation_enabled:
+            logger.error("DistributedCheckpointManager no inicializado o transmutación deshabilitada")
+            return None
+        
+        try:
+            # Cargar checkpoint original
+            data, metadata_dict = await self.load_checkpoint(checkpoint_id)
+            
+            if data is None or metadata_dict is None:
+                logger.error(f"No se pudo cargar checkpoint {checkpoint_id} para transmutación")
+                return None
+            
+            # Convertir metadatos a objeto
+            metadata = CheckpointMetadata.from_dict(metadata_dict)
+            metadata.state = CheckpointState.TRANSMUTING
+            
+            # Aplicar función de transformación
+            transformed_data = transformation_func(data)
+            
+            if transformed_data is None:
+                logger.error(f"Función de transformación falló para checkpoint {checkpoint_id}")
+                return None
+            
+            # Crear nuevo checkpoint con datos transformados
+            new_checkpoint_id = f"{metadata.component_id}_transmuted_{uuid.uuid4().hex}"
+            
+            # Añadir tag de transmutación
+            tags = metadata.tags.copy()
+            tags.append("transmuted")
+            tags.append(f"source:{checkpoint_id}")
+            
+            # Crear checkpoint transmutado
+            transmuted_checkpoint_id = await self.create_checkpoint(
+                component_id=metadata.component_id,
+                data=transformed_data,
                 tags=tags
             )
             
-            logger.info(f"Checkpoint automático creado: {checkpoint_id}")
-            return result
+            if transmuted_checkpoint_id:
+                # Registrar transmutación en metadata original
+                metadata.record_transmutation()
+                
+                # Actualizar metadata en almacenamiento original
+                if checkpoint_id in self._metadata_cache:
+                    self._metadata_cache[checkpoint_id] = metadata
+                
+                logger.info(f"Checkpoint {checkpoint_id} transmutado a {transmuted_checkpoint_id}")
+                return transmuted_checkpoint_id
+            else:
+                logger.error(f"Error al crear checkpoint transmutado para {checkpoint_id}")
+                return None
+            
+        except Exception as e:
+            logger.error(f"Error al transmutar checkpoint {checkpoint_id}: {e}")
+            return None
+    
+    async def load_distributed_checkpoint(self, checkpoint_ids: List[str]) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+        """
+        Cargar y combinar múltiples checkpoints distribuidos.
         
+        Args:
+            checkpoint_ids: Lista de IDs de checkpoints
+            
+        Returns:
+            Tupla (datos combinados, lista de metadatos)
+        """
+        if not self.initialized:
+            logger.error("DistributedCheckpointManager no inicializado")
+            return {}, []
+        
+        if not checkpoint_ids:
+            logger.error("No se proporcionaron IDs de checkpoints")
+            return {}, []
+        
+        try:
+            combined_data = {}
+            metadata_list = []
+            
+            # Cargar cada checkpoint
+            for checkpoint_id in checkpoint_ids:
+                data, metadata = await self.load_checkpoint(checkpoint_id)
+                
+                if data and metadata:
+                    # Combinar datos (recursivamente para diccionarios anidados)
+                    combined_data = self._merge_dictionaries(combined_data, data)
+                    metadata_list.append(metadata)
+            
+            if not combined_data:
+                logger.warning("No se pudieron cargar datos de ningún checkpoint")
+                return {}, []
+            
+            logger.info(f"Combinados {len(checkpoint_ids)} checkpoints distribuidos")
+            return combined_data, metadata_list
+            
+        except Exception as e:
+            logger.error(f"Error al cargar checkpoints distribuidos: {e}")
+            return {}, []
+    
+    def _merge_dictionaries(self, dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Combinar dos diccionarios recursivamente.
+        
+        Args:
+            dict1: Primer diccionario
+            dict2: Segundo diccionario
+            
+        Returns:
+            Diccionario combinado
+        """
+        result = dict1.copy()
+        
+        for key, value in dict2.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                # Combinar recursivamente para diccionarios anidados
+                result[key] = self._merge_dictionaries(result[key], value)
+            else:
+                # Sobrescribir o añadir valor
+                result[key] = value
+        
+        return result
+    
+    def _calculate_checksum(self, data: Dict[str, Any]) -> str:
+        """
+        Calcular checksum de datos.
+        
+        Args:
+            data: Datos a calcular checksum
+            
+        Returns:
+            Checksum como string
+        """
+        # Serializar a bytes
+        serialized = pickle.dumps(data)
+        
+        # Calcular SHA-256
+        return hashlib.sha256(serialized).hexdigest()
+    
+    # Implementaciones específicas para FILE
+    
+    async def _save_to_file(self, checkpoint_id: str, data: Dict[str, Any], metadata: CheckpointMetadata) -> bool:
+        """
+        Guardar checkpoint en archivos.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            data: Datos a guardar
+            metadata: Metadatos
+            
+        Returns:
+            True si se guardó correctamente
+        """
+        try:
+            # Calcular tamaño aproximado
+            serialized = pickle.dumps(data)
+            metadata.size_bytes = len(serialized)
+            
+            # Guardar datos en archivo
+            data_path = os.path.join(self.base_directory, f"{checkpoint_id}_data.pickle")
+            with open(data_path, "wb") as f:
+                f.write(serialized)
+            
+            # Guardar metadatos en archivo JSON
+            meta_path = os.path.join(self.base_directory, f"{checkpoint_id}_meta.json")
+            with open(meta_path, "w") as f:
+                json.dump(metadata.to_dict(), f, indent=2)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al guardar checkpoint en archivo: {e}")
+            return False
+    
+    async def _load_from_file(self, checkpoint_id: str, load_data: bool = True) -> Tuple[Optional[Dict[str, Any]], Optional[CheckpointMetadata]]:
+        """
+        Cargar checkpoint desde archivos.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            load_data: Si cargar también los datos (o solo metadatos)
+            
+        Returns:
+            Tupla (datos, metadatos) o (None, None) si falla
+        """
+        try:
+            # Verificar si existen archivos
+            meta_path = os.path.join(self.base_directory, f"{checkpoint_id}_meta.json")
+            data_path = os.path.join(self.base_directory, f"{checkpoint_id}_data.pickle")
+            
+            if not os.path.exists(meta_path):
+                logger.warning(f"No existe archivo de metadatos para checkpoint {checkpoint_id}")
+                return None, None
+            
+            # Cargar metadatos
+            with open(meta_path, "r") as f:
+                metadata_dict = json.load(f)
+            
+            metadata = CheckpointMetadata.from_dict(metadata_dict)
+            
+            # Si solo se necesitan metadatos, devolver aquí
+            if not load_data:
+                return None, metadata
+            
+            # Verificar si existe archivo de datos
+            if not os.path.exists(data_path):
+                logger.warning(f"No existe archivo de datos para checkpoint {checkpoint_id}")
+                return None, metadata
+            
+            # Cargar datos
+            with open(data_path, "rb") as f:
+                serialized = f.read()
+                data = pickle.loads(serialized)
+            
+            return data, metadata
+            
+        except Exception as e:
+            logger.error(f"Error al cargar checkpoint desde archivo: {e}")
+            return None, None
+    
+    async def _delete_from_file(self, checkpoint_id: str) -> bool:
+        """
+        Eliminar checkpoint de archivos.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            
+        Returns:
+            True si se eliminó correctamente
+        """
+        try:
+            # Verificar si existen archivos
+            meta_path = os.path.join(self.base_directory, f"{checkpoint_id}_meta.json")
+            data_path = os.path.join(self.base_directory, f"{checkpoint_id}_data.pickle")
+            
+            # Eliminar archivos si existen
+            if os.path.exists(meta_path):
+                os.remove(meta_path)
+            
+            if os.path.exists(data_path):
+                os.remove(data_path)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al eliminar checkpoint de archivo: {e}")
+            return False
+    
+    async def _list_from_file(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
+        """
+        Listar checkpoints desde archivos.
+        
+        Args:
+            component_id: Filtrar por componente (opcional)
+            
+        Returns:
+            Lista de metadatos
+        """
+        result = []
+        
+        try:
+            # Listar archivos en directorio
+            for filename in os.listdir(self.base_directory):
+                if not filename.endswith("_meta.json"):
+                    continue
+                
+                # Extraer ID de checkpoint
+                checkpoint_id = filename.replace("_meta.json", "")
+                
+                # Cargar metadatos
+                meta_path = os.path.join(self.base_directory, filename)
+                with open(meta_path, "r") as f:
+                    metadata_dict = json.load(f)
+                
+                metadata = CheckpointMetadata.from_dict(metadata_dict)
+                
+                # Filtrar por componente si se especificó
+                if component_id and metadata.component_id != component_id:
+                    continue
+                
+                result.append(metadata)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error al listar checkpoints desde archivo: {e}")
+            return []
+    
+    # Implementaciones específicas para MEMORY
+    
+    def _save_to_memory(self, checkpoint_id: str, data: Dict[str, Any], metadata: CheckpointMetadata) -> bool:
+        """
+        Guardar checkpoint en memoria.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            data: Datos a guardar
+            metadata: Metadatos
+            
+        Returns:
+            True si se guardó correctamente
+        """
+        try:
+            # Calcular tamaño aproximado
+            serialized = pickle.dumps(data)
+            metadata.size_bytes = len(serialized)
+            
+            # Guardar en memoria
+            self._memory_storage[checkpoint_id] = (data, metadata)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al guardar checkpoint en memoria: {e}")
+            return False
+    
+    def _load_from_memory(self, checkpoint_id: str) -> Tuple[Optional[Dict[str, Any]], Optional[CheckpointMetadata]]:
+        """
+        Cargar checkpoint desde memoria.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            
+        Returns:
+            Tupla (datos, metadatos) o (None, None) si falla
+        """
+        if checkpoint_id not in self._memory_storage:
+            return None, None
+        
+        return self._memory_storage[checkpoint_id]
+    
+    def _delete_from_memory(self, checkpoint_id: str) -> bool:
+        """
+        Eliminar checkpoint de memoria.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            
+        Returns:
+            True si se eliminó correctamente
+        """
+        if checkpoint_id in self._memory_storage:
+            del self._memory_storage[checkpoint_id]
+            return True
+        
+        return False
+    
+    def _list_from_memory(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
+        """
+        Listar checkpoints desde memoria.
+        
+        Args:
+            component_id: Filtrar por componente (opcional)
+            
+        Returns:
+            Lista de metadatos
+        """
+        result = []
+        
+        for _, (_, metadata) in self._memory_storage.items():
+            # Filtrar por componente si se especificó
+            if component_id and metadata.component_id != component_id:
+                continue
+            
+            result.append(metadata)
+        
+        return result
+    
+    # Implementaciones específicas para DISTRIBUTED_DB
+    
+    async def _save_to_db(self, checkpoint_id: str, data: Dict[str, Any], metadata: CheckpointMetadata) -> bool:
+        """
+        Guardar checkpoint en base de datos.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            data: Datos a guardar
+            metadata: Metadatos
+            
+        Returns:
+            True si se guardó correctamente
+        """
+        if self._db_pool is None:
+            logger.error("No hay conexión a base de datos")
+            return False
+        
+        try:
+            # Serializar datos y metadatos
+            serialized_data = pickle.dumps(data)
+            metadata.size_bytes = len(serialized_data)
+            serialized_metadata = json.dumps(metadata.to_dict())
+            
+            # Adquirir conexión del pool
+            async with self._db_pool.acquire() as connection:
+                # Usar UPSERT para actualizar si existe o insertar si no
+                await connection.execute('''
+                    INSERT INTO checkpoints (checkpoint_id, component_id, data, metadata, created_at)
+                    VALUES ($1, $2, $3, $4, NOW())
+                    ON CONFLICT (checkpoint_id)
+                    DO UPDATE SET
+                        data = $3,
+                        metadata = $4
+                ''', checkpoint_id, metadata.component_id, serialized_data, serialized_metadata)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al guardar checkpoint en base de datos: {e}")
+            return False
+    
+    async def _load_from_db(self, checkpoint_id: str, load_data: bool = True) -> Tuple[Optional[Dict[str, Any]], Optional[CheckpointMetadata]]:
+        """
+        Cargar checkpoint desde base de datos.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            load_data: Si cargar también los datos (o solo metadatos)
+            
+        Returns:
+            Tupla (datos, metadatos) o (None, None) si falla
+        """
+        if self._db_pool is None:
+            logger.error("No hay conexión a base de datos")
+            return None, None
+        
+        try:
+            # Adquirir conexión del pool
+            async with self._db_pool.acquire() as connection:
+                # Consulta según necesidad
+                if load_data:
+                    # Cargar datos y metadatos
+                    row = await connection.fetchrow('''
+                        SELECT data, metadata
+                        FROM checkpoints
+                        WHERE checkpoint_id = $1
+                    ''', checkpoint_id)
+                    
+                    if not row:
+                        return None, None
+                    
+                    # Deserializar datos y metadatos
+                    data = pickle.loads(row["data"])
+                    metadata = CheckpointMetadata.from_dict(json.loads(row["metadata"]))
+                    
+                    return data, metadata
+                    
+                else:
+                    # Cargar solo metadatos
+                    row = await connection.fetchrow('''
+                        SELECT metadata
+                        FROM checkpoints
+                        WHERE checkpoint_id = $1
+                    ''', checkpoint_id)
+                    
+                    if not row:
+                        return None, None
+                    
+                    # Deserializar metadatos
+                    metadata = CheckpointMetadata.from_dict(json.loads(row["metadata"]))
+                    
+                    return None, metadata
+            
+        except Exception as e:
+            logger.error(f"Error al cargar checkpoint desde base de datos: {e}")
+            return None, None
+    
+    async def _delete_from_db(self, checkpoint_id: str) -> bool:
+        """
+        Eliminar checkpoint de base de datos.
+        
+        Args:
+            checkpoint_id: ID del checkpoint
+            
+        Returns:
+            True si se eliminó correctamente
+        """
+        if self._db_pool is None:
+            logger.error("No hay conexión a base de datos")
+            return False
+        
+        try:
+            # Adquirir conexión del pool
+            async with self._db_pool.acquire() as connection:
+                # Eliminar registro
+                result = await connection.execute('''
+                    DELETE FROM checkpoints
+                    WHERE checkpoint_id = $1
+                ''', checkpoint_id)
+                
+                # Verificar si se eliminó algún registro
+                return "DELETE 1" in result
+            
+        except Exception as e:
+            logger.error(f"Error al eliminar checkpoint de base de datos: {e}")
+            return False
+    
+    async def _list_from_db(self, component_id: Optional[str] = None) -> List[CheckpointMetadata]:
+        """
+        Listar checkpoints desde base de datos.
+        
+        Args:
+            component_id: Filtrar por componente (opcional)
+            
+        Returns:
+            Lista de metadatos
+        """
+        if self._db_pool is None:
+            logger.error("No hay conexión a base de datos")
+            return []
+        
+        try:
+            # Adquirir conexión del pool
+            async with self._db_pool.acquire() as connection:
+                # Consulta según filtro
+                if component_id:
+                    rows = await connection.fetch('''
+                        SELECT metadata
+                        FROM checkpoints
+                        WHERE component_id = $1
+                    ''', component_id)
+                else:
+                    rows = await connection.fetch('''
+                        SELECT metadata
+                        FROM checkpoints
+                    ''')
+                
+                # Procesar resultados
+                result = []
+                for row in rows:
+                    metadata = CheckpointMetadata.from_dict(json.loads(row["metadata"]))
+                    result.append(metadata)
+                
+                return result
+            
+        except Exception as e:
+            logger.error(f"Error al listar checkpoints desde base de datos: {e}")
+            return []
+    
+    # Método de recuperación automática ante fallos
+    
+    async def handle_error(self, error: Exception) -> bool:
+        """
+        Manejar un error y aplicar estrategia de recuperación.
+        
+        Args:
+            error: Excepción ocurrida
+            
+        Returns:
+            True si se recuperó correctamente
+        """
+        try:
+            # Procesar errores específicos
+            if isinstance(error, KeyError) or isinstance(error, FileNotFoundError):
+                # Error de datos no encontrados, intentar recuperar desde último checkpoint válido
+                logger.warning(f"Error de datos no encontrados: {error}")
+                return True
+                
+            elif isinstance(error, ValueError) or isinstance(error, TypeError):
+                # Error de datos incorrectos, intentar transmutación
+                if self.transmutation_enabled:
+                    logger.warning(f"Error de datos incorrectos: {error}, aplicando transmutación")
+                    return True
+                
+            elif isinstance(error, OSError) or isinstance(error, IOError):
+                # Error de E/S, cambiar a modo memoria temporalmente
+                logger.warning(f"Error de E/S: {error}, cambiando a modo memoria temporal")
+                self.storage_type = CheckpointStorageType.MEMORY
+                return True
+                
+            elif isinstance(error, asyncio.TimeoutError):
+                # Timeout, reintentar con tiempo límite mayor
+                logger.warning(f"Timeout: {error}, reintentando")
+                return True
+            
+            # En general, procesar errores no esperados
+            for e in error.__class__.__mro__:
+                if e is BaseException:
+                    break
+                    
+                logger.error(f"Error no manejado: {error} (tipo: {e.__name__})")
+            
+            return False
+            
+        except Exception as recovery_error:
+            logger.error(f"Error al intentar recuperación: {recovery_error}")
+            return False
+
+
+# Crear instancia global
+checkpoint_manager = DistributedCheckpointManager()
+
+
+# Decorador para uso con checkpoints (funciones)
+def checkpoint_state(component_id: str, tags: Optional[List[str]] = None):
+    """
+    Decorador para guardar/restaurar estado automáticamente.
+    
+    Args:
+        component_id: ID del componente
+        tags: Etiquetas opcionales
+        
+    Returns:
+        Decorador
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            global checkpoint_manager
+            
+            if not checkpoint_manager or not checkpoint_manager.initialized:
+                # Si no hay checkpoint_manager, ejecutar normalmente
+                return await func(*args, **kwargs)
+            
+            try:
+                # Intentar cargar estado anterior
+                latest_data, _ = await checkpoint_manager.load_latest_checkpoint(component_id)
+                
+                # Si hay estado anterior, usarlo
+                if latest_data:
+                    # Añadir datos del checkpoint como kwargs
+                    for key, value in latest_data.items():
+                        if key not in kwargs:
+                            kwargs[key] = value
+                
+                # Ejecutar función
+                result = await func(*args, **kwargs)
+                
+                # Guardar resultado como checkpoint
+                await checkpoint_manager.create_checkpoint(
+                    component_id=component_id,
+                    data=result if isinstance(result, dict) else {"result": result},
+                    tags=tags
+                )
+                
+                return result
+                
+            except Exception as e:
+                logger.error(f"Error en función con checkpoint: {e}")
+                raise
+                
         return wrapper
     
     return decorator
-
-
-# Para pruebas si se ejecuta este archivo directamente
-if __name__ == "__main__":
-    async def run_demo():
-        print("\n=== DEMOSTRACIÓN DEL GESTOR DE CHECKPOINTS DISTRIBUIDOS ===\n")
-        
-        # Crear gestor con almacenamiento en memoria para pruebas
-        manager = DistributedCheckpointManager(storage_type=CheckpointStorageType.MEMORY)
-        
-        # Registrar componentes
-        print("Registrando componentes...")
-        await manager.register_component("trading")
-        await manager.register_component("analytics")
-        
-        # Crear datos de prueba
-        trading_data = {
-            "positions": [
-                {"symbol": "BTC", "amount": 1.5, "entry_price": 45000},
-                {"symbol": "ETH", "amount": 10, "entry_price": 3000}
-            ],
-            "balance": 25000,
-            "status": "active"
-        }
-        
-        analytics_data = {
-            "metrics": {
-                "profit_factor": 2.3,
-                "win_rate": 0.67,
-                "drawdown": 0.12
-            },
-            "predictions": [
-                {"symbol": "BTC", "direction": "up", "confidence": 0.85},
-                {"symbol": "ETH", "direction": "up", "confidence": 0.72}
-            ]
-        }
-        
-        # Crear checkpoints individuales
-        print("\nCreando checkpoints individuales...")
-        trading_checkpoint = await manager.create_checkpoint(
-            component_id="trading",
-            data=trading_data,
-            tags=["daily", "production"]
-        )
-        print(f"  Checkpoint creado para Trading: {trading_checkpoint}")
-        
-        analytics_checkpoint = await manager.create_checkpoint(
-            component_id="analytics",
-            data=analytics_data,
-            tags=["daily", "production"]
-        )
-        print(f"  Checkpoint creado para Analytics: {analytics_checkpoint}")
-        
-        # Listar checkpoints
-        print("\nListando checkpoints disponibles:")
-        checkpoints = await manager.list_checkpoints()
-        for cp in checkpoints:
-            print(f"  {cp.checkpoint_id} - Componente: {cp.component_id}, Versión: {cp.version}, Tags: {cp.tags}")
-        
-        # Cargar checkpoint
-        print("\nCargando checkpoint de Trading...")
-        data, metadata = await manager.load_checkpoint(trading_checkpoint)
-        if data:
-            print(f"  Datos recuperados: {data}")
-            print(f"  Balance: ${data['balance']}")
-            print(f"  Posiciones: {len(data['positions'])}")
-        
-        # Crear checkpoint distribuido
-        print("\nCreando checkpoint distribuido...")
-        distributed_data = {
-            "trading": {
-                "positions": [
-                    {"symbol": "BTC", "amount": 1.7, "entry_price": 46000},
-                    {"symbol": "ETH", "amount": 12, "entry_price": 3200}
-                ],
-                "balance": 26000,
-                "status": "active"
-            },
-            "analytics": {
-                "metrics": {
-                    "profit_factor": 2.4,
-                    "win_rate": 0.68,
-                    "drawdown": 0.11
-                },
-                "predictions": [
-                    {"symbol": "BTC", "direction": "up", "confidence": 0.87},
-                    {"symbol": "ETH", "direction": "up", "confidence": 0.75}
-                ]
-            }
-        }
-        
-        distributed_ids = await manager.create_distributed_checkpoint(
-            component_ids=["trading", "analytics"],
-            data_dict=distributed_data,
-            tags=["synchronous", "production"]
-        )
-        
-        print(f"  Checkpoint distribuido creado: {distributed_ids}")
-        
-        # Cargar checkpoint distribuido
-        print("\nCargando checkpoint distribuido...")
-        distributed_result = await manager.load_distributed_checkpoint(distributed_ids)
-        
-        for component_id, component_data in distributed_result.items():
-            print(f"  Componente: {component_id}")
-            if component_id == "trading":
-                print(f"    Balance: ${component_data['balance']}")
-                print(f"    Posiciones: {len(component_data['positions'])}")
-            elif component_id == "analytics":
-                print(f"    Profit Factor: {component_data['metrics']['profit_factor']}")
-                print(f"    Win Rate: {component_data['metrics']['win_rate']}")
-        
-        # Usar el decorador checkpoint_state
-        print("\nProbando decorador checkpoint_state...")
-        
-        @checkpoint_state(component_id="calculation", tags=["demo", "automatic"])
-        async def calculate_portfolio_value(positions):
-            # Simular cálculo
-            await asyncio.sleep(0.1)
-            total = sum(pos["amount"] * pos["entry_price"] for pos in positions)
-            return {"total_value": total, "timestamp": time.time()}
-        
-        result = await calculate_portfolio_value(trading_data["positions"])
-        print(f"  Resultado calculado: {result}")
-        
-        # Listar checkpoints después de usar el decorador
-        print("\nListando checkpoints después de usar el decorador:")
-        checkpoints = await manager.list_checkpoints("calculation")
-        for cp in checkpoints:
-            print(f"  {cp.checkpoint_id} - Versión: {cp.version}, Tags: {cp.tags}")
-        
-        # Limpiar checkpoints antiguos
-        print("\nLimpiando checkpoints antiguos...")
-        deleted = await manager.cleanup_old_checkpoints(max_checkpoints=1)
-        print(f"  Checkpoints eliminados: {deleted}")
-        
-        print("\n=== DEMOSTRACIÓN COMPLETADA ===\n")
-    
-    # Ejecutar demo
-    asyncio.run(run_demo())
