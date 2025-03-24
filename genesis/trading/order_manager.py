@@ -251,6 +251,11 @@ class CodiciaManager:
     que aprovechan las ineficiencias del mercado, equilibrando la ambición desmedida
     con la prudencia necesaria para maximizar las ganancias sin caer en la ruina.
     Explota oportunidades usando capacidades cuánticas de resiliencia y transmutación.
+    
+    La codicia, adecuadamente gestionada, puede ser una fuerza transformadora que 
+    impulsa la innovación y el progreso. Sin embargo, cuando se descontrola, puede 
+    llevar a la destrucción. Este gestor mantiene ese equilibrio perfecto mediante 
+    algoritmos trascendentales.
     """
     
     def __init__(self, exchange_adapter=None, behavior_engine=None):
@@ -292,27 +297,239 @@ class CodiciaManager:
     
     async def initialize(self) -> bool:
         """
-        Inicializar gestor de órdenes.
+        Inicializar gestor trascendental de ambición.
         
         Returns:
-            True si la inicialización fue exitosa
+            True si la codicia fue canalizada correctamente
         """
         try:
-            # Verificar si ya está inicializado
+            # Verificar si la ambición ya fue despertada
             if self.initialized:
-                logger.info("OrderManager ya estaba inicializado")
+                logger.info("CodiciaManager ya estaba despertado y listo para la extracción de riqueza")
                 return True
             
-            # Iniciar tarea de actualización de órdenes en segundo plano
+            # Iniciar tarea de contemplación y actualización de ambiciones en el plano astral
             self._update_task = asyncio.create_task(self._background_order_updates())
             
             self.initialized = True
-            logger.info("OrderManager inicializado correctamente")
+            logger.info("CodiciaManager despertado correctamente - La ambición fluye con potencia divina")
             return True
             
         except Exception as e:
-            logger.error(f"Error inicializando OrderManager: {str(e)}")
+            logger.error(f"Error despertando la ambición del CodiciaManager: {str(e)}")
             return False
+            
+    async def apply_emotional_adjustment(self, order: Order) -> Order:
+        """
+        Aplicar ajustes basados en el estado emocional del comportamiento humano.
+        
+        Este método divino modifica los parámetros de la orden basándose en el estado 
+        emocional actual del motor de comportamiento Gabriel, ajustando la ambición
+        para equilibrar la codicia con la prudencia según las condiciones del mercado.
+        
+        Args:
+            order: Orden original a ajustar
+            
+        Returns:
+            Orden ajustada con parámetros modificados según estado emocional
+        """
+        # Verificar que el motor de comportamiento esté disponible
+        if not self.behavior_engine:
+            return order  # Sin ajustes si no hay motor de comportamiento
+            
+        # Obtener estado emocional actual
+        try:
+            emotional_state = await self.behavior_engine.get_emotional_state()
+            risk_tolerance = await self.behavior_engine.get_risk_tolerance()
+            market_outlook = await self.behavior_engine.get_market_outlook()
+        except Exception as e:
+            logger.warning(f"Error obteniendo estado emocional: {str(e)}")
+            order.metadata['emotional_adjustment'] = "ERROR_EVALUACIÓN"
+            return order
+            
+        # Registrar estado emocional en la orden
+        order.metadata['emotional_state'] = emotional_state
+        order.metadata['risk_tolerance'] = risk_tolerance
+        order.metadata['market_outlook'] = market_outlook
+        
+        # Factor de ajuste base según estado emocional (0.5 = neutral, >1 = ambicioso, <0.5 = conservador)
+        adjustment_factors = {
+            "FEARFUL": 0.3,      # Miedo - reduce tamaño drasticamente
+            "CAUTIOUS": 0.7,     # Cauteloso - reduce tamaño moderadamente
+            "NEUTRAL": 1.0,      # Neutral - sin cambios
+            "CONFIDENT": 1.2,    # Confiado - incrementa moderadamente
+            "GREEDY": 1.5,       # Codicioso - incrementa significativamente
+            "EUPHORIC": 2.0      # Eufórico - duplica la codicia (peligroso)
+        }
+        
+        # Obtener factor base según estado emocional
+        base_factor = adjustment_factors.get(emotional_state, 1.0)
+        
+        # Ajustar por tolerancia al riesgo (0-1)
+        risk_factor = 0.5 + (risk_tolerance * 1.0)  # 0.5-1.5
+        
+        # Ajustar por perspectiva del mercado (-1 a +1)
+        market_factor = 1.0 + (market_outlook * 0.3)  # 0.7-1.3
+        
+        # Cálculo del factor final de ajuste
+        final_factor = base_factor * risk_factor * market_factor
+        
+        # Determinar tipo de ajuste basado en la intensidad
+        if final_factor < 0.5:
+            adjustment_type = "CODICIA_CONTENIDA"
+        elif final_factor < 0.8:
+            adjustment_type = "AMBICIÓN_MODERADA"
+        elif final_factor < 1.2:
+            adjustment_type = "EQUILIBRIO_PERFECTO"
+        elif final_factor < 1.5:
+            adjustment_type = "AMBICIÓN_ELEVADA"
+        else:
+            adjustment_type = "CODICIA_SUPREMA"
+            
+        # Aplicar ajustes específicos según tipo de orden
+        original_amount = order.amount
+        
+        # Ajustar cantidad según factor final
+        adjusted_amount = original_amount * final_factor
+        
+        # Redondear a 8 decimales para criptomonedas
+        adjusted_amount = round(adjusted_amount, 8)
+        
+        # Actualizar orden con cantidad ajustada por codicia
+        order.amount = adjusted_amount
+        
+        # Guardar datos de ajuste en metadatos
+        order.metadata['emotional_adjustment'] = adjustment_type
+        order.metadata['adjustment_factor'] = final_factor
+        order.metadata['original_amount'] = original_amount
+        
+        logger.info(f"Ambición ajustada: {adjustment_type} (factor: {final_factor:.2f})")
+        
+        return order
+        
+    def _calculate_order_priority(self, order: Order) -> float:
+        """
+        Calcular la prioridad de una orden para la cola de prioridad cuántica.
+        
+        Este método divino determina qué ambiciones deben materializarse primero
+        basándose en múltiples factores cósmicos como potencial de ganancia,
+        volatilidad del mercado, y tiempo de vida restante de la orden.
+        
+        Args:
+            order: Orden para calcular su prioridad
+            
+        Returns:
+            Valor de prioridad (menor = mayor prioridad)
+        """
+        # Prioridad base según tipo de orden
+        base_priority = {
+            OrderType.MARKET: 1.0,       # Máxima prioridad para órdenes de mercado
+            OrderType.STOP_LOSS: 2.0,    # Alta prioridad para stop loss (protección)
+            OrderType.TAKE_PROFIT: 3.0,  # Media-alta para toma de ganancias
+            OrderType.LIMIT: 5.0,        # Media para límites regulares
+            OrderType.TRAILING_STOP: 4.0 # Media-alta para trailing stops
+        }.get(order.order_type, 10.0)
+        
+        # Factor de lado (compras ligeramente prioritarias que ventas en mercados alcistas)
+        side_factor = 0.9 if order.side == OrderSide.BUY else 1.1
+        
+        # Factor de tamaño (órdenes más grandes = mayor prioridad, escala logarítmica)
+        size_factor = max(0.5, 1.0 - (math.log10(max(1.0, order.amount)) * 0.1))
+        
+        # Factor de edad (órdenes más antiguas ganan prioridad gradualmente)
+        age_seconds = (datetime.now() - order.created_at).total_seconds()
+        age_factor = max(0.5, 1.0 - (age_seconds / 3600.0 * 0.1))  # Hasta -10% por hora
+        
+        # Factor de ambición (desde los metadatos, si está disponible)
+        ambition_factor = 1.0
+        if 'adjustment_factor' in order.metadata:
+            # Ambición extrema = mayor prioridad
+            ambition_factor = 1.0 / max(0.1, order.metadata['adjustment_factor'])
+        
+        # Cálculo final de prioridad (menor valor = mayor prioridad)
+        final_priority = base_priority * side_factor * size_factor * age_factor * ambition_factor
+        
+        # Añadir pequeña variación aleatoria para evitar colisiones (max 1%)
+        randomization = 0.99 + (random.random() * 0.02)
+        
+        return final_priority * randomization
+        
+    async def _transmute_error(self, e: Exception, mensaje: str, contexto: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Transmutación cuántica de errores en sabiduría financiera.
+        
+        Este método divino convierte los errores en oportunidades de aprendizaje,
+        aplicando principios de entrelazamiento cuántico para preservar la
+        integridad del sistema y asegurar que ninguna ambición fracasa realmente,
+        solo se transforma.
+        
+        Args:
+            e: Excepción original
+            mensaje: Mensaje descriptivo del contexto del error
+            contexto: Datos adicionales sobre el contexto
+            
+        Returns:
+            Diccionario con el error transmutado y metadatos
+        """
+        # Registrar error original para diagnóstico
+        error_id = str(uuid.uuid4())
+        error_original = str(e)
+        error_tipo = type(e).__name__
+        
+        # Contexto enriquecido para diagnóstico
+        contexto_completo = {
+            "timestamp": datetime.now().isoformat(),
+            "error_id": error_id,
+            "error_tipo": error_tipo,
+            "error_original": error_original
+        }
+        
+        if contexto:
+            contexto_completo.update(contexto)
+            
+        # Registrar en log para análisis
+        logger.error(f"Error transmutado [{error_id}]: {mensaje} - {error_original}")
+        logger.debug(f"Contexto del error: {contexto_completo}")
+        
+        # Determinar mensaje usuario-amigable
+        mensaje_amigable = self._generar_mensaje_sabiduria(error_tipo)
+        
+        # Resultados transmutados
+        return {
+            "success": False,
+            "error": mensaje_amigable,
+            "error_id": error_id,
+            "mensaje": "Tu ambición ha sido transmutada en sabiduría financiera",
+            "contexto": contexto_completo
+        }
+        
+    def _generar_mensaje_sabiduria(self, tipo_error: str) -> str:
+        """
+        Generar un mensaje de sabiduría financiera basado en el tipo de error.
+        
+        Args:
+            tipo_error: Tipo de error ocurrido
+            
+        Returns:
+            Mensaje de sabiduría financiera
+        """
+        mensajes = {
+            "ConnectionError": "La codicia requiere paciencia; las conexiones al universo financiero son temporales.",
+            "TimeoutError": "El tiempo es relativo en el cosmos de las finanzas. La ambición desmedida debe aprender a esperar.",
+            "ValueError": "La ambición sin precisión es como un barco sin timón. Verifica tus parámetros de riqueza.",
+            "KeyError": "Buscas una llave que no existe. La verdadera riqueza está en conocer los caminos correctos.",
+            "TypeError": "La transmutación requiere materiales compatibles. Revisa la naturaleza de tu ambición.",
+            "IndexError": "Has intentado alcanzar más allá de los límites cósmicos. La codicia debe conocer sus fronteras.",
+            "AttributeError": "Buscas propiedades que no existen. La verdadera riqueza comienza con el autoconocimiento.",
+            "ZeroDivisionError": "Has intentado dividir entre el vacío. La codicia infinita conduce a la ruina infinita.",
+            "PermissionError": "No tienes autoridad sobre este reino financiero. Busca tu propio camino hacia la abundancia.",
+            "OverflowError": "Tu ambición ha excedido los límites del universo calculable. Modera tu codicia.",
+            "MemoryError": "Has agotado los recursos de tu mente financiera. Simplifica tu estrategia de ambición.",
+            "RuntimeError": "El flujo del tiempo financiero ha sido alterado. Recalibra tu ambición al momento presente."
+        }
+        
+        # Mensaje por defecto si no hay uno específico para el tipo de error
+        return mensajes.get(tipo_error, "La ambición encuentra obstáculos, pero la sabiduría los convierte en caminos.")
     
     def register_exchange(self, exchange_adapter, default: bool = False):
         """
@@ -1051,7 +1268,7 @@ class CodiciaManager:
     
     async def shutdown(self):
         """Cerrar gestor de órdenes de forma segura."""
-        logger.info("Cerrando OrderManager...")
+        logger.info("Cerrando CodiciaManager - Apagando el portal de extracción de riqueza...")
         
         # Cancelar tarea de actualización
         if self._update_task:
@@ -1070,4 +1287,4 @@ class CodiciaManager:
             except Exception as e:
                 logger.error(f"Error cancelando orden {order_id} durante cierre: {str(e)}")
         
-        logger.info("OrderManager cerrado correctamente")
+        logger.info("CodiciaManager cerrado correctamente - La ambición ha sido apagada")
