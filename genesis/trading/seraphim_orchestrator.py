@@ -32,7 +32,7 @@ import random
 from genesis.strategies.seraphim.seraphim_pool import SeraphimPool, SeraphimState, CyclePhase
 from genesis.trading.buddha_integrator import BuddhaIntegrator
 from genesis.trading.human_behavior_engine import GabrielBehaviorEngine, EmotionalState, RiskTolerance, DecisionStyle
-from genesis.trading.order_manager import CodiciaManager, OrderType, OrderSide, OrderStatus
+from genesis.trading.codicia_manager import CodiciaManager, OrderType, OrderSide, OrderStatus
 from genesis.analysis.transcendental_crypto_classifier import TranscendentalCryptoClassifier
 from genesis.cloud.circuit_breaker_v4 import CloudCircuitBreakerV4
 from genesis.cloud.distributed_checkpoint_v4 import DistributedCheckpointManagerV4
@@ -85,7 +85,7 @@ class SeraphimOrchestrator:
         
         # Componente de Exchange (simulado o real)
         self.exchange_adapter = None  # Será configurado externamente
-        self.order_manager = None  # Gestor de órdenes para trading
+        self.codicia_manager = None  # Portal de extracción de riqueza para trading
         
         # Estado operacional
         self.active_cycle_id: Optional[str] = None
@@ -393,15 +393,15 @@ class SeraphimOrchestrator:
                 await self._preload_symbols()
             
             # Inicializar CodiciaManager si aún no existe
-            if not hasattr(self, 'order_manager') or self.order_manager is None:
+            if not hasattr(self, 'codicia_manager') or self.codicia_manager is None:
                 logger.info("Inicializando CodiciaManager para gestión de órdenes...")
                 # Creamos el CodiciaManager con los componentes necesarios
-                self.order_manager = CodiciaManager(
+                self.codicia_manager = CodiciaManager(
                     self.exchange_adapter,
                     self.behavior_engine
                 )
                 # Inicializar el CodiciaManager para activar el seguimiento de órdenes
-                await self.order_manager.initialize()
+                await self.codicia_manager.initialize()
                 logger.info("CodiciaManager inicializado y vinculado al exchange adapter")
             
             # Verificar estado del adaptador
@@ -543,11 +543,11 @@ class SeraphimOrchestrator:
         """
         try:
             # Verificar que el CodiciaManager esté configurado
-            if self.order_manager is None:
+            if self.codicia_manager is None:
                 # Inicializar CodiciaManager si no existe
                 await self._verify_exchange_connections()
                 
-                if self.order_manager is None:
+                if self.codicia_manager is None:
                     logger.error("No se pudo inicializar CodiciaManager")
                     return {"success": False, "error": "CodiciaManager not available"}
             
@@ -564,7 +564,7 @@ class SeraphimOrchestrator:
             if price is not None:
                 order_params["price"] = price
                 
-            order_result = await self.order_manager.place_order(order_params)
+            order_result = await self.codicia_manager.place_order(order_params)
             
             logger.info(f"Orden colocada: {side.name} {order_type.name} {amount} {symbol} - ID: {order_result.get('order_id', 'unknown')}")
             
