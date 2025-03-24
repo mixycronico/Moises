@@ -1,55 +1,24 @@
 {
     "name": "Buddha AI",
     "version": "1.0.0",
-    "description": "Integración trascendental de sabiduría artificial para el Sistema Genesis Ultra-Divino",
     "enabled": true,
     "api_key_env": "DEEPSEEK_API_KEY",
     "base_url": "https://api.deepseek.com/v1",
     "default_model": "deepseek-chat",
     "parameters": {
         "temperature": 0.3,
-        "max_tokens": 1024,
-        "top_p": 0.9,
-        "frequency_penalty": 0.0,
-        "presence_penalty": 0.0
+        "max_tokens": 1024
     },
     "capabilities": {
         "market_analysis": true,
         "sentiment_analysis": true,
-        "trend_prediction": true,
-        "risk_assessment": true,
         "opportunity_detection": true,
-        "strategic_planning": true,
-        "cosmic_wisdom": true,
-        "transcendental_insight": true
-    },
-    "usage_limits": {
-        "requests_per_minute": 25,
-        "tokens_per_day": 100000,
-        "parallel_requests": 5
-    },
-    "trading_integration": {
-        "influence_weight": 0.45,
-        "confidence_threshold": 0.85,
-        "min_data_points": 5,
-        "analysis_frequency": "hourly",
-        "prediction_horizon": {
-            "short_term": "4h",
-            "medium_term": "1d",
-            "long_term": "1w"
-        }
+        "risk_assessment": true
     },
     "prompt_templates": {
-        "market_analysis": "Analiza el mercado actual de {asset} considerando las siguientes variables: {variables}. Proporciona un análisis fundamentado y una predicción de tendencia para las próximas {timeframe} horas.",
-        "sentiment_analysis": "Analiza el sentimiento general hacia {asset} basado en la siguiente información de redes sociales y noticias: {data}. Clasifica el sentimiento y explica los factores principales que lo influyen.",
-        "opportunity_detection": "Basado en los siguientes datos de mercado: {market_data}, identifica oportunidades de trading potenciales para {assets} con un perfil de riesgo {risk_profile}.",
-        "risk_assessment": "Evalúa el riesgo potencial para la operación: {operation} en el contexto actual del mercado: {market_context}. Proporciona un puntaje de riesgo y recomendaciones."
-    },
-    "weight_factors": {
-        "recency": 1.5,
-        "relevance": 1.3,
-        "source_reliability": 1.2,
-        "consensus_alignment": 0.9,
-        "historical_accuracy": 1.4
+        "market_analysis": "Analiza el mercado de {asset} considerando las siguientes variables: {variables}. Horizonte temporal: {timeframe} horas. Proporciona análisis técnico, fundamental y proyección de precio con nivel de confianza.",
+        "sentiment_analysis": "Analiza el sentimiento del mercado para {asset} basado en estos datos: {data}. Proporciona score de sentimiento, factores influyentes y correlación con precio.",
+        "opportunity_detection": "Identifica oportunidades de trading en estos activos: {assets} con perfil de riesgo {risk_profile}. Datos de mercado: {market_data}. Proporciona entradas, objetivos, stops y rationale.",
+        "risk_assessment": "Evalúa el riesgo de esta operación: {operation} en el contexto actual del mercado: {market_context}. Proporciona score de riesgo, factores y estrategias de mitigación."
     }
 }
