@@ -68,6 +68,10 @@ class GabrielBehaviorEngine:
     
     def __init__(self):
         """Inicializar motor de comportamiento humano Gabriel."""
+        # Usamos el adaptador para el nuevo sistema Gabriel
+        from genesis.trading.gabriel_adapter import get_gabriel_adapter
+        self._gabriel_adapter = get_gabriel_adapter()
+        
         # Estado emocional actual y características de comportamiento
         self.emotional_state = EmotionalState.NEUTRAL
         self.risk_tolerance = RiskTolerance.MODERATE
@@ -96,8 +100,58 @@ class GabrielBehaviorEngine:
         self.instance_id = str(uuid.uuid4())
         self.configuration = self._create_default_configuration()
         
+        # Actualizar estado desde Gabriel
+        self._sync_state_from_adapter()
+        
         logger.info("Motor de Comportamiento Humano Gabriel inicializado")
         
+    def _sync_state_from_adapter(self):
+        """
+        Sincroniza el estado del motor con el adaptador Gabriel.
+        
+        Este método actualiza las propiedades del motor de comportamiento
+        basándose en el estado actual del adaptador Gabriel.
+        """
+        try:
+            if not self._gabriel_adapter:
+                logger.warning("Adaptador Gabriel no inicializado")
+                return
+                
+            # Obtener estado actual del adaptador
+            adapter_state = self._gabriel_adapter.get_current_state()
+            if not adapter_state:
+                logger.warning("No se pudo obtener estado del adaptador Gabriel")
+                return
+                
+            # Actualizar estado emocional si está disponible
+            if 'emotional_state' in adapter_state:
+                state_name = adapter_state['emotional_state'].upper()
+                try:
+                    self.emotional_state = EmotionalState[state_name]
+                    logger.debug(f"Estado emocional actualizado a {self.emotional_state.name}")
+                except (KeyError, ValueError):
+                    logger.warning(f"Estado emocional no reconocido: {state_name}")
+            
+            # Actualizar tolerancia al riesgo si está disponible
+            if 'risk_tolerance' in adapter_state:
+                risk_name = adapter_state['risk_tolerance'].upper()
+                try:
+                    self.risk_tolerance = RiskTolerance[risk_name]
+                    logger.debug(f"Tolerancia al riesgo actualizada a {self.risk_tolerance.name}")
+                except (KeyError, ValueError):
+                    logger.warning(f"Tolerancia al riesgo no reconocida: {risk_name}")
+                    
+            # Actualizar percepciones de mercado si están disponibles
+            if 'market_perceptions' in adapter_state and isinstance(adapter_state['market_perceptions'], dict):
+                for key, value in adapter_state['market_perceptions'].items():
+                    if key in self.market_perceptions:
+                        self.market_perceptions[key] = value
+                        
+            logger.debug("Estado sincronizado desde adaptador Gabriel")
+                
+        except Exception as e:
+            logger.error(f"Error al sincronizar estado desde adaptador Gabriel: {str(e)}")
+    
     async def initialize(self):
         """
         Inicialización asíncrona del motor de comportamiento Gabriel.
@@ -109,6 +163,16 @@ class GabrielBehaviorEngine:
             True si la inicialización fue exitosa
         """
         logger.info("Motor de comportamiento Gabriel inicializando de forma asíncrona...")
+        
+        # Inicializar adaptador Gabriel si existe
+        if hasattr(self, '_gabriel_adapter') and self._gabriel_adapter:
+            try:
+                await self._gabriel_adapter.initialize()
+                # Actualizar estado desde Gabriel después de inicialización
+                self._sync_state_from_adapter()
+            except Exception as e:
+                logger.error(f"Error al inicializar adaptador Gabriel: {str(e)}")
+        
         await asyncio.sleep(0.1)  # Pausa mínima para simular procesamiento
         logger.info("Motor de comportamiento Gabriel inicializado correctamente")
         return True

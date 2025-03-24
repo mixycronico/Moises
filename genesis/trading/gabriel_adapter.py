@@ -46,7 +46,47 @@ class GabrielAdapter:
         
         # Configuración inicial
         self._last_update = datetime.now()
+        self._is_initialized = False
         logger.info("GabrielAdapter inicializado correctamente")
+        
+    async def initialize(self) -> bool:
+        """
+        Inicializa el adaptador de forma asíncrona.
+        
+        Esta función es necesaria para mantener compatibilidad con 
+        otros componentes del sistema que esperan un método initialize().
+        
+        Returns:
+            True si la inicialización fue exitosa
+        """
+        if self._is_initialized:
+            logger.debug("GabrielAdapter ya estaba inicializado")
+            return True
+            
+        try:
+            logger.info("Inicializando GabrielAdapter de forma asíncrona...")
+            
+            # Aplicar configuración inicial al alma de Gabriel (estado neutral)
+            await self.gabriel.hear("initialize", 1.0)
+            
+            # Hacer que Gabriel observe el mercado neutral inicial
+            initial_market = {
+                "volatility": 0.5,
+                "trend_direction": 0,
+                "volume_change_percent": 0,
+                "price_direction": 0,
+                "market_sentiment": "neutral",
+                "risk_level": 0.5
+            }
+            await self.gabriel.see(initial_market)
+            
+            self._is_initialized = True
+            logger.info("GabrielAdapter inicializado correctamente de forma asíncrona")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al inicializar GabrielAdapter: {str(e)}")
+            return False
     
     # === MÉTODOS DE COMPATIBILIDAD ===
     
@@ -223,6 +263,15 @@ class GabrielAdapter:
         return valid, reason
     
     # === MÉTODOS DE ESTADO COMPATIBLES ===
+    
+    def get_current_state(self) -> Dict[str, Any]:
+        """
+        Obtener el estado actual completo del adaptador Gabriel.
+        
+        Returns:
+            Diccionario con el estado actual en formato compatible
+        """
+        return self._translate_to_legacy_format()
     
     @property 
     def emotional_state(self) -> EmotionalState:
