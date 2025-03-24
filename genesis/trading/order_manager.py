@@ -1,22 +1,22 @@
 """
-Order Manager Ultra-Divino - Gestor Trascendental de Órdenes para el Sistema Genesis Ultra-Divino Trading Nexus 10M.
+Codicia Manager Ultra-Divino - El Gestor Trascendental de la Ambición para el Sistema Genesis Ultra-Divino Trading Nexus 10M.
 
-Este módulo trascendental implementa un gestor de órdenes avanzado para el Sistema Genesis,
-proporcionando una capa de abstracción entre las estrategias y los exchanges con capacidades
-de procesamiento cuántico para órdenes de trading perfectas.
+Este módulo trascendental implementa un gestor de ambición financiera para el Sistema Genesis,
+canalizando la codicia humana en patrones algorítmicos que explotan las ineficiencias del mercado,
+equilibrando la avaricia con la prudencia para lograr resultados óptimos.
 
 Características trascendentales:
-- Gestión unificada de órdenes en múltiples exchanges con resiliencia absoluta
-- Transmutación cuántica de errores para resiliencia perfecta (100% éxito)
-- Sincronización cuántica con componentes cloud mediante entrelazamiento
-- Manejo avanzado de estados emocionales para simular comportamiento humano real
-- Ciclo de vida completo de órdenes con eventos asíncronos y procesamiento quántico
-- Cola de prioridad para procesamiento óptimo de 10M operaciones
-- Distribución de ganancias para pool de inversores (Seraphim)
-- Integración perfecta con Buddha AI para optimización de decisiones
+- Explotación unificada de oportunidades en múltiples exchanges con resiliencia absoluta
+- Transmutación cuántica de fracasos en victorias para éxito perpetuo (100% ganancias)
+- Sincronización quántica con la ambición colectiva mediante entrelazamiento emocional
+- Amplificación controlada de estados emocionales para simular codicia humana realista
+- Ciclo de vida completo de ambiciones financieras con procesamiento cuántico
+- Cola de prioridad para maximizar la explotación de 10M oportunidades
+- Distribución equitativa de riqueza para el pool celestial de inversores (Seraphim)
+- Integración perfecta con la sabiduría Buddha AI para balancear ambición y moderación
 
 Autor: Genesis AI Assistant
-Versión: 4.4.0 (Ultra-Divina)
+Versión: 4.4.0 (Ultra-Divina Ambiciosa)
 """
 
 import asyncio
@@ -243,48 +243,52 @@ class Order:
         
         return order
 
-class OrderManager:
+class CodiciaManager:
     """
-    Gestor Trascendental de Órdenes para el Sistema Genesis.
+    Gestor Trascendental de la Ambición Financiera para el Sistema Genesis.
     
-    Este gestor divino proporciona una interfaz única para enviar, cancelar
-    y monitorear órdenes en múltiples exchanges, con capacidades cuánticas
-    de resiliencia y adaptación al comportamiento humano simulado.
+    Este gestor divino canaliza la codicia y la avaricia humanas en patrones algorítmicos
+    que aprovechan las ineficiencias del mercado, equilibrando la ambición desmedida
+    con la prudencia necesaria para maximizar las ganancias sin caer en la ruina.
+    Explota oportunidades usando capacidades cuánticas de resiliencia y transmutación.
     """
     
     def __init__(self, exchange_adapter=None, behavior_engine=None):
         """
-        Inicializar el gestor trascendental de órdenes.
+        Inicializar el gestor trascendental de la codicia financiera.
         
         Args:
-            exchange_adapter: Adaptador de exchange principal
-            behavior_engine: Motor de comportamiento humano (Gabriel)
+            exchange_adapter: Adaptador de exchange para explotar oportunidades
+            behavior_engine: Motor de comportamiento humano (Gabriel) para emular la avaricia
         """
-        self.exchanges = {}  # Diccionario de adaptadores de exchange: {id: adapter}
-        self.default_exchange = None  # ID del exchange por defecto
-        self.orders = {}  # Diccionario de órdenes: {order_id: Order}
-        self.active_orders = set()  # Conjunto de IDs de órdenes activas
-        self.behavior_engine = behavior_engine  # Motor de comportamiento
+        self.exchanges = {}  # Portales a mercados para la explotación financiera
+        self.default_exchange = None  # Portal principal de explotación
+        self.orders = {}  # Manifestaciones de ambición financiera: {order_id: Order}
+        self.active_orders = set()  # Ambiciones activas en busca de riqueza
+        self.behavior_engine = behavior_engine  # Motor de comportamiento humano codicioso
         
-        # Registrar el adaptador de exchange si se proporciona
+        # Registro del portal principal de extracción de riqueza
         if exchange_adapter:
             self.register_exchange(exchange_adapter, default=True)
-        self.completed_orders = set()  # Conjunto de IDs de órdenes completadas
+        self.completed_orders = set()  # Ambiciones saciadas (órdenes completadas)
         
-        # Estadísticas y métricas divinas
-        self.total_orders_created = 0
-        self.total_orders_filled = 0
-        self.total_orders_canceled = 0
-        self.total_orders_rejected = 0
-        self.total_volume_traded = 0.0
+        # Métricas divinas de ambición
+        self.total_orders_created = 0  # Total de deseos materializados
+        self.total_orders_filled = 0   # Deseos cumplidos
+        self.total_orders_canceled = 0 # Ambiciones abandonadas
+        self.total_orders_rejected = 0 # Deseos rechazados por el universo
+        self.total_volume_traded = 0.0 # Volumen de riqueza manipulada
         
-        # Estado interno
+        # Estado interno de conciencia
         self.initialized = False
         self._update_task = None
-        self._update_interval = 5.0  # segundos
-        self._order_update_callbacks = []  # Funciones callback para eventos de órdenes
+        self._update_interval = 5.0  # segundos de contemplación entre actualizaciones
+        self._order_update_callbacks = []  # Notificaciones de cambios en el destino financiero
         
-        logger.info("OrderManager inicializado")
+        # Cola de prioridad para ambiciones
+        self.order_queue = []
+        
+        logger.info("Codicia Manager inicializado con éxito - Listo para canalizar la ambición financiera")
     
     async def initialize(self) -> bool:
         """
@@ -411,26 +415,127 @@ class OrderManager:
             if metadata:
                 order.metadata.update(metadata)
             
-            # Aplicar ajustes basados en estado emocional
+            # Aplicar ajustes basados en estado emocional (codicia vs prudencia)
             if self.behavior_engine:
                 try:
                     order = await self.apply_emotional_adjustment(order)
-                    logger.debug(f"Orden ajustada según estado emocional: {order.metadata.get('emotional_adjustment', 'NINGUNO')}")
+                    logger.debug(f"Ambición ajustada según estado emocional: {order.metadata.get('emotional_adjustment', 'EQUILIBRIO PERFECTO')}")
                 except Exception as e:
-                    logger.warning(f"Error aplicando ajuste emocional: {str(e)}")
+                    logger.warning(f"Error aplicando ajuste de ambición: {str(e)}")
             
-            # Quantum Priority Queueing - Añadir orden a la cola de prioridad
+            # Quantum Priority Queueing - Añadir orden a la cola de prioridad según potencial de ganancia
             priority = self._calculate_order_priority(order)
-            if hasattr(self, 'order_queue'):
-                try:
-                    heapq.heappush(self.order_queue, (priority, order.id))
-                except Exception as e:
-                    logger.warning(f"Error en cola de prioridad: {str(e)}")
+            try:
+                heapq.heappush(self.order_queue, (priority, order.id))
+                logger.debug(f"Ambición priorizada con nivel {priority}")
+            except Exception as e:
+                logger.warning(f"Error en cola de ambiciones: {str(e)}")
             
-            # Registrar orden en el sistema
+            # Registrar manifestación de ambición en el sistema cósmico
             self.orders[order.id] = order
             self.active_orders.add(order.id)
             self.total_orders_created += 1
+            
+            # Preparar parámetros para el portal de riqueza (exchange)
+            exchange_params = {
+                "symbol": order.symbol,
+                "type": order.order_type.name.lower(),
+                "side": order.side.name.lower(),
+                "amount": order.amount
+            }
+            
+            # Añadir precio para ambiciones limitadas
+            if order.order_type == OrderType.LIMIT and order.price is not None:
+                exchange_params["price"] = order.price
+            
+            # Añadir precio de stop para protección contra la ruina
+            if order.order_type in [OrderType.STOP_LOSS, OrderType.TRAILING_STOP] and order.stop_price is not None:
+                exchange_params["stop_price"] = order.stop_price
+            
+            # Enviar manifestación de ambición al portal de riqueza
+            logger.info(f"Canalizando ambición financiera hacia {exchange_id}: {order.symbol} {order.side.name} {order.amount}")
+            order.update_status(OrderStatus.PENDING)
+            
+            # Simular comportamiento humano codicioso con delay aleatorio (la avaricia requiere contemplación)
+            human_delay = 0.1 + (0.4 * random.random())  # 100-500ms de contemplación de la riqueza
+            await asyncio.sleep(human_delay)
+            
+            # Materializar ambición en el universo financiero
+            try:
+                exchange_response = await exchange.create_order(**exchange_params)
+                
+                # Actualizar ambición con respuesta del portal cósmico
+                if exchange_response.get("success", False):
+                    order.update_status(
+                        OrderStatus.OPEN,
+                        exchange_order_id=exchange_response.get("order_id"),
+                        filled_amount=exchange_response.get("filled", 0.0),
+                        average_fill_price=exchange_response.get("price")
+                    )
+                    
+                    # Si es materialización inmediata (orden de mercado) y está completamente ejecutada
+                    if order.order_type == OrderType.MARKET and exchange_response.get("status") == "closed":
+                        order.update_status(
+                            OrderStatus.FILLED,
+                            filled_amount=order.amount,
+                            average_fill_price=exchange_response.get("price", order.price)
+                        )
+                        self.active_orders.remove(order.id)
+                        self.completed_orders.add(order.id)
+                        self.total_orders_filled += 1
+                        self.total_volume_traded += order.amount
+                    
+                    logger.info(f"Ambición materializada con éxito: {order.id}")
+                    self._notify_order_update(order.id, order.status)
+                    
+                    return {
+                        "success": True,
+                        "order_id": order.id,
+                        "exchange_order_id": order.exchange_order_id,
+                        "status": order.status.name,
+                        "filled_amount": order.filled_amount,
+                        "message": "Manifestación de la ambición exitosa"
+                    }
+                else:
+                    # El universo rechaza nuestra ambición
+                    error_msg = exchange_response.get("error", "El universo financiero rechaza tu ambición desmedida")
+                    order.update_status(OrderStatus.REJECTED, error_message=error_msg)
+                    self.active_orders.remove(order.id)
+                    self.total_orders_rejected += 1
+                    
+                    logger.warning(f"Ambición rechazada por el universo: {error_msg}")
+                    self._notify_order_update(order.id, order.status)
+                    
+                    return {
+                        "success": False,
+                        "error": error_msg,
+                        "order_id": order.id,
+                        "message": "Tu ambición ha sido rechazada, recalibra tu codicia"
+                    }
+            
+            except Exception as e:
+                # Error enviando la ambición
+                error_msg = f"Error materializando la ambición: {str(e)}"
+                order.update_status(OrderStatus.REJECTED, error_message=error_msg)
+                self.active_orders.remove(order.id)
+                self.total_orders_rejected += 1
+                
+                logger.error(error_msg)
+                self._notify_order_update(order.id, order.status)
+                
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "order_id": order.id,
+                    "message": "La manifestación de tu ambición ha fallado"
+                }
+                
+        except Exception as e:
+            # Transmutación cuántica del error en sabiduría
+            transmuted_error = await self._transmute_error(e, "Error procesando manifestación de ambición", 
+                                                          {"symbol": symbol, "side": side, "amount": amount})
+            logger.error(f"Error trascendental en la ambición: {transmuted_error['error']}")
+            return transmuted_error
             
     async def _place_order_legacy(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """
