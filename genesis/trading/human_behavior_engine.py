@@ -112,6 +112,356 @@ class GabrielBehaviorEngine:
         await asyncio.sleep(0.1)  # Pausa mínima para simular procesamiento
         logger.info("Motor de comportamiento Gabriel inicializado correctamente")
         return True
+        
+    async def get_emotional_state(self) -> EmotionalState:
+        """
+        Obtener estado emocional actual del motor Gabriel.
+        
+        Returns:
+            Estado emocional actual
+        """
+        # Simular pequeña variación aleatoria (indecisión humana)
+        if random.random() < 0.05:  # 5% de probabilidad de fluctuación momentánea
+            emotional_states = list(EmotionalState)
+            current_index = emotional_states.index(self.emotional_state)
+            max_shift = 1  # Máximo cambio de 1 estado
+            
+            # Limitar a estados adyacentes
+            min_index = max(0, current_index - max_shift)
+            max_index = min(len(emotional_states) - 1, current_index + max_shift)
+            
+            # Seleccionar estado aleatorio cercano (fluctuación momentánea)
+            temporary_state = emotional_states[random.randint(min_index, max_index)]
+            logger.debug(f"Fluctuación emocional momentánea: {self.emotional_state.name} → {temporary_state.name}")
+            return temporary_state
+        
+        return self.emotional_state
+        
+    async def get_risk_tolerance(self) -> RiskTolerance:
+        """
+        Obtener tolerancia al riesgo actual del motor Gabriel.
+        
+        Returns:
+            Tolerancia al riesgo actual
+        """
+        # El estado emocional puede afectar temporalmente la tolerancia al riesgo
+        if self.emotional_state == EmotionalState.FEARFUL:
+            # El miedo reduce dramáticamente la tolerancia al riesgo
+            risk_levels = list(RiskTolerance)
+            current_index = risk_levels.index(self.risk_tolerance)
+            
+            # Moverse hacia tolerancia más baja (mayor aversión al riesgo)
+            adjusted_index = max(0, current_index - 2)  # Reducir hasta 2 niveles
+            temporary_tolerance = risk_levels[adjusted_index]
+            
+            logger.debug(f"Tolerancia al riesgo reducida por miedo: {self.risk_tolerance.name} → {temporary_tolerance.name}")
+            return temporary_tolerance
+        elif self.emotional_state == EmotionalState.OPTIMISTIC:
+            # El optimismo aumenta la tolerancia al riesgo
+            risk_levels = list(RiskTolerance)
+            current_index = risk_levels.index(self.risk_tolerance)
+            
+            # Moverse hacia tolerancia más alta
+            adjusted_index = min(len(risk_levels) - 1, current_index + 1)
+            temporary_tolerance = risk_levels[adjusted_index]
+            
+            logger.debug(f"Tolerancia al riesgo aumentada por optimismo: {self.risk_tolerance.name} → {temporary_tolerance.name}")
+            return temporary_tolerance
+        
+        return self.risk_tolerance
+        
+    async def get_market_outlook(self) -> Dict[str, Any]:
+        """
+        Obtener perspectiva actual del mercado según la percepción humana.
+        
+        Returns:
+            Diccionario con información sobre percepción del mercado
+        """
+        # Crear percepción del mercado basada en estado emocional y percepciones
+        outlook = {
+            "sentiment": self.market_perceptions["market_sentiment"],
+            "perceived_volatility": self.market_perceptions["perceived_volatility"],
+            "perceived_risk": self.market_perceptions["perceived_risk"],
+            "perceived_opportunity": self.market_perceptions["perceived_opportunity"],
+            "emotional_bias": self.emotional_state.name,
+            "confidence_level": 0.7,  # Base de confianza en evaluación
+            "is_fearful": self.emotional_state == EmotionalState.FEARFUL,
+            "expected_trend": "neutral"  # Por defecto
+        }
+        
+        # Ajustar confianza según estado emocional
+        if self.emotional_state == EmotionalState.CONFIDENT:
+            outlook["confidence_level"] = 0.9
+        elif self.emotional_state == EmotionalState.ANXIOUS:
+            outlook["confidence_level"] = 0.5
+        elif self.emotional_state == EmotionalState.FEARFUL:
+            outlook["confidence_level"] = 0.3
+            
+        # Determinar tendencia esperada basada en sentimiento
+        if self.market_perceptions["market_sentiment"] == "bullish":
+            if self.emotional_state == EmotionalState.FEARFUL:
+                # Cuando hay miedo, incluso en mercado alcista hay desconfianza
+                outlook["expected_trend"] = "neutral" if random.random() < 0.7 else "bullish"
+            else:
+                outlook["expected_trend"] = "bullish"
+        elif self.market_perceptions["market_sentiment"] == "bearish":
+            outlook["expected_trend"] = "bearish"
+            
+        # Tendencia contra-corriente (contrarian)
+        if random.random() < self.contrarian_tendency:
+            if outlook["expected_trend"] == "bullish":
+                outlook["expected_trend"] = "bearish"
+                outlook["is_contrarian"] = True
+            elif outlook["expected_trend"] == "bearish":
+                outlook["expected_trend"] = "bullish"
+                outlook["is_contrarian"] = True
+                
+        # Ajustar percepción de oportunidad según tendencia y miedo
+        if outlook["expected_trend"] == "bullish" and self.emotional_state != EmotionalState.FEARFUL:
+            outlook["perceived_opportunity"] = min(1.0, outlook["perceived_opportunity"] * 1.2)
+        elif outlook["expected_trend"] == "bearish" or self.emotional_state == EmotionalState.FEARFUL:
+            outlook["perceived_opportunity"] = max(0.1, outlook["perceived_opportunity"] * 0.8)
+            
+        return outlook
+        
+    async def validate_trade(self, trade_data: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        Validar una operación de trading desde una perspectiva humana.
+        
+        Este método simula la validación "subjetiva" que un humano haría antes
+        de confirmar una operación, incluyendo factores emocionales, experiencia
+        previa, y sesgos perceptuales.
+        
+        Args:
+            trade_data: Datos de la operación propuesta
+                {
+                    'symbol': str,           # Símbolo del activo
+                    'side': str,             # 'buy' o 'sell'
+                    'amount': float,         # Cantidad a operar
+                    'price': float,          # Precio propuesto
+                    'reason': str,           # Razón de la señal
+                    'confidence': float,     # Confianza en la señal (0-1)
+                    'market_data': dict,     # Datos de mercado actuales
+                    'historical_performance': dict  # Rendimiento histórico
+                }
+                
+        Returns:
+            Tupla (aprobado, razón)
+        """
+        try:
+            # Extraer datos relevantes
+            symbol = trade_data.get('symbol', 'desconocido')
+            side = trade_data.get('side', 'buy')
+            confidence = trade_data.get('confidence', 0.5)
+            market_data = trade_data.get('market_data', {})
+            reason = trade_data.get('reason', 'señal_técnica')
+            
+            # Factores para la decisión humana
+            decision_factors = {}
+            
+            # Factor 1: Estado emocional actual
+            emotional_approval = True
+            decision_factors['emotional_state'] = self.emotional_state.name
+            
+            # Si hay miedo extremo, rechazar compras salvo señales muy fuertes
+            if self.emotional_state == EmotionalState.FEARFUL:
+                if side == 'buy' and confidence < 0.85:
+                    emotional_approval = False
+                    decision_factors['fearful_rejection'] = True
+                    
+            # Si hay ansiedad, aumentar umbral para compras
+            elif self.emotional_state == EmotionalState.ANXIOUS:
+                if side == 'buy' and confidence < 0.65:
+                    emotional_approval = False
+                    decision_factors['anxious_rejection'] = True
+                    
+            # Si hay optimismo, disminuir umbral para compras
+            elif self.emotional_state == EmotionalState.OPTIMISTIC:
+                if side == 'buy' and confidence < 0.45:  # Más permisivo
+                    emotional_approval = False
+                    
+            # Factor 2: Comportamiento contrario (contrarian)
+            contrarian_factor = False
+            if random.random() < self.contrarian_tendency:
+                if side == 'buy' and self.market_perceptions["market_sentiment"] == "bearish":
+                    # Compra contra-tendencia (más difícil de aprobar)
+                    contrarian_factor = True
+                    if confidence < 0.7:  # Mayor exigencia para operaciones contrarian
+                        decision_factors['contrarian_rejection'] = True
+                        emotional_approval = False
+                elif side == 'sell' and self.market_perceptions["market_sentiment"] == "bullish":
+                    # Venta contra-tendencia
+                    contrarian_factor = True
+            
+            decision_factors['contrarian'] = contrarian_factor
+            
+            # Factor 3: Percepción de volatilidad y riesgo
+            risk_perception = self.market_perceptions["perceived_risk"]
+            volatility_perception = self.market_perceptions["perceived_volatility"]
+            
+            # Con alta percepción de riesgo, ser más exigente
+            if risk_perception > 0.7:
+                if confidence < (0.5 + risk_perception * 0.3):  # Umbral adaptativo
+                    emotional_approval = False
+                    decision_factors['high_risk_rejection'] = True
+            
+            # Con alta volatilidad, adaptarse según estado emocional
+            if volatility_perception > 0.7:
+                if self.emotional_state in [EmotionalState.ANXIOUS, EmotionalState.FEARFUL]:
+                    if confidence < (0.6 + volatility_perception * 0.2):
+                        emotional_approval = False
+                        decision_factors['high_volatility_rejection'] = True
+            
+            # Añadir elemento aleatorio (inconsistencia humana)
+            random_rejection = random.random() < 0.05  # 5% de rechazo aleatorio
+            if random_rejection:
+                emotional_approval = False
+                decision_factors['random_rejection'] = True
+                
+            # Generar razón de la decisión
+            if emotional_approval:
+                # Simular dudas incluso en caso de aprobación
+                approval_confidence = random.uniform(0.7, 1.0)
+                decision_factors['approval_confidence'] = approval_confidence
+                reason_message = "Aprobado por evaluación humana"
+                
+                # Añadir detalles según estado emocional
+                if self.emotional_state == EmotionalState.OPTIMISTIC:
+                    reason_message += " - Perspectiva optimista favorable"
+                elif self.emotional_state == EmotionalState.CONFIDENT:
+                    reason_message += " - Alta confianza en la decisión"
+            else:
+                # Diferentes razones de rechazo
+                if 'fearful_rejection' in decision_factors:
+                    reason_message = "Rechazado por miedo extremo en el mercado"
+                elif 'anxious_rejection' in decision_factors:
+                    reason_message = "Rechazado por ansiedad ante condiciones del mercado"
+                elif 'high_risk_rejection' in decision_factors:
+                    reason_message = "Rechazado por percepción de alto riesgo"
+                elif 'high_volatility_rejection' in decision_factors:
+                    reason_message = "Rechazado por excesiva volatilidad percibida"
+                elif 'random_rejection' in decision_factors:
+                    reason_message = "Rechazado por intuición negativa"
+                elif 'contrarian_rejection' in decision_factors:
+                    reason_message = "Rechazado por operación contra-tendencia sin suficiente señal"
+                else:
+                    reason_message = "Rechazado por evaluación subjetiva"
+            
+            # Log detallado de la decisión
+            logger.debug(f"Validación humana para {symbol} ({side}): {emotional_approval} - {reason_message}")
+            logger.debug(f"Factores de decisión: {decision_factors}")
+            
+            return emotional_approval, reason_message
+            
+        except Exception as e:
+            logger.error(f"Error en validación humana: {str(e)}")
+            return False, f"Error en validación: {str(e)}"
+    
+    async def adjust_order_size(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ajustar tamaño de orden basado en comportamiento humano.
+        
+        Los humanos a menudo redondean los tamaños de las órdenes, utilizan números
+        "bonitos" o ajustan tamaños según su confianza y estado emocional.
+        
+        Args:
+            order_data: Datos de la orden
+                {
+                    'symbol': str,           # Símbolo del activo
+                    'side': str,             # 'buy' o 'sell'
+                    'amount': float,         # Cantidad original a operar
+                    'price': float,          # Precio propuesto
+                    'total_value': float,    # Valor total de la operación
+                    'confidence': float,     # Confianza en la señal (0-1)
+                    'available_capital': float  # Capital disponible
+                }
+                
+        Returns:
+            Orden con cantidad ajustada humanamente
+        """
+        # Extraer datos relevantes
+        side = order_data.get('side', 'buy')
+        original_amount = order_data.get('amount', 0.0)
+        price = order_data.get('price', 0.0)
+        confidence = order_data.get('confidence', 0.5)
+        symbol = order_data.get('symbol', 'desconocido')
+        available_capital = order_data.get('available_capital', 0.0)
+        
+        # Ajuste base según estado emocional
+        emotional_factor = 1.0  # Sin ajuste por defecto
+        
+        # Caso especial: FEARFUL - reducción drástica de cantidad en compras
+        if self.emotional_state == EmotionalState.FEARFUL:
+            if side == 'buy':
+                emotional_factor = 0.5  # 50% de la cantidad original
+                logger.debug(f"Miedo extremo: Reduciendo cantidad de compra al 50% para {symbol}")
+            else:
+                # En ventas, el miedo puede llevar a aumentar cantidad (salir más rápido)
+                emotional_factor = 1.2
+                logger.debug(f"Miedo extremo: Aumentando cantidad de venta al 120% para {symbol}")
+                
+        # Ansioso - reducción moderada en compras
+        elif self.emotional_state == EmotionalState.ANXIOUS:
+            if side == 'buy':
+                emotional_factor = 0.7
+            
+        # Optimista/Confiado - posible aumento en compras
+        elif self.emotional_state in [EmotionalState.OPTIMISTIC, EmotionalState.CONFIDENT]:
+            if side == 'buy':
+                emotional_factor = 1.2
+                
+        # Ajuste por confianza en la señal
+        confidence_factor = 0.7 + (confidence * 0.6)  # 0.7-1.3 basado en confianza
+        
+        # Combinar factores
+        combined_factor = emotional_factor * confidence_factor
+        
+        # Aplicar factor combinado
+        adjusted_amount = original_amount * combined_factor
+        
+        # Humanos tienden a redondear a números "bonitos"
+        # Determinar magnitud para decidir precisión del redondeo
+        magnitude = abs(adjusted_amount)
+        
+        if magnitude >= 1000:
+            # Redondear a decenas/centenas para cantidades grandes
+            rounded_amount = round(adjusted_amount / 100) * 100
+        elif magnitude >= 100:
+            # Redondear a decenas para cantidades medianas
+            rounded_amount = round(adjusted_amount / 10) * 10
+        elif magnitude >= 10:
+            # Redondear a unidades para cantidades pequeñas
+            rounded_amount = round(adjusted_amount)
+        elif magnitude >= 1:
+            # Redondear a decimales para cantidades muy pequeñas
+            rounded_amount = round(adjusted_amount, 1)
+        elif magnitude >= 0.1:
+            # Más precisión para cantidades minúsculas
+            rounded_amount = round(adjusted_amount, 2)
+        else:
+            # Máxima precisión para cantidades ínfimas
+            rounded_amount = round(adjusted_amount, 4)
+            
+        # Verificar que no exceda el capital disponible (para compras)
+        if side == 'buy' and price > 0 and available_capital > 0:
+            max_possible = available_capital / price
+            if rounded_amount > max_possible:
+                rounded_amount = max_possible * 0.98  # 98% del máximo posible (margen de seguridad)
+                logger.debug(f"Ajustada cantidad para no exceder capital disponible: {rounded_amount}")
+                
+        # Resultado final
+        result = order_data.copy()
+        result['amount'] = rounded_amount
+        result['original_amount'] = original_amount
+        result['adjustment_factors'] = {
+            'emotional': emotional_factor,
+            'confidence': confidence_factor,
+            'combined': combined_factor
+        }
+        
+        logger.debug(f"Cantidad ajustada para {symbol} ({side}): {original_amount} → {rounded_amount}")
+        
+        return result
     
     def _create_default_configuration(self) -> Dict[str, Any]:
         """
