@@ -518,8 +518,8 @@ def armageddon_page():
 # Función para registrar blueprint en la aplicación Flask
 def register_armageddon_routes(app):
     """Registrar rutas ARMAGEDÓN en la aplicación Flask."""
+    # Registrar blueprint solo una vez, con un solo URL prefix
     app.register_blueprint(armageddon_bp, url_prefix='/armageddon')
-    app.register_blueprint(armageddon_bp, url_prefix='/api/armageddon')
     
     logger.info("Rutas ARMAGEDÓN registradas correctamente")
     return True
