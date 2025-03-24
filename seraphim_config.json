@@ -1,0 +1,96 @@
+{
+    "version": "1.0.0",
+    "name": "Genesis Ultra-Divino Trading Nexus 10M",
+    "description": "Configuración celestial para el Sistema Genesis con estrategia Seraphim Pool",
+    
+    "general": {
+        "mode": "DIVINE",
+        "auto_cycle": true,
+        "cycle_interval_hours": 24,
+        "health_check_interval_minutes": 15,
+        "log_level": "INFO"
+    },
+    
+    "seraphim_pool": {
+        "cycle_capital": 150.0,
+        "cycle_target_return": 0.085,
+        "cycle_max_loss": 0.02,
+        "cycle_duration_hours": 24,
+        "initial_behavior": "BALANCED",
+        "capital_reserve_percentage": 0.1,
+        "max_assets_per_cycle": 5
+    },
+    
+    "human_behavior": {
+        "initial_emotional_state": "NEUTRAL",
+        "initial_risk_tolerance": "MODERATE",
+        "initial_decision_style": "ANALYTICAL",
+        "emotional_stability": 0.7,
+        "risk_adaptation_rate": 0.3,
+        "randomness_factor": 0.2,
+        "contrarian_tendency": 0.1,
+        "decision_speed_multiplier": 1.0
+    },
+    
+    "pool_participants": [
+        {"id": "participant_1", "name": "Metatron", "share": 0.2},
+        {"id": "participant_2", "name": "Gabriel", "share": 0.2},
+        {"id": "participant_3", "name": "Uriel", "share": 0.2},
+        {"id": "participant_4", "name": "Rafael", "share": 0.2},
+        {"id": "participant_5", "name": "Miguel", "share": 0.2}
+    ],
+    
+    "buddha_integration": {
+        "analysis_weight": 0.4,
+        "prediction_horizon_hours": 48,
+        "sentiment_threshold": 0.6,
+        "refresh_interval_hours": 6
+    },
+    
+    "classifier_settings": {
+        "opportunity_threshold": 0.65,
+        "classification_refresh_hours": 4,
+        "risk_threshold": 0.7,
+        "volatility_threshold": 0.8
+    },
+    
+    "risk_management": {
+        "global_stop_loss_percentage": 2.0,
+        "individual_stop_loss_multiplier": 1.5,
+        "max_allocation_per_asset_percentage": 40.0,
+        "volatility_adjustment_factor": 0.8
+    },
+    
+    "orchestration": {
+        "initialization_timeout_seconds": 30,
+        "component_connection_retries": 3,
+        "checkpoint_interval_minutes": 10,
+        "recovery_verification_enabled": true
+    },
+    
+    "notifications": {
+        "cycle_start": true,
+        "cycle_end": true,
+        "position_opened": true,
+        "position_closed": true,
+        "profit_distribution": true,
+        "system_health_alerts": true,
+        "min_notification_interval_minutes": 15
+    },
+    
+    "resilience": {
+        "circuit_breaker_threshold": 0.7,
+        "checkpoint_redundancy": 3,
+        "oracle_consultation_frequency": "HIGH",
+        "failure_recovery_mode": "QUANTUM_ENTANGLED",
+        "load_balancing_strategy": "ADAPTIVE"
+    },
+    
+    "advanced": {
+        "quantum_processing_enabled": true,
+        "dimensional_entanglement_level": 3,
+        "transmutation_efficiency": 0.95,
+        "oracle_prediction_weight": 0.7,
+        "sync_verification_level": "TRASCENDENTAL"
+    }
+}

@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genesis Ultra-Divino Trading Nexus 10M</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
+    <style>
+        :root {
+            --divine-purple: #9d4edd;
+            --divine-blue: #3a86ff;
+            --divine-cyan: #00b4d8;
+            --divine-pink: #f72585;
+            --divine-gold: #ffbe0b;
+        }
+        
+        body {
+            background-color: #0a0a20;
+            color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .divine-card {
+            background: linear-gradient(135deg, rgba(45, 45, 80, 0.8), rgba(40, 40, 70, 0.8));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .divine-header {
+            background: linear-gradient(90deg, var(--divine-purple), var(--divine-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(157, 78, 221, 0.2);
+        }
+        
+        .divine-subheader {
+            background: linear-gradient(90deg, var(--divine-cyan), var(--divine-blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 600;
+        }
+        
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-badge-harmonizing {
+            background-color: var(--divine-blue);
+            color: white;
+        }
+        
+        .status-badge-transcending {
+            background-color: var(--divine-purple);
+            color: white;
+        }
+        
+        .status-badge-conducting {
+            background-color: var(--divine-cyan);
+            color: #0a0a20;
+        }
+        
+        .status-badge-inactive {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .button-divine {
+            background: linear-gradient(45deg, var(--divine-purple), var(--divine-blue));
+            border: none;
+            color: white;
+            border-radius: 50px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(157, 78, 221, 0.3);
+        }
+        
+        .button-divine:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(157, 78, 221, 0.5);
+        }
+        
+        .button-divine:active {
+            transform: translateY(1px);
+        }
+        
+        .button-divine-secondary {
+            background: linear-gradient(45deg, var(--divine-cyan), var(--divine-blue));
+        }
+        
+        .button-divine-warning {
+            background: linear-gradient(45deg, var(--divine-gold), var(--divine-pink));
+        }
+        
+        .progress-divine {
+            height: 10px;
+            border-radius: 5px;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .progress-divine .progress-bar {
+            background: linear-gradient(90deg, var(--divine-purple), var(--divine-blue));
+            border-radius: 5px;
+        }
+        
+        .cycle-phase {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .cycle-phase.active {
+            background-color: var(--divine-cyan);
+            color: #0a0a20;
+        }
+        
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.08;
+            background: 
+                radial-gradient(circle at 30% 20%, var(--divine-purple) 0%, transparent 20%),
+                radial-gradient(circle at 70% 60%, var(--divine-blue) 0%, transparent 20%),
+                radial-gradient(circle at 40% 80%, var(--divine-cyan) 0%, transparent 20%),
+                radial-gradient(circle at 80% 10%, var(--divine-pink) 0%, transparent 20%);
+        }
+        
+        .crypto-badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            margin: 0.25rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            background: linear-gradient(45deg, rgba(58, 134, 255, 0.2), rgba(157, 78, 221, 0.2));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--divine-purple), var(--divine-blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.75rem;
+            font-weight: bold;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        .participant-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .divine-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 0.5rem;
+        }
+        
+        .divine-table th {
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 600;
+            padding: 0.75rem;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .divine-table tbody tr {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+        }
+        
+        .divine-table td {
+            padding: 1rem 0.75rem;
+            border: none;
+        }
+        
+        .divine-table tbody tr td:first-child {
+            border-top-left-radius: 10px;
+            border-bottom-left-radius: 10px;
+        }
+        
+        .divine-table tbody tr td:last-child {
+            border-top-right-radius: 10px;
+            border-bottom-right-radius: 10px;
+        }
+        
+        .asset-allocation {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--divine-purple), var(--divine-blue));
+        }
+    </style>
+</head>
+<body>
+    <div class="animated-bg"></div>
+    
+    <div class="container py-5">
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <h1 class="display-4 divine-header animate__animated animate__fadeIn">Genesis Ultra-Divino Trading Nexus 10M</h1>
+                <p class="lead text-light opacity-75">Estrategia Seraphim Pool - Sistema Celestial de Trading</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Panel de Estado del Sistema -->
+            <div class="col-lg-8">
+                <div class="divine-card animate__animated animate__fadeIn">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="divine-subheader mb-0">Estado del Sistema</h2>
+                        <span id="system-status-badge" class="status-badge status-badge-inactive">Inactivo</span>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-light opacity-75">Salud del Sistema</label>
+                                <div class="progress progress-divine mt-2">
+                                    <div id="health-progress" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between mt-1">
+                                    <small class="text-light opacity-50">0%</small>
+                                    <small id="health-percentage" class="text-light opacity-75">0%</small>
+                                    <small class="text-light opacity-50">100%</small>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="text-light opacity-75">Tiempo Activo</label>
+                                <h4 id="system-uptime" class="mt-1">-</h4>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="text-light opacity-75">Estado Operacional</label>
+                                <h4 id="system-state" class="mt-1">-</h4>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="text-light opacity-75">Ciclos Completados</label>
+                                <h4 id="completed-cycles" class="mt-1">0</h4>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="text-light opacity-75">Ganancia Total</label>
+                                <h4 id="total-profit" class="mt-1">$0.00</h4>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="text-light opacity-75">Estado Buddha AI</label>
+                                <h4 id="buddha-status" class="mt-1">-</h4>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex mt-3">
+                        <button id="btn-initialize" class="button-divine me-2">Inicializar Sistema</button>
+                        <button id="btn-start-cycle" class="button-divine button-divine-secondary me-2" disabled>Iniciar Ciclo</button>
+                        <button id="btn-process-cycle" class="button-divine button-divine-secondary" disabled>Procesar Ciclo</button>
+                    </div>
+                </div>
+                
+                <!-- Ciclo Activo -->
+                <div id="active-cycle-card" class="divine-card animate__animated animate__fadeIn" style="display: none;">
+                    <h2 class="divine-subheader mb-4">Ciclo Activo</h2>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <label class="text-light opacity-75">ID del Ciclo</label>
+                                <h4 id="cycle-id" class="mt-1">-</h4>
+                            </div>
+                            <div>
+                                <label class="text-light opacity-75">Estado</label>
+                                <h4 id="cycle-state" class="mt-1">-</h4>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="text-light opacity-75">Fase del Ciclo</label>
+                            <div class="d-flex mt-2">
+                                <span class="cycle-phase" data-phase="PREPARATION">Preparación</span>
+                                <span class="cycle-phase" data-phase="REVELATION">Revelación</span>
+                                <span class="cycle-phase" data-phase="EXECUTION">Ejecución</span>
+                                <span class="cycle-phase" data-phase="GUARDIANSHIP">Guardianía</span>
+                                <span class="cycle-phase" data-phase="REFLECTION">Reflexión</span>
+                                <span class="cycle-phase" data-phase="DISTRIBUTION">Distribución</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <label class="text-light opacity-75">Capital Inicial</label>
+                                <h4 id="cycle-starting-capital" class="mt-1">$0.00</h4>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-light opacity-75">Capital Actual</label>
+                                <h4 id="cycle-current-capital" class="mt-1">$0.00</h4>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-light opacity-75">ROI</label>
+                                <h4 id="cycle-roi" class="mt-1">0.00%</h4>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="text-light opacity-75 mb-2">Activos Seleccionados</label>
+                        <div id="selected-assets" class="d-flex flex-wrap">
+                            <!-- Contenido dinámico -->
+                        </div>
+                    </div>
+                    
+                    <table class="divine-table mt-3">
+                        <thead>
+                            <tr>
+                                <th>Activo</th>
+                                <th>Asignación</th>
+                                <th>Estado</th>
+                                <th>P/L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="assets-table-body">
+                            <!-- Contenido dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Panel Lateral -->
+            <div class="col-lg-4">
+                <!-- Comportamiento Humano -->
+                <div class="divine-card animate__animated animate__fadeIn">
+                    <h2 class="divine-subheader mb-3">Comportamiento Humano</h2>
+                    
+                    <div class="mb-3">
+                        <label class="text-light opacity-75">Estado Emocional</label>
+                        <h4 id="emotional-state" class="mt-1">-</h4>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="text-light opacity-75">Tolerancia al Riesgo</label>
+                        <h4 id="risk-tolerance" class="mt-1">-</h4>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="text-light opacity-75">Estilo de Decisión</label>
+                        <h4 id="decision-style" class="mt-1">-</h4>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="text-light opacity-75">Sentimiento de Mercado</label>
+                        <h4 id="market-sentiment" class="mt-1">-</h4>
+                    </div>
+                    
+                    <button id="btn-randomize-behavior" class="button-divine w-100">Aleatorizar Comportamiento</button>
+                </div>
+                
+                <!-- Top Criptomonedas -->
+                <div class="divine-card animate__animated animate__fadeIn">
+                    <h2 class="divine-subheader mb-3">Top Criptomonedas</h2>
+                    
+                    <div id="top-cryptos" class="d-flex flex-wrap">
+                        <!-- Contenido dinámico -->
+                    </div>
+                </div>
+                
+                <!-- Participantes del Pool -->
+                <div class="divine-card animate__animated animate__fadeIn">
+                    <h2 class="divine-subheader mb-3">Participantes del Pool</h2>
+                    
+                    <div id="participants-container">
+                        <div class="participant-card">
+                            <div class="avatar">M</div>
+                            <div>
+                                <h5 class="mb-0">Metatron</h5>
+                                <small class="text-light opacity-75">20% del pool</small>
+                            </div>
+                        </div>
+                        <div class="participant-card">
+                            <div class="avatar">G</div>
+                            <div>
+                                <h5 class="mb-0">Gabriel</h5>
+                                <small class="text-light opacity-75">20% del pool</small>
+                            </div>
+                        </div>
+                        <div class="participant-card">
+                            <div class="avatar">U</div>
+                            <div>
+                                <h5 class="mb-0">Uriel</h5>
+                                <small class="text-light opacity-75">20% del pool</small>
+                            </div>
+                        </div>
+                        <div class="participant-card">
+                            <div class="avatar">R</div>
+                            <div>
+                                <h5 class="mb-0">Rafael</h5>
+                                <small class="text-light opacity-75">20% del pool</small>
+                            </div>
+                        </div>
+                        <div class="participant-card">
+                            <div class="avatar">M</div>
+                            <div>
+                                <h5 class="mb-0">Miguel</h5>
+                                <small class="text-light opacity-75">20% del pool</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Operación Autónoma -->
+                <div class="divine-card animate__animated animate__fadeIn">
+                    <h2 class="divine-subheader mb-3">Operación Autónoma</h2>
+                    
+                    <div class="mb-3">
+                        <label for="duration-hours" class="form-label text-light opacity-75">Duración (horas)</label>
+                        <input type="number" class="form-control" id="duration-hours" placeholder="Indefinido si se deja vacío">
+                    </div>
+                    
+                    <div class="d-flex">
+                        <button id="btn-start-auto" class="button-divine me-2" disabled>Iniciar Automático</button>
+                        <button id="btn-stop-auto" class="button-divine button-divine-warning" disabled>Detener Automático</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Elementos DOM
+        const systemStatusBadge = document.getElementById('system-status-badge');
+        const healthProgress = document.getElementById('health-progress');
+        const healthPercentage = document.getElementById('health-percentage');
+        const systemUptime = document.getElementById('system-uptime');
+        const systemState = document.getElementById('system-state');
+        const completedCycles = document.getElementById('completed-cycles');
+        const totalProfit = document.getElementById('total-profit');
+        const buddhaStatus = document.getElementById('buddha-status');
+        const btnInitialize = document.getElementById('btn-initialize');
+        const btnStartCycle = document.getElementById('btn-start-cycle');
+        const btnProcessCycle = document.getElementById('btn-process-cycle');
+        const activeCycleCard = document.getElementById('active-cycle-card');
+        const cycleId = document.getElementById('cycle-id');
+        const cycleState = document.getElementById('cycle-state');
+        const cycleStartingCapital = document.getElementById('cycle-starting-capital');
+        const cycleCurrentCapital = document.getElementById('cycle-current-capital');
+        const cycleRoi = document.getElementById('cycle-roi');
+        const selectedAssets = document.getElementById('selected-assets');
+        const assetsTableBody = document.getElementById('assets-table-body');
+        const emotionalState = document.getElementById('emotional-state');
+        const riskTolerance = document.getElementById('risk-tolerance');
+        const decisionStyle = document.getElementById('decision-style');
+        const marketSentiment = document.getElementById('market-sentiment');
+        const btnRandomizeBehavior = document.getElementById('btn-randomize-behavior');
+        const topCryptos = document.getElementById('top-cryptos');
+        const durationHours = document.getElementById('duration-hours');
+        const btnStartAuto = document.getElementById('btn-start-auto');
+        const btnStopAuto = document.getElementById('btn-stop-auto');
+        
+        // Estado de la aplicación
+        let systemInitialized = false;
+        let activeCycle = null;
+        let cyclePhase = null;
+        let autoOperationActive = false;
+        
+        // Funciones de actualización de UI
+        function updateSystemStatus(status) {
+            systemStatusBadge.className = 'status-badge';
+            
+            if (status === 'TRANSCENDING') {
+                systemStatusBadge.classList.add('status-badge-transcending');
+                systemStatusBadge.textContent = 'Trascendiendo';
+            } else if (status === 'CONDUCTING') {
+                systemStatusBadge.classList.add('status-badge-conducting');
+                systemStatusBadge.textContent = 'Conduciendo';
+            } else if (status === 'HARMONIZING') {
+                systemStatusBadge.classList.add('status-badge-harmonizing');
+                systemStatusBadge.textContent = 'Armonizando';
+            } else if (status === 'INACTIVE') {
+                systemStatusBadge.classList.add('status-badge-inactive');
+                systemStatusBadge.textContent = 'Inactivo';
+            } else {
+                systemStatusBadge.classList.add('status-badge-inactive');
+                systemStatusBadge.textContent = status || 'Desconocido';
+            }
+        }
+        
+        function updateSystemHealth(healthScore) {
+            const percentage = Math.round(healthScore * 100);
+            healthProgress.style.width = `${percentage}%`;
+            healthPercentage.textContent = `${percentage}%`;
+        }
+        
+        function updateCyclePhase(phase) {
+            cyclePhase = phase;
+            
+            // Actualizar indicadores de fase
+            document.querySelectorAll('.cycle-phase').forEach(el => {
+                el.classList.remove('active');
+                if (el.dataset.phase === phase) {
+                    el.classList.add('active');
+                }
+            });
+        }
+        
+        function updateActiveCycle(cycle) {
+            activeCycle = cycle;
+            
+            if (cycle && cycle.cycle_id) {
+                activeCycleCard.style.display = 'block';
+                cycleId.textContent = cycle.cycle_id;
+                cycleState.textContent = cycle.strategy_state || '-';
+                updateCyclePhase(cycle.cycle_phase);
+                
+                // Actualizar métricas del ciclo
+                const performance = cycle.cycle_performance || {};
+                cycleStartingCapital.textContent = `$${(performance.starting_capital || 0).toFixed(2)}`;
+                cycleCurrentCapital.textContent = `$${(performance.current_capital || 0).toFixed(2)}`;
+                cycleRoi.textContent = `${(performance.roi_percentage || 0).toFixed(2)}%`;
+                
+                // Actualizar tabla de activos
+                updateAssetsTable(cycle);
+                
+                // Habilitar/deshabilitar botones según fase
+                btnProcessCycle.disabled = false;
+            } else {
+                activeCycleCard.style.display = 'none';
+                btnProcessCycle.disabled = true;
+            }
+        }
+        
+        function updateAssetsTable(cycle) {
+            // Simulación: en un entorno real, estos datos vendrían del backend
+            const assets = [
+                { symbol: 'BTC', allocation: 45.00, status: 'Activo', pnl: 3.25 },
+                { symbol: 'ETH', allocation: 35.00, status: 'Activo', pnl: -1.15 },
+                { symbol: 'SOL', allocation: 25.00, status: 'Activo', pnl: 4.78 },
+                { symbol: 'ADA', allocation: 15.00, status: 'Pendiente', pnl: 0.00 },
+                { symbol: 'DOT', allocation: 10.00, status: 'Pendiente', pnl: 0.00 }
+            ];
+            
+            // Limpiar contenedor
+            assetsTableBody.innerHTML = '';
+            selectedAssets.innerHTML = '';
+            
+            // Añadir badges de activos seleccionados
+            assets.forEach(asset => {
+                const badge = document.createElement('span');
+                badge.className = 'crypto-badge';
+                badge.textContent = asset.symbol;
+                selectedAssets.appendChild(badge);
+            });
+            
+            // Poblar tabla
+            assets.forEach(asset => {
+                const row = document.createElement('tr');
+                
+                const symbolCell = document.createElement('td');
+                symbolCell.textContent = asset.symbol;
+                
+                const allocationCell = document.createElement('td');
+                const allocationWrapper = document.createElement('div');
+                allocationWrapper.className = 'position-relative';
+                const allocationBar = document.createElement('div');
+                allocationBar.className = 'asset-allocation';
+                allocationBar.style.width = `${(asset.allocation / 45) * 100}%`;
+                const allocationText = document.createElement('div');
+                allocationText.className = 'mt-1';
+                allocationText.textContent = `$${asset.allocation.toFixed(2)}`;
+                allocationWrapper.appendChild(allocationBar);
+                allocationWrapper.appendChild(allocationText);
+                allocationCell.appendChild(allocationWrapper);
+                
+                const statusCell = document.createElement('td');
+                statusCell.textContent = asset.status;
+                
+                const pnlCell = document.createElement('td');
+                pnlCell.textContent = `${asset.pnl > 0 ? '+' : ''}${asset.pnl.toFixed(2)}%`;
+                pnlCell.className = asset.pnl > 0 ? 'text-success' : (asset.pnl < 0 ? 'text-danger' : '');
+                
+                row.appendChild(symbolCell);
+                row.appendChild(allocationCell);
+                row.appendChild(statusCell);
+                row.appendChild(pnlCell);
+                
+                assetsTableBody.appendChild(row);
+            });
+        }
+        
+        function updateHumanBehavior(characteristics) {
+            if (characteristics) {
+                emotionalState.textContent = characteristics.emotional_state || '-';
+                riskTolerance.textContent = characteristics.risk_tolerance || '-';
+                decisionStyle.textContent = characteristics.decision_style || '-';
+                
+                const perceptions = characteristics.market_perceptions || {};
+                marketSentiment.textContent = perceptions.market_sentiment || '-';
+            }
+        }
+        
+        function updateTopCryptos(cryptos) {
+            // Limpiar contenedor
+            topCryptos.innerHTML = '';
+            
+            // Añadir badges de criptomonedas
+            if (Array.isArray(cryptos)) {
+                cryptos.forEach(crypto => {
+                    const badge = document.createElement('span');
+                    badge.className = 'crypto-badge';
+                    badge.textContent = crypto;
+                    topCryptos.appendChild(badge);
+                });
+            }
+        }
+        
+        // Funciones de API
+        async function fetchSystemStatus() {
+            try {
+                const response = await fetch('/api/seraphim/status');
+                const data = await response.json();
+                
+                systemInitialized = data.initialized;
+                
+                // Actualizar UI basada en estado
+                if (systemInitialized) {
+                    btnInitialize.disabled = true;
+                    btnStartCycle.disabled = false;
+                    btnStartAuto.disabled = false;
+                    btnStopAuto.disabled = !autoOperationActive;
+                    
+                    // Obtener más detalles del sistema
+                    fetchSystemOverview();
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Error fetching system status:', error);
+                return null;
+            }
+        }
+        
+        async function fetchSystemOverview() {
+            try {
+                const response = await fetch('/api/seraphim/system_overview');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const stats = data.system_stats || {};
+                    
+                    // Actualizar UI
+                    updateSystemStatus(stats.orchestrator_state);
+                    updateSystemHealth(stats.health_score || 0);
+                    systemUptime.textContent = stats.uptime || '-';
+                    systemState.textContent = stats.orchestrator_state || '-';
+                    completedCycles.textContent = stats.completed_cycles_count || 0;
+                    totalProfit.textContent = `$${(stats.total_profit || 0).toFixed(2)}`;
+                    buddhaStatus.textContent = data.buddha_status || '-';
+                    
+                    // Actualizar ciclo activo
+                    updateActiveCycle(data.active_cycle);
+                    
+                    // Actualizar criptomonedas
+                    updateTopCryptos(data.top_cryptos);
+                    
+                    // Verificar operación autónoma
+                    autoOperationActive = stats.auto_cycle_enabled || false;
+                    btnStopAuto.disabled = !autoOperationActive;
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Error fetching system overview:', error);
+                return null;
+            }
+        }
+        
+        async function fetchHumanBehavior() {
+            try {
+                const response = await fetch('/api/seraphim/human_behavior');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateHumanBehavior(data.characteristics);
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Error fetching human behavior:', error);
+                return null;
+            }
+        }
+        
+        async function initializeSystem() {
+            try {
+                btnInitialize.disabled = true;
+                btnInitialize.textContent = 'Inicializando...';
+                
+                const response = await fetch('/api/seraphim/initialize', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Comprobar estado en intervalos hasta que esté inicializado
+                    const checkInterval = setInterval(async () => {
+                        const status = await fetchSystemStatus();
+                        
+                        if (status && status.initialized) {
+                            clearInterval(checkInterval);
+                            btnInitialize.textContent = 'Sistema Inicializado';
+                            fetchHumanBehavior();
+                        }
+                    }, 2000);
+                } else {
+                    btnInitialize.disabled = false;
+                    btnInitialize.textContent = 'Inicializar Sistema';
+                    alert('Error al inicializar sistema: ' + data.message);
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Error initializing system:', error);
+                btnInitialize.disabled = false;
+                btnInitialize.textContent = 'Inicializar Sistema';
+                alert('Error de conexión al inicializar sistema');
+                return null;
+            }
+        }
+        
+        async function startCycle() {
+            try {
+                btnStartCycle.disabled = true;
+                btnStartCycle.textContent = 'Iniciando...';
+                
+                const response = await fetch('/api/seraphim/start_cycle', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Comprobar estado en intervalos
+                    setTimeout(fetchSystemOverview, 2000);
+                } else {
+                    alert('Error al iniciar ciclo: ' + data.message);
+                }
+                
+                btnStartCycle.disabled = false;
+                btnStartCycle.textContent = 'Iniciar Ciclo';
+                
+                return data;
+            } catch (error) {
+                console.error('Error starting cycle:', error);
+                btnStartCycle.disabled = false;
+                btnStartCycle.textContent = 'Iniciar Ciclo';
+                alert('Error de conexión al iniciar ciclo');
+                return null;
+            }
+        }
+        
+        async function processCycle() {
+            try {
+                btnProcessCycle.disabled = true;
+                btnProcessCycle.textContent = 'Procesando...';
+                
+                const response = await fetch('/api/seraphim/process_cycle', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Comprobar estado en intervalos
+                    setTimeout(fetchSystemOverview, 2000);
+                } else {
+                    alert('Error al procesar ciclo: ' + data.message);
+                }
+                
+                btnProcessCycle.disabled = false;
+                btnProcessCycle.textContent = 'Procesar Ciclo';
+                
+                return data;
+            } catch (error) {
+                console.error('Error processing cycle:', error);
+                btnProcessCycle.disabled = false;
+                btnProcessCycle.textContent = 'Procesar Ciclo';
+                alert('Error de conexión al procesar ciclo');
+                return null;
+            }
+        }
+        
+        async function randomizeBehavior() {
+            try {
+                btnRandomizeBehavior.disabled = true;
+                btnRandomizeBehavior.textContent = 'Aleatorizando...';
+                
+                const response = await fetch('/api/seraphim/randomize_behavior', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateHumanBehavior(data.new_characteristics);
+                } else {
+                    alert('Error al aleatorizar comportamiento: ' + data.message);
+                }
+                
+                btnRandomizeBehavior.disabled = false;
+                btnRandomizeBehavior.textContent = 'Aleatorizar Comportamiento';
+                
+                return data;
+            } catch (error) {
+                console.error('Error randomizing behavior:', error);
+                btnRandomizeBehavior.disabled = false;
+                btnRandomizeBehavior.textContent = 'Aleatorizar Comportamiento';
+                alert('Error de conexión al aleatorizar comportamiento');
+                return null;
+            }
+        }
+        
+        async function startAutoOperation() {
+            try {
+                btnStartAuto.disabled = true;
+                btnStartAuto.textContent = 'Iniciando...';
+                
+                const hours = durationHours.value ? parseInt(durationHours.value) : null;
+                
+                const response = await fetch('/api/seraphim/auto_operation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        duration_hours: hours
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    autoOperationActive = true;
+                    btnStopAuto.disabled = false;
+                    
+                    // Comprobar estado en intervalos
+                    setTimeout(fetchSystemOverview, 2000);
+                } else {
+                    alert('Error al iniciar operación autónoma: ' + data.message);
+                }
+                
+                btnStartAuto.disabled = false;
+                btnStartAuto.textContent = 'Iniciar Automático';
+                
+                return data;
+            } catch (error) {
+                console.error('Error starting auto operation:', error);
+                btnStartAuto.disabled = false;
+                btnStartAuto.textContent = 'Iniciar Automático';
+                alert('Error de conexión al iniciar operación autónoma');
+                return null;
+            }
+        }
+        
+        async function stopAutoOperation() {
+            try {
+                btnStopAuto.disabled = true;
+                btnStopAuto.textContent = 'Deteniendo...';
+                
+                const response = await fetch('/api/seraphim/stop_auto', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    autoOperationActive = false;
+                    
+                    // Comprobar estado en intervalos
+                    setTimeout(fetchSystemOverview, 2000);
+                } else {
+                    alert('Error al detener operación autónoma: ' + data.message);
+                }
+                
+                btnStopAuto.disabled = !autoOperationActive;
+                btnStopAuto.textContent = 'Detener Automático';
+                
+                return data;
+            } catch (error) {
+                console.error('Error stopping auto operation:', error);
+                btnStopAuto.disabled = !autoOperationActive;
+                btnStopAuto.textContent = 'Detener Automático';
+                alert('Error de conexión al detener operación autónoma');
+                return null;
+            }
+        }
+        
+        // Event listeners
+        btnInitialize.addEventListener('click', initializeSystem);
+        btnStartCycle.addEventListener('click', startCycle);
+        btnProcessCycle.addEventListener('click', processCycle);
+        btnRandomizeBehavior.addEventListener('click', randomizeBehavior);
+        btnStartAuto.addEventListener('click', startAutoOperation);
+        btnStopAuto.addEventListener('click', stopAutoOperation);
+        
+        // Inicialización
+        fetchSystemStatus();
+        
+        // Actualización periódica
+        setInterval(fetchSystemOverview, 10000);
+    </script>
+</body>
+</html>
