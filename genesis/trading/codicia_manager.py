@@ -637,11 +637,79 @@ class CodiciaManager:
             if metadata:
                 order.metadata.update(metadata)
             
+            # Validar la operación según comportamiento humano
+            if self.behavior_engine:
+                try:
+                    # Preparar datos para la validación humana
+                    trade_data = {
+                        'symbol': symbol,
+                        'side': side.name.lower() if hasattr(side, 'name') else str(side).lower(),
+                        'amount': amount,
+                        'price': price,
+                        'reason': metadata.get('reason', 'señal_sistema'),
+                        'confidence': metadata.get('confidence', 0.6),
+                        'market_data': metadata.get('market_data', {})
+                    }
+                    
+                    # Validar operación con el motor de comportamiento humano
+                    approved, reason = await self.behavior_engine.validate_trade(trade_data)
+                    
+                    # Registrar resultado de validación
+                    order.metadata['human_validation'] = {
+                        'approved': approved,
+                        'reason': reason,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    
+                    # Si no es aprobada, cancelar la orden
+                    if not approved:
+                        logger.info(f"Orden rechazada por validación humana: {reason}")
+                        return {
+                            "success": False,
+                            "error": f"Rechazada por validación humana: {reason}",
+                            "order_id": order.id,
+                            "details": order.to_dict()
+                        }
+                        
+                    logger.debug(f"Orden validada por comportamiento humano: {reason}")
+                    
+                except Exception as e:
+                    logger.warning(f"Error en validación humana: {str(e)}")
+                    # Continuar con la orden a pesar del error (política de resiliencia)
+            
             # Aplicar ajustes basados en estado emocional (codicia vs prudencia)
             if self.behavior_engine:
                 try:
+                    # Primero aplicamos el ajuste emocional general
                     order = await self.apply_emotional_adjustment(order)
                     logger.debug(f"Ambición ajustada según estado emocional: {order.metadata.get('emotional_adjustment', 'EQUILIBRIO PERFECTO')}")
+                    
+                    # Luego ajustamos el tamaño de la orden según el comportamiento humano
+                    order_data = {
+                        'symbol': order.symbol,
+                        'side': order.side.name.lower() if hasattr(order.side, 'name') else str(order.side).lower(),
+                        'amount': order.amount,
+                        'price': order.price,
+                        'confidence': metadata.get('confidence', 0.6) if metadata else 0.6,
+                        'available_capital': metadata.get('available_capital', 0.0) if metadata else 0.0
+                    }
+                    
+                    # Ajustar tamaño de orden según comportamiento humano
+                    adjusted_data = await self.behavior_engine.adjust_order_size(order_data)
+                    
+                    # Actualizar orden con cantidad ajustada
+                    original_amount = order.amount
+                    order.amount = adjusted_data.get('amount', original_amount)
+                    
+                    # Registrar ajustes
+                    order.metadata['size_adjustment'] = {
+                        'original_amount': original_amount,
+                        'adjusted_amount': order.amount,
+                        'factors': adjusted_data.get('adjustment_factors', {})
+                    }
+                    
+                    logger.debug(f"Tamaño de orden ajustado según comportamiento humano: {original_amount} → {order.amount}")
+                    
                 except Exception as e:
                     logger.warning(f"Error aplicando ajuste de ambición: {str(e)}")
             
