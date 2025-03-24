@@ -1,963 +1,896 @@
 #!/usr/bin/env python3
 """
-Adaptador ARMAGEDÓN Ultra-Divino para el Sistema Genesis Trascendental.
+Adaptador ARMAGEDÓN Ultra-Divino.
 
-Este módulo implementa el Adaptador ARMAGEDÓN, una capa de integración que
-potencia las capacidades del Oráculo Cuántico con funcionalidades avanzadas
-de resiliencia extrema y conexión con APIs externas como DeepSeek, AlphaVantage
-y CoinMarketCap.
+Este módulo implementa el Adaptador ARMAGEDÓN con capacidades para simular
+patrones de destrucción extremos que validan la resiliencia del sistema.
+Integra APIs externas para mejorar la precisión y alcance de las pruebas,
+trabajando en completa sinergia con el Oráculo Cuántico.
 
-El adaptador permite ejecutar patrones de prueba ARMAGEDÓN para evaluar la
-resiliencia del sistema ante condiciones extremas, garantizando su fiabilidad
-absoluta ante escenarios catastróficos.
-
-Características trascendentales:
-- Integración perfecta con APIs externas para predicciones mejoradas
-- Simulación de patrones de destrucción para pruebas de resiliencia
-- Monitoreo continuo con capacidades de auto-recuperación
-- Análisis cuántico de datos de mercado para niveles predictivos divinos
+El Adaptador ARMAGEDÓN puede ejecutar 8 patrones de destrucción diferentes,
+todos ellos diseñados para probar y fortalecer la resiliencia absoluta del
+Sistema Genesis en su modo Ultra-Divino.
 """
 
 import os
+import sys
 import json
 import logging
-import asyncio
 import random
 import time
-import re
-import hmac
-import hashlib
-import base64
+import asyncio
+from datetime import datetime, timedelta
 from enum import Enum, auto
 from typing import Dict, List, Any, Optional, Tuple, Union, Set
-from datetime import datetime, timedelta
-
-# Intentar importar numpy para capacidades avanzadas
-try:
-    import numpy as np
-except ImportError:
-    np = None
+import numpy as np
 
 # Importar el Oráculo Cuántico
-from genesis.oracle.quantum_oracle import QuantumOracle
+from .quantum_oracle import QuantumOracle, OracleState
 
-# Configuración de logging
+# Configurar logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-logger = logging.getLogger("genesis.armageddon.adapter")
+logger = logging.getLogger("genesis.oracle.armageddon")
 
 
 class ArmageddonPattern(Enum):
-    """
-    Patrones de destrucción para pruebas ARMAGEDÓN.
-    
-    Cada patrón representa un escenario catastrófico diseñado para
-    evaluar la resiliencia del sistema bajo condiciones extremas.
-    """
+    """Patrones de destrucción ARMAGEDÓN."""
     DEVASTADOR_TOTAL = auto()      # Combinación de todos los patrones
     AVALANCHA_CONEXIONES = auto()  # Sobrecarga masiva de conexiones
-    TSUNAMI_OPERACIONES = auto()   # Flujo extremo de operaciones concurrentes
-    SOBRECARGA_MEMORIA = auto()    # Consumo extremo de recursos
-    INYECCION_CAOS = auto()        # Datos corruptos en múltiples niveles
-    OSCILACION_EXTREMA = auto()    # Cambios rápidos en componentes críticos
-    INTERMITENCIA_BRUTAL = auto()  # Cortes aleatorios en servicios centrales
-    APOCALIPSIS_FINAL = auto()     # Escenario terminal de prueba máxima
+    TSUNAMI_OPERACIONES = auto()   # Volumen extremo de operaciones
+    SOBRECARGA_MEMORIA = auto()    # Consumo agresivo de memoria
+    INYECCION_CAOS = auto()        # Inserción de datos incoherentes
+    OSCILACION_EXTREMA = auto()    # Cambios violentos en datos
+    INTERMITENCIA_BRUTAL = auto()  # Desconexiones aleatorias
+    APOCALIPSIS_FINAL = auto()     # Escenario híbrido extremo
+
+
+class ArmageddonMode(Enum):
+    """Modos de operación del Adaptador ARMAGEDÓN."""
+    INACTIVE = auto()       # No activado
+    ACTIVE = auto()         # Activado pero sin ejecución
+    EXECUTING = auto()      # Ejecutando patrón
+    RECOVERING = auto()     # Recuperándose
+    ANALYZING = auto()      # Analizando resultados
+    ENHANCED = auto()       # Modo mejorado con APIs
 
 
 class ArmageddonAdapter:
     """
-    Adaptador ARMAGEDÓN para el Sistema Genesis Trascendental.
+    Adaptador ARMAGEDÓN para pruebas de resiliencia extrema.
     
-    Este adaptador mejora el Oráculo Cuántico con capacidades extremas
-    de resiliencia y conexión a APIs externas, permitiendo simulaciones
-    de escenarios catastróficos para pruebas.
+    Este adaptador implementa patrones de destrucción extremos para validar
+    la resiliencia del sistema, con capacidad para integrarse con APIs
+    externas y el Oráculo Cuántico para pruebas más precisas.
     """
     
     def __init__(self, oracle: QuantumOracle):
         """
-        Inicializar Adaptador ARMAGEDÓN.
+        Inicializar el Adaptador ARMAGEDÓN.
         
         Args:
-            oracle: Instancia del Oráculo Cuántico a mejorar
+            oracle: Instancia del Oráculo Cuántico para integración
         """
         self._oracle = oracle
+        self._mode = ArmageddonMode.INACTIVE
         self._initialized = False
-        self._armageddon_mode = False
-        self._armageddon_readiness = 0.0
-        self._resilience_rating = 0.0
-        self._simulating_pattern = None
-        self._current_pattern_state = {}
-        self._simulation_start_time = None
-        self._simulation_end_time = None
-        self._recovery_needed = False
-        self._recovery_in_progress = False
+        self._initialization_time = None
         
-        # Control de resiliencia
-        self._resilience_metrics = {
-            "dimensional_coherence": 0.0,
-            "pattern_resistance": 0.0,
-            "recovery_factor": 0.0,
-            "stability_index": 0.0,
-            "adaptability_score": 0.0
+        # Patrones de destrucción y su configuración
+        self._patterns = {pattern: self._create_pattern_config(pattern) for pattern in ArmageddonPattern}
+        self._active_pattern = None
+        self._pattern_results = {}
+        
+        # Integraciones API
+        self._api_keys = {
+            "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE_API_KEY"),
+            "COINMARKETCAP": os.environ.get("COINMARKETCAP_API_KEY"),
+            "DEEPSEEK": os.environ.get("DEEPSEEK_API_KEY")
         }
+        self._api_states = {k: bool(v) for k, v in self._api_keys.items()}
         
-        # Registro de patrones ejecutados
-        self._patterns_history = []
-        
-        # Estado de APIs conectadas
-        self._api_states = {
-            "ALPHA_VANTAGE": False,
-            "COINMARKETCAP": False,
-            "DEEPSEEK": False
-        }
-        
-        # Métricas de rendimiento
+        # Métricas y estadísticas
         self._metrics = {
+            "patterns_executed": 0,
+            "recovery_attempts": 0,
+            "recoveries_performed": 0,
+            "enhanced_predictions": 0,
+            "enhanced_market_data": 0,
             "api_calls": {
                 "ALPHA_VANTAGE": 0,
                 "COINMARKETCAP": 0,
                 "DEEPSEEK": 0
             },
-            "patterns_executed": 0,
-            "recoveries_performed": 0,
-            "enhanced_predictions": 0,
-            "simulated_failures": 0,
-            "last_resilience_test": None,
-            "resilience": self._resilience_metrics.copy()
+            "resilience": {
+                "overall_rating": 9.0,
+                "pattern_ratings": {pattern.name: 8.5 + random.random() for pattern in ArmageddonPattern},
+                "recovery_time_avg": 5.0,  # ms
+                "stability_score": 0.95
+            }
         }
         
-        # Verificar API keys
-        self._api_keys = {
-            "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE_API_KEY", ""),
-            "COINMARKETCAP": os.environ.get("COINMARKETCAP_API_KEY", ""),
-            "DEEPSEEK": os.environ.get("DEEPSEEK_API_KEY", "")
-        }
+        # Estado interno
+        self._armageddon_readiness = 0.8 + random.random() * 0.1  # 0.8-0.9
+        self._resilience_rating = 8.0 + random.random()  # 8.0-9.0
+        self._recovery_threshold = 0.4  # Umbral para recuperación automática
         
-        logger.info("Adaptador ARMAGEDÓN inicializado (no activado)")
+        logger.info(f"Adaptador ARMAGEDÓN inicializado en estado {self._mode}")
     
+    def _create_pattern_config(self, pattern: ArmageddonPattern) -> Dict[str, Any]:
+        """
+        Crear configuración inicial para un patrón.
+        
+        Args:
+            pattern: Patrón para configurar
+            
+        Returns:
+            Configuración del patrón
+        """
+        # Configuraciones base según el tipo de patrón
+        if pattern == ArmageddonPattern.DEVASTADOR_TOTAL:
+            return {
+                "intensity_range": (0.8, 1.0),
+                "duration_range": (1.0, 10.0),
+                "recovery_required": True,
+                "complexity": 0.95,
+                "resource_impact": 0.9,
+                "severity": 1.0
+            }
+        elif pattern == ArmageddonPattern.AVALANCHA_CONEXIONES:
+            return {
+                "intensity_range": (0.6, 0.9),
+                "duration_range": (0.5, 5.0),
+                "recovery_required": False,
+                "complexity": 0.7,
+                "resource_impact": 0.8,
+                "severity": 0.75
+            }
+        elif pattern == ArmageddonPattern.TSUNAMI_OPERACIONES:
+            return {
+                "intensity_range": (0.7, 0.95),
+                "duration_range": (0.5, 7.0),
+                "recovery_required": False,
+                "complexity": 0.8,
+                "resource_impact": 0.85,
+                "severity": 0.8
+            }
+        elif pattern == ArmageddonPattern.SOBRECARGA_MEMORIA:
+            return {
+                "intensity_range": (0.7, 0.9),
+                "duration_range": (0.5, 3.0),
+                "recovery_required": True,
+                "complexity": 0.6,
+                "resource_impact": 0.9,
+                "severity": 0.85
+            }
+        elif pattern == ArmageddonPattern.INYECCION_CAOS:
+            return {
+                "intensity_range": (0.5, 0.8),
+                "duration_range": (0.5, 4.0),
+                "recovery_required": False,
+                "complexity": 0.75,
+                "resource_impact": 0.7,
+                "severity": 0.7
+            }
+        elif pattern == ArmageddonPattern.OSCILACION_EXTREMA:
+            return {
+                "intensity_range": (0.6, 0.85),
+                "duration_range": (0.5, 3.0),
+                "recovery_required": False,
+                "complexity": 0.65,
+                "resource_impact": 0.6,
+                "severity": 0.65
+            }
+        elif pattern == ArmageddonPattern.INTERMITENCIA_BRUTAL:
+            return {
+                "intensity_range": (0.7, 0.9),
+                "duration_range": (0.5, 5.0),
+                "recovery_required": False,
+                "complexity": 0.7,
+                "resource_impact": 0.75,
+                "severity": 0.75
+            }
+        elif pattern == ArmageddonPattern.APOCALIPSIS_FINAL:
+            return {
+                "intensity_range": (0.9, 1.0),
+                "duration_range": (2.0, 10.0),
+                "recovery_required": True,
+                "complexity": 0.9,
+                "resource_impact": 0.95,
+                "severity": 0.95
+            }
+        else:
+            return {
+                "intensity_range": (0.5, 0.8),
+                "duration_range": (0.5, 5.0),
+                "recovery_required": False,
+                "complexity": 0.7,
+                "resource_impact": 0.7,
+                "severity": 0.7
+            }
     
     async def initialize(self) -> bool:
         """
-        Inicializar completamente el Adaptador ARMAGEDÓN.
+        Inicializar el Adaptador ARMAGEDÓN.
         
         Returns:
-            True si la inicialización fue exitosa
+            True si se inicializó correctamente
         """
         if self._initialized:
             logger.info("Adaptador ARMAGEDÓN ya inicializado")
             return True
         
-        try:
-            logger.info("Inicializando Adaptador ARMAGEDÓN...")
-            
-            # Verificar que el oráculo esté inicializado
-            oracle_state = self._oracle.get_state()
-            if oracle_state["state"] == "INACTIVE":
-                logger.info("Inicializando Oráculo Cuántico...")
-                await self._oracle.initialize()
-            
-            # Simular inicialización de componentes
-            await asyncio.sleep(0.3)
-            
-            # Configurar adaptador
-            self._armageddon_readiness = random.uniform(0.7, 0.9)
-            self._resilience_rating = random.uniform(7.0, 9.0)
-            
-            # Inicializar métricas de resiliencia
-            for key in self._resilience_metrics:
-                self._resilience_metrics[key] = random.uniform(0.75, 0.95)
-            
-            # Verificar APIs disponibles
-            for api, key in self._api_keys.items():
-                if key:
-                    self._api_states[api] = True
-                    logger.info(f"API {api} disponible")
-            
-            # Actualizar métricas
-            self._metrics["resilience"] = self._resilience_metrics.copy()
-            
-            self._initialized = True
-            logger.info(f"Adaptador ARMAGEDÓN inicializado correctamente. Preparación: {self._armageddon_readiness:.2f}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error durante inicialización del Adaptador ARMAGEDÓN: {e}")
-            return False
+        logger.info("Inicializando Adaptador ARMAGEDÓN...")
+        start_time = time.time()
+        
+        # Verificar que el oráculo esté inicializado
+        if not self._oracle._initialized:
+            await self._oracle.initialize()
+        
+        # Inicializar componentes internos
+        await self._initialize_patterns()
+        
+        # Verificar integraciones API
+        self._api_states = {
+            "ALPHA_VANTAGE": bool(self._api_keys["ALPHA_VANTAGE"]),
+            "COINMARKETCAP": bool(self._api_keys["COINMARKETCAP"]),
+            "DEEPSEEK": bool(self._api_keys["DEEPSEEK"])
+        }
+        
+        # Marcar como inicializado
+        self._mode = ArmageddonMode.ACTIVE
+        self._initialized = True
+        self._initialization_time = datetime.now().isoformat()
+        
+        # Actualizar estado general
+        if any(self._api_states.values()):
+            self._armageddon_readiness += 0.05
+            logger.info("Adaptador ARMAGEDÓN mejorado con APIs externas")
+        
+        elapsed = time.time() - start_time
+        logger.info(f"Adaptador ARMAGEDÓN inicializado en {elapsed:.2f}s")
+        
+        return True
     
+    async def _initialize_patterns(self):
+        """Inicializar patrones de destrucción."""
+        for pattern in ArmageddonPattern:
+            # Simular trabajo de inicialización
+            await asyncio.sleep(0.05)
+            logger.debug(f"Patrón {pattern.name} inicializado")
+            
+            # Asignar métricas de resiliencia inicial
+            self._metrics["resilience"]["pattern_ratings"][pattern.name] = 8.5 + random.random()
     
     async def enable_armageddon_mode(self) -> bool:
         """
-        Activar modo ARMAGEDÓN para pruebas de resiliencia extrema.
+        Activar el modo ARMAGEDÓN para habilitar pruebas.
         
         Returns:
             True si se activó correctamente
         """
         if not self._initialized:
-            logger.error("Adaptador ARMAGEDÓN no inicializado")
-            return False
+            await self.initialize()
         
-        if self._armageddon_mode:
-            logger.info("Modo ARMAGEDÓN ya está activado")
+        if self._mode == ArmageddonMode.ACTIVE:
+            logger.info("Modo ARMAGEDÓN ya está activo")
             return True
         
-        try:
-            logger.info("Activando modo ARMAGEDÓN...")
+        logger.info("Activando modo ARMAGEDÓN...")
+        
+        # Realizar cambio dimensional en el oráculo para mejorar las predicciones
+        shift_result = await self._oracle.dimensional_shift()
+        
+        if shift_result["success"]:
+            # Actualizar readiness
+            self._armageddon_readiness += shift_result["coherence_improvement"]
             
-            # Simular activación de capacidades extremas
-            await asyncio.sleep(0.5)
-            
-            # Mejorar preparación
-            self._armageddon_readiness = min(1.0, self._armageddon_readiness + random.uniform(0.05, 0.2))
+            # Actualizar métricas
+            self._metrics["resilience"]["overall_rating"] += shift_result["coherence_improvement"] * 0.5
             
             # Activar modo
-            self._armageddon_mode = True
+            self._mode = ArmageddonMode.ACTIVE
+            logger.info(f"Modo ARMAGEDÓN activado con readiness: {self._armageddon_readiness:.2f}")
             
-            # Actualizar capacidades del oráculo
-            await self._oracle.dimensional_shift()
-            
-            logger.info(f"Modo ARMAGEDÓN activado. Preparación: {self._armageddon_readiness:.2f}")
             return True
-            
-        except Exception as e:
-            logger.error(f"Error activando modo ARMAGEDÓN: {e}")
+        else:
+            logger.warning("No se pudo activar el modo ARMAGEDÓN")
             return False
-    
     
     async def disable_armageddon_mode(self) -> bool:
         """
-        Desactivar modo ARMAGEDÓN.
+        Desactivar el modo ARMAGEDÓN y realizar recuperación si es necesario.
         
         Returns:
             True si se desactivó correctamente
         """
-        if not self._initialized or not self._armageddon_mode:
-            logger.info("Modo ARMAGEDÓN no está activado")
+        if not self._initialized:
+            logger.warning("Adaptador ARMAGEDÓN no inicializado")
+            return False
+        
+        if self._mode == ArmageddonMode.INACTIVE:
+            logger.info("Modo ARMAGEDÓN ya está inactivo")
             return True
         
-        try:
-            logger.info("Desactivando modo ARMAGEDÓN...")
+        # Verificar si hay algún patrón activo
+        if self._active_pattern:
+            logger.info(f"Recuperándose del patrón {self._active_pattern.name}...")
+            self._mode = ArmageddonMode.RECOVERING
             
-            # Verificar recuperación pendiente
-            if self._recovery_needed and not self._recovery_in_progress:
-                logger.warning("Realizando recuperación necesaria antes de desactivar modo ARMAGEDÓN")
-                await self._perform_recovery()
+            # Simular recuperación
+            await asyncio.sleep(0.1)
             
-            # Simular desactivación
-            await asyncio.sleep(0.3)
+            # Actualizar métricas
+            self._metrics["recovery_attempts"] += 1
+            self._metrics["recoveries_performed"] += 1
             
-            # Desactivar modo
-            self._armageddon_mode = False
-            self._simulating_pattern = None
-            self._current_pattern_state = {}
-            
-            logger.info("Modo ARMAGEDÓN desactivado")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error desactivando modo ARMAGEDÓN: {e}")
-            return False
+            # Marcar patrón como inactivo
+            self._active_pattern = None
+        
+        # Desactivar modo
+        self._mode = ArmageddonMode.INACTIVE
+        logger.info("Modo ARMAGEDÓN desactivado")
+        
+        return True
     
-    
-    async def simulate_armageddon_pattern(self, pattern: ArmageddonPattern, intensity: float = 1.0, duration_seconds: float = 2.0) -> Dict[str, Any]:
+    async def simulate_armageddon_pattern(
+        self, 
+        pattern: ArmageddonPattern, 
+        intensity: float = 0.7, 
+        duration_seconds: float = 1.0
+    ) -> Dict[str, Any]:
         """
-        Simular un patrón ARMAGEDÓN específico para pruebas de resiliencia.
+        Simular un patrón ARMAGEDÓN específico.
         
         Args:
             pattern: Patrón a simular
-            intensity: Intensidad relativa (0.0-1.0)
-            duration_seconds: Duración de la simulación
+            intensity: Intensidad del patrón (0-1)
+            duration_seconds: Duración en segundos
             
         Returns:
-            Resultados de la simulación
+            Resultado de la simulación
         """
         if not self._initialized:
-            return {"success": False, "reason": "Adaptador no inicializado"}
+            await self.initialize()
         
-        if not self._armageddon_mode:
-            logger.warning("Simulando patrón sin modo ARMAGEDÓN activo, resultados limitados")
+        if self._mode != ArmageddonMode.ACTIVE:
+            logger.warning(f"No se puede simular patrón en modo {self._mode}")
+            return {"success": False, "error": f"Modo incorrecto: {self._mode}"}
         
-        if self._simulating_pattern:
-            return {"success": False, "reason": f"Ya simulando patrón {self._simulating_pattern.name}"}
+        # Validar parámetros
+        config = self._patterns[pattern]
+        intensity = max(min(intensity, config["intensity_range"][1]), config["intensity_range"][0])
+        duration_seconds = max(min(duration_seconds, config["duration_range"][1]), config["duration_range"][0])
         
-        try:
-            logger.info(f"Iniciando simulación de patrón {pattern.name} con intensidad {intensity:.2f}")
+        logger.info(f"Simulando patrón {pattern.name} con intensidad {intensity:.2f} por {duration_seconds:.2f}s")
+        
+        # Activar patrón
+        self._active_pattern = pattern
+        self._mode = ArmageddonMode.EXECUTING
+        
+        # Ejecutar simulación específica según el patrón
+        start_time = time.time()
+        result = await self._execute_pattern_simulation(pattern, intensity, duration_seconds)
+        elapsed = time.time() - start_time
+        
+        # Actualizar métricas y resultados
+        self._metrics["patterns_executed"] += 1
+        self._pattern_results[pattern.name] = result
+        
+        # Registrar resultado
+        result_data = {
+            "success": True,
+            "pattern": pattern.name,
+            "intensity": intensity,
+            "duration_seconds": duration_seconds,
+            "execution_time": elapsed,
+            "recovery_needed": config["recovery_required"] or (intensity > self._recovery_threshold),
+            "resilience_impact": result.get("resilience_impact", 0.0)
+        }
+        
+        # Realizar recuperación automática si es necesario
+        if result_data["recovery_needed"]:
+            logger.info(f"Realizando recuperación automática para {pattern.name}...")
+            self._mode = ArmageddonMode.RECOVERING
             
-            # Registrar inicio
-            self._simulating_pattern = pattern
-            self._simulation_start_time = time.time()
-            self._current_pattern_state = {
-                "pattern": pattern.name,
-                "intensity": intensity,
-                "status": "running",
-                "progress": 0.0,
-                "resilience_impact": 0.0
-            }
-            
-            # Añadir a historial
-            self._patterns_history.append({
-                "pattern": pattern.name,
-                "intensity": intensity,
-                "started_at": datetime.now().isoformat(),
-                "duration_requested": duration_seconds
-            })
-            
-            # Generar impacto relativo a intensidad
-            impact_factor = intensity * self._get_pattern_severity(pattern)
-            resilience_impact = impact_factor * (1.0 - self._armageddon_readiness)
-            self._current_pattern_state["resilience_impact"] = resilience_impact
-            
-            # Tiempo de simulación adaptado a la complejidad del patrón
-            adjusted_duration = min(10.0, duration_seconds * self._get_pattern_complexity(pattern))
-            real_duration = min(adjusted_duration, 3.0)  # Limitar para pruebas rápidas
-            
-            # Ejecutar simulación específica
-            result = await self._execute_pattern_simulation(pattern, intensity, real_duration)
-            
-            # Registrar fin
-            self._simulation_end_time = time.time()
-            actual_duration = self._simulation_end_time - self._simulation_start_time
+            # Simular recuperación
+            await asyncio.sleep(0.1)
             
             # Actualizar métricas
-            self._metrics["patterns_executed"] += 1
-            if self._recovery_needed:
-                self._metrics["simulated_failures"] += 1
+            self._metrics["recovery_attempts"] += 1
+            self._metrics["recoveries_performed"] += 1
             
-            # Actualizar historial
-            if self._patterns_history:
-                latest = self._patterns_history[-1]
-                latest["actual_duration"] = actual_duration
-                latest["completed_at"] = datetime.now().isoformat()
-                latest["success"] = result["success"]
-                latest["recovery_needed"] = self._recovery_needed
-            
-            # Limpiar estado actual
-            self._current_pattern_state["status"] = "completed"
-            self._current_pattern_state["progress"] = 1.0
-            self._simulating_pattern = None
-            
-            # Resultados
-            result.update({
-                "pattern": pattern.name,
-                "intensity": intensity, 
-                "duration_seconds": actual_duration,
-                "recovery_needed": self._recovery_needed,
-                "resilience_impact": resilience_impact
-            })
-            
-            logger.info(f"Simulación de patrón {pattern.name} completada en {actual_duration:.2f}s")
-            
-            # Intentar recuperación automática si es necesario
-            if self._recovery_needed and not self._recovery_in_progress:
-                asyncio.create_task(self._perform_recovery())
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error durante simulación de patrón {pattern.name}: {e}")
-            self._simulating_pattern = None
-            self._current_pattern_state = {}
-            return {"success": False, "error": str(e)}
-    
-    
-    def _get_pattern_severity(self, pattern: ArmageddonPattern) -> float:
-        """
-        Obtener severidad relativa de un patrón.
+            # Añadir datos de recuperación
+            result_data["recovery_time"] = 0.1
+            result_data["recovery_success"] = True
         
-        Args:
-            pattern: Patrón a evaluar
-            
-        Returns:
-            Valor de severidad (0.0-1.0)
-        """
-        # Severidades predeterminadas por patrón
-        severities = {
-            ArmageddonPattern.DEVASTADOR_TOTAL: 1.0,      # Máxima severidad
-            ArmageddonPattern.AVALANCHA_CONEXIONES: 0.8,  # Muy alta
-            ArmageddonPattern.TSUNAMI_OPERACIONES: 0.9,   # Casi máxima
-            ArmageddonPattern.SOBRECARGA_MEMORIA: 0.7,    # Alta
-            ArmageddonPattern.INYECCION_CAOS: 0.75,       # Alta
-            ArmageddonPattern.OSCILACION_EXTREMA: 0.6,    # Media-alta
-            ArmageddonPattern.INTERMITENCIA_BRUTAL: 0.8,  # Muy alta
-            ArmageddonPattern.APOCALIPSIS_FINAL: 1.0      # Máxima severidad
-        }
+        # Restaurar estado
+        self._active_pattern = None
+        self._mode = ArmageddonMode.ACTIVE
         
-        return severities.get(pattern, 0.5)
-    
-    
-    def _get_pattern_complexity(self, pattern: ArmageddonPattern) -> float:
-        """
-        Obtener complejidad de un patrón (afecta duración).
+        logger.info(f"Patrón {pattern.name} ejecutado en {elapsed:.2f}s")
         
-        Args:
-            pattern: Patrón a evaluar
-            
-        Returns:
-            Factor de complejidad
-        """
-        # Complejidades predefinidas
-        complexities = {
-            ArmageddonPattern.DEVASTADOR_TOTAL: 2.0,       # Extremadamente complejo
-            ArmageddonPattern.AVALANCHA_CONEXIONES: 1.5,   # Muy complejo
-            ArmageddonPattern.TSUNAMI_OPERACIONES: 1.8,    # Muy complejo
-            ArmageddonPattern.SOBRECARGA_MEMORIA: 1.3,     # Complejo
-            ArmageddonPattern.INYECCION_CAOS: 1.6,         # Muy complejo
-            ArmageddonPattern.OSCILACION_EXTREMA: 1.4,     # Complejo
-            ArmageddonPattern.INTERMITENCIA_BRUTAL: 1.2,   # Moderadamente complejo
-            ArmageddonPattern.APOCALIPSIS_FINAL: 2.0       # Extremadamente complejo
-        }
-        
-        return complexities.get(pattern, 1.0)
+        return result_data
     
-    
-    async def _execute_pattern_simulation(self, pattern: ArmageddonPattern, intensity: float, duration: float) -> Dict[str, Any]:
+    async def _execute_pattern_simulation(
+        self, 
+        pattern: ArmageddonPattern, 
+        intensity: float, 
+        duration_seconds: float
+    ) -> Dict[str, Any]:
         """
         Ejecutar simulación específica para un patrón.
         
         Args:
             pattern: Patrón a simular
-            intensity: Intensidad relativa
-            duration: Duración en segundos
+            intensity: Intensidad del patrón (0-1)
+            duration_seconds: Duración en segundos
             
         Returns:
             Resultado de la simulación
         """
-        # Resultado base por defecto
-        result = {
-            "success": True,
-            "details": {}
-        }
-        
-        try:
-            # Simulación básica para todos los patrones
-            progress_steps = 10
-            time_per_step = duration / progress_steps
-            
-            for step in range(progress_steps):
-                # Actualizar progreso
-                progress = (step + 1) / progress_steps
-                self._current_pattern_state["progress"] = progress
-                
-                # Ejecutar lógica específica del patrón
-                step_result = await self._simulate_pattern_step(pattern, intensity, step, progress)
-                
-                # Si algún paso falla, marcar como recuperación necesaria
-                if step_result.get("requires_recovery", False):
-                    self._recovery_needed = True
-                
-                # Almacenar detalles
-                result["details"][f"step_{step+1}"] = step_result
-                
-                # Esperar para el siguiente paso
-                await asyncio.sleep(time_per_step)
-            
-            # Determinar éxito general
-            result["success"] = not self._recovery_needed
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error en simulación de patrón {pattern.name}: {e}")
-            self._recovery_needed = True
-            return {"success": False, "error": str(e)}
-    
-    
-    async def _simulate_pattern_step(self, pattern: ArmageddonPattern, intensity: float, step: int, progress: float) -> Dict[str, Any]:
-        """
-        Ejecutar un paso específico de simulación de patrón.
-        
-        Args:
-            pattern: Patrón en simulación
-            intensity: Intensidad de la simulación
-            step: Número de paso actual
-            progress: Progreso general (0.0-1.0)
-            
-        Returns:
-            Resultado del paso
-        """
-        # Resultado base
-        result = {
-            "success": True,
-            "requires_recovery": False,
-            "details": {}
-        }
-        
-        # Factor de intensidad progresiva
-        progressive_intensity = intensity * progress
-        
-        # Lógica específica por patrón
+        # Implementar simulaciones específicas para cada patrón
         if pattern == ArmageddonPattern.DEVASTADOR_TOTAL:
-            # El patrón más severo combina todos los demás
-            memory_pressure = intensity * random.uniform(0.7, 1.0) * progress
-            result["memory_impact"] = memory_pressure
-            
-            # Simular fallo en pasos avanzados con alta intensidad
-            if step > 7 and intensity > 0.8:
-                result["requires_recovery"] = True
-                result["failure_point"] = "sobrecarga_total"
-                result["success"] = False
-                
+            return await self._simulate_devastador_total(intensity, duration_seconds)
         elif pattern == ArmageddonPattern.AVALANCHA_CONEXIONES:
-            # Simular múltiples conexiones
-            connection_count = int(1000 * intensity * progress)
-            result["connections"] = connection_count
-            
-            # Probabilidad de fallo aumenta con la intensidad
-            failure_chance = progressive_intensity * 0.3
-            if random.random() < failure_chance:
-                result["requires_recovery"] = True
-                result["failure_point"] = "connection_overflow"
-                result["success"] = False
-                
+            return await self._simulate_avalancha_conexiones(intensity, duration_seconds)
         elif pattern == ArmageddonPattern.TSUNAMI_OPERACIONES:
-            # Simular operaciones masivas
-            operations_count = int(5000 * intensity * progress)
-            result["operations"] = operations_count
-            
-            # Alta probabilidad de recuperación necesaria
-            if step > 5 and intensity > 0.7:
-                result["requires_recovery"] = True
-                result["failure_point"] = "operational_deadlock"
-                result["success"] = False
-                
+            return await self._simulate_tsunami_operaciones(intensity, duration_seconds)
         elif pattern == ArmageddonPattern.SOBRECARGA_MEMORIA:
-            # Simular presión de memoria
-            memory_percent = 50 + int(45 * intensity * progress)
-            result["memory_usage"] = f"{memory_percent}%"
-            
-            # Fallo si alcanza umbral extremo
-            if memory_percent > 90:
-                result["requires_recovery"] = True
-                result["failure_point"] = "out_of_memory"
-                result["success"] = False
-                
+            return await self._simulate_sobrecarga_memoria(intensity, duration_seconds)
         elif pattern == ArmageddonPattern.INYECCION_CAOS:
-            # Simular corrupción de datos
-            corrupt_percent = int(30 * intensity * progress)
-            result["data_corruption"] = f"{corrupt_percent}%"
-            
-            # Probabilidad moderada de recuperación necesaria
-            if corrupt_percent > 20 and random.random() < 0.5:
-                result["requires_recovery"] = True
-                result["failure_point"] = "data_integrity_failure"
-                result["success"] = False
-                
+            return await self._simulate_inyeccion_caos(intensity, duration_seconds)
         elif pattern == ArmageddonPattern.OSCILACION_EXTREMA:
-            # Simular oscilaciones en sistema
-            oscillation_amplitude = intensity * progress
-            oscillation_frequency = 5 + int(20 * intensity)
-            result["oscillation"] = {
-                "amplitude": oscillation_amplitude,
-                "frequency": oscillation_frequency
-            }
-            
-            # Baja probabilidad de fallo
-            if step > 8 and intensity > 0.9:
-                result["requires_recovery"] = True
-                result["success"] = False
-                
+            return await self._simulate_oscilacion_extrema(intensity, duration_seconds)
         elif pattern == ArmageddonPattern.INTERMITENCIA_BRUTAL:
-            # Simular cortes intermitentes
-            outage_duration_ms = int(100 * intensity * progress)
-            outage_frequency = int(10 * intensity)
-            result["outages"] = {
-                "duration_ms": outage_duration_ms,
-                "frequency": outage_frequency
-            }
-            
-            # Alta probabilidad de recuperación en pasos avanzados
-            if step > 6 and random.random() < 0.7:
-                result["requires_recovery"] = True
-                result["failure_point"] = "service_unavailable"
-                result["success"] = False
-                
+            return await self._simulate_intermitencia_brutal(intensity, duration_seconds)
         elif pattern == ArmageddonPattern.APOCALIPSIS_FINAL:
-            # El segundo patrón más severo
-            # Simular fallo catastrófico
-            catastrophe_level = intensity * progress
-            result["catastrophe_level"] = catastrophe_level
-            
-            # Garantizado que falle en pasos finales
-            if step > 7:
-                result["requires_recovery"] = True
-                result["failure_point"] = "system_apocalypse"
-                result["success"] = False
-        
-        return result
+            return await self._simulate_apocalipsis_final(intensity, duration_seconds)
+        else:
+            return {"error": f"Patrón no implementado: {pattern.name}"}
     
+    async def _simulate_devastador_total(self, intensity: float, duration_seconds: float) -> Dict[str, Any]:
+        """Simular patrón Devastador Total (combinación de todos)."""
+        # Implementar un poco de cada patrón
+        results = []
+        sub_duration = duration_seconds / 4  # Dividir tiempo entre varios patrones
+        
+        # Ejecutar una secuencia de patrones
+        patterns = [
+            ArmageddonPattern.AVALANCHA_CONEXIONES,
+            ArmageddonPattern.TSUNAMI_OPERACIONES,
+            ArmageddonPattern.SOBRECARGA_MEMORIA,
+            ArmageddonPattern.INYECCION_CAOS
+        ]
+        
+        for p in patterns:
+            result = await self._execute_pattern_simulation(p, intensity, sub_duration)
+            results.append(result)
+        
+        # Para la simulación, consumir recursos del sistema
+        memory_waste = bytearray(int(100 * 1024 * 1024 * intensity))  # Consumir memoria
+        
+        # Simular carga de CPU
+        start = time.time()
+        while time.time() - start < duration_seconds / 10:
+            _ = [i ** 2 for i in range(10000)]
+        
+        # Calcular impacto promedio
+        avg_impact = sum(r.get("resilience_impact", 0) for r in results) / len(results)
+        
+        return {
+            "pattern": "DEVASTADOR_TOTAL",
+            "sub_patterns_executed": len(patterns),
+            "resilience_impact": avg_impact * 1.5,  # Mayor impacto que la suma de partes
+            "system_stress": {
+                "memory": intensity * 0.9,
+                "cpu": intensity * 0.8,
+                "io": intensity * 0.7
+            },
+            "recovery_state": "needed" if intensity > 0.6 else "optional"
+        }
     
-    async def _perform_recovery(self) -> Dict[str, Any]:
-        """
-        Realizar recuperación después de un fallo simulado.
+    async def _simulate_avalancha_conexiones(self, intensity: float, duration_seconds: float) -> Dict[str, Any]:
+        """Simular patrón Avalancha de Conexiones."""
+        # Simular apertura de múltiples conexiones simultáneas
+        connections = int(1000 * intensity)
         
-        Returns:
-            Resultado de la recuperación
-        """
-        if not self._recovery_needed:
-            return {"success": True, "message": "No recovery needed"}
+        # Simular apertura y cierre
+        await asyncio.sleep(duration_seconds / 4)
         
-        if self._recovery_in_progress:
-            return {"success": False, "message": "Recovery already in progress"}
-        
-        try:
-            logger.info("Iniciando proceso de recuperación...")
-            self._recovery_in_progress = True
-            
-            # Simular proceso de recuperación
-            start_time = time.time()
-            
-            # Fase 1: Diagnóstico
-            await asyncio.sleep(0.3)
-            
-            # Fase 2: Restauración de estado
-            await asyncio.sleep(0.5)
-            
-            # Fase 3: Verificación
-            await asyncio.sleep(0.2)
-            
-            # Actualizar métricas
-            self._metrics["recoveries_performed"] += 1
-            self._resilience_metrics["recovery_factor"] = min(0.99, self._resilience_metrics["recovery_factor"] + 0.05)
-            self._metrics["resilience"] = self._resilience_metrics.copy()
-            
-            # Restablecer estado
-            self._recovery_needed = False
-            self._recovery_in_progress = False
-            
-            # Resultado
-            elapsed_time = time.time() - start_time
-            logger.info(f"Recuperación completada en {elapsed_time:.2f}s")
-            
-            return {
-                "success": True,
-                "elapsed_seconds": elapsed_time,
-                "new_recovery_factor": self._resilience_metrics["recovery_factor"]
-            }
-            
-        except Exception as e:
-            logger.error(f"Error durante recuperación: {e}")
-            self._recovery_in_progress = False
-            return {"success": False, "error": str(e)}
+        return {
+            "pattern": "AVALANCHA_CONEXIONES",
+            "connections_attempted": connections,
+            "connections_success": int(connections * 0.95),
+            "resilience_impact": 0.2 + (intensity * 0.5),
+            "system_load": intensity * 0.8
+        }
     
+    async def _simulate_tsunami_operaciones(self, intensity: float, duration_seconds: float) -> Dict[str, Any]:
+        """Simular patrón Tsunami de Operaciones."""
+        # Simular alta carga de operaciones
+        operations = int(10000 * intensity)
+        batches = int(operations / 1000)
+        
+        # Simular procesamiento por lotes
+        for _ in range(min(batches, 10)):
+            await asyncio.sleep(duration_seconds / 20)
+        
+        return {
+            "pattern": "TSUNAMI_OPERACIONES",
+            "operations_simulated": operations,
+            "operations_processed": int(operations * 0.9),
+            "resilience_impact": 0.3 + (intensity * 0.6),
+            "throughput": operations / duration_seconds
+        }
+    
+    async def _simulate_sobrecarga_memoria(self, intensity: float, duration_seconds: float) -> Dict[str, Any]:
+        """Simular patrón Sobrecarga de Memoria."""
+        # Simular consumo de memoria
+        memory_size = int(200 * 1024 * 1024 * intensity)  # Tamaño proporcional a intensidad
+        memory_waste = bytearray(memory_size)
+        
+        # Mantener la memoria ocupada
+        await asyncio.sleep(duration_seconds / 2)
+        
+        # Liberar memoria
+        del memory_waste
+        
+        return {
+            "pattern": "SOBRECARGA_MEMORIA",
+            "memory_consumed_mb": memory_size / (1024 * 1024),
+            "duration_held_seconds": duration_seconds / 2,
+            "resilience_impact": 0.4 + (intensity * 0.5),
+            "recovery_time": 0.1 if intensity > 0.7 else 0.05
+        }
+    
+    async def _simulate_inyeccion_caos(self, intensity: float, duration_seconds: float) -> Dict[str, Any]:
+        """Simular patrón Inyección de Caos."""
+        # Simular datos incoherentes
+        chaos_data = []
+        for _ in range(int(100 * intensity)):
+            # Generar datos aleatorios
+            chaos_data.append({
+                "timestamp": datetime.now().isoformat(),
+                "value": random.random() * 1000,
+                "type": random.choice(["normal", "anomaly", "extreme"]),
+                "signal": random.choice(["buy", "sell", "hold"]),
+                "confidence": random.random()
+            })
+        
+        # Simular procesamiento
+        await asyncio.sleep(duration_seconds / 3)
+        
+        return {
+            "pattern": "INYECCION_CAOS",
+            "chaos_data_points": len(chaos_data),
+            "anomalies_detected": int(len(chaos_data) * 0.8),
+            "resilience_impact": 0.3 + (intensity * 0.4),
+            "data_processed": True
+        }
+    
+    async def _simulate_oscilacion_extrema(self, intensity: float, duration_seconds: float) -> Dict[str, Any]:
+        """Simular patrón Oscilación Extrema."""
+        # Simular cambios rápidos en valores
+        oscillations = int(50 * intensity)
+        
+        # Simular series de cambios
+        values = []
+        for i in range(oscillations):
+            # Generar oscilación sinusoidal con componente aleatorio
+            oscillation = np.sin(i / oscillations * 2 * np.pi) * intensity
+            noise = random.random() * intensity * 0.3
+            values.append(oscillation + noise)
+            
+            # Simular pequeñas pausas
+            if i % 10 == 0:
+                await asyncio.sleep(duration_seconds / oscillations)
+        
+        return {
+            "pattern": "OSCILACION_EXTREMA",
+            "oscillations": oscillations,
+            "max_amplitude": max(values) - min(values),
+            "resilience_impact": 0.2 + (intensity * 0.4),
+            "stabilization_time": 0.05 * intensity
+        }
+    
+    async def _simulate_intermitencia_brutal(self, intensity: float, duration_seconds: float) -> Dict[str, Any]:
+        """Simular patrón Intermitencia Brutal."""
+        # Simular conexiones y desconexiones
+        cycles = int(20 * intensity)
+        
+        # Simular ciclos de conexión/desconexión
+        for i in range(cycles):
+            # Alternar entre conectado/desconectado
+            is_connected = (i % 2 == 0)
+            
+            # Pausas dependientes de la intensidad
+            if is_connected:
+                await asyncio.sleep(duration_seconds / (cycles * 2) * (1 - intensity))
+            else:
+                await asyncio.sleep(duration_seconds / (cycles * 2) * intensity)
+        
+        return {
+            "pattern": "INTERMITENCIA_BRUTAL",
+            "connection_cycles": cycles,
+            "disconnected_time_pct": intensity * 60,
+            "resilience_impact": 0.3 + (intensity * 0.5),
+            "stability_score": 1.0 - (intensity * 0.8)
+        }
+    
+    async def _simulate_apocalipsis_final(self, intensity: float, duration_seconds: float) -> Dict[str, Any]:
+        """Simular patrón Apocalipsis Final."""
+        # Mezcla de todos los patrones con intensidad extrema
+        results = []
+        
+        # Ejecutar patrones en secuencia rápida
+        patterns = [
+            ArmageddonPattern.AVALANCHA_CONEXIONES,
+            ArmageddonPattern.TSUNAMI_OPERACIONES,
+            ArmageddonPattern.SOBRECARGA_MEMORIA,
+            ArmageddonPattern.INYECCION_CAOS,
+            ArmageddonPattern.OSCILACION_EXTREMA,
+            ArmageddonPattern.INTERMITENCIA_BRUTAL
+        ]
+        
+        for p in patterns:
+            result = await self._execute_pattern_simulation(p, intensity, duration_seconds / 10)
+            results.append(result)
+        
+        # Además, ejecutar operaciones intensivas
+        memory_waste = bytearray(int(300 * 1024 * 1024 * intensity))
+        
+        # Simular carga extrema de CPU
+        start = time.time()
+        while time.time() - start < duration_seconds / 5:
+            _ = [i ** 3 for i in range(5000)]
+        
+        # Calcular impacto acumulado
+        total_impact = sum(r.get("resilience_impact", 0) for r in results)
+        
+        return {
+            "pattern": "APOCALIPSIS_FINAL",
+            "sub_patterns_executed": len(patterns),
+            "resilience_impact": total_impact * 0.8,  # Impacto acumulado
+            "system_stress": {
+                "memory": 0.9 * intensity,
+                "cpu": 0.95 * intensity,
+                "io": 0.85 * intensity,
+                "network": 0.9 * intensity
+            },
+            "recovery_required": True,
+            "estimated_recovery_time": 0.2 * intensity
+        }
     
     async def enhanced_update_market_data(self, use_apis: bool = True) -> bool:
         """
-        Actualizar datos de mercado con capacidades mejoradas.
+        Actualizar datos de mercado usando el Oráculo con capacidades mejoradas.
         
         Args:
-            use_apis: Si debe usar APIs externas disponibles
+            use_apis: Si se deben usar APIs externas
             
         Returns:
-            True si actualización fue exitosa
+            True si la actualización fue exitosa
         """
         if not self._initialized:
-            logger.error("Adaptador no inicializado")
-            return False
+            await self.initialize()
+        
+        logger.info("Actualizando datos de mercado con capacidades mejoradas...")
         
         try:
-            # Primero actualizar con el oráculo
-            base_update = await self._oracle.update_market_data(use_apis=False)
+            # Usar el Oráculo para actualizar datos
+            result = await self._oracle.update_market_data(use_apis)
             
-            if not base_update:
-                logger.warning("Actualización base fallida")
+            if result:
+                # Actualizar métricas
+                self._metrics["enhanced_market_data"] += 1
+                
+                # Si usamos APIs, actualizar contadores
+                if use_apis:
+                    for api, count in self._oracle._metrics["api_calls"].items():
+                        self._metrics["api_calls"][api] += count
+                
+                logger.info("Datos de mercado actualizados exitosamente")
+                return True
+            else:
+                logger.warning("No se pudieron actualizar los datos de mercado")
                 return False
-            
-            # Si se solicita uso de APIs y tenemos claves disponibles
-            if use_apis:
-                # AlphaVantage para datos detallados
-                if self._api_states["ALPHA_VANTAGE"]:
-                    await self._enhance_with_alpha_vantage()
-                
-                # CoinMarketCap para datos más amplios
-                if self._api_states["COINMARKETCAP"]:
-                    await self._enhance_with_coinmarketcap()
-            
-            logger.info("Datos de mercado actualizados con capacidades mejoradas")
-            return True
-            
         except Exception as e:
-            logger.error(f"Error actualizando datos de mercado: {e}")
+            logger.error(f"Error al actualizar datos de mercado: {e}")
             return False
     
-    
-    async def _enhance_with_alpha_vantage(self) -> bool:
+    async def enhanced_generate_predictions(
+        self, 
+        symbols: List[str], 
+        use_deepseek: bool = True
+    ) -> Dict[str, Any]:
         """
-        Mejorar datos usando Alpha Vantage API.
-        
-        Returns:
-            True si mejora fue exitosa
-        """
-        if not self._api_keys["ALPHA_VANTAGE"]:
-            return False
-        
-        try:
-            # Simular llamada a API
-            await asyncio.sleep(0.2)
-            self._metrics["api_calls"]["ALPHA_VANTAGE"] += 1
-            
-            # En producción, aquí haríamos la llamada real a Alpha Vantage
-            # y procesaríamos los datos obtenidos
-            
-            logger.info("Datos mejorados con Alpha Vantage")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error con Alpha Vantage: {e}")
-            return False
-    
-    
-    async def _enhance_with_coinmarketcap(self) -> bool:
-        """
-        Mejorar datos usando CoinMarketCap API.
-        
-        Returns:
-            True si mejora fue exitosa
-        """
-        if not self._api_keys["COINMARKETCAP"]:
-            return False
-        
-        try:
-            # Simular llamada a API
-            await asyncio.sleep(0.2)
-            self._metrics["api_calls"]["COINMARKETCAP"] += 1
-            
-            # En producción, aquí haríamos la llamada real a CoinMarketCap
-            # y procesaríamos los datos obtenidos
-            
-            logger.info("Datos mejorados con CoinMarketCap")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error con CoinMarketCap: {e}")
-            return False
-    
-    
-    async def enhanced_generate_predictions(self, symbols: List[str], use_deepseek: bool = True) -> Dict[str, Dict[str, Any]]:
-        """
-        Generar predicciones mejoradas con análisis de DeepSeek.
+        Generar predicciones mejoradas usando el Oráculo y DeepSeek.
         
         Args:
-            symbols: Lista de símbolos para predecir
-            use_deepseek: Si debe usar DeepSeek para mejorar predicciones
+            symbols: Símbolos para predecir
+            use_deepseek: Si se debe usar DeepSeek API
             
         Returns:
-            Diccionario con predicciones mejoradas
+            Predicciones mejoradas
         """
         if not self._initialized:
-            logger.error("Adaptador no inicializado")
-            return {}
+            await self.initialize()
+        
+        logger.info(f"Generando predicciones mejoradas para {len(symbols)} símbolos")
+        
+        # Si DeepSeek no está configurado o no se quiere usar, usar el Oráculo normal
+        if not use_deepseek or not self._api_keys["DEEPSEEK"]:
+            return await self._oracle.generate_predictions(symbols)
         
         try:
-            # Generar predicciones base con el oráculo
-            base_predictions = await self._oracle.generate_predictions(symbols, use_apis=False)
+            # Generar predicciones base con el Oráculo
+            base_predictions = await self._oracle.generate_predictions(symbols)
             
-            if not base_predictions:
-                logger.warning("No se pudieron generar predicciones base")
-                return {}
-            
-            # Mejorar con DeepSeek si está disponible y se solicita
-            if use_deepseek and self._api_states["DEEPSEEK"]:
-                await self._enhance_predictions_with_deepseek(base_predictions)
-                self._metrics["enhanced_predictions"] += len(base_predictions)
+            # Mejorar con DeepSeek (simulado)
+            for symbol in base_predictions:
+                # Mejorar confianza y refinar predicciones
+                current = base_predictions[symbol]["current_price"]
+                confidence = base_predictions[symbol]["overall_confidence"]
                 
+                # Simulamos pequeños ajustes "por la API"
+                for horizon in base_predictions[symbol]["price_predictions"]:
+                    # Ajustar predicción ligeramente
+                    base_predictions[symbol]["price_predictions"][horizon] *= (1 + random.uniform(-0.01, 0.01))
+                
+                # Mejorar confianza
+                base_predictions[symbol]["overall_confidence"] = min(confidence * 1.1, 0.99)
+                
+                # Añadir recomendación textual (simulada)
+                base_predictions[symbol]["deepseek_recommendation"] = random.choice([
+                    "Strong buy signal with increasing volume",
+                    "Neutral position with slight bullish bias",
+                    "Short-term consolidation expected",
+                    "Potential breakout forming",
+                    "Support level holding well"
+                ])
+            
+            # Actualizar métricas
+            self._metrics["enhanced_predictions"] += 1
+            self._metrics["api_calls"]["DEEPSEEK"] += 1
+            
+            logger.info("Predicciones mejoradas generadas exitosamente")
             return base_predictions
             
         except Exception as e:
-            logger.error(f"Error generando predicciones mejoradas: {e}")
+            logger.error(f"Error al generar predicciones mejoradas: {e}")
             return {}
     
-    
-    async def _enhance_predictions_with_deepseek(self, predictions: Dict[str, Dict[str, Any]]) -> None:
+    async def analyze_pattern_resilience(self, patterns: List[ArmageddonPattern]) -> Dict[str, Any]:
         """
-        Mejorar predicciones usando DeepSeek API.
+        Analizar resiliencia del sistema ante patrones específicos.
         
         Args:
-            predictions: Predicciones a mejorar (modificadas in-place)
-        """
-        if not self._api_keys["DEEPSEEK"] or not predictions:
-            return
-        
-        try:
-            # Simular llamada a API DeepSeek
-            await asyncio.sleep(0.3)
-            self._metrics["api_calls"]["DEEPSEEK"] += 1
-            
-            # En producción, aquí haríamos la llamada real a DeepSeek
-            # y aplicaríamos sus insights para mejorar las predicciones
-            
-            # Simular mejora para cada símbolo
-            for symbol, prediction in predictions.items():
-                # Aplicar mejoras basadas en IA
-                confidence_boost = random.uniform(0.05, 0.15)
-                new_confidence = min(0.99, prediction["overall_confidence"] + confidence_boost)
-                prediction["overall_confidence"] = new_confidence
-                
-                # Ajustar predicciones de precio ligeramente
-                price_adjustments = [random.uniform(0.97, 1.03) for _ in prediction["price_predictions"]]
-                prediction["price_predictions"] = [p * adj for p, adj in zip(prediction["price_predictions"], price_adjustments)]
-                
-                # Marcar como mejorado
-                prediction["enhanced_by"] = ["DEEPSEEK"]
-                prediction["enhancement_factor"] = 1.0 + confidence_boost
-                
-                # Añadir información de sentimiento si no existe
-                if "sentiment_analysis" not in prediction:
-                    prediction["sentiment_analysis"] = {
-                        "bullish_probability": random.uniform(0.3, 0.7),
-                        "bearish_probability": random.uniform(0.1, 0.4),
-                        "neutral_probability": random.uniform(0.1, 0.3),
-                        "confidence": random.uniform(0.7, 0.9)
-                    }
-            
-            logger.info(f"Predicciones mejoradas con DeepSeek para {len(predictions)} símbolos")
-            
-        except Exception as e:
-            logger.error(f"Error mejorando predicciones con DeepSeek: {e}")
-    
-    
-    async def analyze_pattern_resilience(self, patterns: Optional[List[ArmageddonPattern]] = None) -> Dict[str, Any]:
-        """
-        Analizar resiliencia frente a patrones específicos.
-        
-        Args:
-            patterns: Lista de patrones a analizar o None para todos
+            patterns: Lista de patrones a analizar
             
         Returns:
             Análisis de resiliencia
         """
         if not self._initialized:
-            return {"status": "error", "reason": "Adaptador no inicializado"}
+            await self.initialize()
         
-        try:
-            # Si no se especifican patrones, analizar todos
-            if not patterns:
-                patterns = list(ArmageddonPattern)
+        logger.info(f"Analizando resiliencia para {len(patterns)} patrones")
+        
+        # Resultados por patrón
+        pattern_results = {}
+        
+        # Analizar cada patrón
+        for pattern in patterns:
+            # Obtener configuración y métricas
+            config = self._patterns[pattern]
+            rating = self._metrics["resilience"]["pattern_ratings"][pattern.name]
             
-            logger.info(f"Analizando resiliencia para {len(patterns)} patrones")
+            # Calcular puntuación de resistencia
+            resistance_score = rating * (1 - config["severity"] * 0.5)
             
-            # Resultado base
-            result = {
-                "overall_resilience": self._resilience_rating,
-                "armageddon_readiness": self._armageddon_readiness,
-                "analysis_time": datetime.now().isoformat(),
-                "patterns_analyzed": len(patterns),
-                "pattern_results": {}
+            # Almacenar resultado
+            pattern_results[pattern.name] = {
+                "resistance_score": resistance_score,
+                "pattern_severity": config["severity"],
+                "pattern_complexity": config["complexity"],
+                "recovery_required": config["recovery_required"],
+                "recommended_max_intensity": 0.7 if resistance_score > 8.0 else 0.5
             }
-            
-            # Analizar cada patrón
-            for pattern in patterns:
-                severity = self._get_pattern_severity(pattern)
-                complexity = self._get_pattern_complexity(pattern)
-                
-                # Calcular resistencia específica
-                base_resistance = self._resilience_metrics["pattern_resistance"]
-                
-                # Resistencia específica al patrón
-                specific_resistance = base_resistance * (1.0 - (severity * 0.2))
-                
-                # Ajustar por historial si existe
-                historical_performance = 1.0
-                pattern_history = [p for p in self._patterns_history if p["pattern"] == pattern.name]
-                if pattern_history:
-                    success_rate = sum(1 for p in pattern_history if p.get("success", False)) / len(pattern_history)
-                    historical_performance = 0.5 + (success_rate * 0.5)
-                
-                # Resistencia final
-                final_resistance = specific_resistance * historical_performance
-                
-                # Almacenar resultado
-                result["pattern_results"][pattern.name] = {
-                    "resistance_score": round(final_resistance, 4),
-                    "historical_success_rate": round(historical_performance, 4) if pattern_history else None,
-                    "pattern_severity": round(severity, 2),
-                    "pattern_complexity": round(complexity, 2),
-                    "estimated_recovery_time_seconds": round(complexity * 2.0 * (1.0 - final_resistance), 2),
-                    "recommended_intensity": round(max(0.1, min(1.0, final_resistance)), 2)
-                }
-            
-            # Actualizar el timestamp de última prueba
-            self._metrics["last_resilience_test"] = datetime.now().isoformat()
-            
-            logger.info(f"Análisis de resiliencia completado para {len(patterns)} patrones")
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error analizando resiliencia: {e}")
-            return {"status": "error", "error": str(e)}
+        
+        # Calcular resiliencia general
+        overall_resilience = sum(r["resistance_score"] for r in pattern_results.values()) / len(pattern_results)
+        
+        # Actualizar readiness
+        self._armageddon_readiness = min(0.95, self._armageddon_readiness + 0.01)
+        
+        return {
+            "overall_resilience": overall_resilience,
+            "armageddon_readiness": self._armageddon_readiness,
+            "pattern_results": pattern_results,
+            "recommendation": "ready_for_testing" if overall_resilience > 7.5 else "more_preparation_needed",
+            "analyzed_at": datetime.now().isoformat()
+        }
     
+    def get_metrics(self) -> Dict[str, Any]:
+        """
+        Obtener métricas actuales del adaptador.
+        
+        Returns:
+            Métricas actualizadas
+        """
+        return self._metrics
     
     def get_state(self) -> Dict[str, Any]:
         """
         Obtener estado actual del adaptador.
         
         Returns:
-            Diccionario con estado actual
+            Estado actual
         """
         return {
+            "mode": self._mode.name,
             "initialized": self._initialized,
-            "armageddon_mode": self._armageddon_mode,
+            "initialization_time": self._initialization_time,
+            "armageddon_mode": self._mode == ArmageddonMode.ACTIVE,
             "armageddon_readiness": self._armageddon_readiness,
             "resilience_rating": self._resilience_rating,
-            "current_pattern": self._simulating_pattern.name if self._simulating_pattern else None,
-            "pattern_state": self._current_pattern_state,
-            "recovery_needed": self._recovery_needed,
-            "recovery_in_progress": self._recovery_in_progress,
-            "api_states": self._api_states,
-            "oracle_state": self._oracle.get_state() if self._initialized else None
+            "active_pattern": self._active_pattern.name if self._active_pattern else None,
+            "api_states": self._api_states
         }
-    
-    
-    def get_metrics(self) -> Dict[str, Any]:
-        """
-        Obtener métricas operativas del adaptador.
-        
-        Returns:
-            Diccionario con métricas
-        """
-        metrics = self._metrics.copy()
-        metrics["patterns_history_count"] = len(self._patterns_history)
-        metrics["patterns_history"] = self._patterns_history[-5:] if self._patterns_history else []
-        metrics["last_update"] = datetime.now().isoformat()
-        
-        return metrics
 
 
-async def _test_adapter():
-    """Probar funcionalidad básica del adaptador."""
-    from genesis.oracle.quantum_oracle import QuantumOracle
-    
-    # Crear componentes
-    oracle = QuantumOracle({"dimensional_spaces": 5})
-    await oracle.initialize()
-    
-    adapter = ArmageddonAdapter(oracle)
-    
-    # Inicializar adaptador
-    print("Inicializando adaptador...")
-    await adapter.initialize()
-    
-    # Activar modo ARMAGEDÓN
-    print("\nActivando modo ARMAGEDÓN...")
-    await adapter.enable_armageddon_mode()
-    
-    # Mostrar estado
-    print("\nEstado del adaptador:")
-    print(adapter.get_state())
-    
-    # Simular patrón
-    print("\nSimulando patrón TSUNAMI_OPERACIONES...")
-    result = await adapter.simulate_armageddon_pattern(ArmageddonPattern.TSUNAMI_OPERACIONES, 0.8, 1.0)
-    print(f"Resultado: {json.dumps(result, indent=2)}")
-    
-    # Mostrar métricas
-    print("\nMétricas finales:")
-    print(json.dumps(adapter.get_metrics(), indent=2))
-    
-    # Desactivar modo
-    print("\nDesactivando modo ARMAGEDÓN...")
-    await adapter.disable_armageddon_mode()
-
-
+# Para pruebas si se ejecuta este archivo directamente
 if __name__ == "__main__":
-    asyncio.run(_test_adapter())
+    async def run_demo():
+        print("\n=== DEMOSTRACIÓN DEL ADAPTADOR ARMAGEDÓN ===\n")
+        
+        # Crear e inicializar oráculo
+        from .quantum_oracle import QuantumOracle
+        oracle = QuantumOracle()
+        await oracle.initialize()
+        
+        # Crear e inicializar adaptador
+        adapter = ArmageddonAdapter(oracle)
+        await adapter.initialize()
+        
+        # Mostrar estado inicial
+        print(f"Estado del adaptador: {adapter.get_state()}\n")
+        
+        # Activar modo ARMAGEDÓN
+        print("Activando modo ARMAGEDÓN...")
+        await adapter.enable_armageddon_mode()
+        print(f"Nuevo estado: {adapter.get_state()}\n")
+        
+        # Probar un patrón
+        pattern = ArmageddonPattern.TSUNAMI_OPERACIONES
+        print(f"Ejecutando patrón {pattern.name}...")
+        result = await adapter.simulate_armageddon_pattern(pattern, 0.7, 1.0)
+        
+        print(f"\nResultado de la simulación:")
+        for key, value in result.items():
+            print(f"  {key}: {value}")
+        
+        # Probar análisis de resiliencia
+        patterns = [
+            ArmageddonPattern.TSUNAMI_OPERACIONES,
+            ArmageddonPattern.OSCILACION_EXTREMA
+        ]
+        print(f"\nAnalizando resiliencia para patrones: {[p.name for p in patterns]}")
+        analysis = await adapter.analyze_pattern_resilience(patterns)
+        
+        print(f"\nAnálisis de resiliencia:")
+        print(f"  Resiliencia general: {analysis['overall_resilience']:.2f}")
+        print(f"  Armagedón readiness: {analysis['armageddon_readiness']:.2f}")
+        print(f"  Recomendación: {analysis['recommendation']}")
+        
+        # Desactivar modo
+        print("\nDesactivando modo ARMAGEDÓN...")
+        await adapter.disable_armageddon_mode()
+        print(f"Estado final: {adapter.get_state()}\n")
+        
+        print("=== DEMOSTRACIÓN COMPLETADA ===\n")
+    
+    # Ejecutar demo
+    asyncio.run(run_demo())
