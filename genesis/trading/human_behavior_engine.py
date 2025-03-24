@@ -483,12 +483,31 @@ class GabrielBehaviorEngine:
             
         if self.emotional_state == EmotionalState.FEARFUL:
             # Estado temeroso - reacciones extremas ante cualquier señal negativa
+            
+            # Comportamiento extremadamente sensible a cambios de precio
             if price_change_rate < 0 or unrealized_pnl_pct < 0:
                 # Cualquier movimiento negativo o operación en pérdida provoca salida
                 return True, "fear_driven_exit"
-            elif hours_held > 3:
+                
+            # Comportamiento más sensible al pasar del tiempo
+            elif hours_held > 2: # Reducido de 3 a 2 horas para mayor nerviosismo
                 # También salida por tiempo si la posición se mantiene demasiado tiempo
                 return True, "fear_extended_holding_exit"
+                
+            # Caso especial: incluso con ganancias, a veces sale por miedo a perderlas
+            elif unrealized_pnl_pct > 1.0 and random.random() < 0.6:
+                # 60% de probabilidad de salir con cualquier ganancia pequeña (+1%)
+                return True, "fear_secure_small_profit"
+                
+            # Caso especial: volatilidad reciente (aunque sea positiva) provoca salida
+            elif abs(price_change_rate) > 0.02 and random.random() < 0.5:
+                # Volatilidad alta (2% en cualquier dirección) provoca miedo
+                return True, "fear_volatility_exit"
+                
+            # Incluso en ganancias estables, ocasionalmente sale por miedo irracional
+            elif unrealized_pnl_pct > 0 and random.random() < 0.1:
+                # 10% de probabilidad de salida irracional estando en ganancia
+                return True, "fear_irrational_exit"
         
         # Mantener posición
         return False, "holding_position"
