@@ -598,6 +598,79 @@ def get_human_behavior():
             "success": False,
             "message": f"Error: {str(e)}"
         }), 500
+        
+def set_emotional_state():
+    """Establecer estado emocional directamente."""
+    behavior_engine = get_behavior_engine()
+    
+    try:
+        data = request.get_json()
+        if not data or "state" not in data:
+            return jsonify({
+                "success": False,
+                "message": "Se requiere el parámetro 'state'"
+            }), 400
+            
+        state_name = data["state"]
+        reason = data.get("reason", "manual_override")
+        
+        # Importar EmotionalState desde el motor de comportamiento humano
+        from genesis.trading.human_behavior_engine import EmotionalState
+        
+        # Validar que el estado es válido
+        try:
+            state = EmotionalState[state_name.upper()]
+        except (KeyError, ValueError):
+            # Enumerar estados válidos
+            valid_states = [s.name for s in EmotionalState]
+            return jsonify({
+                "success": False,
+                "message": f"Estado emocional no válido. Estados disponibles: {valid_states}"
+            }), 400
+        
+        # Establecer estado
+        behavior_engine.set_emotional_state(state, reason)
+        
+        # Obtener estado actualizado
+        characteristics = behavior_engine.get_current_characteristics()
+        
+        return jsonify({
+            "success": True,
+            "message": f"Estado emocional cambiado a {state.name}",
+            "characteristics": characteristics
+        })
+    except Exception as e:
+        logger.error(f"Error al establecer estado emocional: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error: {str(e)}"
+        }), 500
+        
+def set_fearful_state():
+    """Establecer estado FEARFUL (miedo) directamente."""
+    behavior_engine = get_behavior_engine()
+    
+    try:
+        data = request.get_json()
+        reason = data.get("reason", "manual_override") if data else "manual_override"
+        
+        # Llamar al método específico
+        behavior_engine.set_fearful_state(reason)
+        
+        # Obtener estado actualizado
+        characteristics = behavior_engine.get_current_characteristics()
+        
+        return jsonify({
+            "success": True,
+            "message": "Estado cambiado a FEARFUL (miedo)",
+            "characteristics": characteristics
+        })
+    except Exception as e:
+        logger.error(f"Error al establecer estado FEARFUL: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error: {str(e)}"
+        }), 500
 
 
 def randomize_behavior():
@@ -1432,6 +1505,8 @@ def register_seraphim_routes(app):
     app.add_url_rule('/api/seraphim/process_cycle', 'process_cycle', process_cycle, methods=['POST'])
     app.add_url_rule('/api/seraphim/cycle_status', 'get_cycle_status', get_cycle_status)
     app.add_url_rule('/api/seraphim/human_behavior', 'get_human_behavior', get_human_behavior)
+    app.add_url_rule('/api/seraphim/set_emotional_state', 'set_emotional_state', set_emotional_state, methods=['POST'])
+    app.add_url_rule('/api/seraphim/set_fearful_state', 'set_fearful_state', set_fearful_state, methods=['POST'])
     app.add_url_rule('/api/seraphim/randomize_behavior', 'randomize_behavior', randomize_behavior, methods=['POST'])
     app.add_url_rule('/api/seraphim/auto_operation', 'start_auto_operation', start_auto_operation, methods=['POST'])
     app.add_url_rule('/api/seraphim/stop_auto', 'stop_auto_operation', stop_auto_operation, methods=['POST'])
