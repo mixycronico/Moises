@@ -1,15 +1,10 @@
 """
-Módulo oracle del Sistema Genesis Ultra-Divino.
+Genesis Oracle - Módulo de oráculos predictivos con capacidades trascendentales.
 
-Este paquete contiene el Oráculo Cuántico y el Adaptador ARMAGEDÓN,
-componentes fundamentales para las capacidades predictivas y de resiliencia 
-del Sistema Genesis en su configuración Ultra-Divina.
+Este módulo proporciona componentes para predicción avanzada:
+- QuantumOracle: Oráculo predictivo con capacidades cuánticas
+- ArmageddonAdapter: Adaptador para integración con servicios externos (Alpha Vantage, CoinMarketCap, DeepSeek)
 """
 
-from .quantum_oracle import QuantumOracle, OracleState, ConfidenceCategory
-from .armageddon_adapter import ArmageddonAdapter, ArmageddonPattern, ArmageddonMode
-
-__all__ = [
-    'QuantumOracle', 'OracleState', 'ConfidenceCategory',
-    'ArmageddonAdapter', 'ArmageddonPattern', 'ArmageddonMode'
-]
+# Versión del módulo oracle
+__version__ = "1.0.0-divine"

@@ -1,69 +1,17 @@
 """
-Módulos cloud para el Sistema Genesis Ultra-Divino.
+Genesis Cloud - Componentes cloud para el Sistema Genesis con modo ultra-divino.
 
-Este paquete contiene los componentes cloud del Sistema Genesis:
+Este módulo proporciona componentes cloud de alta resiliencia y rendimiento:
 - CircuitBreaker: Para prevenir fallos en cascada
-- DistributedCheckpoint: Para respaldo y recuperación de estado
-- LoadBalancer: Para distribución inteligente de carga
+- DistributedCheckpointManager: Para respaldo y recuperación en entornos distribuidos
+- CloudLoadBalancer: Para distribución de carga y alta disponibilidad
 - REST API: Para integración con sistemas externos
 """
 
-from .circuit_breaker import (
-    CloudCircuitBreaker, 
-    CloudCircuitBreakerFactory, 
-    CircuitState,
-    circuit_breaker_factory, 
-    circuit_protected
-)
-from .distributed_checkpoint import (
-    DistributedCheckpointManager, 
-    CheckpointStorageType, 
-    CheckpointConsistencyLevel, 
-    CheckpointState, 
-    CheckpointMetadata,
-    checkpoint_manager
-)
-from .load_balancer import (
-    CloudLoadBalancer, 
-    CloudLoadBalancerManager, 
-    CloudNode,
-    BalancerAlgorithm, 
-    ScalingPolicy, 
-    BalancerState,
-    SessionAffinityMode, 
-    NodeHealthStatus,
-    load_balancer_manager
-)
-from .rest_api import (
-    CloudAPI,
-    create_cloud_api,
-    UserRole,
-    APIUser
-)
+# Versión del módulo cloud
+__version__ = "1.0.0-divine"
 
-__all__ = [
-    'CloudCircuitBreaker', 
-    'CloudCircuitBreakerFactory', 
-    'CircuitState',
-    'circuit_breaker_factory', 
-    'circuit_protected',
-    'DistributedCheckpointManager', 
-    'CheckpointStorageType', 
-    'CheckpointConsistencyLevel', 
-    'CheckpointState', 
-    'CheckpointMetadata',
-    'checkpoint_manager',
-    'CloudLoadBalancer', 
-    'CloudLoadBalancerManager', 
-    'CloudNode',
-    'BalancerAlgorithm', 
-    'ScalingPolicy', 
-    'BalancerState',
-    'SessionAffinityMode', 
-    'NodeHealthStatus',
-    'load_balancer_manager',
-    'CloudAPI',
-    'create_cloud_api',
-    'UserRole',
-    'APIUser'
-]
+# Crear singleton global para componentes cloud
+circuit_breaker_factory = None
+checkpoint_manager = None
+load_balancer_manager = None
