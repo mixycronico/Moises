@@ -1138,19 +1138,31 @@ def get_market_data(symbol):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
+            # Obtener datos del mercado
             market_data = loop.run_until_complete(orchestrator.get_market_data(symbol))
+            
+            # Importante: asignar el resultado al hilo actual
+            current_thread = threading.current_thread()
+            current_thread.result = market_data
+            
             return market_data
+        except Exception as e:
+            logger.error(f"Error obteniendo datos de mercado: {e}")
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": False, "error": f"Error: {str(e)}"}
         finally:
             loop.close()
     
     # Ejecutar en thread para no bloquear
     thread = threading.Thread(target=get_async_data)
     thread.start()
-    thread.join()
+    thread.join(timeout=5.0)  # Añadir timeout para evitar bloqueos indefinidos
     
     # Obtener resultado o respuesta de error
-    result = getattr(thread, 'result', {"success": False, "error": "Failed to fetch market data"})
-    return jsonify(result)
+    if hasattr(thread, 'result'):
+        return jsonify(thread.result)
+    else:
+        return jsonify({"success": False, "error": "Failed to fetch market data"})
 
 def get_available_symbols():
     """Obtener lista de símbolos disponibles."""
@@ -1164,18 +1176,29 @@ def get_available_symbols():
         asyncio.set_event_loop(loop)
         try:
             symbols = loop.run_until_complete(orchestrator.get_symbols())
+            
+            # Importante: asignar el resultado al hilo actual
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": True, "symbols": symbols}
+            
             return {"success": True, "symbols": symbols}
+        except Exception as e:
+            logger.error(f"Error obteniendo símbolos: {e}")
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": False, "error": f"Error: {str(e)}"}
         finally:
             loop.close()
     
     # Ejecutar en thread para no bloquear
     thread = threading.Thread(target=get_async_symbols)
     thread.start()
-    thread.join()
+    thread.join(timeout=5.0)  # Añadir timeout para evitar bloqueos indefinidos
     
     # Obtener resultado o respuesta de error
-    result = getattr(thread, 'result', {"success": False, "error": "Failed to fetch symbols"})
-    return jsonify(result)
+    if hasattr(thread, 'result'):
+        return jsonify(thread.result)
+    else:
+        return jsonify({"success": False, "error": "Failed to fetch symbols"})
 
 def connect_exchange():
     """Conectar a exchange (simulado o real)."""
@@ -1189,18 +1212,29 @@ def connect_exchange():
         asyncio.set_event_loop(loop)
         try:
             success = loop.run_until_complete(orchestrator._verify_exchange_connections())
+            
+            # Importante: asignar el resultado al hilo actual
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": success}
+            
             return {"success": success}
+        except Exception as e:
+            logger.error(f"Error verificando conexiones de exchange: {e}")
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": False, "error": f"Error: {str(e)}"}
         finally:
             loop.close()
     
     # Ejecutar en thread para no bloquear
     thread = threading.Thread(target=connect_async)
     thread.start()
-    thread.join()
+    thread.join(timeout=5.0)  # Añadir timeout para evitar bloqueos indefinidos
     
     # Obtener resultado o respuesta de error
-    result = getattr(thread, 'result', {"success": False, "error": "Failed to connect"})
-    return jsonify(result)
+    if hasattr(thread, 'result'):
+        return jsonify(thread.result)
+    else:
+        return jsonify({"success": False, "error": "Failed to connect"})
 
 def place_trade():
     """Colocar una orden de trading."""
