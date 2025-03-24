@@ -147,14 +147,14 @@ class ArmageddonTest:
                 logger.error("Verificación de recuperación fallida")
                 return False
             
-            self.metrics["end_time"] = time.time()
+            self.metrics["end_time"] = int(time.time())
             
             logger.info("Prueba ARMAGEDÓN completada con éxito")
             return True
             
         except Exception as e:
             logger.error(f"Error durante prueba ARMAGEDÓN: {e}")
-            self.metrics["end_time"] = time.time()
+            self.metrics["end_time"] = int(time.time())
             return False
         
         finally:

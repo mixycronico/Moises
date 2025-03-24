@@ -1,0 +1,16 @@
+{
+  "checkpoint_id": "intermittent_test_874fb8f0a024472b9530ad494225f7f9",
+  "component_id": "intermittent_test",
+  "timestamp": 1742826781.834693,
+  "creation_datetime": "2025-03-24T14:33:01.834693",
+  "tags": [
+    "intermittent_test"
+  ],
+  "consistency_level": "STRONG",
+  "state": "ACTIVE",
+  "checksum": "94ce502482f59bd20f47ea935de6ac374f8fb19384badf7a215359e2da7f9a4a",
+  "last_accessed": 1742826781.834693,
+  "access_count": 0,
+  "transmutation_count": 0,
+  "size_bytes": 47
+}
