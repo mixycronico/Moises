@@ -19,6 +19,7 @@ import asyncio
 import logging
 import time
 import uuid
+import random
 from datetime import datetime
 from enum import Enum, auto
 from typing import Dict, List, Optional, Any, Tuple, Union, Callable
@@ -410,7 +411,7 @@ class OrderManager:
             order.update_status(OrderStatus.PENDING)
             
             # Simular comportamiento humano con delay aleatorio
-            human_delay = random.uniform(0.1, 0.5)  # 100-500ms
+            human_delay = 0.1 + (0.4 * random.random())  # 100-500ms
             await asyncio.sleep(human_delay)
             
             # Crear orden en el exchange
@@ -540,7 +541,7 @@ class OrderManager:
                 }
             
             # Simular comportamiento humano con delay aleatorio
-            human_delay = random.uniform(0.1, 0.3)  # 100-300ms
+            human_delay = 0.1 + (0.2 * random.random())  # 100-300ms
             await asyncio.sleep(human_delay)
             
             # Cancelar orden en el exchange

@@ -347,6 +347,95 @@ class SimulatedExchangeAdapter:
                 self.logger.error(f"Error en transmutación de orden: {e2}")
                 raise e  # Propagar error original
                 
+    async def fetch_order(self, order_id: str, symbol: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Obtener información de una orden específica.
+        
+        Args:
+            order_id: ID de la orden
+            symbol: Símbolo de la orden (opcional)
+            
+        Returns:
+            Dict con información de la orden
+        """
+        self.logger.debug(f"Obteniendo información de orden {order_id} en {self.exchange_id}")
+        
+        # Verificar inicialización
+        if not self.initialized:
+            await self.initialize()
+            
+        try:
+            # Verificar si el simulador tiene un método fetch_order directo
+            if hasattr(self.simulator, 'fetch_order') and callable(getattr(self.simulator, 'fetch_order')):
+                result = await self.simulator.fetch_order(order_id, symbol)
+                return result
+                
+            # Alternativa: buscar la orden en todas las órdenes
+            orders_result = await self.get_orders(symbol)
+            
+            if not orders_result.get("success", False):
+                return {
+                    "success": False,
+                    "error": "No se pudo obtener la lista de órdenes",
+                    "order_id": order_id
+                }
+                
+            orders = orders_result.get("orders", [])
+            for order in orders:
+                if order.get("id") == order_id:
+                    return {
+                        "success": True,
+                        "order": order,
+                        "status": order.get("status", "unknown").upper()
+                    }
+                    
+            # Orden no encontrada
+            return {
+                "success": False,
+                "error": f"Orden {order_id} no encontrada",
+                "order_id": order_id
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error obteniendo información de orden {order_id}: {e}")
+            self.error_count += 1
+            
+            # Reintento de transmutación
+            try:
+                await asyncio.sleep(0.5)
+                
+                # Si tiene método directo
+                if hasattr(self.simulator, 'fetch_order') and callable(getattr(self.simulator, 'fetch_order')):
+                    result = await self.simulator.fetch_order(order_id, symbol)
+                    if "order" in result:
+                        result["order"]["transmuted"] = True
+                    return result
+                
+                # Alternativa
+                orders_result = await self.get_orders(symbol)
+                if orders_result.get("success", False):
+                    orders = orders_result.get("orders", [])
+                    for order in orders:
+                        if order.get("id") == order_id:
+                            order["transmuted"] = True
+                            return {
+                                "success": True,
+                                "order": order,
+                                "status": order.get("status", "unknown").upper(),
+                                "transmuted": True
+                            }
+                
+                # No se pudo recuperar
+                return {
+                    "success": False,
+                    "error": f"Orden {order_id} no disponible (error transmutado)",
+                    "transmuted": True
+                }
+                
+            except Exception as e2:
+                self.logger.error(f"Error en transmutación de fetch_order para {order_id}: {e2}")
+                raise e  # Propagar error original
+                
     async def cancel_order(self, order_id: str) -> Dict[str, Any]:
         """
         Cancelar una orden existente.
