@@ -79,27 +79,47 @@ class BinanceTestnetDemo:
             from genesis.exchanges.adapter_factory import ExchangeAdapterFactory, AdapterType
             from genesis.trading.human_behavior_engine import GabrielBehaviorEngine
             
-            # Crear adaptador de Binance Testnet directamente
-            logger.info("Creando adaptador Binance Testnet...")
-            factory = ExchangeAdapterFactory()
-            self.binance_adapter = await factory.create_adapter(
-                adapter_type=AdapterType.BINANCE_TESTNET,
-                exchange_id="binance"
+            # Crear adaptador de Binance Testnet simplificado
+            logger.info("Creando adaptador Binance Testnet simplificado para demo...")
+            
+            # Importar BinanceSimplifiedAdapter (versión reducida para demo)
+            from genesis.exchanges.ccxt_wrapper import CCXTExchange
+            
+            # Crear adaptador simplificado que utiliza CCXT directamente
+            api_key = os.environ.get("BINANCE_TESTNET_API_KEY", "")
+            api_secret = os.environ.get("BINANCE_TESTNET_API_SECRET", "")
+            
+            # Configurar cliente CCXT para Binance Testnet
+            rest_config = {
+                'apiKey': api_key,
+                'secret': api_secret,
+                'enableRateLimit': True,
+                'timeout': 30000,  # ms
+                'testnet': True  # Crucial para usar testnet
+            }
+            
+            # Crear cliente simple
+            self.binance_adapter = CCXTExchange(
+                exchange_id='binance',
+                api_key=api_key,
+                secret=api_secret,
+                config=rest_config
             )
             
             # Inicializar adaptador
             logger.info("Inicializando adaptador Binance Testnet...")
-            await self.binance_adapter.initialize()
+            await self.binance_adapter.start()
             
             # Verificar conexión con el exchange
             logger.info("Verificando conexión con Binance Testnet...")
-            exchange_state = await self.binance_adapter.get_state()
+            test_ticker = await self.binance_adapter.fetch_ticker("BTC/USDT")
             
-            if exchange_state.get("status") != "CONNECTED":
+            # Verificar que obtuvimos un ticker válido
+            if not test_ticker or not isinstance(test_ticker, dict) or not test_ticker.get("last"):
                 logger.error("No se pudo establecer conexión con el exchange")
                 return False
             
-            logger.info("Conexión con exchange establecida correctamente")
+            logger.info(f"Conexión con exchange establecida correctamente. Precio BTC/USDT: {test_ticker.get('last')}")
             
             # Crear motor de comportamiento Gabriel directamente
             logger.info("Creando motor de comportamiento Gabriel...")
