@@ -551,7 +551,7 @@ class SeraphimOrchestrator:
                     logger.error("No se pudo inicializar CodiciaManager")
                     return {"success": False, "error": "CodiciaManager not available"}
             
-            # Colocar orden a través del OrderManager
+            # Colocar orden a través del CodiciaManager
             # Crear diccionario de parámetros para cumplir con la firma del método
             order_params = {
                 "symbol": symbol,
@@ -595,12 +595,12 @@ class SeraphimOrchestrator:
             Resultado de la cancelación
         """
         try:
-            # Verificar que el OrderManager esté configurado
+            # Verificar que el CodiciaManager esté configurado
             if self.order_manager is None:
-                logger.error("OrderManager no inicializado")
-                return {"success": False, "error": "OrderManager not available"}
+                logger.error("CodiciaManager no inicializado")
+                return {"success": False, "error": "CodiciaManager not available"}
             
-            # Cancelar orden a través del OrderManager
+            # Cancelar orden a través del CodiciaManager
             cancel_result = await self.order_manager.cancel_order(order_id)
             
             if cancel_result.get("success", False):
@@ -634,12 +634,12 @@ class SeraphimOrchestrator:
             Resultado con lista de órdenes
         """
         try:
-            # Verificar que el OrderManager esté configurado
+            # Verificar que el CodiciaManager esté configurado
             if self.order_manager is None:
-                logger.error("OrderManager no inicializado")
-                return {"success": False, "error": "OrderManager not available", "orders": []}
+                logger.error("CodiciaManager no inicializado")
+                return {"success": False, "error": "CodiciaManager not available", "orders": []}
             
-            # Obtener órdenes a través del OrderManager
+            # Obtener órdenes a través del CodiciaManager
             orders = await self.order_manager.get_orders(symbol=symbol, status=status)
             
             logger.info(f"Obtenidas {len(orders)} órdenes para {symbol or 'todos los símbolos'}")

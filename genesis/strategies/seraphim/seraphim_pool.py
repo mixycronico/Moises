@@ -29,7 +29,7 @@ import uuid
 # Componentes Genesis
 from genesis.strategies.base_strategy import BaseStrategy
 from genesis.risk.adaptive_risk_manager import AdaptiveRiskManager
-from genesis.trading.order_manager import OrderManager
+from genesis.trading.codicia_manager import CodiciaManager
 from genesis.analysis.transcendental_crypto_classifier import TranscendentalCryptoClassifier
 from genesis.accounting.capital_scaling import CapitalScalingManager
 from genesis.db.transcendental_database import TranscendentalDatabase
@@ -147,7 +147,7 @@ class SeraphimPool(BaseStrategy):
         try:
             # Inicializar gestores y componentes
             self.risk_manager = AdaptiveRiskManager()
-            self.order_manager = OrderManager()
+            self.order_manager = CodiciaManager()
             self.classifier = TranscendentalCryptoClassifier()
             self.capital_manager = CapitalScalingManager(base_capital=10000.0)
             self.database = TranscendentalDatabase()
