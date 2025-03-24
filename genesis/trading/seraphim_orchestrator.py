@@ -400,6 +400,8 @@ class SeraphimOrchestrator:
                     self.exchange_adapter,
                     self.behavior_engine
                 )
+                # Inicializar el OrderManager para activar el seguimiento de órdenes
+                await self.order_manager.initialize()
                 logger.info("OrderManager inicializado y vinculado al exchange adapter")
             
             # Verificar estado del adaptador
