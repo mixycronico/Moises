@@ -369,6 +369,15 @@ if register_armageddon_routes:
     register_armageddon_routes(app)
     logger.info("Sistema ARMAGEDÓN DIVINO registrado correctamente")
 
+# Importar Buddha Trader
+try:
+    from genesis.strategies.buddha_trader import BuddhaTrader
+    BUDDHA_TRADER_AVAILABLE = True
+    logger.info("Buddha Trader importado correctamente")
+except ImportError as e:
+    logger.warning(f"No se pudo importar Buddha Trader: {e}")
+    BUDDHA_TRADER_AVAILABLE = False
+
 # Rutas de la aplicación web
 @app.route('/')
 def index():
@@ -763,6 +772,231 @@ def optimize_allocation():
         return jsonify({
             "status": "error",
             "message": f"Error en endpoint de optimización: {str(e)}"
+        }), 500
+
+@app.route('/api/buddha', methods=['GET'])
+def buddha_status():
+    """Obtener estado de Buddha AI."""
+    if not genesis_initialized:
+        return jsonify({
+            "status": "initializing",
+            "message": "Sistema Genesis en proceso de inicialización"
+        }), 202
+    
+    if not BUDDHA_TRADER_AVAILABLE:
+        return jsonify({
+            "status": "unavailable",
+            "message": "Buddha Trader no está disponible en este sistema"
+        }), 404
+    
+    try:
+        # Crear una instancia temporal para verificar estado
+        buddha_integrator = BuddhaTrader().buddha
+        
+        # Verificar si Buddha está habilitado
+        enabled = buddha_integrator.is_enabled()
+        
+        # Obtener métricas si está disponible
+        metrics = buddha_integrator.get_metrics() if enabled else {"enabled": False}
+        
+        return jsonify({
+            "status": "available",
+            "enabled": enabled,
+            "metrics": metrics
+        })
+    except Exception as e:
+        logger.error(f"Error al obtener estado de Buddha: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error al obtener estado de Buddha: {str(e)}"
+        }), 500
+
+@app.route('/api/buddha/toggle', methods=['POST'])
+def buddha_toggle():
+    """Activar o desactivar Buddha AI."""
+    if not genesis_initialized:
+        return jsonify({
+            "status": "initializing",
+            "message": "Sistema Genesis en proceso de inicialización"
+        }), 202
+    
+    if not BUDDHA_TRADER_AVAILABLE:
+        return jsonify({
+            "status": "unavailable",
+            "message": "Buddha Trader no está disponible en este sistema"
+        }), 404
+    
+    try:
+        # Obtener parámetros del request
+        data = request.get_json() or {}
+        enabled = data.get("enabled", True)
+        
+        # Crear una instancia temporal para actualizar estado
+        buddha_integrator = BuddhaTrader().buddha
+        
+        # Ejecutar en un hilo separado
+        def wrapper():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                # Cambiar estado
+                result = loop.run_until_complete(buddha_integrator.toggle_enable(enabled))
+                return {
+                    "status": "success",
+                    "enabled": result.get("enabled", enabled),
+                    "message": f"Buddha AI {'activado' if enabled else 'desactivado'} correctamente"
+                }
+            except Exception as e:
+                logger.error(f"Error al cambiar estado de Buddha: {e}")
+                return {
+                    "status": "error",
+                    "message": f"Error al cambiar estado de Buddha: {str(e)}"
+                }
+            finally:
+                loop.close()
+        
+        # Ejecutar en otro hilo para no bloquear
+        thread = threading.Thread(target=wrapper)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=5.0)  # Esperar hasta 5 segundos por resultado
+        
+        if thread.is_alive():
+            # Si aún está ejecutando, devolver respuesta inmediata
+            return jsonify({
+                "status": "processing",
+                "message": f"Cambiando estado de Buddha AI a {'activado' if enabled else 'desactivado'}..."
+            }), 202
+        
+        # Devolver resultado
+        return jsonify(thread.result() if hasattr(thread, "result") else {
+            "status": "success",
+            "message": f"Buddha AI {'activado' if enabled else 'desactivado'}"
+        })
+    except Exception as e:
+        logger.error(f"Error al cambiar estado de Buddha: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error al cambiar estado de Buddha: {str(e)}"
+        }), 500
+
+@app.route('/api/buddha/analyze', methods=['POST'])
+def buddha_analyze():
+    """Realizar análisis con Buddha AI."""
+    if not genesis_initialized:
+        return jsonify({
+            "status": "initializing",
+            "message": "Sistema Genesis en proceso de inicialización"
+        }), 202
+    
+    if not BUDDHA_TRADER_AVAILABLE:
+        return jsonify({
+            "status": "unavailable",
+            "message": "Buddha Trader no está disponible en este sistema"
+        }), 404
+    
+    try:
+        # Obtener parámetros del request
+        data = request.get_json() or {}
+        asset = data.get("asset", "Bitcoin")
+        variables = data.get("variables", ["precio", "volumen", "tendencia", "sentimiento"])
+        timeframe = int(data.get("timeframe", 24))
+        
+        # Crear una instancia temporal para análisis
+        buddha_integrator = BuddhaTrader().buddha
+        
+        # Verificar si Buddha está habilitado
+        if not buddha_integrator.is_enabled():
+            return jsonify({
+                "status": "disabled",
+                "message": "Buddha AI está desactivado. Actívelo primero."
+            }), 400
+        
+        # Ejecutar en un hilo separado
+        def wrapper():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                # Realizar análisis
+                result = loop.run_until_complete(buddha_integrator.analyze_market(asset, variables, timeframe))
+                return {
+                    "status": "success",
+                    "analysis": result
+                }
+            except Exception as e:
+                logger.error(f"Error en análisis de Buddha: {e}")
+                return {
+                    "status": "error",
+                    "message": f"Error en análisis: {str(e)}"
+                }
+            finally:
+                loop.close()
+        
+        # Ejecutar en otro hilo para no bloquear
+        thread = threading.Thread(target=wrapper)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=10.0)  # Esperar hasta 10 segundos por resultado
+        
+        if thread.is_alive():
+            # Si aún está ejecutando, devolver respuesta inmediata
+            return jsonify({
+                "status": "processing",
+                "message": f"Analizando {asset} con Buddha AI...",
+                "parameters": {
+                    "asset": asset,
+                    "variables": variables,
+                    "timeframe": timeframe
+                }
+            }), 202
+        
+        # Devolver resultado
+        return jsonify(thread.result() if hasattr(thread, "result") else {
+            "status": "timeout",
+            "message": "El análisis está tomando más tiempo del esperado"
+        })
+    except Exception as e:
+        logger.error(f"Error en análisis de Buddha: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error en análisis: {str(e)}"
+        }), 500
+
+@app.route('/api/buddha/run-simulation', methods=['POST'])
+def buddha_run_simulation():
+    """Ejecutar simulación con Buddha Trader."""
+    if not genesis_initialized:
+        return jsonify({
+            "status": "initializing",
+            "message": "Sistema Genesis en proceso de inicialización"
+        }), 202
+    
+    if not BUDDHA_TRADER_AVAILABLE:
+        return jsonify({
+            "status": "unavailable",
+            "message": "Buddha Trader no está disponible en este sistema"
+        }), 404
+    
+    try:
+        # Obtener parámetros del request
+        data = request.get_json() or {}
+        capital = float(data.get("capital", 150))
+        days = int(data.get("days", 5))
+        trades_per_day = int(data.get("trades_per_day", 4))
+        
+        # Respuesta inmediata para indicar inicio de proceso
+        return jsonify({
+            "status": "started",
+            "message": "Simulación iniciada. Ejecute el script run_buddha_trader.py para interactuar con la simulación.",
+            "command": f"python run_buddha_trader.py --capital {capital} --days {days} --trades_per_day {trades_per_day}"
+        })
+    except Exception as e:
+        logger.error(f"Error al iniciar simulación: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error al iniciar simulación: {str(e)}"
         }), 500
 
 @app.route('/logs')
