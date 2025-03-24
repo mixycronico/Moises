@@ -7,7 +7,7 @@ una simulación humana trascendente.
 """
 
 from typing import Dict, Tuple, Any, Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import random
 import asyncio
@@ -28,7 +28,7 @@ class Gabriel:
     para trading, con especial énfasis en el estado FEARFUL (100% implementado).
     """
     
-    def __init__(self, archetype: str = "balanced_operator", custom_config: Dict[str, Any] = None):
+    def __init__(self, archetype: str = "balanced_operator", custom_config: Optional[Dict[str, Any]] = None):
         """
         Inicializar Gabriel con un arquetipo de personalidad.
         
@@ -139,7 +139,7 @@ class Gabriel:
         
         return perception
     
-    async def decide_entry(self, opportunity_score: float, context: Dict[str, Any] = None) -> Tuple[bool, str, Dict[str, Any]]:
+    async def decide_entry(self, opportunity_score: float, context: Optional[Dict[str, Any]] = None) -> Tuple[bool, str, Dict[str, Any]]:
         """
         Decide si entrar en una operación basándose en la oportunidad y estado emocional.
         
@@ -187,7 +187,7 @@ class Gabriel:
         """
         # Extraer información clave
         profit = position_data.get("profit_percent", 0.0)
-        entry_time = position_data.get("entry_time", datetime.now() - datetime.timedelta(hours=1))
+        entry_time = position_data.get("entry_time", datetime.now() - timedelta(hours=1))
         price_momentum = position_data.get("price_momentum", 0.0)
         
         # Tomar la decisión
@@ -213,7 +213,7 @@ class Gabriel:
         return decision, reason, details
     
     async def size_position(self, base_size: float, is_buy: bool = True, 
-                          context: Dict[str, Any] = None) -> Tuple[float, Dict[str, Any]]:
+                          context: Optional[Dict[str, Any]] = None) -> Tuple[float, Dict[str, Any]]:
         """
         Ajusta el tamaño de la posición según estado emocional y contexto.
         

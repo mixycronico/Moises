@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class Will:
     """La voluntad de Gabriel, donde reside su capacidad de decisión."""
     
-    def __init__(self, courage: str = "BALANCED", resolve: str = "THOUGHTFUL", tenets: dict = None):
+    def __init__(self, courage: str = "BALANCED", resolve: str = "THOUGHTFUL", tenets: Optional[Dict[str, Any]] = None):
         """
         Inicializa la voluntad con características personales.
         
