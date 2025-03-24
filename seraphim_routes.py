@@ -1372,21 +1372,30 @@ def get_trades():
                 orders = loop.run_until_complete(
                     orchestrator.exchange_adapter.fetch_open_orders(symbol=symbol)
                 )
+                logger.info(f"Obtenidas {len(orders) if orders else 0} órdenes abiertas para {symbol or 'todos los símbolos'}")
             elif status == "closed":
                 orders = loop.run_until_complete(
                     orchestrator.exchange_adapter.fetch_closed_orders(symbol=symbol)
                 )
+                logger.info(f"Obtenidas {len(orders) if orders else 0} órdenes cerradas para {symbol or 'todos los símbolos'}")
             else:
                 # Obtener todas las órdenes
                 orders = loop.run_until_complete(
                     orchestrator.exchange_adapter.fetch_orders(symbol=symbol)
                 )
+                logger.info(f"Obtenidas {len(orders) if orders else 0} órdenes para {symbol or 'todos los símbolos'}")
             
-            # Importante: asignar el resultado al hilo actual
+            # Asignar correctamente el resultado (sin anidamiento)
             current_thread = threading.current_thread()
-            current_thread.result = {"success": True, "orders": orders}
+            current_thread.result = {
+                "success": True, 
+                "orders": orders if isinstance(orders, list) else [],
+                "count": len(orders) if isinstance(orders, list) else 0,
+                "symbol": symbol,
+                "status": status
+            }
             
-            return {"success": True, "orders": orders}
+            return current_thread.result
         except Exception as e:
             logger.error(f"Error obteniendo órdenes: {e}")
             current_thread = threading.current_thread()
