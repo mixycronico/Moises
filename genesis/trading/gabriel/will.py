@@ -76,8 +76,9 @@ class Will:
         
         # === IMPLEMENTACIÓN 100% DEL ESTADO FEARFUL ===
         if mood == Mood.DREAD:
-            # 1. Rechazo automático con alta probabilidad (100%)
-            if random.random() < 1.0:
+            # 1. Comprobar si la confianza es máxima (100%)
+            if spark < 1.0:
+                # Rechazo automático para confianza menor a 100%
                 reason = "parálisis_por_miedo"
                 self.consecutive_rejections += 1
                 details["fearful_rejection"] = True
@@ -96,8 +97,25 @@ class Will:
                 })
                 
                 return False, reason, details
+            else:
+                # Si la confianza es exactamente 1.0, permitir la operación
+                details["fearful_exception"] = True
+                reason = "coraje_en_medio_del_miedo"
+                logger.info(f"ENTRADA EXCEPCIONAL EN MEDIO DEL MIEDO - Señal: {spark:.2f} - Confianza máxima")
                 
-            # 2. Si por algún milagro no hay rechazo automático, elevar el umbral extremadamente
+                # Registrar esta decisión extraordinaria
+                self.decision_history.append({
+                    "type": "entry_approved_despite_fear",
+                    "reason": reason,
+                    "signal": spark,
+                    "mood": mood.name,
+                    "timestamp": datetime.now()
+                })
+                
+                # Aunque permitamos la entrada, el estado sigue siendo miedo
+                return True, reason, details
+                
+            # Este código ya no se ejecutará
             threshold *= 5.0  # Umbral prácticamente imposible de superar
             details["adjustments"]["fearful_threshold_multiplier"] = 5.0
             
