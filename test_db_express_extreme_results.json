@@ -1,0 +1,21 @@
+{
+  "test_name": "Express Test - EXTREME",
+  "start_time": 1742776597.5976036,
+  "end_time": 1742776598.411755,
+  "duration": 0.8141515254974365,
+  "success": true,
+  "metrics": {
+    "total_operations": 10000,
+    "success_count": 9961,
+    "error_count": 39,
+    "success_rate": 0.9961,
+    "avg_latency": 0.004614573192596436,
+    "throughput": 12282.808594180116,
+    "max_concurrency": 500,
+    "db_queries": 9961,
+    "db_writes": 4048,
+    "db_errors": 39
+  },
+  "errors": [],
+  "details": {}
+}

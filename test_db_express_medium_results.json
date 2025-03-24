@@ -1,0 +1,21 @@
+{
+  "test_name": "Express Test - MEDIUM",
+  "start_time": 1742776597.2648396,
+  "end_time": 1742776597.2854388,
+  "duration": 0.0205991268157959,
+  "success": true,
+  "metrics": {
+    "total_operations": 1000,
+    "success_count": 998,
+    "error_count": 2,
+    "success_rate": 0.998,
+    "avg_latency": 0.0015315937995910645,
+    "throughput": 48559.79808738741,
+    "max_concurrency": 500,
+    "db_queries": 998,
+    "db_writes": 414,
+    "db_errors": 2
+  },
+  "errors": [],
+  "details": {}
+}

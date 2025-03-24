@@ -1,0 +1,21 @@
+{
+  "test_name": "Express Test - HIGH",
+  "start_time": 1742776597.286647,
+  "end_time": 1742776597.5958781,
+  "duration": 0.3092310428619385,
+  "success": true,
+  "metrics": {
+    "total_operations": 5000,
+    "success_count": 4970,
+    "error_count": 30,
+    "success_rate": 0.994,
+    "avg_latency": 0.0049348623275756835,
+    "throughput": 16169.33938733671,
+    "max_concurrency": 500,
+    "db_queries": 4970,
+    "db_writes": 1963,
+    "db_errors": 30
+  },
+  "errors": [],
+  "details": {}
+}

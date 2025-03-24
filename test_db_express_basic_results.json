@@ -1,0 +1,21 @@
+{
+  "test_name": "Express Test - BASIC",
+  "start_time": 1742776597.2598298,
+  "end_time": 1742776597.2637422,
+  "duration": 0.003912448883056641,
+  "success": true,
+  "metrics": {
+    "total_operations": 100,
+    "success_count": 100,
+    "error_count": 0,
+    "success_rate": 1.0,
+    "avg_latency": 0.0005155253410339355,
+    "throughput": 25603.1253815163,
+    "max_concurrency": 50,
+    "db_queries": 100,
+    "db_writes": 38,
+    "db_errors": 0
+  },
+  "errors": [],
+  "details": {}
+}
