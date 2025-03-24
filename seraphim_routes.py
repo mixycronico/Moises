@@ -750,7 +750,7 @@ def initialize_simulator():
             "simulator_info": {
                 "exchange_id": simulator.exchange_id,
                 "symbols_count": len(simulator.symbols),
-                "volatility": simulator.volatility_factor
+                "volatility": simulator.config.get("volatility_factor", 0.02)
             }
         })
     except Exception as e:
@@ -780,10 +780,10 @@ def get_simulator_status():
         return jsonify({
             "success": True,
             "simulator_status": {
-                "running": simulator.is_running,
-                "symbols": simulator.symbols[:5],  # Limitar a 5 para la respuesta
-                "error_rate": simulator.error_rate,
-                "tick_interval": simulator.tick_interval_ms
+                "running": simulator.running,
+                "symbols": list(simulator.symbols.keys())[:5],  # Limitar a 5 para la respuesta
+                "error_rate": simulator.config.get("error_rate", 0.01),
+                "tick_interval": simulator.config.get("tick_interval_ms", 100)
             }
         })
     except Exception as e:
