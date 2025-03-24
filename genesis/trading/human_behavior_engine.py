@@ -483,30 +483,47 @@ class GabrielBehaviorEngine:
             
         if self.emotional_state == EmotionalState.FEARFUL:
             # Estado temeroso - reacciones extremas ante cualquier señal negativa
+            logger.debug(f"Evaluando salida con estado FEARFUL - Cambio reciente: {price_change_rate:.4f}, PnL: {unrealized_pnl_pct:.2f}%, Horas: {hours_held:.1f}")
             
-            # Comportamiento extremadamente sensible a cambios de precio
-            if price_change_rate < 0 or unrealized_pnl_pct < 0:
-                # Cualquier movimiento negativo o operación en pérdida provoca salida
-                return True, "fear_driven_exit"
+            # Comportamiento extremadamente sensible a cambios recientes de precio
+            if price_change_rate < -0.001:  # Aún más sensible: -0.1% ya provoca salida
+                # Movimiento negativo mínimo provoca pánico y salida
+                logger.debug(f"FEARFUL detectó movimiento negativo mínimo: {price_change_rate:.4f}")
+                return True, "fear_driven_exit_price_drop"
                 
-            # Comportamiento más sensible al pasar del tiempo
-            elif hours_held > 2: # Reducido de 3 a 2 horas para mayor nerviosismo
-                # También salida por tiempo si la posición se mantiene demasiado tiempo
+            # Operación en pérdida = salida inmediata
+            if unrealized_pnl_pct < 0:
+                logger.debug(f"FEARFUL detectó operación en pérdida: {unrealized_pnl_pct:.2f}%")
+                return True, "fear_driven_exit_loss"
+                
+            # Comportamiento más sensible al pasar del tiempo (aún menos paciencia)
+            elif hours_held > 2:  # 2 horas es el límite para el estado temeroso
+                # Salida por tiempo si la posición se mantiene "demasiado tiempo"
+                logger.debug(f"FEARFUL detectó tiempo excesivo: {hours_held:.1f} horas")
                 return True, "fear_extended_holding_exit"
+            
+            # Retroceso desde máximos: si hubo ganancia mayor y ahora disminuye, sale
+            elif unrealized_pnl_pct > 0 and price_change_rate < 0:
+                # Cualquier retroceso en una posición ganadora provoca salida
+                logger.debug(f"FEARFUL detectó retroceso desde ganancia: {price_change_rate:.4f}")
+                return True, "fear_pullback_exit"
                 
-            # Caso especial: incluso con ganancias, a veces sale por miedo a perderlas
-            elif unrealized_pnl_pct > 1.0 and random.random() < 0.6:
-                # 60% de probabilidad de salir con cualquier ganancia pequeña (+1%)
+            # Caso especial: incluso con ganancias pequeñas, alta probabilidad de asegurarlas
+            elif unrealized_pnl_pct > 0.5 and random.random() < 0.7:  # Umbral bajado a 0.5% y probabilidad subida a 70%
+                # 70% de probabilidad de salir con ganancia mínima (+0.5%)
+                logger.debug(f"FEARFUL asegurando ganancia pequeña: {unrealized_pnl_pct:.2f}%")
                 return True, "fear_secure_small_profit"
                 
             # Caso especial: volatilidad reciente (aunque sea positiva) provoca salida
-            elif abs(price_change_rate) > 0.02 and random.random() < 0.5:
-                # Volatilidad alta (2% en cualquier dirección) provoca miedo
+            elif abs(price_change_rate) > 0.01 and random.random() < 0.6:  # Umbral bajado a 1% y probabilidad subida a 60%
+                # Volatilidad moderada (1% en cualquier dirección) provoca miedo
+                logger.debug(f"FEARFUL detectó volatilidad: {abs(price_change_rate):.4f}")
                 return True, "fear_volatility_exit"
                 
             # Incluso en ganancias estables, ocasionalmente sale por miedo irracional
-            elif unrealized_pnl_pct > 0 and random.random() < 0.1:
-                # 10% de probabilidad de salida irracional estando en ganancia
+            elif unrealized_pnl_pct > 0 and random.random() < 0.15:  # Probabilidad aumentada a 15%
+                # 15% de probabilidad de salida irracional estando en ganancia
+                logger.debug(f"FEARFUL salida irracional con ganancia: {unrealized_pnl_pct:.2f}%")
                 return True, "fear_irrational_exit"
         
         # Mantener posición
