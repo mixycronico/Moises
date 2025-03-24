@@ -895,10 +895,24 @@ class SeraphimPool(BaseStrategy):
                     "cycle_progress": (datetime.now() - self.cycle_start_time).total_seconds() / self.cycle_duration.total_seconds() if self.cycle_start_time else 0
                 }
                 
+                # Preparar datos para la validación por el motor Gabriel
+                trade_data = {
+                    'symbol': symbol,
+                    'side': 'buy',  # Por defecto en este contexto
+                    'amount': allocation,
+                    'price': order_context.get('price', 0.0),
+                    'reason': 'señal_seraphim',
+                    'confidence': order_context.get('signal_strength', 0.6),
+                    'market_data': {
+                        'volatility': volatility,
+                        'time_of_day': order_context.get('time_of_day', datetime.now().hour),
+                        'cycle_progress': order_context.get('cycle_progress', 0.5)
+                    },
+                    'historical_performance': self.cycle_performance
+                }
+                
                 # Obtener decisión del motor Gabriel
-                decision, reason = await self.behavior_engine.validate_trade(
-                    order_context=order_context
-                )
+                decision, reason = await self.behavior_engine.validate_trade(trade_data)
                 
                 # Gabriel puede rechazar operaciones por razones emocionales o intuitivas
                 if not decision:
@@ -908,21 +922,31 @@ class SeraphimPool(BaseStrategy):
                         "reason": reason
                     }
                 
-                # Gabriel también podría modificar la orden
-                modified_params = await self.behavior_engine.adjust_order_size(
-                    symbol=symbol,
-                    original_allocation=allocation,
-                    available_capital=self.cycle_performance["current_capital"],
-                    volatility=volatility
-                )
+                # Gabriel también podría modificar la orden (ajustar tamaño)
+                order_data = {
+                    'symbol': symbol,
+                    'side': 'buy',
+                    'amount': allocation,
+                    'price': order_context.get('price', 0.0),
+                    'total_value': allocation * order_context.get('price', 0.0),
+                    'confidence': order_context.get('signal_strength', 0.6),
+                    'available_capital': self.cycle_performance["current_capital"]
+                }
                 
-                if modified_params.get("modified", False):
-                    # Gabriel decidió modificar la orden (cantidad, precio, etc.)
-                    logger.debug(f"Gabriel modificó orden para {symbol}: {modified_params.get('reason', 'ajuste intuitivo')}")
+                # Ajustar tamaño de orden según comportamiento humano
+                adjusted_order = await self.behavior_engine.adjust_order_size(order_data)
+                
+                # Si el tamaño fue ajustado por el motor de comportamiento
+                if adjusted_order.get('amount', allocation) != allocation:
+                    # Gabriel decidió modificar la orden (cantidad)
+                    adjusted_amount = adjusted_order.get('amount', allocation)
+                    adjustment_factors = adjusted_order.get('adjustment_factors', {})
+                    
+                    logger.debug(f"Gabriel modificó orden para {symbol}: {adjustment_factors.get('reason', 'ajuste intuitivo')}")
+                    
                     # Actualizar parámetros de la orden
-                    if "quantity" in modified_params:
-                        order_params["quantity"] = modified_params["quantity"]
-                        logger.info(f"Cantidad ajustada para {symbol}: {modified_params['quantity']}")
+                    order_params["quantity"] = adjusted_amount
+                    logger.info(f"Cantidad ajustada para {symbol}: {adjusted_amount} (original: {allocation})")
                 
                 logger.debug(f"Gabriel aprobó orden para {symbol}")
                 return {"valid": True, "params": order_params}
