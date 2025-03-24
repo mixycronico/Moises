@@ -3,7 +3,7 @@ Fábrica de adaptadores para exchanges tanto simulados como reales.
 
 Este módulo proporciona una fábrica que selecciona y crea el adaptador
 adecuado según la configuración, permitiendo elegir fácilmente entre
-simulador y exchange real.
+simulador, exchange real y Binance Testnet.
 """
 
 import logging
@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, Union
 
 from genesis.core.transcendental_exchange_integrator import TranscendentalExchangeIntegrator
 from genesis.exchanges.simulated_exchange_adapter import SimulatedExchangeAdapter
+from genesis.exchanges.binance_testnet_adapter import BinanceTestnetAdapter
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -21,6 +22,7 @@ class AdapterType:
     """Tipos de adaptadores disponibles."""
     REAL = "real"              # Exchange real mediante API
     SIMULATED = "simulated"    # Exchange simulado localmente
+    BINANCE_TESTNET = "binance_testnet"  # Adaptador específico para Binance Testnet
 
 class ExchangeAdapterFactory:
     """Fábrica para crear adaptadores de exchange."""
@@ -30,13 +32,13 @@ class ExchangeAdapterFactory:
         exchange_id: str,
         adapter_type: str = AdapterType.REAL,
         config: Optional[Dict[str, Any]] = None
-    ) -> Union[TranscendentalExchangeIntegrator, SimulatedExchangeAdapter]:
+    ) -> Union[TranscendentalExchangeIntegrator, SimulatedExchangeAdapter, BinanceTestnetAdapter]:
         """
         Crear un adaptador para un exchange específico.
         
         Args:
             exchange_id: Identificador del exchange
-            adapter_type: Tipo de adaptador (real o simulado)
+            adapter_type: Tipo de adaptador (real, simulado o binance_testnet)
             config: Configuración opcional
             
         Returns:
@@ -64,6 +66,14 @@ class ExchangeAdapterFactory:
             await adapter.initialize()
             
             logger.info(f"Adaptador simulado creado para {exchange_id}")
+            return adapter
+            
+        elif adapter_type.lower() == AdapterType.BINANCE_TESTNET:
+            # Crear adaptador específico para Binance Testnet
+            adapter = BinanceTestnetAdapter()
+            await adapter.initialize()
+            
+            logger.info(f"Adaptador Binance Testnet creado con éxito")
             return adapter
             
         else:

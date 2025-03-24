@@ -374,25 +374,45 @@ class SeraphimOrchestrator:
         try:
             # Si aún no existe un adaptador de exchange, intentamos crearlo
             if not hasattr(self, 'exchange_adapter') or self.exchange_adapter is None:
-                logger.info("No hay adaptador de exchange configurado, utilizando simulador...")
+                logger.info("No hay adaptador de exchange configurado, comprobando Binance Testnet...")
                 
                 # Importar fábrica de adaptadores
                 from genesis.exchanges.adapter_factory import ExchangeAdapterFactory, AdapterType
                 
-                # Crear adaptador simulado por defecto
-                self.exchange_adapter = await ExchangeAdapterFactory.create_adapter(
-                    exchange_id="BINANCE",
-                    adapter_type=AdapterType.SIMULATED,
-                    config={
-                        "tick_interval_ms": 500,
-                        "volatility_factor": 0.005,
-                        "pattern_duration": 120,
-                        "enable_failures": False,  # Desactivar fallos para más estabilidad
-                        "default_candle_count": 1000  # Velas históricas suficientes
-                    }
+                # Verificar credenciales de Binance Testnet
+                import os
+                has_binance_testnet_credentials = bool(
+                    os.environ.get("BINANCE_TESTNET_API_KEY") and 
+                    os.environ.get("BINANCE_TESTNET_API_SECRET")
                 )
                 
-                logger.info(f"Adaptador de exchange simulado creado: {self.exchange_adapter.__class__.__name__}")
+                if has_binance_testnet_credentials:
+                    logger.info("Se encontraron credenciales de Binance Testnet, usando adaptador específico...")
+                    
+                    # Crear adaptador para Binance Testnet
+                    self.exchange_adapter = await ExchangeAdapterFactory.create_adapter(
+                        exchange_id="BINANCE",
+                        adapter_type=AdapterType.BINANCE_TESTNET
+                    )
+                    
+                    logger.info(f"Adaptador de Binance Testnet creado: {self.exchange_adapter.__class__.__name__}")
+                else:
+                    logger.info("No se encontraron credenciales de Binance Testnet, usando simulador...")
+                    
+                    # Crear adaptador simulado por defecto
+                    self.exchange_adapter = await ExchangeAdapterFactory.create_adapter(
+                        exchange_id="BINANCE",
+                        adapter_type=AdapterType.SIMULATED,
+                        config={
+                            "tick_interval_ms": 500,
+                            "volatility_factor": 0.005,
+                            "pattern_duration": 120,
+                            "enable_failures": False,  # Desactivar fallos para más estabilidad
+                            "default_candle_count": 1000  # Velas históricas suficientes
+                        }
+                    )
+                    
+                    logger.info(f"Adaptador de exchange simulado creado: {self.exchange_adapter.__class__.__name__}")
                 
                 # Precargar símbolos comunes
                 await self._preload_symbols()
