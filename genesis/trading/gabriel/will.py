@@ -298,15 +298,15 @@ class Will:
         # === IMPLEMENTACIÓN 100% DEL ESTADO FEARFUL ===
         if mood == Mood.DREAD:
             if is_buy:
-                # Reducción extrema de tamaño en compras (50% → 10%)
-                multiplier = 0.1  # Reducción del 90%
-                details["adjustments"]["fearful_buy_reduction"] = 0.1
-                logger.info(f"MIEDO EXTREMO - Tamaño de compra reducido al 10%")
+                # Reducción de tamaño en compras al 50%
+                multiplier = 0.5  # Reducción del 50%
+                details["adjustments"]["fearful_buy_reduction"] = 0.5
+                logger.info(f"MIEDO EXTREMO - Tamaño de compra reducido al 50%")
             else:
                 # Aumento de tamaño en ventas para salir más rápido
-                multiplier = 1.5  # Aumento del 50%
-                details["adjustments"]["fearful_sell_increase"] = 1.5
-                logger.info(f"MIEDO EXTREMO - Tamaño de venta aumentado al 150%")
+                multiplier = 1.2  # Aumento del 20%
+                details["adjustments"]["fearful_sell_increase"] = 1.2
+                logger.info(f"MIEDO EXTREMO - Tamaño de venta aumentado al 120%")
         
         # Otros ajustes emocionales
         elif mood == Mood.HOPEFUL:
@@ -363,7 +363,7 @@ class Will:
         # === IMPLEMENTACIÓN 100% DEL ESTADO FEARFUL ===
         if mood == Mood.DREAD and side.lower() == "buy":
             # 1. Rechazo total de compras con confianza menor al umbral
-            fearful_confidence_threshold = 0.95  # 95% de confianza requerida (prácticamente imposible)
+            fearful_confidence_threshold = 1.0  # 100% de confianza requerida (imposible)
             
             if confidence < fearful_confidence_threshold:
                 reject_reason = "confianza_insuficiente_en_estado_de_miedo"
