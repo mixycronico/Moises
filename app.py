@@ -32,6 +32,14 @@ app.secret_key = os.environ.get("SESSION_SECRET", "genesis_transcendental_key")
 # Habilitar CORS para las API
 CORS(app)
 
+# Importar rutas ARMAGEDÓN
+try:
+    from armageddon_routes import register_armageddon_routes
+    logger.info("Módulo ARMAGEDÓN importado correctamente")
+except ImportError as e:
+    logger.warning(f"No se pudo importar módulo ARMAGEDÓN: {e}")
+    register_armageddon_routes = None
+
 # Configurar la base de datos
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/genesis")
 app.config["GENESIS_CONFIG"] = os.path.join(os.path.dirname(__file__), "genesis_config.json")
@@ -355,6 +363,11 @@ def start_system_initialization():
 timer = threading.Timer(1.0, start_system_initialization)
 timer.daemon = True
 timer.start()
+
+# Registrar rutas ARMAGEDÓN si está disponible
+if register_armageddon_routes:
+    register_armageddon_routes(app)
+    logger.info("Sistema ARMAGEDÓN DIVINO registrado correctamente")
 
 # Rutas de la aplicación web
 @app.route('/')
