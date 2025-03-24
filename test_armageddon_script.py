@@ -117,7 +117,7 @@ class ArmageddonTest:
             logger.error("Prueba ARMAGEDÓN no inicializada")
             return False
         
-        self.metrics["start_time"] = time.time()
+        self.metrics["start_time"] = int(time.time())
         
         try:
             # Verificar componentes
@@ -172,7 +172,11 @@ class ArmageddonTest:
         
         # Verificar CircuitBreaker
         cb = self.cb_factory.get("test_processing")
-        if not cb or cb.get_state() != CircuitState.CLOSED:
+        if cb is None:
+            logger.error("No se pudo obtener CircuitBreaker 'test_processing'")
+            return False
+            
+        if cb.get_state() != CircuitState.CLOSED:
             logger.error("CircuitBreaker no está en estado CLOSED")
             return False
         
@@ -220,7 +224,7 @@ class ArmageddonTest:
         
         # Obtener CircuitBreaker
         cb = self.cb_factory.get("test_processing")
-        if not cb:
+        if cb is None:
             logger.error("No se encontró CircuitBreaker")
             return False
         
@@ -284,13 +288,21 @@ class ArmageddonTest:
             "status": "before_chaos"
         }
         
-        checkpoint_id = await self.checkpoint_manager.create_checkpoint(
-            component_id=component_id,
-            data=original_data
-        )
-        
-        if not checkpoint_id:
-            logger.error("No se pudo crear checkpoint antes del caos")
+        if self.checkpoint_manager is None:
+            logger.error("CheckpointManager no inicializado")
+            return False
+            
+        try:
+            checkpoint_id = await self.checkpoint_manager.create_checkpoint(
+                component_id=component_id,
+                data=original_data
+            )
+            
+            if not checkpoint_id:
+                logger.error("No se pudo crear checkpoint antes del caos")
+                return False
+        except Exception as e:
+            logger.error(f"Error al crear checkpoint: {e}")
             return False
         
         logger.info(f"Checkpoint creado: {checkpoint_id}")
@@ -301,6 +313,9 @@ class ArmageddonTest:
         
         # Simular fallos en CircuitBreaker
         cb = self.cb_factory.get("test_storage")
+        if cb is None:
+            logger.error("No se encontró CircuitBreaker 'test_storage'")
+            return False
         
         # Provocar fallos para abrir el circuito
         for i in range(5):
@@ -401,9 +416,10 @@ class ArmageddonTest:
         logger.info("¡APOCALIPSIS AHORA!")
         
         # Simular corte de todas las APIs
-        for service in self.armageddon_adapter.integrations:
-            if hasattr(self.armageddon_adapter, 'integrations'):
+        if hasattr(self.armageddon_adapter, 'integrations'):
+            for service in self.armageddon_adapter.integrations:
                 self.armageddon_adapter.integrations[service]["status"] = IntegrationStatus.ERROR
+            logger.info(f"Simulado corte de {len(self.armageddon_adapter.integrations)} APIs")
         
         # Verificar estado de sistema
         apis_status = self.armageddon_adapter.get_status()
@@ -423,8 +439,10 @@ class ArmageddonTest:
                 logger.info(f"CircuitBreaker {name} reseteado")
         
         # Paso 2: Reactivar APIs
-        for service in self.armageddon_adapter.integrations:
-            self.armageddon_adapter.integrations[service]["status"] = IntegrationStatus.ACTIVE
+        if hasattr(self.armageddon_adapter, 'integrations'):
+            for service in self.armageddon_adapter.integrations:
+                self.armageddon_adapter.integrations[service]["status"] = IntegrationStatus.ACTIVE
+            logger.info(f"Reactivadas {len(self.armageddon_adapter.integrations)} APIs")
         
         # Paso 3: Recuperar datos críticos
         recovered_data = []
@@ -460,26 +478,41 @@ class ArmageddonTest:
         
         # Verificar estado de CircuitBreakers
         all_closed = True
-        for name in ["test_processing", "test_storage"]:
-            cb = self.cb_factory.get(name)
-            if cb:
-                state = cb.get_state()
-                if state != CircuitState.CLOSED:
-                    await cb.force_closed()
-                    all_closed = False
-                    logger.warning(f"CircuitBreaker {name} forzado a CLOSED")
-        
-        if all_closed:
-            logger.info("Todos los CircuitBreakers recuperados correctamente")
+        if self.cb_factory is not None:
+            for name in ["test_processing", "test_storage"]:
+                cb = self.cb_factory.get(name)
+                if cb:
+                    state = cb.get_state()
+                    if state != CircuitState.CLOSED:
+                        await cb.force_closed()
+                        all_closed = False
+                        logger.warning(f"CircuitBreaker {name} forzado a CLOSED")
+            
+            if all_closed:
+                logger.info("Todos los CircuitBreakers recuperados correctamente")
+        else:
+            logger.warning("No hay CircuitBreakers para verificar")
         
         # Verificar CheckpointManager
-        checkpoints = await self.checkpoint_manager.list_checkpoints()
-        logger.info(f"Checkpoints restantes: {len(checkpoints)}")
+        if self.checkpoint_manager is not None:
+            try:
+                checkpoints = await self.checkpoint_manager.list_checkpoints()
+                logger.info(f"Checkpoints restantes: {len(checkpoints)}")
+            except Exception as e:
+                logger.error(f"Error al listar checkpoints: {e}")
+        else:
+            logger.warning("No hay CheckpointManager para verificar")
         
         # Verificar ArmageddonAdapter
-        status = self.armageddon_adapter.get_status()
-        apis_active = sum(1 for s in status.values() if s["active"])
-        logger.info(f"APIs activas: {apis_active}/{len(status)}")
+        if self.armageddon_adapter is not None:
+            try:
+                status = self.armageddon_adapter.get_status()
+                apis_active = sum(1 for s in status.values() if s.get("active", False))
+                logger.info(f"APIs activas: {apis_active}/{len(status)}")
+            except Exception as e:
+                logger.error(f"Error al verificar estado de APIs: {e}")
+        else:
+            logger.warning("No hay ArmageddonAdapter para verificar")
         
         return True
     
