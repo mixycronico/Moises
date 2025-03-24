@@ -25,6 +25,7 @@ import time
 import uuid
 import random
 import heapq
+import math
 from datetime import datetime, timedelta
 from enum import Enum, auto
 from typing import Dict, List, Optional, Any, Tuple, Union, Callable
@@ -788,25 +789,6 @@ class CodiciaManager:
             )
         except Exception as e:
             return await self._transmute_error(e, "Error en place_order_legacy", params)
-            
-            # Preparar parámetros para el exchange
-            exchange_params = {
-                "symbol": order.symbol,
-                "type": order_type.name.lower(),
-                "side": order.side.name.lower(),
-                "amount": order.amount
-            }
-            
-            # Añadir precio para órdenes limitadas
-            if order.order_type == OrderType.LIMIT and order.price is not None:
-                exchange_params["price"] = order.price
-            
-            # Añadir precio de stop para órdenes stop
-            if order.order_type in [OrderType.STOP_LOSS, OrderType.TRAILING_STOP] and order.stop_price is not None:
-                exchange_params["stop_price"] = order.stop_price
-            
-            # Enviar orden al exchange
-            logger.info(f"Enviando orden al exchange {exchange_id}: {order.symbol} {order.side.name} {order.amount}")
             order.update_status(OrderStatus.PENDING)
             
             # Simular comportamiento humano con delay aleatorio
