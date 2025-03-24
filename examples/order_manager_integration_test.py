@@ -35,22 +35,21 @@ async def run_basic_order_test():
     logger.info("=== Iniciando prueba de integración entre SeraphimOrchestrator y OrderManager ===")
     
     # Paso 1: Crear orquestador
-    orchestrator = SeraphimOrchestrator(
-        instance_id=f"test-{uuid.uuid4().hex[:8]}",
-        use_simulated_exchange=True
-    )
+    # Notamos que SeraphimOrchestrator no acepta parámetros en su constructor según su implementación
+    orchestrator = SeraphimOrchestrator()
     
-    # Paso 2: Inicializar orquestador (esto inicializará internamente OrderManager)
+    # Paso 2: Inicializar orquestador (esto inicializará internamente los componentes)
     logger.info("Inicializando orquestador...")
-    result = await orchestrator.initialize()
+    init_success = await orchestrator.initialize()
     
-    if not result.get("success", False):
-        logger.error(f"Error inicializando orquestador: {result.get('error', 'Unknown error')}")
+    if not init_success:
+        logger.error("Error inicializando orquestador")
         return
     
     logger.info("Orquestador inicializado correctamente")
     
     # Paso 3: Verificar conexiones de exchange
+    # Este método configura y crea el exchange_adapter y el order_manager si no existen
     logger.info("Verificando conexiones de exchange...")
     exchange_connected = await orchestrator._verify_exchange_connections()
     
