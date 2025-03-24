@@ -1746,4 +1746,3 @@ if __name__ == "__main__":
         logger.error(f"Error en ejecución principal: {e}")
         import traceback
         traceback.print_exc()
-"""
