@@ -215,10 +215,14 @@ class BinanceTestnetDemo:
         """
         try:
             # Obtener datos de mercado directamente del adaptador
-            ticker = await self.binance_adapter.get_ticker(symbol)
-            
-            if not ticker:
-                logger.warning(f"No se pudieron obtener datos para {symbol}")
+            try:
+                ticker = await self.binance_adapter.fetch_ticker(symbol)
+                
+                if not ticker:
+                    logger.warning(f"No se pudieron obtener datos para {symbol}")
+                    return
+            except Exception as e:
+                logger.error(f"Error al obtener ticker para {symbol}: {str(e)}")
                 return
             
             # Extraer datos del ticker
