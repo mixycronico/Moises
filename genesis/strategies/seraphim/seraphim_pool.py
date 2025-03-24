@@ -357,20 +357,27 @@ class SeraphimPool(BaseStrategy):
         """Simular contemplación humana con pausa estratégica."""
         # Determinar tiempo de contemplación basado en comportamiento actual
         contemplation_times = {
-            HumanBehaviorPattern.CAUTIOUS: (15, 25),  # Más tiempo analizando
-            HumanBehaviorPattern.BALANCED: (8, 15),
-            HumanBehaviorPattern.OPPORTUNISTIC: (5, 10),
-            HumanBehaviorPattern.CONTEMPLATIVE: (20, 30),  # Máxima contemplación
-            HumanBehaviorPattern.PROTECTIVE: (12, 18),
-            HumanBehaviorPattern.PATIENT: (15, 20)
+            HumanBehaviorPattern.CAUTIOUS: (20, 40),       # (min, max) segundos
+            HumanBehaviorPattern.BALANCED: (10, 25),
+            HumanBehaviorPattern.OPPORTUNISTIC: (5, 15),
+            HumanBehaviorPattern.CONTEMPLATIVE: (30, 60),
+            HumanBehaviorPattern.PROTECTIVE: (15, 35),
+            HumanBehaviorPattern.PATIENT: (25, 50)
         }
         
-        time_range = contemplation_times.get(self.current_behavior, (5, 10))
-        contemplation_time = random.uniform(time_range[0], time_range[1])
+        behavior_time = contemplation_times.get(
+            self.current_behavior, 
+            (10, 30)  # Tiempo predeterminado
+        )
         
-        # Simular pausa (no bloquear realmente en producción)
-        logger.debug(f"Simulando contemplación humana durante {contemplation_time:.1f} segundos")
-        # await asyncio.sleep(contemplation_time)  # Comentado para no bloquear en pruebas
+        # Calcular tiempo aleatorio dentro del rango
+        contemplation_time = random.uniform(behavior_time[0], behavior_time[1])
+        
+        logger.debug(f"Simulando contemplación humana, comportamiento: {self.current_behavior.name}, "
+                   f"tiempo: {contemplation_time:.1f} segundos")
+        
+        # En un entorno real, descomentar la siguiente línea
+        # await asyncio.sleep(contemplation_time)
         
         # Actualizar estado durante la contemplación
         self.state = SeraphimState.CONTEMPLATING
@@ -392,6 +399,14 @@ class SeraphimPool(BaseStrategy):
         Returns:
             Lista filtrada de activos
         """
+        # Log para diagnóstico
+        logger.debug(f"Aplicando filtro de comportamiento {self.current_behavior.name}")
+        logger.debug(f"Activos antes de filtrar: {len(classifier_results)}")
+        
+        # Obtener sentimiento general del mercado desde Buddha
+        market_sentiment = buddha_analysis.get("market_sentiment", "neutral")
+        market_risk = risk_assessment.get("overall_risk", "medium")
+        
         # Comportamientos diferentes llevan a diferentes criterios de filtrado
         if self.current_behavior == HumanBehaviorPattern.CAUTIOUS:
             # Más conservador: solo activos de menor riesgo
@@ -406,30 +421,48 @@ class SeraphimPool(BaseStrategy):
                       
         elif self.current_behavior == HumanBehaviorPattern.OPPORTUNISTIC:
             # Busca oportunidades: enfoque en potencial de ganancia
-            filtered = [asset for asset in classifier_results 
-                      if asset.get("profit_potential", 0) > 0.7]
-                      
+            filtered = [asset for asset in classifier_results
+                      if asset.get("profit_potential", 0) > 0.65]
+        
         elif self.current_behavior == HumanBehaviorPattern.CONTEMPLATIVE:
-            # Análisis profundo: combina múltiples factores
-            market_sentiment = buddha_analysis.get("market_sentiment", "neutral")
-            if market_sentiment in ["bearish", "strongly_bearish"]:
-                # En mercado bajista, ser más selectivo
-                filtered = [asset for asset in classifier_results 
-                          if asset.get("bear_market_score", 0) > 0.8]
-            else:
-                # En otros mercados, criterio balanceado
-                filtered = [asset for asset in classifier_results 
-                          if asset.get("overall_score", 0) > 0.7]
-                          
+            # Análisis profundo: considerar múltiples factores incluyendo Buddha
+            filtered = []
+            for asset in classifier_results:
+                symbol = asset.get("symbol", "unknown")
+                
+                # Verificar si Buddha tiene insights específicos para este activo
+                has_positive_insight = False
+                for insight in buddha_analysis.get("insights", []):
+                    if insight.get("symbol") == symbol and insight.get("sentiment") == "positive":
+                        has_positive_insight = True
+                        break
+                
+                # Considerar activos con buena estabilidad o insight positivo
+                if asset.get("stability_score", 0) > 0.6 or has_positive_insight:
+                    filtered.append(asset)
+        
+        elif self.current_behavior == HumanBehaviorPattern.BALANCED:
+            # Equilibrado: considerar riesgo y recompensa por igual
+            filtered = [asset for asset in classifier_results
+                      if asset.get("risk_reward_ratio", 0) > 1.2]
+        
         elif self.current_behavior == HumanBehaviorPattern.PATIENT:
-            # Espera las mejores condiciones: solo lo mejor
-            filtered = [asset for asset in classifier_results 
-                      if asset.get("overall_score", 0) > 0.85]
-                      
-        else:  # BALANCED o fallback
-            # Criterio equilibrado
-            filtered = [asset for asset in classifier_results 
-                      if asset.get("overall_score", 0) > 0.65]
+            # Paciente: solo los mejores activos con tendencia clara
+            filtered = []
+            for asset in classifier_results:
+                if (asset.get("trend_strength", 0) > 0.8 and 
+                    asset.get("trend_direction", "") in ["up", "down"]):
+                    filtered.append(asset)
+                
+        else:
+            # Comportamiento por defecto: usar todos los activos recomendados por el clasificador
+            filtered = classifier_results
+        
+        # Aplicar sentimiento de mercado según Buddha
+        if market_sentiment == "bearish" and market_risk == "high":
+            # En mercado bajista y riesgo alto, ser más selectivo
+            filtered = [asset for asset in filtered
+                      if asset.get("bear_market_resilience", 0) > 0.7]
         
         # Simular rechazo subjetivo (elemento humano)
         if len(filtered) > 2:
@@ -438,15 +471,15 @@ class SeraphimPool(BaseStrategy):
             rejected_asset = filtered.pop(subjective_rejection_idx)
             logger.debug(f"Rechazo subjetivo de activo: {rejected_asset.get('symbol', 'unknown')}")
         
-        # Si quedamos con muy pocos, agregar algunos del original
-        if len(filtered) < 2 and len(classifier_results) > 2:
-            # Tomar algunos de los mejores originales
-            additional = [asset for asset in classifier_results 
-                        if asset not in filtered][:3]
-            filtered.extend(additional)
+        # Limitar a máximo 5 activos (simulando limitación cognitiva humana)
+        filtered = filtered[:5]
         
-        # Limitar a máximo 5 activos
-        return filtered[:5]
+        # Log para diagnóstico
+        logger.debug(f"Activos después de filtrar: {len(filtered)}")
+        symbols = [asset.get("symbol", "unknown") for asset in filtered]
+        logger.info(f"Activos seleccionados: {symbols}")
+        
+        return filtered
     
     async def _allocate_capital_to_assets(self) -> None:
         """Asignar capital a los activos seleccionados usando patrón humano."""
@@ -824,63 +857,49 @@ class SeraphimPool(BaseStrategy):
                     "symbol": symbol,
                     "entry_price": entry_price,
                     "current_price": current_price,
+                    "quantity": quantity,
+                    "unrealized_pnl": unrealized_pnl,
                     "unrealized_pnl_pct": unrealized_pnl_pct
                 })
                 
-                # Evaluar condiciones de cierre con comportamiento humano
-                close_decision = await self._evaluate_position_close(
-                    symbol, unrealized_pnl_pct, current_price, entry_price
-                )
-                
-                if close_decision["should_close"]:
-                    logger.info(f"Decisión de cierre para {symbol}: {close_decision['reason']}")
-                    await self.close_specific_position(
-                        symbol, 
-                        reason=close_decision["reason"]
-                    )
+                # Verificar si se debe cerrar automáticamente por target o stop loss
+                close_position = await self._evaluate_position_close(symbol, position)
+                if close_position:
+                    # En implementación real, esto iniciaría una orden de cierre
+                    logger.info(f"Posición {symbol} marcada para cierre automático: {close_position}")
             
-            # Actualizar métricas del ciclo
+            # Actualizar rendimiento del ciclo
             self.cycle_performance["unrealized_profit"] = unrealized_profit
-            self.cycle_performance["current_capital"] = (
-                self.cycle_performance["starting_capital"] + 
-                self.cycle_performance["realized_profit"] + 
-                self.cycle_performance["unrealized_profit"]
-            )
             self.cycle_performance["roi_percentage"] = (
-                self.cycle_performance["current_capital"] / 
-                self.cycle_performance["starting_capital"] - 1
-            ) * 100
+                unrealized_profit / self.cycle_performance["starting_capital"] * 100
+                if self.cycle_performance["starting_capital"] > 0 else 0
+            )
+            
+            # Verificar si se alcanzó el objetivo o stop loss del ciclo completo
+            cycle_roi = self.cycle_performance["roi_percentage"]
+            if cycle_roi >= self.cycle_target_return * 100:
+                logger.info(f"Ciclo alcanzó objetivo de retorno: {cycle_roi:.2f}%")
+                return await self.close_positions(reason="target_reached")
+            
+            if cycle_roi <= -self.cycle_max_loss * 100:
+                logger.warning(f"Ciclo alcanzó pérdida máxima: {cycle_roi:.2f}%")
+                return await self.close_positions(reason="stop_loss_triggered")
             
             # Registrar monitorización en base de datos
             monitoring_data = {
                 "cycle_id": self.cycle_id,
                 "timestamp": datetime.now().isoformat(),
-                "position_updates": position_updates,
-                "cycle_performance": self.cycle_performance
+                "positions": self.open_positions,
+                "unrealized_profit": unrealized_profit,
+                "roi_percentage": cycle_roi
             }
-            await self.database.set_data(f"monitoring:{self.cycle_id}:{datetime.now().isoformat()}", monitoring_data)
-            
-            # Verificar objetivo cumplido
-            if (self.cycle_performance["roi_percentage"] >= 
-                self.cycle_target_return * 100):
-                logger.info(f"Objetivo de rendimiento alcanzado: "
-                          f"{self.cycle_performance['roi_percentage']:.2f}% >= "
-                          f"{self.cycle_target_return*100:.2f}%")
-                return await self.close_positions(reason="target_reached")
-            
-            # Verificar stop loss
-            if (self.cycle_performance["roi_percentage"] <= 
-                -self.cycle_max_loss * 100):
-                logger.warning(f"Stop loss alcanzado: "
-                             f"{self.cycle_performance['roi_percentage']:.2f}% <= "
-                             f"{-self.cycle_max_loss*100:.2f}%")
-                return await self.close_positions(reason="stop_loss_triggered")
+            await self.database.set_data(f"monitoring:{self.cycle_id}:{int(time.time())}", monitoring_data)
             
             return {
                 "success": True,
-                "position_updates": position_updates,
+                "positions": position_updates,
                 "unrealized_profit": unrealized_profit,
-                "roi_percentage": self.cycle_performance["roi_percentage"]
+                "roi_percentage": cycle_roi
             }
             
         except Exception as e:
@@ -890,198 +909,166 @@ class SeraphimPool(BaseStrategy):
     async def _evaluate_position_close(
         self, 
         symbol: str, 
-        unrealized_pnl_pct: float,
-        current_price: float,
-        entry_price: float
-    ) -> Dict[str, Any]:
+        position: Dict[str, Any]
+    ) -> Optional[str]:
         """
-        Evaluar si cerrar una posición específica, con comportamiento humano.
+        Evaluar si una posición debe cerrarse automáticamente.
         
         Args:
             symbol: Símbolo del activo
-            unrealized_pnl_pct: Ganancia/pérdida no realizada en porcentaje
-            current_price: Precio actual del activo
-            entry_price: Precio de entrada
+            position: Datos de la posición
             
         Returns:
-            Diccionario con decisión y razón
+            Razón para cerrar, o None si debe mantenerse
         """
-        # Diferentes criterios según comportamiento
+        # Obtener variación de precio
+        entry_price = position.get("entry_price", 0)
+        current_price = position.get("current_price", entry_price)
+        price_change_pct = (current_price / entry_price - 1) * 100
+        
+        # Límites según comportamiento
         if self.current_behavior == HumanBehaviorPattern.CAUTIOUS:
-            # Más propenso a tomar ganancias temprano y cortar pérdidas rápido
-            if unrealized_pnl_pct >= 5.0:  # 5% de ganancia
-                return {"should_close": True, "reason": "take_profit_cautious"}
-            elif unrealized_pnl_pct <= -3.0:  # 3% de pérdida
-                return {"should_close": True, "reason": "stop_loss_cautious"}
-                
+            # Más conservador: take profit y stop loss más ajustados
+            take_profit = 3.0  # %
+            stop_loss = -2.0   # %
         elif self.current_behavior == HumanBehaviorPattern.OPPORTUNISTIC:
-            # Busca mayores ganancias, más tolerante a fluctuaciones
-            if unrealized_pnl_pct >= 12.0:  # 12% de ganancia
-                return {"should_close": True, "reason": "take_profit_opportunistic"}
-            elif unrealized_pnl_pct <= -7.0:  # 7% de pérdida
-                return {"should_close": True, "reason": "stop_loss_opportunistic"}
-                
-        elif self.current_behavior == HumanBehaviorPattern.PROTECTIVE:
-            # Proteger capital es prioritario
-            if unrealized_pnl_pct >= 4.0:  # 4% de ganancia
-                return {"should_close": True, "reason": "take_profit_protective"}
-            elif unrealized_pnl_pct <= -2.5:  # 2.5% de pérdida
-                return {"should_close": True, "reason": "stop_loss_protective"}
-                
-        else:  # BALANCED o fallback
-            # Criterio equilibrado
-            if unrealized_pnl_pct >= 8.0:  # 8% de ganancia
-                return {"should_close": True, "reason": "take_profit_balanced"}
-            elif unrealized_pnl_pct <= -5.0:  # 5% de pérdida
-                return {"should_close": True, "reason": "stop_loss_balanced"}
+            # Más arriesgado: take profit y stop loss más amplios
+            take_profit = 8.0  # %
+            stop_loss = -5.0   # %
+        else:  # Comportamiento equilibrado
+            take_profit = 5.0  # %
+            stop_loss = -3.0   # %
         
-        # Factor adicional: tendencia de precio
-        price_trend = await self._analyze_price_trend(symbol)
-        if price_trend == "strongly_bearish" and unrealized_pnl_pct > 0:
-            # Si hay ganancia pero tendencia muy bajista, considerar cerrar
-            return {"should_close": True, "reason": "bearish_trend_protection"}
-            
-        # Simular decisión humana ocasional no basada en reglas
-        if random.random() < 0.05:  # 5% de probabilidad
-            decision = random.choice([True, False])
-            if decision:
-                return {"should_close": True, "reason": "intuition_based_decision"}
+        # Evaluar condiciones de cierre
+        if price_change_pct >= take_profit:
+            return "take_profit"
         
-        # Por defecto, mantener posición
-        return {"should_close": False, "reason": "maintain_position"}
+        if price_change_pct <= stop_loss:
+            return "stop_loss"
+        
+        # Decisión adicional: tendencia del precio
+        trend = await self._analyze_price_trend(symbol)
+        if trend == "strongly_bearish" and price_change_pct > 0:
+            # Si tenemos ganancia pero tendencia muy bajista, tomar beneficio
+            return "protective_close_bearish_trend"
+        
+        return None
     
     async def _analyze_price_trend(self, symbol: str) -> str:
         """
-        Analizar tendencia de precio (simulado para demo).
+        Analizar tendencia del precio (simulado para demo).
         
         Args:
             symbol: Símbolo del activo
             
         Returns:
-            Tendencia: "strongly_bullish", "bullish", "neutral", "bearish", "strongly_bearish"
+            Clasificación de tendencia
         """
-        # En implementación real, usar indicadores técnicos
-        # Para demo, simplemente simular tendencias
-        trends = ["strongly_bullish", "bullish", "neutral", "bearish", "strongly_bearish"]
-        # Tendencia aleatoria pero ponderada hacia neutral
-        weights = [0.1, 0.2, 0.4, 0.2, 0.1]
-        return random.choices(trends, weights=weights)[0]
+        # En una implementación real, usar datos históricos e indicadores técnicos
+        # Para demo, generar resultados simulados
+        trend_options = ["strongly_bullish", "bullish", "neutral", "bearish", "strongly_bearish"]
+        weights = [0.1, 0.25, 0.3, 0.25, 0.1]  # Distribución de probabilidad
+        return random.choices(trend_options, weights=weights)[0]
     
-    async def close_specific_position(self, symbol: str, reason: str) -> Dict[str, Any]:
-        """
-        Cerrar una posición específica.
-        
-        Args:
-            symbol: Símbolo de la posición a cerrar
-            reason: Razón del cierre
-            
-        Returns:
-            Resultado del cierre
-        """
-        try:
-            if symbol not in self.open_positions:
-                logger.warning(f"Intento de cerrar posición inexistente: {symbol}")
-                return {"success": False, "error": "Position does not exist"}
-            
-            # Obtener detalles de la posición
-            position = self.open_positions[symbol]
-            entry_price = position.get("entry_price", 0)
-            quantity = position.get("quantity", 0)
-            current_price = await self._get_current_price(symbol)
-            
-            # Preparar orden de cierre
-            order_params = {
-                "symbol": symbol,
-                "side": "SELL",
-                "quantity": quantity,
-                "price": current_price,
-                "timestamp": datetime.now().isoformat(),
-                "cycle_id": self.cycle_id,
-                "close_reason": reason
-            }
-            
-            # Ejecutar orden a través del OrderManager
-            order_result = await self.order_manager.place_order(order_params)
-            
-            if order_result.get("success", False):
-                # Calcular ganancia/pérdida realizada
-                position_value = current_price * quantity
-                entry_value = entry_price * quantity
-                realized_pnl = position_value - entry_value
-                realized_pnl_pct = (current_price / entry_price - 1) * 100
-                
-                # Actualizar métricas del ciclo
-                self.cycle_performance["realized_profit"] += realized_pnl
-                if realized_pnl > 0:
-                    self.cycle_performance["successful_trades"] += 1
-                
-                # Registrar cierre
-                close_data = {
-                    "cycle_id": self.cycle_id,
-                    "symbol": symbol,
-                    "entry_price": entry_price,
-                    "exit_price": current_price,
-                    "quantity": quantity,
-                    "realized_pnl": realized_pnl,
-                    "realized_pnl_pct": realized_pnl_pct,
-                    "close_reason": reason,
-                    "timestamp": datetime.now().isoformat()
-                }
-                await self.database.set_data(
-                    f"position_close:{self.cycle_id}:{symbol}", 
-                    close_data
-                )
-                
-                # Eliminar de posiciones abiertas
-                del self.open_positions[symbol]
-                
-                logger.info(f"Posición cerrada: {symbol}, "
-                          f"ganancia/pérdida: ${realized_pnl:.2f} ({realized_pnl_pct:.2f}%), "
-                          f"razón: {reason}")
-                
-                return {
-                    "success": True,
-                    "symbol": symbol,
-                    "realized_pnl": realized_pnl,
-                    "realized_pnl_pct": realized_pnl_pct,
-                    "close_reason": reason
-                }
-            else:
-                logger.warning(f"Error al cerrar posición {symbol}: "
-                             f"{order_result.get('error', 'Unknown error')}")
-                return {"success": False, "error": order_result.get("error", "Unknown error")}
-                
-        except Exception as e:
-            logger.error(f"Error al cerrar posición {symbol}: {str(e)}")
-            return {"success": False, "error": str(e)}
-    
-    async def close_positions(self, reason: str) -> Dict[str, Any]:
+    async def close_positions(self, reason: str = "manual") -> Dict[str, Any]:
         """
         Cerrar todas las posiciones abiertas.
         
         Args:
-            reason: Razón del cierre
+            reason: Razón para cerrar posiciones
             
         Returns:
-            Resultado del cierre
+            Resultados del cierre
         """
         try:
-            # Verificar que haya posiciones para cerrar
+            # Verificar que hay posiciones para cerrar
             if not self.open_positions:
                 logger.warning("No hay posiciones abiertas para cerrar")
-                self.cycle_phase = CyclePhase.REFLECTION
-                self.state = SeraphimState.REFLECTING
-                return {"success": True, "message": "No open positions"}
+                return {"success": False, "error": "No open positions"}
             
             # Actualizar estado
             self.state = SeraphimState.DESCENDING
             
-            # Cerrar cada posición
-            close_results = []
+            # Cerrar posiciones
+            closing_results = []
+            realized_profit = 0.0
+            successful_trades = 0
             
-            for symbol in list(self.open_positions.keys()):
-                result = await self.close_specific_position(symbol, reason)
-                close_results.append(result)
+            for symbol, position in self.open_positions.items():
+                # Obtener precio actual
+                current_price = await self._get_current_price(symbol)
+                entry_price = position.get("entry_price", current_price)
+                quantity = position.get("quantity", 0)
+                
+                # Preparar orden de cierre
+                order_params = {
+                    "symbol": symbol,
+                    "side": "SELL",
+                    "quantity": quantity,
+                    "price": current_price,
+                    "timestamp": datetime.now().isoformat(),
+                    "cycle_id": self.cycle_id,
+                    "reason": reason
+                }
+                
+                # Ejecutar orden a través del OrderManager
+                order_result = await self.order_manager.place_order(order_params)
+                
+                if order_result.get("success", False):
+                    # Calcular ganancia/pérdida realizada
+                    position_value = current_price * quantity
+                    entry_value = entry_price * quantity
+                    pnl = position_value - entry_value
+                    pnl_pct = (current_price / entry_price - 1) * 100
+                    
+                    # Determinar si fue exitosa (ganancia)
+                    is_successful = pnl > 0
+                    if is_successful:
+                        successful_trades += 1
+                    
+                    # Acumular ganancia/pérdida realizada total
+                    realized_profit += pnl
+                    
+                    # Registrar cierre exitoso
+                    closing_results.append({
+                        "symbol": symbol,
+                        "entry_price": entry_price,
+                        "exit_price": current_price,
+                        "quantity": quantity,
+                        "pnl": pnl,
+                        "pnl_pct": pnl_pct,
+                        "successful": is_successful,
+                        "status": "closed"
+                    })
+                    
+                    logger.info(f"Posición cerrada: {symbol}, "
+                              f"entrada: ${entry_price:.2f}, "
+                              f"salida: ${current_price:.2f}, "
+                              f"PnL: ${pnl:.2f} ({pnl_pct:.1f}%)")
+                else:
+                    # Registrar fallo en cierre
+                    closing_results.append({
+                        "symbol": symbol,
+                        "status": "failed",
+                        "error": order_result.get("error", "Unknown error")
+                    })
+                    
+                    logger.warning(f"Fallo al cerrar posición: {symbol}, "
+                                 f"error: {order_result.get('error', 'Unknown error')}")
+            
+            # Actualizar estadísticas del ciclo
+            self.cycle_performance["realized_profit"] = realized_profit
+            self.cycle_performance["current_capital"] = (
+                self.cycle_performance["starting_capital"] + realized_profit
+            )
+            self.cycle_performance["successful_trades"] = successful_trades
+            self.cycle_performance["roi_percentage"] = (
+                realized_profit / self.cycle_performance["starting_capital"] * 100
+                if self.cycle_performance["starting_capital"] > 0 else 0
+            )
+            
+            # Limpiar posiciones
+            self.open_positions = {}
             
             # Actualizar fase
             self.cycle_phase = CyclePhase.REFLECTION
@@ -1093,22 +1080,24 @@ class SeraphimPool(BaseStrategy):
                 {"strategy": self.name, "state": self.get_state()}
             )
             
-            # Actualizar datos del ciclo en base de datos
-            cycle_data = {
+            # Registrar resultados en base de datos
+            closing_data = {
                 "cycle_id": self.cycle_id,
-                "status": "closed",
-                "close_reason": reason,
-                "close_time": datetime.now().isoformat(),
-                "performance": self.cycle_performance
+                "timestamp": datetime.now().isoformat(),
+                "reason": reason,
+                "results": closing_results,
+                "realized_profit": realized_profit,
+                "roi_percentage": self.cycle_performance["roi_percentage"],
+                "successful_trades": successful_trades
             }
-            await self.database.set_data(f"cycle:{self.cycle_id}", cycle_data)
+            await self.database.set_data(f"closing:{self.cycle_id}", closing_data)
             
             return {
                 "success": True,
-                "close_results": close_results,
-                "realized_profit": self.cycle_performance["realized_profit"],
+                "results": closing_results,
+                "realized_profit": realized_profit,
                 "roi_percentage": self.cycle_performance["roi_percentage"],
-                "close_reason": reason
+                "reason": reason
             }
             
         except Exception as e:
@@ -1117,10 +1106,10 @@ class SeraphimPool(BaseStrategy):
     
     async def evaluate_cycle(self) -> Dict[str, Any]:
         """
-        Evaluar resultados del ciclo completo.
+        Evaluar resultados del ciclo para aprendizaje divino.
         
         Returns:
-            Evaluación detallada del ciclo
+            Evaluación del ciclo
         """
         try:
             # Verificar fase correcta
@@ -1128,43 +1117,35 @@ class SeraphimPool(BaseStrategy):
                 logger.warning(f"Fase incorrecta para evaluación: {self.cycle_phase}")
                 return {"success": False, "error": "Incorrect cycle phase"}
             
-            # Finalizar cálculos de rendimiento
-            capital_final = (
-                self.cycle_performance["starting_capital"] + 
-                self.cycle_performance["realized_profit"]
+            # Calcular métricas de evaluación
+            cycle_duration = datetime.now() - self.cycle_start_time
+            duration_hours = cycle_duration.total_seconds() / 3600
+            
+            # Calcular rendimiento anualizado (muy simplificado)
+            roi = self.cycle_performance["roi_percentage"] / 100
+            annualized_roi = ((1 + roi) ** (365 * 24 / duration_hours) - 1) * 100 if duration_hours > 0 else 0
+            
+            # Calcular tasa de éxito
+            success_rate = (
+                self.cycle_performance["successful_trades"] / self.cycle_performance["trades_count"] * 100
+                if self.cycle_performance["trades_count"] > 0 else 0
             )
-            roi_percentage = (
-                capital_final / self.cycle_performance["starting_capital"] - 1
-            ) * 100
             
-            # Actualizar métricas finales
-            self.cycle_performance["current_capital"] = capital_final
-            self.cycle_performance["roi_percentage"] = roi_percentage
-            self.cycle_performance["unrealized_profit"] = 0.0  # Ya todo realizado
-            
-            # Determinar éxito del ciclo
-            cycle_success = roi_percentage > 0
-            objective_achieved = roi_percentage >= self.cycle_target_return * 100
-            
-            # Crear evaluación
+            # Crear evaluación detallada
             evaluation = {
                 "cycle_id": self.cycle_id,
-                "start_time": self.cycle_start_time.isoformat(),
-                "end_time": datetime.now().isoformat(),
-                "duration_hours": (datetime.now() - self.cycle_start_time).total_seconds() / 3600,
-                "starting_capital": self.cycle_performance["starting_capital"],
-                "final_capital": capital_final,
-                "profit_amount": self.cycle_performance["realized_profit"],
-                "roi_percentage": roi_percentage,
+                "duration_hours": duration_hours,
+                "capital_initial": self.cycle_performance["starting_capital"],
+                "capital_final": self.cycle_performance["current_capital"],
+                "realized_profit": self.cycle_performance["realized_profit"],
+                "roi_percentage": self.cycle_performance["roi_percentage"],
+                "annualized_roi": annualized_roi,
                 "trades_count": self.cycle_performance["trades_count"],
                 "successful_trades": self.cycle_performance["successful_trades"],
-                "success_rate": (
-                    self.cycle_performance["successful_trades"] / 
-                    max(1, self.cycle_performance["trades_count"]) * 100
-                ),
-                "cycle_success": cycle_success,
-                "objective_achieved": objective_achieved,
-                "behavior_pattern": self.current_behavior.name
+                "success_rate": success_rate,
+                "behavior": self.current_behavior.name,
+                "completed": True,
+                "timestamp": datetime.now().isoformat()
             }
             
             # Registrar evaluación en base de datos
@@ -1172,11 +1153,13 @@ class SeraphimPool(BaseStrategy):
             
             # Actualizar fase
             self.cycle_phase = CyclePhase.DISTRIBUTION
-            self.state = SeraphimState.DISTRIBUTING
             
-            logger.info(f"Ciclo evaluado: ROI {roi_percentage:.2f}%, "
-                      f"{'exitoso' if cycle_success else 'no exitoso'}, "
-                      f"objetivo {'alcanzado' if objective_achieved else 'no alcanzado'}")
+            logger.info(f"Ciclo evaluado: ROI {self.cycle_performance['roi_percentage']:.2f}%, "
+                       f"ganancia ${self.cycle_performance['realized_profit']:.2f}, "
+                       f"tasa éxito {success_rate:.1f}%")
+                       
+            # Notificar a los participantes
+            await self._notify_cycle_results(evaluation)
             
             return {
                 "success": True,
@@ -1187,12 +1170,45 @@ class SeraphimPool(BaseStrategy):
             logger.error(f"Error al evaluar ciclo: {str(e)}")
             return {"success": False, "error": str(e)}
     
+    async def _notify_cycle_results(self, evaluation: Dict[str, Any]) -> None:
+        """
+        Notificar resultados del ciclo a los participantes.
+        
+        Args:
+            evaluation: Datos de evaluación del ciclo
+        """
+        try:
+            # Preparar mensaje según rendimiento
+            roi = evaluation.get("roi_percentage", 0)
+            if roi > 0:
+                subject = f"Ciclo completado con éxito: +{roi:.2f}%"
+                sentiment = "positive"
+            else:
+                subject = f"Ciclo completado: {roi:.2f}%"
+                sentiment = "neutral" if roi >= -1 else "negative"
+                
+            for participant in self.pool_participants:
+                notification = {
+                    "type": "cycle_result",
+                    "recipient": participant["id"],
+                    "subject": subject,
+                    "message": (f"El ciclo {self.cycle_id} ha finalizado con un ROI de {roi:.2f}%.\n"
+                              f"Operaciones exitosas: {evaluation.get('success_rate', 0):.1f}%\n"
+                              f"Ganancia realizada: ${evaluation.get('realized_profit', 0):.2f}"),
+                    "sentiment": sentiment
+                }
+                await self.alert_manager.send_notification(notification)
+                
+            logger.debug(f"Notificaciones de resultados enviadas a {len(self.pool_participants)} participantes")
+        except Exception as e:
+            logger.warning(f"Error al enviar notificaciones de resultados: {str(e)}")
+    
     async def distribute_profits(self) -> Dict[str, Any]:
         """
-        Distribuir ganancias entre participantes del pool.
+        Distribuir ganancias entre los participantes del pool.
         
         Returns:
-            Detalles de la distribución
+            Distribución de ganancias
         """
         try:
             # Verificar fase correcta
@@ -1200,243 +1216,152 @@ class SeraphimPool(BaseStrategy):
                 logger.warning(f"Fase incorrecta para distribución: {self.cycle_phase}")
                 return {"success": False, "error": "Incorrect cycle phase"}
             
-            # Calcular ganancias disponibles
-            capital_final = self.cycle_performance["current_capital"]
-            capital_inicial = self.cycle_performance["starting_capital"]
-            ganancia_total = capital_final - capital_inicial
+            # Actualizar estado
+            self.state = SeraphimState.DISTRIBUTING
             
-            # Si hay pérdida, no hay distribución pero sí registro
-            if ganancia_total <= 0:
-                distribution = {
-                    "cycle_id": self.cycle_id,
-                    "timestamp": datetime.now().isoformat(),
-                    "starting_capital": capital_inicial,
-                    "final_capital": capital_final,
-                    "total_profit": ganancia_total,
-                    "status": "no_distribution",
-                    "reason": "Negative or zero profit",
-                    "distributions": []
-                }
-                
-                await self.database.set_data(f"distribution:{self.cycle_id}", distribution)
-                
-                logger.warning(f"No hay ganancia para distribuir: ${ganancia_total:.2f}")
-                
-                # Preparar para próximo ciclo
+            # Obtener ganancia realizada
+            profit = self.cycle_performance["realized_profit"]
+            
+            if profit <= 0:
+                logger.info(f"No hay ganancias para distribuir: ${profit:.2f}")
+                # Actualizar fase
                 self.cycle_phase = CyclePhase.REBIRTH
                 self.state = SeraphimState.RESTING
-                
                 return {
                     "success": True,
-                    "status": "no_distribution",
-                    "reason": "Negative or zero profit"
+                    "distribution": [],
+                    "profit": profit,
+                    "message": "No profit to distribute"
                 }
             
-            # Calcular base para siguiente ciclo
-            capital_next_cycle = capital_inicial  # Mantener capital base
-            ganancia_distribuible = ganancia_total
+            # Calcular distribución
+            # 85% para participantes, 10% reserva, 5% sistema
+            participant_allocation = profit * 0.85
+            reserve_allocation = profit * 0.10
+            system_allocation = profit * 0.05
             
-            # Distribuir según participación
+            # Distribuir entre participantes según sus acciones
             distributions = []
-            
             for participant in self.pool_participants:
-                participant_id = participant["id"]
-                participant_name = participant["name"]
-                participant_share = participant["share"]
-                
-                participant_amount = ganancia_distribuible * participant_share
+                participant_share = participant.get("share", 0)
+                amount = participant_allocation * participant_share
                 
                 distributions.append({
-                    "participant_id": participant_id,
-                    "participant_name": participant_name,
-                    "share_percentage": participant_share * 100,
-                    "amount": participant_amount
+                    "participant_id": participant.get("id"),
+                    "participant_name": participant.get("name"),
+                    "share": participant_share,
+                    "amount": amount
                 })
                 
-                # Enviar notificación
-                notification = {
-                    "type": "profit_distribution",
-                    "recipient": participant_id,
-                    "subject": f"Distribución de ganancias del ciclo {self.cycle_id}",
-                    "message": (f"Se han distribuido ganancias del ciclo de trading. "
-                              f"Tu participación: ${participant_amount:.2f} "
-                              f"({participant_share*100:.1f}% del total).")
-                }
-                await self.alert_manager.send_notification(notification)
+                logger.debug(f"Distribución a {participant.get('name')}: ${amount:.2f} "
+                           f"({participant_share*100:.1f}% de ${participant_allocation:.2f})")
             
-            # Registrar distribución en base de datos
-            distribution = {
+            # Crear registro de distribución
+            distribution_record = {
                 "cycle_id": self.cycle_id,
                 "timestamp": datetime.now().isoformat(),
-                "starting_capital": capital_inicial,
-                "final_capital": capital_final,
-                "total_profit": ganancia_total,
-                "capital_next_cycle": capital_next_cycle,
-                "distributed_profit": ganancia_distribuible,
-                "status": "completed",
+                "total_profit": profit,
+                "participant_allocation": participant_allocation,
+                "reserve_allocation": reserve_allocation,
+                "system_allocation": system_allocation,
                 "distributions": distributions
             }
-            await self.database.set_data(f"distribution:{self.cycle_id}", distribution)
+            
+            # Registrar en base de datos
+            await self.database.set_data(f"distribution:{self.cycle_id}", distribution_record)
+            
+            # Crear checkpoint
+            await self.checkpoint_manager.create_checkpoint(
+                f"profits_distributed_{self.cycle_id}", 
+                {"strategy": self.name, "state": self.get_state()}
+            )
             
             # Actualizar fase
             self.cycle_phase = CyclePhase.REBIRTH
             self.state = SeraphimState.RESTING
             
-            # Crear checkpoint
-            await self.checkpoint_manager.create_checkpoint(
-                f"cycle_completed_{self.cycle_id}", 
-                {"strategy": self.name, "state": self.get_state()}
-            )
-            
-            logger.info(f"Distribución completada: ${ganancia_distribuible:.2f} "
-                      f"entre {len(self.pool_participants)} participantes")
+            logger.info(f"Distribución completada: ${profit:.2f} distribuidos a {len(distributions)} participantes, "
+                       f"reserva: ${reserve_allocation:.2f}, sistema: ${system_allocation:.2f}")
             
             return {
                 "success": True,
-                "status": "completed",
-                "total_profit": ganancia_total,
-                "distributed_profit": ganancia_distribuible,
-                "distributions": distributions
+                "distributions": distributions,
+                "profit": profit,
+                "reserve": reserve_allocation,
+                "system": system_allocation
             }
             
         except Exception as e:
             logger.error(f"Error al distribuir ganancias: {str(e)}")
             return {"success": False, "error": str(e)}
     
+    def get_cycle_status(self) -> Dict[str, Any]:
+        """
+        Obtener estado actual del ciclo.
+        
+        Returns:
+            Estado del ciclo
+        """
+        # Calcular tiempo transcurrido
+        elapsed = None
+        if self.cycle_start_time is not None:
+            elapsed = (datetime.now() - self.cycle_start_time).total_seconds()
+        
+        return {
+            "cycle_id": self.cycle_id,
+            "cycle_phase": self.cycle_phase.name if self.cycle_phase else None,
+            "strategy_state": self.state.name if self.state else None,
+            "behavior": self.current_behavior.name if self.current_behavior else None,
+            "start_time": self.cycle_start_time.isoformat() if self.cycle_start_time else None,
+            "elapsed_seconds": elapsed,
+            "selected_assets": len(self.selected_assets),
+            "open_positions": len(self.open_positions),
+            "performance": self.cycle_performance
+        }
+    
     def get_state(self) -> Dict[str, Any]:
         """
         Obtener estado completo de la estrategia para checkpoints.
         
         Returns:
-            Estado serializable de la estrategia
+            Estado completo
         """
         return {
             "name": self.name,
-            "state": self.state.name if self.state else "UNKNOWN",
-            "cycle_phase": self.cycle_phase.name if self.cycle_phase else "UNKNOWN",
             "cycle_id": self.cycle_id,
-            "current_behavior": self.current_behavior.name if self.current_behavior else "UNKNOWN",
+            "state": self.state.name if self.state else None,
+            "cycle_phase": self.cycle_phase.name if self.cycle_phase else None,
+            "behavior": self.current_behavior.name if self.current_behavior else None,
+            "cycle_start_time": self.cycle_start_time.isoformat() if self.cycle_start_time else None,
             "cycle_capital": self.cycle_capital,
-            "cycle_performance": self.cycle_performance,
-            "open_positions_count": len(self.open_positions),
-            "selected_assets_count": len(self.selected_assets),
-            "cycle_start_time": self.cycle_start_time.isoformat() if self.cycle_start_time else None
+            "cycle_target_return": self.cycle_target_return,
+            "cycle_max_loss": self.cycle_max_loss,
+            "selected_assets": self.selected_assets,
+            "asset_allocations": self.asset_allocations,
+            "open_positions": self.open_positions,
+            "cycle_performance": self.cycle_performance
         }
-    
-    async def process_update(self, update_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        
+    async def generate_signal(self, market_data: Dict[str, Any], configuration: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Procesar actualizaciones externas.
+        Implementación requerida por BaseStrategy para generar señales de trading.
         
         Args:
-            update_type: Tipo de actualización
-            data: Datos de la actualización
+            market_data: Datos de mercado
+            configuration: Configuración para generación de señales
             
         Returns:
-            Resultado del procesamiento
+            Señal de trading generada
         """
-        try:
-            if update_type == "market_data":
-                # Actualización de datos de mercado
-                # Podría activar reevaluación de posiciones
-                return {"processed": True, "action": "monitoring_triggered"}
-                
-            elif update_type == "risk_alert":
-                # Alerta de riesgo que podría requerir acción
-                risk_level = data.get("risk_level", "medium")
-                if risk_level in ["high", "extreme"]:
-                    # Cerrar posiciones en riesgo extremo
-                    await self.close_positions(reason="risk_alert_triggered")
-                    return {"processed": True, "action": "positions_closed_risk"}
-                    
-            elif update_type == "participant_update":
-                # Actualización de participantes del pool
-                new_participants = data.get("participants", [])
-                if new_participants:
-                    self.pool_participants = new_participants
-                    return {"processed": True, "action": "participants_updated"}
-                    
-            elif update_type == "config_update":
-                # Actualización de configuración
-                new_config = data.get("config", {})
-                if new_config:
-                    if "cycle_capital" in new_config:
-                        self.cycle_capital = new_config["cycle_capital"]
-                    if "cycle_target_return" in new_config:
-                        self.cycle_target_return = new_config["cycle_target_return"]
-                    if "cycle_max_loss" in new_config:
-                        self.cycle_max_loss = new_config["cycle_max_loss"]
-                    return {"processed": True, "action": "config_updated"}
-            
-            return {"processed": False, "reason": "Unknown update type"}
-            
-        except Exception as e:
-            logger.error(f"Error al procesar actualización {update_type}: {str(e)}")
-            return {"processed": False, "error": str(e)}
-    
-    async def run_complete_cycle(self) -> Dict[str, Any]:
-        """
-        Ejecutar un ciclo completo de trading de forma autónoma.
+        # En la estrategia Seraphim, las señales se generan a través del flujo completo
+        # de HumanPoolTrader y no por este método directo, pero se implementa para
+        # compatibilidad con BaseStrategy
         
-        Returns:
-            Resultado completo del ciclo
-        """
-        try:
-            # 1. Iniciar ciclo
-            start_result = await self.start_cycle()
-            if not start_result:
-                return {"success": False, "stage": "start_cycle", "error": "Failed to start cycle"}
-            
-            # 2. Analizar mercado
-            analysis_result = await self.analyze_market()
-            if not analysis_result.get("success", False):
-                return {"success": False, "stage": "analyze_market", "error": analysis_result.get("error", "Analysis failed")}
-            
-            # 3. Ejecutar operaciones
-            trade_result = await self.execute_trades()
-            if not trade_result.get("success", False):
-                return {"success": False, "stage": "execute_trades", "error": trade_result.get("error", "Trading failed")}
-            
-            # 4. Monitorizar hasta cierre (simplificado para demo)
-            # En implementación real, esto sería un proceso continuo
-            monitoring_cycles = 3  # Simular 3 ciclos de monitorización
-            for i in range(monitoring_cycles):
-                monitor_result = await self.monitor_positions()
-                if not monitor_result.get("success", False):
-                    break
-                    
-                # Si ya no hay posiciones abiertas, continuar al siguiente paso
-                if not self.open_positions:
-                    break
-                    
-                # En implementación real, esperar entre actualizaciones
-                # await asyncio.sleep(60)  # Comentado para demo
-            
-            # 5. Cerrar posiciones si aún hay abiertas
-            if self.open_positions:
-                close_result = await self.close_positions(reason="cycle_completion")
-                if not close_result.get("success", False):
-                    return {"success": False, "stage": "close_positions", "error": close_result.get("error", "Failed to close positions")}
-            
-            # 6. Evaluar ciclo
-            evaluation_result = await self.evaluate_cycle()
-            if not evaluation_result.get("success", False):
-                return {"success": False, "stage": "evaluate_cycle", "error": evaluation_result.get("error", "Evaluation failed")}
-            
-            # 7. Distribuir ganancias
-            distribution_result = await self.distribute_profits()
-            if not distribution_result.get("success", False):
-                return {"success": False, "stage": "distribute_profits", "error": distribution_result.get("error", "Distribution failed")}
-            
-            # Ciclo completo exitoso
-            return {
-                "success": True,
-                "cycle_id": self.cycle_id,
-                "roi_percentage": self.cycle_performance["roi_percentage"],
-                "profit_amount": self.cycle_performance["realized_profit"],
-                "evaluation": evaluation_result.get("evaluation", {}),
-                "distribution": distribution_result.get("distributions", [])
-            }
-            
-        except Exception as e:
-            logger.error(f"Error en ciclo completo: {str(e)}")
-            return {"success": False, "error": str(e)}
+        signal = {
+            "timestamp": datetime.now().isoformat(),
+            "cycle_id": self.cycle_id,
+            "signal_type": "none",
+            "message": "Signals are generated through the complete Seraphim cycle flow"
+        }
+        
+        return signal
