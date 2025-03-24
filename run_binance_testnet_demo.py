@@ -74,9 +74,17 @@ class BinanceTestnetDemo:
         logger.info("Inicializando demostración de Binance Testnet...")
         
         try:
-            # Importar componentes
-            from genesis.trading.gabriel.essence import EmotionalState
-            from genesis.trading.human_behavior_engine import GabrielBehaviorEngine
+            # Definir estados emocionales para el motor de comportamiento
+            class EmotionalState:
+                """Estados emocionales para el motor de comportamiento."""
+                SERENE = "SERENE"     # Calma - máxima capacidad de evaluación objetiva
+                HOPEFUL = "HOPEFUL"   # Esperanzado - ligero optimismo
+                CAUTIOUS = "CAUTIOUS" # Cauteloso - evaluación más conservadora
+                RESTLESS = "RESTLESS" # Inquieto - cierta ansiedad e impaciencia
+                FEARFUL = "FEARFUL"   # Temeroso - predomina el miedo, muy defensivo
+            
+            # Almacenar referencia a la clase
+            self.EmotionalState = EmotionalState
             
             # Crear adaptador de Binance Testnet simplificado
             logger.info("Creando adaptador Binance Testnet simplificado para demo...")
@@ -127,14 +135,7 @@ class BinanceTestnetDemo:
             # Crear un motor de comportamiento Gabriel simulado
             logger.info("Creando motor de comportamiento Gabriel simulado...")
             
-            # Definir EmotionalState como un enum simulado
-            class EmotionalState:
-                """Estados emocionales simulados para Gabriel."""
-                SERENE = "SERENE"
-                HOPEFUL = "HOPEFUL"
-                CAUTIOUS = "CAUTIOUS"
-                RESTLESS = "RESTLESS"
-                FEARFUL = "FEARFUL"
+            # Reutilizamos el EmotionalState definido anteriormente
             
             # Crear una clase simulada para GabrielBehaviorEngine
             class MockGabrielEngine:
@@ -285,10 +286,10 @@ class BinanceTestnetDemo:
                         elapsed = time.time() - start_time
                         if elapsed > 20 and elapsed < 25:
                             logger.info("Cambiando estado emocional de Gabriel a CAUTIOUS...")
-                            await self.behavior_engine.change_emotional_state(EmotionalState.CAUTIOUS, reason="Mercado inestable")
+                            await self.behavior_engine.change_emotional_state(self.EmotionalState.CAUTIOUS, reason="Mercado inestable")
                         elif elapsed > 40 and elapsed < 45:
                             logger.info("Cambiando estado emocional de Gabriel a FEARFUL...")
-                            await self.behavior_engine.change_emotional_state(EmotionalState.FEARFUL, reason="Colapso de mercado simulado")
+                            await self.behavior_engine.change_emotional_state(self.EmotionalState.FEARFUL, reason="Colapso de mercado simulado")
                     
                 except Exception as iteration_error:
                     logger.error(f"Error en iteración: {str(iteration_error)}")
@@ -460,15 +461,17 @@ class BinanceTestnetDemo:
             # Cerrar adaptador de Binance Testnet
             if self.binance_adapter:
                 logger.info("Cerrando adaptador Binance Testnet...")
-                if hasattr(self.binance_adapter, 'stop'):
-                    await self.binance_adapter.stop()
-                elif hasattr(self.binance_adapter, 'close'):
+                try:
+                    # Nuestro SimpleCCXTExchange tiene el método close
                     await self.binance_adapter.close()
-                elif hasattr(self.binance_adapter, 'exchange') and self.binance_adapter.exchange:
-                    # Acceso directo al objeto exchange si es necesario
-                    await self.binance_adapter.exchange.close()
-                else:
-                    logger.warning("No se encontró método para cerrar el adaptador")
+                except Exception as close_error:
+                    logger.error(f"Error al cerrar adaptador: {str(close_error)}")
+                    # Intento alternativo accediendo directamente al exchange
+                    try:
+                        if hasattr(self.binance_adapter, 'exchange') and self.binance_adapter.exchange:
+                            await self.binance_adapter.exchange.close()
+                    except Exception as e:
+                        logger.error(f"No se pudo cerrar el exchange: {str(e)}")
             
             logger.info("Recursos liberados correctamente")
         except Exception as e:
