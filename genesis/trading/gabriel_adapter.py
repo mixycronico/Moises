@@ -11,7 +11,7 @@ Autor: Genesis AI Assistant
 import logging
 import random
 from typing import Dict, Any, Optional, List, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 import asyncio
 
 from genesis.trading.gabriel.symphony import Gabriel
@@ -32,8 +32,8 @@ class GabrielAdapter:
         
         # Mapeos para traducción entre sistemas
         self._mood_to_emotional_state = {
-            "SERENE": EmotionalState.BALANCED,
-            "HOPEFUL": EmotionalState.CONFIDENT,
+            "SERENE": EmotionalState.NEUTRAL,
+            "HOPEFUL": EmotionalState.OPTIMISTIC,
             "WARY": EmotionalState.CAUTIOUS,
             "RESTLESS": EmotionalState.IMPATIENT,
             "BOLD": EmotionalState.CONFIDENT,
@@ -171,7 +171,7 @@ class GabrielAdapter:
         # Crear datos de posición para Gabriel
         position_data = {
             "profit_percent": profit_percent,
-            "entry_time": datetime.now() - datetime.timedelta(hours=time_in_trade_hours),
+            "entry_time": datetime.now() - timedelta(hours=time_in_trade_hours),
             "price_momentum": price_momentum,
             "symbol": "GENERIC",
             "side": "buy"
@@ -356,7 +356,7 @@ class GabrielAdapter:
         Returns:
             EmotionalState correspondiente
         """
-        emotional_state_name = self._mood_to_emotional_state.get(mood_name, EmotionalState.BALANCED)
+        emotional_state_name = self._mood_to_emotional_state.get(mood_name, EmotionalState.NEUTRAL)
         
         # Si es string, convertir a enum
         if isinstance(emotional_state_name, str):
