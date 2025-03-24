@@ -40,6 +40,14 @@ except ImportError as e:
     logger.warning(f"No se pudo importar módulo ARMAGEDÓN: {e}")
     register_armageddon_routes = None
 
+# Importar rutas Seraphim
+try:
+    from seraphim_routes import register_seraphim_routes
+    logger.info("Módulo Seraphim importado correctamente")
+except ImportError as e:
+    logger.warning(f"No se pudo importar módulo Seraphim: {e}")
+    register_seraphim_routes = None
+
 # Configurar la base de datos
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/genesis")
 app.config["GENESIS_CONFIG"] = os.path.join(os.path.dirname(__file__), "genesis_config.json")
@@ -368,6 +376,11 @@ timer.start()
 if register_armageddon_routes:
     register_armageddon_routes(app)
     logger.info("Sistema ARMAGEDÓN DIVINO registrado correctamente")
+
+# Registrar rutas Seraphim si está disponible
+if register_seraphim_routes:
+    register_seraphim_routes(app)
+    logger.info("Sistema Seraphim Ultra-Divino registrado correctamente")
 
 # Importar Buddha Trader
 try:
