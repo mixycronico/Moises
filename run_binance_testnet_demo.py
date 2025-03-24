@@ -75,36 +75,36 @@ class BinanceTestnetDemo:
         
         try:
             # Importar componentes
-            from genesis.trading.seraphim_orchestrator import SeraphimOrchestrator
             from genesis.trading.gabriel.essence import EmotionalState
             from genesis.exchanges.adapter_factory import ExchangeAdapterFactory, AdapterType
+            from genesis.trading.human_behavior_engine import GabrielBehaviorEngine
             
-            # Crear orquestador Seraphim
-            logger.info("Creando orquestador Seraphim...")
-            self.orchestrator = SeraphimOrchestrator()
+            # Crear adaptador de Binance Testnet directamente
+            logger.info("Creando adaptador Binance Testnet...")
+            factory = ExchangeAdapterFactory()
+            self.binance_adapter = await factory.create_adapter(
+                adapter_type=AdapterType.BINANCE_TESTNET,
+                exchange_id="binance"
+            )
             
-            # Inicializar orquestador
-            logger.info("Inicializando orquestador...")
-            await self.orchestrator.initialize()
+            # Inicializar adaptador
+            logger.info("Inicializando adaptador Binance Testnet...")
+            await self.binance_adapter.initialize()
             
-            # El orquestador ya creará el adaptador de Binance Testnet automáticamente
-            # basado en la presencia de las variables de entorno con las credenciales
+            # Verificar conexión con el exchange
+            logger.info("Verificando conexión con Binance Testnet...")
+            exchange_state = await self.binance_adapter.get_state()
             
-            # Esperar a que se establezca la conexión
-            logger.info("Verificando conexiones a exchanges...")
-            exchange_ok = await self.orchestrator._verify_exchange_connections()
-            
-            if not exchange_ok:
+            if exchange_state.get("status") != "CONNECTED":
                 logger.error("No se pudo establecer conexión con el exchange")
                 return False
             
             logger.info("Conexión con exchange establecida correctamente")
             
-            # Obtener referencia al adaptador
-            self.binance_adapter = self.orchestrator.exchange_adapter
-            
-            # Obtener referencia al motor de comportamiento
-            self.behavior_engine = self.orchestrator.behavior_engine
+            # Crear motor de comportamiento Gabriel directamente
+            logger.info("Creando motor de comportamiento Gabriel...")
+            self.behavior_engine = GabrielBehaviorEngine()
+            await self.behavior_engine.initialize()
             
             logger.info("Demostración inicializada correctamente")
             return True
@@ -123,7 +123,7 @@ class BinanceTestnetDemo:
             duration_seconds: Duración en segundos
         """
         try:
-            if not self.orchestrator or not self.binance_adapter:
+            if not self.binance_adapter or not self.behavior_engine:
                 logger.error("La demostración no está inicializada")
                 return
             
@@ -136,7 +136,7 @@ class BinanceTestnetDemo:
             
             # Cambiar estado emocional de Gabriel
             logger.info("Cambiando estado emocional de Gabriel a HOPEFUL...")
-            await self.behavior_engine.change_emotional_state("HOPEFUL")
+            await self.behavior_engine.set_emotional_state("OPTIMISTIC", "Demo iniciada")
             
             # Bucle principal de la demostración
             while self.running and time.time() < end_time:
@@ -164,10 +164,10 @@ class BinanceTestnetDemo:
                         elapsed = time.time() - start_time
                         if elapsed > 20 and elapsed < 25:
                             logger.info("Cambiando estado emocional de Gabriel a CAUTIOUS...")
-                            await self.behavior_engine.change_emotional_state("CAUTIOUS")
+                            await self.behavior_engine.set_emotional_state("CAUTIOUS", "Mercado inestable")
                         elif elapsed > 40 and elapsed < 45:
                             logger.info("Cambiando estado emocional de Gabriel a FEARFUL...")
-                            await self.behavior_engine.change_emotional_state("FEARFUL")
+                            await self.behavior_engine.set_emotional_state("FEARFUL", "Colapso de mercado simulado")
                     
                 except Exception as iteration_error:
                     logger.error(f"Error en iteración: {str(iteration_error)}")

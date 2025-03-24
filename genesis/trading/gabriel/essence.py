@@ -5,6 +5,16 @@ Este módulo define los valores centrales, límites, umbrales y principios
 que guían el comportamiento de Gabriel, dándole una personalidad coherente.
 """
 
+from genesis.trading.human_behavior_engine import EmotionalState, RiskTolerance, DecisionStyle
+
+__all__ = [
+    'essence',
+    'archetypes',
+    'EmotionalState',
+    'RiskTolerance',
+    'DecisionStyle'
+]
+
 # Configuración principal de Gabriel
 essence = {
     # === UMBRALES Y VALORES PARA DECISIONES ===
