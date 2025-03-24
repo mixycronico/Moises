@@ -664,12 +664,17 @@ class SeraphimPool(BaseStrategy):
                     
                     if order_result.get("success", False):
                         # Registrar posición abierta
+                        # Información para evaluar cierre de posición con comportamiento FEARFUL
+                        now = datetime.now()
                         self.open_positions[symbol] = {
                             "entry_price": current_price,
                             "quantity": quantity,
                             "allocation": allocation,
-                            "entry_time": datetime.now().isoformat(),
-                            "order_id": order_result.get("order_id", "unknown")
+                            "entry_time": now,
+                            "entry_time_iso": now.isoformat(),  # Versión ISO para serialización
+                            "order_id": order_result.get("order_id", "unknown"),
+                            "recent_price_change": 0,  # Inicializar cambio reciente de precio
+                            "last_price": current_price  # Último precio para cálculos futuros
                         }
                         
                         # Actualizar estadísticas
@@ -1060,12 +1065,18 @@ class SeraphimPool(BaseStrategy):
                 unrealized_pnl = position_value - entry_value
                 unrealized_pnl_pct = (current_price / entry_price - 1) * 100
                 
+                # Calcular cambio reciente de precio para comportamiento FEARFUL
+                last_price = position.get("last_price", current_price)
+                recent_price_change = (current_price / last_price - 1) if last_price > 0 else 0
+                
                 # Actualizar posición
                 self.open_positions[symbol].update({
                     "current_price": current_price,
                     "current_value": position_value,
                     "unrealized_pnl": unrealized_pnl,
-                    "unrealized_pnl_pct": unrealized_pnl_pct
+                    "unrealized_pnl_pct": unrealized_pnl_pct,
+                    "last_price": position.get("current_price", current_price),  # Guardar precio anterior
+                    "recent_price_change": recent_price_change  # Tasa de cambio reciente (para comportamiento FEARFUL)
                 })
                 
                 # Acumular ganancia/pérdida no realizada total
@@ -1145,6 +1156,32 @@ class SeraphimPool(BaseStrategy):
         current_price = position.get("current_price", entry_price)
         price_change_pct = (current_price / entry_price - 1) * 100
         
+        # Si tenemos acceso al motor de comportamiento humano Gabriel, usar sus reglas
+        if hasattr(self, 'behavior_engine') and self.behavior_engine:
+            # Calcular tasa de cambio reciente para comportamiento FEARFUL
+            recent_price_change = position.get("recent_price_change", 0)
+            
+            # Obtener tiempo de entrada
+            entry_time = position.get("entry_time", datetime.now() - timedelta(hours=1))
+            
+            # Consultar al motor Gabriel si debemos salir
+            try:
+                # Esto llama a GabrielBehaviorEngine.should_exit_trade que tiene lógica FEARFUL
+                should_exit, reason = await self.behavior_engine.should_exit_trade(
+                    unrealized_pnl_pct=price_change_pct,
+                    asset_data={"symbol": symbol, "type": "crypto"},
+                    entry_time=entry_time,
+                    price_change_rate=recent_price_change
+                )
+                
+                if should_exit:
+                    logger.info(f"Gabriel sugiere cerrar posición {symbol}: {reason}")
+                    return reason
+            except Exception as e:
+                logger.error(f"Error al consultar Gabriel para cierre de posición: {str(e)}")
+                # Fallback a comportamiento tradicional si hay error
+        
+        # Comportamiento tradicional (fallback o complementario)
         # Límites según comportamiento
         if self.current_behavior == HumanBehaviorPattern.CAUTIOUS:
             # Más conservador: take profit y stop loss más ajustados

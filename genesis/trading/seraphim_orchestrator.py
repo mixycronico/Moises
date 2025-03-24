@@ -885,11 +885,10 @@ class SeraphimOrchestrator:
         try:
             return {
                 "available": True,
-                "mood": self.behavior_engine.mood,
-                "risk_profile": self.behavior_engine.risk_profile,
-                "decision_style": self.behavior_engine.decision_style,
-                "experience_level": self.behavior_engine.experience_level,
-                "current_state": self.behavior_engine.get_current_state()
+                "emotional_state": self.behavior_engine.emotional_state.name,
+                "risk_tolerance": self.behavior_engine.risk_tolerance.name,
+                "decision_style": self.behavior_engine.decision_style.name,
+                "current_characteristics": self.behavior_engine.get_current_characteristics()
             }
         except Exception as e:
             logger.error(f"Error al obtener estado del comportamiento humano: {str(e)}")
@@ -914,7 +913,7 @@ class SeraphimOrchestrator:
             if hasattr(self.seraphim_strategy, 'behavior_engine'):
                 self.seraphim_strategy.behavior_engine = self.behavior_engine
             
-            logger.info(f"Comportamiento humano aleatorizado: {self.behavior_engine.mood} / {self.behavior_engine.risk_profile}")
+            logger.info(f"Comportamiento humano aleatorizado: {self.behavior_engine.emotional_state.name} / {self.behavior_engine.risk_tolerance.name}")
             
             return {
                 "success": True,
