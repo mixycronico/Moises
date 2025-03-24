@@ -38,6 +38,7 @@ class EmotionalState(Enum):
     IMPATIENT = auto()     # Tendencia a decisiones rápidas, menos análisis
     CONFIDENT = auto()     # Tendencia a posiciones más grandes
     ANXIOUS = auto()       # Tendencia a cerrar posiciones pronto
+    FEARFUL = auto()       # Miedo extremo, tendencia a reducir posiciones significativamente
     CONTEMPLATIVE = auto() # Tendencia a analizar más tiempo
 
 class RiskTolerance(Enum):
@@ -121,6 +122,7 @@ class GabrielBehaviorEngine:
                 EmotionalState.IMPATIENT.name: (3, 8),
                 EmotionalState.CONFIDENT.name: (7, 12),
                 EmotionalState.ANXIOUS.name: (12, 25),
+                EmotionalState.FEARFUL.name: (18, 35),  # Tendencia a demorar decisiones por miedo
                 EmotionalState.CONTEMPLATIVE.name: (20, 40)
             },
             "decision_thresholds": {
@@ -362,6 +364,9 @@ class GabrielBehaviorEngine:
         elif self.emotional_state == EmotionalState.ANXIOUS:
             take_profit *= 0.6  # Acepta menos ganancia
             stop_loss *= 0.7    # Tolera menos pérdida
+        elif self.emotional_state == EmotionalState.FEARFUL:
+            take_profit *= 0.5  # Sale rápidamente con cualquier ganancia
+            stop_loss *= 0.5    # No tolera casi ninguna pérdida
         
         # Factor de tiempo transcurrido: los humanos se impacientan con el tiempo
         time_held = datetime.now() - entry_time
@@ -403,6 +408,15 @@ class GabrielBehaviorEngine:
         if self.emotional_state == EmotionalState.ANXIOUS and price_change_rate < -0.005:
             # Ansiedad lleva a salir ante pequeñas caídas
             return True, "anxiety_exit"
+            
+        if self.emotional_state == EmotionalState.FEARFUL:
+            # Estado temeroso - reacciones extremas ante cualquier señal negativa
+            if price_change_rate < 0 or unrealized_pnl_pct < 0:
+                # Cualquier movimiento negativo o operación en pérdida provoca salida
+                return True, "fear_driven_exit"
+            elif hours_held > 3:
+                # También salida por tiempo si la posición se mantiene demasiado tiempo
+                return True, "fear_extended_holding_exit"
         
         # Mantener posición
         return False, "holding_position"
@@ -437,6 +451,8 @@ class GabrielBehaviorEngine:
                 adjustment = random.uniform(1.1, 1.3)  # Posiciones más grandes
             elif self.emotional_state == EmotionalState.ANXIOUS:
                 adjustment = random.uniform(0.7, 0.9)  # Posiciones más pequeñas
+            elif self.emotional_state == EmotionalState.FEARFUL:
+                adjustment = random.uniform(0.4, 0.6)  # Posiciones muy pequeñas por miedo
             elif self.emotional_state == EmotionalState.OPTIMISTIC:
                 adjustment = random.uniform(1.05, 1.2)  # Ligeramente más grandes
             elif self.emotional_state == EmotionalState.CAUTIOUS:
@@ -460,7 +476,20 @@ class GabrielBehaviorEngine:
             remaining_capital -= adjusted_allocation
         
         # Los humanos a veces dejan algo sin invertir intencionalmente
-        if self.emotional_state == EmotionalState.CAUTIOUS:
+        if self.emotional_state == EmotionalState.FEARFUL:
+            # En estado de miedo extremo, mantienen gran parte sin invertir (hasta un 50%)
+            fearful_reserve = max(remaining_capital, total_capital * 0.5)
+            logger.debug(f"Manteniendo gran reserva por miedo: ${fearful_reserve:.2f}")
+            # Si hemos asignado demasiado, reducir proporcionalmente
+            if fearful_reserve > remaining_capital:
+                reduction_needed = fearful_reserve - remaining_capital
+                total_allocated = sum(adjusted.values())
+                if total_allocated > 0:
+                    for symbol in adjusted:
+                        reduction_ratio = adjusted[symbol] / total_allocated
+                        adjusted[symbol] -= reduction_needed * reduction_ratio
+                    remaining_capital = fearful_reserve
+        elif self.emotional_state == EmotionalState.CAUTIOUS:
             logger.debug(f"Manteniendo reserva cautelosa: ${remaining_capital:.2f}")
         elif self.risk_tolerance in [RiskTolerance.RISK_AVERSE, RiskTolerance.CONSERVATIVE]:
             logger.debug(f"Manteniendo reserva conservadora: ${remaining_capital:.2f}")
@@ -647,7 +676,10 @@ class GabrielBehaviorEngine:
             preferred_duration = "medium"
         
         # Enfoque de entrada/salida
-        if self.emotional_state in [EmotionalState.ANXIOUS, EmotionalState.IMPATIENT]:
+        if self.emotional_state == EmotionalState.FEARFUL:
+            # Entradas muy calculadas, salidas extremadamente rápidas
+            entry_exit_style = "panic_prone"
+        elif self.emotional_state in [EmotionalState.ANXIOUS, EmotionalState.IMPATIENT]:
             # Entradas/salidas más rápidas
             entry_exit_style = "quick"
         elif self.emotional_state in [EmotionalState.CONTEMPLATIVE, EmotionalState.CAUTIOUS]:
@@ -676,6 +708,8 @@ class GabrielBehaviorEngine:
             return "large"
         elif self.emotional_state == EmotionalState.ANXIOUS:
             return "small"
+        elif self.emotional_state == EmotionalState.FEARFUL:
+            return "very_small"  # Posiciones extremadamente pequeñas cuando hay miedo
         elif self.risk_tolerance == RiskTolerance.AGGRESSIVE:
             return "large"
         elif self.risk_tolerance == RiskTolerance.RISK_AVERSE:
@@ -690,7 +724,9 @@ class GabrielBehaviorEngine:
         Returns:
             Preferencia de diversificación
         """
-        if self.risk_tolerance in [RiskTolerance.RISK_AVERSE, RiskTolerance.CONSERVATIVE]:
+        if self.emotional_state == EmotionalState.FEARFUL:
+            return "very_high"  # Máxima diversificación en estado temeroso
+        elif self.risk_tolerance in [RiskTolerance.RISK_AVERSE, RiskTolerance.CONSERVATIVE]:
             return "high"  # Alta diversificación
         elif self.risk_tolerance == RiskTolerance.AGGRESSIVE:
             return "low"   # Baja diversificación
