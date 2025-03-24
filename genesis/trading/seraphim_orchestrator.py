@@ -1047,6 +1047,10 @@ class SeraphimOrchestrator:
         """
         Aleatorizar las características del comportamiento humano simulado.
         
+        Este método cambia aleatoriamente el estado emocional, tolerancia al riesgo
+        y estilo de decisión del motor de comportamiento humano Gabriel, lo que influirá
+        en todas las decisiones de trading subsiguientes en el sistema.
+        
         Returns:
             Resultado de la aleatorización
         """
@@ -1062,11 +1066,23 @@ class SeraphimOrchestrator:
             if hasattr(self.seraphim_strategy, 'behavior_engine'):
                 self.seraphim_strategy.behavior_engine = self.behavior_engine
             
+            # Asegurarnos de que el CodiciaManager tenga el motor actualizado
+            if hasattr(self, 'codicia_manager') and self.codicia_manager:
+                self.codicia_manager.behavior_engine = self.behavior_engine
+                logger.debug("Motor de comportamiento actualizado en CodiciaManager")
+            
+            # Actualizar en cualquier otro componente que utilice el behavior_engine
+            if hasattr(self, 'exchange_adapter') and hasattr(self.exchange_adapter, 'behavior_engine'):
+                self.exchange_adapter.behavior_engine = self.behavior_engine
+                
             logger.info(f"Comportamiento humano aleatorizado: {self.behavior_engine.emotional_state.name} / {self.behavior_engine.risk_tolerance.name}")
             
             return {
                 "success": True,
-                "human_behavior": new_characteristics
+                "human_behavior": new_characteristics,
+                "emotional_state": self.behavior_engine.emotional_state.name,
+                "risk_tolerance": self.behavior_engine.risk_tolerance.name,
+                "decision_style": self.behavior_engine.decision_style.name if hasattr(self.behavior_engine, 'decision_style') else "NEUTRAL"
             }
             
         except Exception as e:
