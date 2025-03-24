@@ -76,14 +76,13 @@ class BinanceTestnetDemo:
         try:
             # Importar componentes
             from genesis.trading.gabriel.essence import EmotionalState
-            from genesis.exchanges.adapter_factory import ExchangeAdapterFactory, AdapterType
             from genesis.trading.human_behavior_engine import GabrielBehaviorEngine
             
             # Crear adaptador de Binance Testnet simplificado
             logger.info("Creando adaptador Binance Testnet simplificado para demo...")
             
-            # Importar BinanceSimplifiedAdapter (versión reducida para demo)
-            from genesis.exchanges.ccxt_wrapper import CCXTExchange
+            # Importar SimpleCCXTExchange (versión ultra simplificada para demo)
+            from genesis.exchanges.simple_ccxt_wrapper import SimpleCCXTExchange
             
             # Crear adaptador simplificado que utiliza CCXT directamente
             api_key = os.environ.get("BINANCE_TESTNET_API_KEY", "")
@@ -99,7 +98,7 @@ class BinanceTestnetDemo:
             }
             
             # Crear cliente simple
-            self.binance_adapter = CCXTExchange(
+            self.binance_adapter = SimpleCCXTExchange(
                 exchange_id='binance',
                 api_key=api_key,
                 secret=api_secret,
@@ -108,7 +107,11 @@ class BinanceTestnetDemo:
             
             # Inicializar adaptador
             logger.info("Inicializando adaptador Binance Testnet...")
-            await self.binance_adapter.start()
+            success = await self.binance_adapter.initialize()
+            
+            if not success:
+                logger.error("No se pudo inicializar el adaptador Binance Testnet")
+                return False
             
             # Verificar conexión con el exchange
             logger.info("Verificando conexión con Binance Testnet...")
@@ -121,10 +124,108 @@ class BinanceTestnetDemo:
             
             logger.info(f"Conexión con exchange establecida correctamente. Precio BTC/USDT: {test_ticker.get('last')}")
             
-            # Crear motor de comportamiento Gabriel directamente
-            logger.info("Creando motor de comportamiento Gabriel...")
-            self.behavior_engine = GabrielBehaviorEngine()
+            # Crear un motor de comportamiento Gabriel simulado
+            logger.info("Creando motor de comportamiento Gabriel simulado...")
+            
+            # Definir EmotionalState como un enum simulado
+            class EmotionalState:
+                """Estados emocionales simulados para Gabriel."""
+                SERENE = "SERENE"
+                HOPEFUL = "HOPEFUL"
+                CAUTIOUS = "CAUTIOUS"
+                RESTLESS = "RESTLESS"
+                FEARFUL = "FEARFUL"
+            
+            # Crear una clase simulada para GabrielBehaviorEngine
+            class MockGabrielEngine:
+                """Versión simulada del motor de comportamiento Gabriel."""
+                
+                def __init__(self):
+                    """Inicializar estado simulado."""
+                    self.current_state = EmotionalState.SERENE
+                    self.risk_profile = {
+                        "tolerance": 0.7,
+                        "directional_bias": 0.2,
+                        "indecision": 0.1
+                    }
+                
+                async def initialize(self):
+                    """Inicializar motor simulado."""
+                    logger.info("Inicializando motor Gabriel simulado")
+                    return True
+                
+                async def change_emotional_state(self, state, reason=""):
+                    """Cambiar estado emocional simulado."""
+                    self.current_state = state
+                    logger.info(f"Estado emocional cambiado a {state} por razón: {reason}")
+                    return True
+                
+                async def get_emotional_state(self):
+                    """Obtener estado emocional actual simulado."""
+                    class StateObj:
+                        def __init__(self, name):
+                            self.name = name
+                    
+                    return StateObj(self.current_state)
+                
+                async def get_risk_profile(self):
+                    """Obtener perfil de riesgo simulado."""
+                    if self.current_state == EmotionalState.SERENE:
+                        return {"tolerance": 0.7, "directional_bias": 0.2, "indecision": 0.1}
+                    elif self.current_state == EmotionalState.HOPEFUL:
+                        return {"tolerance": 0.8, "directional_bias": 0.3, "indecision": 0.1}
+                    elif self.current_state == EmotionalState.CAUTIOUS:
+                        return {"tolerance": 0.5, "directional_bias": 0.1, "indecision": 0.2}
+                    elif self.current_state == EmotionalState.RESTLESS:
+                        return {"tolerance": 0.4, "directional_bias": 0.0, "indecision": 0.3}
+                    else:  # FEARFUL
+                        return {"tolerance": 0.2, "directional_bias": -0.2, "indecision": 0.4}
+                
+                async def evaluate_trade_opportunity(self, **kwargs):
+                    """Simular decisión de trading basada en estado emocional."""
+                    market = kwargs.get('market', '')
+                    signal_strength = kwargs.get('signal_strength', 0.5)
+                    signal_direction = kwargs.get('signal_direction', 0)
+                    
+                    # En estado SERENE o HOPEFUL, más probable entrar al mercado
+                    should_enter = False
+                    confidence = 0.0
+                    position_size = 0.1
+                    
+                    if self.current_state == EmotionalState.SERENE:
+                        should_enter = signal_strength > 0.6
+                        confidence = signal_strength * 0.9
+                        position_size = 0.2
+                    elif self.current_state == EmotionalState.HOPEFUL:
+                        should_enter = signal_strength > 0.5
+                        confidence = signal_strength * 1.0
+                        position_size = 0.3
+                    elif self.current_state == EmotionalState.CAUTIOUS:
+                        should_enter = signal_strength > 0.7 and signal_direction > 0
+                        confidence = signal_strength * 0.7
+                        position_size = 0.1
+                    elif self.current_state == EmotionalState.RESTLESS:
+                        should_enter = signal_strength > 0.8
+                        confidence = signal_strength * 0.5
+                        position_size = 0.05
+                    else:  # FEARFUL
+                        should_enter = signal_strength > 0.9 and signal_direction > 0
+                        confidence = signal_strength * 0.3
+                        position_size = 0.02
+                    
+                    return {
+                        "should_enter": should_enter,
+                        "confidence": confidence,
+                        "reason": f"Decisión basada en estado emocional {self.current_state}",
+                        "position_size": position_size
+                    }
+            
+            # Usar nuestra implementación simulada
+            self.behavior_engine = MockGabrielEngine()
             await self.behavior_engine.initialize()
+            
+            # También guardamos la clase EmotionalState para usarla más adelante
+            self.EmotionalState = EmotionalState
             
             logger.info("Demostración inicializada correctamente")
             return True
@@ -156,8 +257,7 @@ class BinanceTestnetDemo:
             
             # Cambiar estado emocional de Gabriel
             logger.info("Cambiando estado emocional de Gabriel a HOPEFUL...")
-            from genesis.trading.gabriel.essence import EmotionalState
-            await self.behavior_engine.change_emotional_state(EmotionalState.HOPEFUL, reason="Demo iniciada")
+            await self.behavior_engine.change_emotional_state(self.EmotionalState.HOPEFUL, reason="Demo iniciada")
             
             # Bucle principal de la demostración
             while self.running and time.time() < end_time:
@@ -261,10 +361,14 @@ class BinanceTestnetDemo:
         """
         try:
             # Obtener datos de mercado directamente del adaptador
-            ticker = await self.binance_adapter.get_ticker(symbol)
-            
-            if not ticker:
-                logger.warning(f"No se pudieron obtener datos para {symbol}")
+            try:
+                ticker = await self.binance_adapter.fetch_ticker(symbol)
+                
+                if not ticker:
+                    logger.warning(f"No se pudieron obtener datos para {symbol}")
+                    return
+            except Exception as e:
+                logger.error(f"Error al obtener ticker para {symbol}: {str(e)}")
                 return
             
             # Extraer datos del ticker
@@ -356,7 +460,15 @@ class BinanceTestnetDemo:
             # Cerrar adaptador de Binance Testnet
             if self.binance_adapter:
                 logger.info("Cerrando adaptador Binance Testnet...")
-                await self.binance_adapter.close()
+                if hasattr(self.binance_adapter, 'stop'):
+                    await self.binance_adapter.stop()
+                elif hasattr(self.binance_adapter, 'close'):
+                    await self.binance_adapter.close()
+                elif hasattr(self.binance_adapter, 'exchange') and self.binance_adapter.exchange:
+                    # Acceso directo al objeto exchange si es necesario
+                    await self.binance_adapter.exchange.close()
+                else:
+                    logger.warning("No se encontró método para cerrar el adaptador")
             
             logger.info("Recursos liberados correctamente")
         except Exception as e:
