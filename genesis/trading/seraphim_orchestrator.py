@@ -596,12 +596,12 @@ class SeraphimOrchestrator:
         """
         try:
             # Verificar que el CodiciaManager esté configurado
-            if self.order_manager is None:
+            if self.codicia_manager is None:
                 logger.error("CodiciaManager no inicializado")
                 return {"success": False, "error": "CodiciaManager not available"}
             
             # Cancelar orden a través del CodiciaManager
-            cancel_result = await self.order_manager.cancel_order(order_id)
+            cancel_result = await self.codicia_manager.cancel_order(order_id)
             
             if cancel_result.get("success", False):
                 logger.info(f"Orden cancelada correctamente: {order_id}")
@@ -635,12 +635,12 @@ class SeraphimOrchestrator:
         """
         try:
             # Verificar que el CodiciaManager esté configurado
-            if self.order_manager is None:
+            if self.codicia_manager is None:
                 logger.error("CodiciaManager no inicializado")
                 return {"success": False, "error": "CodiciaManager not available", "orders": []}
             
             # Obtener órdenes a través del CodiciaManager
-            orders = await self.order_manager.get_orders(symbol=symbol, status=status)
+            orders = await self.codicia_manager.get_orders(symbol=symbol, status=status)
             
             logger.info(f"Obtenidas {len(orders)} órdenes para {symbol or 'todos los símbolos'}")
             

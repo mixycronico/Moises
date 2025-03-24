@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Prueba simplificada de OrderManager del Sistema Genesis Ultra-Divino Trading Nexus.
+Prueba simplificada de CodiciaManager del Sistema Genesis Ultra-Divino Trading Nexus.
 
-Este script realiza una prueba básica de la integración entre OrderManager y un
+Este script realiza una prueba básica de la integración entre CodiciaManager y un
 exchange simulado, verificando la capacidad de colocar, consultar y cancelar órdenes.
 
 Autor: Genesis AI Assistant
@@ -51,8 +51,8 @@ async def run_basic_order_test():
         
         # Paso 3: Crear CodiciaManager
         logger.info("Creando CodiciaManager...")
-        order_manager = CodiciaManager(exchange_adapter=adapter, behavior_engine=None)
-        await order_manager.initialize()
+        codicia_manager = CodiciaManager(exchange_adapter=adapter, behavior_engine=None)
+        await codicia_manager.initialize()
         
         logger.info("CodiciaManager inicializado correctamente")
         
@@ -66,7 +66,7 @@ async def run_basic_order_test():
         buy_amount = 0.01  # Pequeña cantidad para prueba
         logger.info(f"Colocando orden de compra para {buy_amount} {test_symbol}...")
         
-        buy_order = await order_manager.place_order(
+        buy_order = await codicia_manager.place_order(
             symbol=test_symbol,
             side=OrderSide.BUY,
             order_type=OrderType.MARKET,
@@ -86,7 +86,7 @@ async def run_basic_order_test():
         
         # Paso 7: Obtener órdenes existentes
         logger.info("Consultando órdenes existentes...")
-        orders = await order_manager.get_orders()
+        orders = await codicia_manager.get_orders()
         
         logger.info(f"Obtenidas {len(orders)} órdenes")
         for i, order in enumerate(orders):
@@ -96,7 +96,7 @@ async def run_basic_order_test():
         sell_amount = 0.01  # Misma cantidad para vender
         logger.info(f"Colocando orden de venta para {sell_amount} {test_symbol}...")
         
-        sell_order = await order_manager.place_order(
+        sell_order = await codicia_manager.place_order(
             symbol=test_symbol,
             side=OrderSide.SELL,
             order_type=OrderType.MARKET,
@@ -116,7 +116,7 @@ async def run_basic_order_test():
         
         # Paso 10: Obtener órdenes finales
         logger.info("Consultando órdenes finales...")
-        final_orders = await order_manager.get_orders()
+        final_orders = await codicia_manager.get_orders()
         
         logger.info(f"Obtenidas {len(final_orders)} órdenes finales")
         for i, order in enumerate(final_orders):
