@@ -146,12 +146,34 @@ class GabrielBehaviorEngine:
         Actualizar estado emocional basado en un evento desencadenante.
         
         Args:
-            trigger: Tipo de evento ("profit", "loss", "market_upturn", etc.)
+            trigger: Tipo de evento ("profit", "loss", "market_upturn", "market_crash", etc.)
             magnitude: Magnitud del cambio (multiplicador)
             
         Returns:
             Nuevo estado emocional
         """
+        old_state = self.emotional_state
+        
+        # Eventos que provocan estados específicos (transiciones directas)
+        # Estos eventos siempre causan el mismo estado emocional, independientemente del estado actual
+        direct_transitions = {
+            "market_crash": EmotionalState.FEARFUL,          # Crash de mercado -> FEARFUL
+            "significant_losses": EmotionalState.FEARFUL,    # Pérdidas significativas -> FEARFUL
+            "consecutive_losses": EmotionalState.FEARFUL,    # Pérdidas consecutivas -> FEARFUL
+            "news_catastrophic": EmotionalState.FEARFUL,     # Noticias catastróficas -> FEARFUL
+            "liquidity_crisis": EmotionalState.FEARFUL,      # Crisis de liquidez -> FEARFUL
+            "high_opportunity": EmotionalState.OPTIMISTIC,   # Gran oportunidad -> OPTIMISTIC
+            "profit_target_exceeded": EmotionalState.CONFIDENT,  # Superar objetivo de ganancia -> CONFIDENT
+        }
+        
+        # Verificar si el trigger corresponde a una transición directa
+        if trigger in direct_transitions and (magnitude >= 1.0 or random.random() < magnitude):
+            self.emotional_state = direct_transitions[trigger]
+            self.last_state_change = datetime.now()
+            logger.debug(f"Transición directa: {old_state.name} -> {self.emotional_state.name} (trigger: {trigger})")
+            return self.emotional_state
+        
+        # Para otros triggers, usar el enfoque basado en índice
         # Mapear trigger a shift
         shift_key = f"on_{trigger}" if f"on_{trigger}" in self.configuration["emotional_state_shifts"] else "natural_decay"
         shift = self.configuration["emotional_state_shifts"][shift_key] * magnitude
@@ -178,7 +200,6 @@ class GabrielBehaviorEngine:
             new_index = max(0, min(len(current_states) - 1, new_index + random_shift))
         
         # Actualizar estado
-        old_state = self.emotional_state
         self.emotional_state = current_states[new_index]
         self.last_state_change = datetime.now()
         
@@ -280,6 +301,16 @@ class GabrielBehaviorEngine:
         Returns:
             Tupla (decisión, razón)
         """
+        # Rechazo directo basado en estado FEARFUL
+        if self.emotional_state == EmotionalState.FEARFUL:
+            # En estado de miedo, hay alta probabilidad de rechazo directo
+            # Más miedo = menos propensión a entrar al mercado
+            fear_rejection_chance = 0.8  # 80% de probabilidad de rechazo
+            
+            if random.random() < fear_rejection_chance:
+                logger.debug(f"Rechazo por miedo aplicado para {asset_data.get('symbol', 'desconocido')}")
+                return False, "fear_rejection"
+        
         # Obtener umbral basado en tolerancia al riesgo
         threshold = self.configuration["decision_thresholds"].get(
             self.risk_tolerance.name, 
@@ -295,15 +326,30 @@ class GabrielBehaviorEngine:
             threshold *= 0.85
         elif self.emotional_state == EmotionalState.ANXIOUS:
             threshold *= 1.3
+        elif self.emotional_state == EmotionalState.FEARFUL:
+            threshold *= 1.8  # Extremadamente menos propenso a entrar
         
         # Percepción del mercado
         if self.market_perceptions["market_sentiment"] == "bullish":
-            threshold *= 0.9
+            # En estado FEARFUL, el sentimiento bullish tiene menos efecto
+            if self.emotional_state == EmotionalState.FEARFUL:
+                threshold *= 0.97  # Efecto de sentimiento bullish reducido
+            else:
+                threshold *= 0.9
         elif self.market_perceptions["market_sentiment"] == "bearish":
-            threshold *= 1.1
+            # En estado FEARFUL, el sentimiento bearish tiene más efecto
+            if self.emotional_state == EmotionalState.FEARFUL:
+                threshold *= 1.2  # Efecto de sentimiento bearish amplificado
+            else:
+                threshold *= 1.1
         
         # Factor contrario (a veces los humanos van contra la corriente)
-        if random.random() < self.contrarian_tendency:
+        # En estado FEARFUL, menor tendencia contraria
+        contrarian_factor = self.contrarian_tendency
+        if self.emotional_state == EmotionalState.FEARFUL:
+            contrarian_factor *= 0.3  # 70% menos de comportamiento contrario cuando hay miedo
+            
+        if random.random() < contrarian_factor:
             logger.debug("Aplicando tendencia contraria")
             threshold = 1.0 - threshold
         
@@ -313,6 +359,10 @@ class GabrielBehaviorEngine:
             0.1  # Default
         )
         
+        # En estado FEARFUL, más probabilidad de rechazo subjetivo
+        if self.emotional_state == EmotionalState.FEARFUL:
+            subjective_rejection_chance *= 1.5
+            
         if random.random() < subjective_rejection_chance:
             logger.debug(f"Rechazo subjetivo aplicado para {asset_data.get('symbol', 'desconocido')}")
             return False, "subjective_rejection"
@@ -536,11 +586,21 @@ class GabrielBehaviorEngine:
         volatility = market_data.get("volatility", 0.5)
         trend = market_data.get("trend", "neutral")
         volume = market_data.get("volume_change", 0.0)
+        price_change = market_data.get("price_change", 0.0)
         
         # Actualizar percepción con sesgo humano
         # Los humanos tienden a sobre-reaccionar a eventos recientes
         current_perception = self.market_perceptions["perceived_volatility"]
-        recency_bias = 0.7  # Cuánto peso dar a datos recientes vs previos
+        
+        # Adaptación del sesgo de recencia según estado emocional
+        recency_bias = 0.7  # Base: 70% peso a datos recientes vs previos
+        
+        # En estado FEARFUL, el sesgo de recencia es más fuerte (sobre-reacción a datos recientes)
+        if self.emotional_state == EmotionalState.FEARFUL:
+            recency_bias = 0.9  # 90% peso a datos recientes
+            
+            # Además, en estado FEARFUL, perciben mayor volatilidad de la que hay realmente
+            volatility = min(1.0, volatility * 1.5)
         
         self.market_perceptions["perceived_volatility"] = (
             current_perception * (1 - recency_bias) + 
@@ -549,34 +609,68 @@ class GabrielBehaviorEngine:
         
         # Actualizar sentimiento
         if trend == "up" and volume > 0.1:
-            self.market_perceptions["market_sentiment"] = "bullish"
+            # En estado FEARFUL, más resistencia a ver mercados como alcistas (solo si son muy claros)
+            if self.emotional_state == EmotionalState.FEARFUL and price_change < 0.05:
+                # Si el cambio de precio no es significativo, dudan que sea alcista a pesar de la tendencia
+                if random.random() < 0.7:
+                    self.market_perceptions["market_sentiment"] = "neutral"
+                else:
+                    self.market_perceptions["market_sentiment"] = "bullish"
+            else:
+                self.market_perceptions["market_sentiment"] = "bullish"
         elif trend == "down" and volume > 0.1:
+            # En estado FEARFUL, más propensos a ver mercados como bajistas rápidamente
             self.market_perceptions["market_sentiment"] = "bearish"
+            
+            # Posible actualización a estado emocional si hay tendencia bajista fuerte
+            if self.emotional_state != EmotionalState.FEARFUL and price_change < -0.03:
+                # Trigger de transición emocional a FEARFUL por tendencia bajista fuerte
+                await self.update_emotional_state("market_downturn", magnitude=abs(price_change)*10)
         else:
             # Mantener sentimiento con ligero sesgo a neutral
             current_sentiment = self.market_perceptions["market_sentiment"]
-            if random.random() < 0.2:  # 20% de probabilidad de normalización
+            
+            # Si está en estado FEARFUL, mucho más resistente a normalizar hacia sentimiento neutral
+            normalization_chance = 0.2  # 20% de probabilidad de normalización (base)
+            if self.emotional_state == EmotionalState.FEARFUL:
+                normalization_chance = 0.05  # Solo 5% de probabilidad en estado FEARFUL
+                
+            if random.random() < normalization_chance:
                 self.market_perceptions["market_sentiment"] = "neutral"
         
         # Percepción de oportunidad y riesgo
+        opportunity_adjustment = 0.1  # Ajuste base para percepción de oportunidad
+        risk_adjustment = 0.1  # Ajuste base para percepción de riesgo
+        
+        # En estado FEARFUL, percepción distorsionada del mercado
+        if self.emotional_state == EmotionalState.FEARFUL:
+            opportunity_adjustment = 0.05  # Percepciones de oportunidad cambian lentamente
+            risk_adjustment = 0.2  # Percepciones de riesgo cambian rápidamente
+        
         if trend == "up":
             # En tendencia alcista los humanos ven más oportunidad, menos riesgo
             self.market_perceptions["perceived_opportunity"] = min(
-                1.0, self.market_perceptions["perceived_opportunity"] + 0.1
+                1.0, self.market_perceptions["perceived_opportunity"] + opportunity_adjustment
             )
             self.market_perceptions["perceived_risk"] = max(
-                0.1, self.market_perceptions["perceived_risk"] - 0.05
+                0.1, self.market_perceptions["perceived_risk"] - (risk_adjustment * 0.5)
             )
         elif trend == "down":
             # En tendencia bajista los humanos ven menos oportunidad, más riesgo
             self.market_perceptions["perceived_opportunity"] = max(
-                0.1, self.market_perceptions["perceived_opportunity"] - 0.1
+                0.1, self.market_perceptions["perceived_opportunity"] - opportunity_adjustment
             )
             self.market_perceptions["perceived_risk"] = min(
-                1.0, self.market_perceptions["perceived_risk"] + 0.1
+                1.0, self.market_perceptions["perceived_risk"] + risk_adjustment
             )
         
-        logger.debug(f"Percepción de mercado actualizada: {self.market_perceptions}")
+        # En estado FEARFUL, hay un piso mínimo para la percepción de riesgo
+        if self.emotional_state == EmotionalState.FEARFUL:
+            self.market_perceptions["perceived_risk"] = max(
+                0.6, self.market_perceptions["perceived_risk"]
+            )
+        
+        logger.debug(f"Percepción de mercado actualizada: {self.market_perceptions}, estado emocional: {self.emotional_state.name}")
     
     def randomize_human_characteristics(self) -> Dict[str, Any]:
         """
@@ -622,6 +716,30 @@ class GabrielBehaviorEngine:
             Características actualizadas
         """
         return self.randomize_human_characteristics()
+        
+    def set_emotional_state(self, state: EmotionalState, reason: str = "manual_override") -> None:
+        """
+        Establecer estado emocional directamente.
+        
+        Args:
+            state: Estado emocional a establecer
+            reason: Motivo del cambio
+        """
+        old_state = self.emotional_state
+        self.emotional_state = state
+        self.last_state_change = datetime.now()
+        
+        logger.info(f"Estado emocional forzado manualmente: {old_state.name} -> {state.name} (razón: {reason})")
+        
+    def set_fearful_state(self, reason: str = "manual_override") -> None:
+        """
+        Establecer estado emocional a FEARFUL (miedo) directamente.
+        Ayuda para pruebas específicas del comportamiento temeroso.
+        
+        Args:
+            reason: Motivo del cambio
+        """
+        self.set_emotional_state(EmotionalState.FEARFUL, reason)
     
     def get_current_characteristics(self) -> Dict[str, Any]:
         """
