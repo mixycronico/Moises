@@ -31,6 +31,7 @@ import random
 # Componentes Genesis
 from genesis.strategies.seraphim.seraphim_pool import SeraphimPool, SeraphimState, CyclePhase
 from genesis.trading.buddha_integrator import BuddhaIntegrator
+from genesis.trading.human_behavior_engine import GabrielBehaviorEngine, EmotionalState, RiskTolerance, DecisionStyle
 from genesis.analysis.transcendental_crypto_classifier import TranscendentalCryptoClassifier
 from genesis.cloud.circuit_breaker_v4 import CloudCircuitBreakerV4
 from genesis.cloud.distributed_checkpoint_v4 import DistributedCheckpointManagerV4
