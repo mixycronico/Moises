@@ -773,12 +773,6 @@ class SeraphimOrchestrator:
                 "human_behavior": new_characteristics
             }
             
-            # Devolver el nuevo estado
-            return {
-                "success": True,
-                "human_behavior": self.get_human_behavior()
-            }
-            
         except Exception as e:
             logger.error(f"Error al aleatorizar comportamiento humano: {str(e)}")
             return {"success": False, "error": str(e)}

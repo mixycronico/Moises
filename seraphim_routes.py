@@ -46,7 +46,37 @@ def get_orchestrator() -> 'SeraphimOrchestrator':
             logger.error(f"Error al inicializar orquestador Seraphim: {e}")
             # Devolver un orquestador simulado para evitar errores
             from types import SimpleNamespace
-            _orchestrator_instance = SimpleNamespace()
+            
+            # Creamos un orquestador simulado con métodos básicos
+            mock_orchestrator = SimpleNamespace()
+            
+            # Implementar método de aleatorización
+            async def mock_randomize_human_behavior():
+                logger.info("Simulando aleatorización de comportamiento humano")
+                return {
+                    "success": True,
+                    "human_behavior": {
+                        "emotional_state": "NEUTRAL",
+                        "risk_tolerance": "BALANCED",
+                        "decision_style": "ANALYTICAL",
+                        "emotional_stability": 0.7,
+                        "risk_adaptation_rate": 0.5,
+                        "contrarian_tendency": 0.2,
+                        "decision_speed": 1.0,
+                        "market_perceptions": {"perceived_risk": 0.3}
+                    }
+                }
+            
+            # Implementar método de inicialización
+            async def mock_initialize():
+                logger.info("Simulando inicialización del orquestador")
+                return True
+                
+            # Asignar métodos al orquestador simulado
+            mock_orchestrator.randomize_human_behavior = mock_randomize_human_behavior
+            mock_orchestrator.initialize = mock_initialize
+            
+            _orchestrator_instance = mock_orchestrator
             
     return _orchestrator_instance
 
@@ -69,7 +99,59 @@ def get_behavior_engine() -> 'GabrielBehaviorEngine':
             logger.error(f"Error al inicializar motor de comportamiento humano: {e}")
             # Devolver un motor simulado para evitar errores
             from types import SimpleNamespace
-            _behavior_engine_instance = SimpleNamespace()
+            
+            # Crear un motor de comportamiento simulado
+            mock_engine = SimpleNamespace()
+            
+            # Simular características actuales
+            mock_engine.current_characteristics = {
+                "emotional_state": "NEUTRAL",
+                "risk_tolerance": "BALANCED",
+                "decision_style": "ANALYTICAL",
+                "emotional_stability": 0.7,
+                "risk_adaptation_rate": 0.5,
+                "contrarian_tendency": 0.2,
+                "decision_speed": 1.0,
+                "market_perceptions": {"perceived_risk": 0.3}
+            }
+            
+            # Simular propiedades alias
+            mock_engine.mood = "NEUTRAL"
+            mock_engine.risk_profile = "BALANCED"
+            mock_engine.experience_level = "INTERMEDIATE"
+            
+            # Implementar initialize
+            async def mock_initialize():
+                logger.info("Simulando inicialización del motor de comportamiento")
+                return True
+                
+            # Implementar randomize
+            def mock_randomize():
+                import random
+                moods = ["NEUTRAL", "OPTIMISTIC", "CAUTIOUS", "FEARFUL", "GREEDY"]
+                profiles = ["BALANCED", "CONSERVATIVE", "AGGRESSIVE", "MODERATE"]
+                
+                mock_engine.mood = random.choice(moods)
+                mock_engine.risk_profile = random.choice(profiles)
+                
+                mock_engine.current_characteristics = {
+                    "emotional_state": mock_engine.mood,
+                    "risk_tolerance": mock_engine.risk_profile,
+                    "decision_style": "ANALYTICAL",
+                    "emotional_stability": round(random.uniform(0.3, 0.9), 2),
+                    "risk_adaptation_rate": round(random.uniform(0.2, 0.8), 2),
+                    "contrarian_tendency": round(random.uniform(0.1, 0.6), 2),
+                    "decision_speed": round(random.uniform(0.5, 1.5), 2),
+                    "market_perceptions": {"perceived_risk": round(random.uniform(0.1, 0.7), 2)}
+                }
+                
+                return mock_engine.current_characteristics
+            
+            # Asignar métodos al motor simulado
+            mock_engine.initialize = mock_initialize
+            mock_engine.randomize = mock_randomize
+            
+            _behavior_engine_instance = mock_engine
             
     return _behavior_engine_instance
 
