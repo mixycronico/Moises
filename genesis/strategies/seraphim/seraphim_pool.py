@@ -365,6 +365,18 @@ class SeraphimPool(BaseStrategy):
             HumanBehaviorPattern.PATIENT: (25, 50)
         }
         
+        # Si tenemos un motor de comportamiento humano, usarlo para el tiempo de contemplación
+        if hasattr(self, 'behavior_engine') and self.behavior_engine:
+            try:
+                # Usar el motor Gabriel para simular retraso humano realista
+                await self.behavior_engine.simulate_human_delay("analysis")
+                logger.debug(f"Usando motor Gabriel para contemplación humana, estado emocional: {self.behavior_engine.emotional_state.name}")
+                return
+            except Exception as e:
+                logger.warning(f"Error al usar motor Gabriel para contemplación: {e}")
+                # Continuar con el método original si falla
+        
+        # Método original como fallback
         behavior_time = contemplation_times.get(
             self.current_behavior, 
             (10, 30)  # Tiempo predeterminado
@@ -407,6 +419,54 @@ class SeraphimPool(BaseStrategy):
         market_sentiment = buddha_analysis.get("market_sentiment", "neutral")
         market_risk = risk_assessment.get("overall_risk", "medium")
         
+        # Si tenemos un motor de comportamiento humano Gabriel, usarlo para decisiones
+        if hasattr(self, 'behavior_engine') and self.behavior_engine:
+            try:
+                filtered = []
+                # Evaluar cada activo usando el motor Gabriel para decisiones humanas realistas
+                for asset in classifier_results:
+                    # Calcular score de oportunidad basado en múltiples factores
+                    opportunity_score = (
+                        asset.get("profit_potential", 0.5) * 0.4 +
+                        (1 - asset.get("risk_score", 0.5)) * 0.3 +
+                        asset.get("trend_strength", 0.5) * 0.2 +
+                        asset.get("stability_score", 0.5) * 0.1
+                    )
+                    
+                    # Usar el motor Gabriel para decisión humana realista
+                    should_enter, reason = await self.behavior_engine.should_enter_trade(
+                        opportunity_score=opportunity_score,
+                        asset_data=asset
+                    )
+                    
+                    if should_enter:
+                        filtered.append(asset)
+                        logger.debug(f"Gabriel aprueba activo {asset.get('symbol')}: {reason}")
+                    else:
+                        logger.debug(f"Gabriel rechaza activo {asset.get('symbol')}: {reason}")
+                
+                # Si el motor rechazó todos los activos, usar al menos uno (los humanos raramente rechazan todo)
+                if not filtered and classifier_results:
+                    best_asset = max(classifier_results, key=lambda x: x.get("profit_potential", 0))
+                    filtered.append(best_asset)
+                    logger.debug(f"Gabriel finalmente acepta activo {best_asset.get('symbol')} a pesar del rechazo inicial")
+                
+                # Limitar a máximo 5 activos (simulando limitación cognitiva humana)
+                filtered = filtered[:5]
+                
+                # Log para diagnóstico
+                logger.debug(f"Activos después de filtrar con Gabriel: {len(filtered)}")
+                symbols = [asset.get("symbol", "unknown") for asset in filtered]
+                logger.info(f"Activos seleccionados por Gabriel: {symbols}")
+                
+                return filtered
+            
+            except Exception as e:
+                logger.warning(f"Error al usar motor Gabriel para filtrar activos: {e}")
+                # Continuar con el método original si falla
+                logger.debug("Usando método de filtrado alternativo")
+        
+        # Método original como fallback
         # Comportamientos diferentes llevan a diferentes criterios de filtrado
         if self.current_behavior == HumanBehaviorPattern.CAUTIOUS:
             # Más conservador: solo activos de menor riesgo
@@ -681,6 +741,43 @@ class SeraphimPool(BaseStrategy):
     
     async def _simulate_human_execution(self) -> None:
         """Simular comportamiento humano al ejecutar órdenes."""
+        # Si tenemos un motor de comportamiento humano Gabriel, usarlo para la ejecución
+        if hasattr(self, 'behavior_engine') and self.behavior_engine:
+            try:
+                # Usar el motor Gabriel para simular retraso humano realista
+                await self.behavior_engine.simulate_human_delay("trade_entry")
+                logger.debug(f"Usando motor Gabriel para ejecución humana, estado emocional: {self.behavior_engine.emotional_state.name}")
+                
+                # Actualizar estado emocional después de entrar en operación
+                # Este cambio emocional afectará decisiones futuras
+                await self.behavior_engine.update_emotional_state("trade_execution", 1.0)
+                logger.debug(f"Estado emocional actualizado a: {self.behavior_engine.emotional_state.name}")
+                
+                # Simular ejecución no simultánea pero influenciada por estado emocional
+                # Los estados impulsivos o confiados tenderán a ejecutar todo juntos
+                # mientras que los cautelosos o ansiosos tenderán a espaciar las órdenes
+                if self.behavior_engine.emotional_state in [
+                    EmotionalState.IMPATIENT, EmotionalState.CONFIDENT
+                ]:
+                    # Menos aleatorización para estados impulsivos
+                    randomization_factor = 0.2
+                else:
+                    # Más aleatorización para estados contemplativos o cautelosos
+                    randomization_factor = 0.8
+                
+                # Aplicar aleatorización según estado emocional
+                self.asset_allocations = dict(
+                    sorted(
+                        self.asset_allocations.items(),
+                        key=lambda x: random.random() * randomization_factor
+                    )
+                )
+                return
+            except Exception as e:
+                logger.warning(f"Error al usar motor Gabriel para ejecución: {e}")
+                # Continuar con el método original si falla
+        
+        # Método original como fallback
         # Simular toma de decisiones no instantánea
         execution_delay = random.uniform(5, 15)  # segundos
         logger.debug(f"Simulando toma de decisión humana: {execution_delay:.1f} segundos")
