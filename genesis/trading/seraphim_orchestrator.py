@@ -760,13 +760,18 @@ class SeraphimOrchestrator:
             
         try:
             # Aleatorizar el comportamiento
-            self.behavior_engine.randomize()
+            new_characteristics = self.behavior_engine.randomize()
             
             # Si la estrategia también tiene una referencia, actualizarla
             if hasattr(self.seraphim_strategy, 'behavior_engine'):
                 self.seraphim_strategy.behavior_engine = self.behavior_engine
             
             logger.info(f"Comportamiento humano aleatorizado: {self.behavior_engine.mood} / {self.behavior_engine.risk_profile}")
+            
+            return {
+                "success": True,
+                "human_behavior": new_characteristics
+            }
             
             # Devolver el nuevo estado
             return {

@@ -398,16 +398,28 @@ def get_human_behavior():
 
 def randomize_behavior():
     """Aleatorizar comportamiento humano."""
-    behavior_engine = get_behavior_engine()
+    orchestrator = get_orchestrator()
+    
+    def get_async_randomized():
+        """Ejecutar aleatorización asincrónica."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            result = loop.run_until_complete(orchestrator.randomize_human_behavior())
+            return result
+        finally:
+            loop.close()
     
     try:
-        # Aleatorizar características
-        if hasattr(behavior_engine, 'randomize'):
-            new_characteristics = behavior_engine.randomize()
-            
+        # Usar el orquestador para aleatorizar de forma sincronizada
+        thread = run_async_task(get_async_randomized)
+        result = thread.result
+        
+        if result and result.get("success", False):
             return jsonify({
                 "success": True,
-                "new_characteristics": new_characteristics
+                "human_behavior": result.get("human_behavior", {})
             })
         else:
             # Simulación simplificada si no está disponible

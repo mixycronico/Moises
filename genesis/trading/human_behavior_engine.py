@@ -562,6 +562,16 @@ class GabrielBehaviorEngine:
         
         return self.get_current_characteristics()
     
+    # Alias para mantener compatibilidad con la integración del orquestador
+    def randomize(self) -> Dict[str, Any]:
+        """
+        Alias para randomize_human_characteristics para compatibilidad con el orquestador.
+        
+        Returns:
+            Características actualizadas
+        """
+        return self.randomize_human_characteristics()
+    
     def get_current_characteristics(self) -> Dict[str, Any]:
         """
         Obtener características humanas actuales.
@@ -579,6 +589,33 @@ class GabrielBehaviorEngine:
             "decision_speed": self.decision_speed_multiplier,
             "market_perceptions": self.market_perceptions
         }
+    
+    # Propiedades alias para compatibilidad con el orquestador
+    @property
+    def mood(self) -> str:
+        """Alias del estado emocional para compatibilidad."""
+        return self.emotional_state.name
+    
+    @property
+    def risk_profile(self) -> str:
+        """Alias de tolerancia al riesgo para compatibilidad."""
+        return self.risk_tolerance.name
+    
+    @property
+    def experience_level(self) -> str:
+        """Nivel de experiencia simulado (derivado del estilo de decisión)."""
+        if self.decision_style == DecisionStyle.ANALYTICAL:
+            return "advanced"
+        elif self.decision_style == DecisionStyle.METHODICAL:
+            return "intermediate"
+        elif self.decision_style == DecisionStyle.IMPULSIVE:
+            return "beginner"
+        else:
+            return "intermediate"
+    
+    def get_current_state(self) -> Dict[str, Any]:
+        """Devolver estado actual para compatibilidad con orquestador."""
+        return self.get_current_characteristics()
     
     async def get_human_trading_preferences(self) -> Dict[str, Any]:
         """
