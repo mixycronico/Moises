@@ -1270,20 +1270,29 @@ def place_trade():
                     price=float(data.get("price", 0))
                 )
             )
+            
+            # Importante: asignar el resultado al hilo actual
+            current_thread = threading.current_thread()
+            current_thread.result = result
+            
             return result
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"Error colocando orden: {e}")
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": False, "error": f"Error: {str(e)}"}
         finally:
             loop.close()
     
     # Ejecutar en thread para no bloquear
     thread = threading.Thread(target=place_order_async)
     thread.start()
-    thread.join()
+    thread.join(timeout=5.0)  # Añadir timeout para evitar bloqueos indefinidos
     
     # Obtener resultado o respuesta de error
-    result = getattr(thread, 'result', {"success": False, "error": "Failed to place order"})
-    return jsonify(result)
+    if hasattr(thread, 'result'):
+        return jsonify(thread.result)
+    else:
+        return jsonify({"success": False, "error": "Failed to place order"})
 
 def cancel_trade(trade_id):
     """
@@ -1292,8 +1301,12 @@ def cancel_trade(trade_id):
     Args:
         trade_id: ID de la orden a cancelar
     """
-    # Obtener datos desde la solicitud
-    data = request.json or {}
+    # Obtener datos desde la solicitud - manejar el caso de JSON nulo
+    # Algunos clientes pueden enviar una solicitud sin cuerpo JSON
+    try:
+        data = request.json or {}
+    except:
+        data = {}
     
     # Obtener orquestador
     orchestrator = get_orchestrator()
@@ -1313,20 +1326,29 @@ def cancel_trade(trade_id):
                     symbol=data.get("symbol")  # Opcional en algunos exchanges
                 )
             )
+            
+            # Importante: asignar el resultado al hilo actual
+            current_thread = threading.current_thread()
+            current_thread.result = result
+            
             return result
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"Error cancelando orden: {e}")
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": False, "error": f"Error: {str(e)}"}
         finally:
             loop.close()
     
     # Ejecutar en thread para no bloquear
     thread = threading.Thread(target=cancel_order_async)
     thread.start()
-    thread.join()
+    thread.join(timeout=5.0)  # Añadir timeout para evitar bloqueos indefinidos
     
     # Obtener resultado o respuesta de error
-    result = getattr(thread, 'result', {"success": False, "error": "Failed to cancel order"})
-    return jsonify(result)
+    if hasattr(thread, 'result'):
+        return jsonify(thread.result)
+    else:
+        return jsonify({"success": False, "error": "Failed to cancel order"})
 
 def get_trades():
     """Obtener órdenes activas y completadas."""
@@ -1360,20 +1382,28 @@ def get_trades():
                     orchestrator.exchange_adapter.fetch_orders(symbol=symbol)
                 )
             
+            # Importante: asignar el resultado al hilo actual
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": True, "orders": orders}
+            
             return {"success": True, "orders": orders}
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            logger.error(f"Error obteniendo órdenes: {e}")
+            current_thread = threading.current_thread()
+            current_thread.result = {"success": False, "error": f"Error: {str(e)}"}
         finally:
             loop.close()
     
     # Ejecutar en thread para no bloquear
     thread = threading.Thread(target=get_orders_async)
     thread.start()
-    thread.join()
+    thread.join(timeout=5.0)  # Añadir timeout para evitar bloqueos indefinidos
     
     # Obtener resultado o respuesta de error
-    result = getattr(thread, 'result', {"success": False, "error": "Failed to fetch orders"})
-    return jsonify(result)
+    if hasattr(thread, 'result'):
+        return jsonify(thread.result)
+    else:
+        return jsonify({"success": False, "error": "Failed to fetch orders"})
 
 def register_seraphim_routes(app):
     """
