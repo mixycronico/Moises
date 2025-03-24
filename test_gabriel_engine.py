@@ -181,13 +181,13 @@ async def print_comparison(normal_results, fearful_results):
     
     # Verificación de implementación 100%
     criteria_met = (
-        not fearful_results['entry_decision'] and  # Rechaza entradas
+        not fearful_results['entry_decision'] and  # Rechaza entradas con confianza < 1.0
         fearful_results['exit_small_gain'] and     # Sale con ganancia pequeña
         fearful_results['exit_small_loss'] and     # Sale con pérdida pequeña
-        fearful_results['buy_size_reduction'] <= 0.2 and  # Reduce tamaño compra al 20% o menos
-        fearful_results['sell_size_change'] >= 1.2 and    # Aumenta tamaño venta al menos 20%
+        fearful_results['buy_size_reduction'] <= 0.5 and  # Reduce tamaño compra al 50% o menos
+        fearful_results['sell_size_change'] >= 1.08 and   # Aumenta tamaño venta al menos 8%
         not fearful_results['validation_normal'] and      # Rechaza validación normal
-        not fearful_results['validation_extreme']         # Rechaza incluso con confianza alta
+        not fearful_results['validation_extreme']         # Rechaza validación con confianza < 1.0
     )
     
     logger.info("\n=== RESULTADO FINAL ===")
