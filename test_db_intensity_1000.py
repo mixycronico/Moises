@@ -1567,8 +1567,8 @@ async def test_full_database_stack():
                     components["divine_system"].submit_task,
                     task_func=lambda d: {"processed": True, "data": d},
                     priority="high",
-                    data,
-                    id=f"divine_task_{i}"
+                    id=f"divine_task_{i}",
+                    data=data
                 )
             elif operation_type == 2:
                 # Operación de base de datos trascendental
