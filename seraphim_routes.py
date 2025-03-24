@@ -1064,6 +1064,226 @@ def run_orders_demo():
     })
 
 
+# Métodos para integración Seraphim-Simulador
+def get_market_data(symbol):
+    """
+    Obtener datos de mercado para un símbolo específico.
+    
+    Args:
+        symbol: Símbolo a consultar (ej: BTC/USDT)
+    """
+    orchestrator = get_orchestrator()
+    if not orchestrator:
+        return jsonify({"success": False, "error": "Seraphim Orchestrator not available"})
+    
+    def get_async_data():
+        """Ejecutar consulta asincrónica."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            market_data = loop.run_until_complete(orchestrator.get_market_data(symbol))
+            return market_data
+        finally:
+            loop.close()
+    
+    # Ejecutar en thread para no bloquear
+    thread = threading.Thread(target=get_async_data)
+    thread.start()
+    thread.join()
+    
+    # Obtener resultado o respuesta de error
+    result = getattr(thread, 'result', {"success": False, "error": "Failed to fetch market data"})
+    return jsonify(result)
+
+def get_available_symbols():
+    """Obtener lista de símbolos disponibles."""
+    orchestrator = get_orchestrator()
+    if not orchestrator:
+        return jsonify({"success": False, "error": "Seraphim Orchestrator not available"})
+    
+    def get_async_symbols():
+        """Ejecutar consulta asincrónica."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            symbols = loop.run_until_complete(orchestrator.get_symbols())
+            return {"success": True, "symbols": symbols}
+        finally:
+            loop.close()
+    
+    # Ejecutar en thread para no bloquear
+    thread = threading.Thread(target=get_async_symbols)
+    thread.start()
+    thread.join()
+    
+    # Obtener resultado o respuesta de error
+    result = getattr(thread, 'result', {"success": False, "error": "Failed to fetch symbols"})
+    return jsonify(result)
+
+def connect_exchange():
+    """Conectar a exchange (simulado o real)."""
+    orchestrator = get_orchestrator()
+    if not orchestrator:
+        return jsonify({"success": False, "error": "Seraphim Orchestrator not available"})
+    
+    def connect_async():
+        """Ejecutar conexión asincrónica."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            success = loop.run_until_complete(orchestrator._verify_exchange_connections())
+            return {"success": success}
+        finally:
+            loop.close()
+    
+    # Ejecutar en thread para no bloquear
+    thread = threading.Thread(target=connect_async)
+    thread.start()
+    thread.join()
+    
+    # Obtener resultado o respuesta de error
+    result = getattr(thread, 'result', {"success": False, "error": "Failed to connect"})
+    return jsonify(result)
+
+def place_trade():
+    """Colocar una orden de trading."""
+    # Obtener datos de la solicitud
+    data = request.json
+    if not data:
+        return jsonify({"success": False, "error": "No data provided"})
+    
+    # Validar datos
+    required_fields = ["symbol", "side", "type", "amount"]
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"success": False, "error": f"Missing required field: {field}"})
+    
+    # Obtener orquestador
+    orchestrator = get_orchestrator()
+    if not orchestrator or not orchestrator.exchange_adapter:
+        return jsonify({"success": False, "error": "Exchange adapter not available"})
+    
+    # Procesar solicitud
+    def place_order_async():
+        """Ejecutar orden asincrónica."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Pasar a adaptador
+            result = loop.run_until_complete(
+                orchestrator.exchange_adapter.create_order(
+                    symbol=data["symbol"],
+                    order_type=data["type"],
+                    side=data["side"],
+                    amount=float(data["amount"]),
+                    price=float(data.get("price", 0))
+                )
+            )
+            return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            loop.close()
+    
+    # Ejecutar en thread para no bloquear
+    thread = threading.Thread(target=place_order_async)
+    thread.start()
+    thread.join()
+    
+    # Obtener resultado o respuesta de error
+    result = getattr(thread, 'result', {"success": False, "error": "Failed to place order"})
+    return jsonify(result)
+
+def cancel_trade(trade_id):
+    """
+    Cancelar una orden de trading.
+    
+    Args:
+        trade_id: ID de la orden a cancelar
+    """
+    # Obtener datos desde la solicitud
+    data = request.json or {}
+    
+    # Obtener orquestador
+    orchestrator = get_orchestrator()
+    if not orchestrator or not orchestrator.exchange_adapter:
+        return jsonify({"success": False, "error": "Exchange adapter not available"})
+    
+    # Procesar solicitud
+    def cancel_order_async():
+        """Ejecutar cancelación asincrónica."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Pasar a adaptador
+            result = loop.run_until_complete(
+                orchestrator.exchange_adapter.cancel_order(
+                    id=trade_id,
+                    symbol=data.get("symbol")  # Opcional en algunos exchanges
+                )
+            )
+            return result
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            loop.close()
+    
+    # Ejecutar en thread para no bloquear
+    thread = threading.Thread(target=cancel_order_async)
+    thread.start()
+    thread.join()
+    
+    # Obtener resultado o respuesta de error
+    result = getattr(thread, 'result', {"success": False, "error": "Failed to cancel order"})
+    return jsonify(result)
+
+def get_trades():
+    """Obtener órdenes activas y completadas."""
+    # Obtener datos de consulta
+    symbol = request.args.get("symbol")
+    status = request.args.get("status", "all")  # 'open', 'closed', 'all'
+    
+    # Obtener orquestador
+    orchestrator = get_orchestrator()
+    if not orchestrator or not orchestrator.exchange_adapter:
+        return jsonify({"success": False, "error": "Exchange adapter not available"})
+    
+    # Procesar solicitud
+    def get_orders_async():
+        """Ejecutar consulta asincrónica."""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Determinar qué función llamar según el estado solicitado
+            if status == "open":
+                orders = loop.run_until_complete(
+                    orchestrator.exchange_adapter.fetch_open_orders(symbol=symbol)
+                )
+            elif status == "closed":
+                orders = loop.run_until_complete(
+                    orchestrator.exchange_adapter.fetch_closed_orders(symbol=symbol)
+                )
+            else:
+                # Obtener todas las órdenes
+                orders = loop.run_until_complete(
+                    orchestrator.exchange_adapter.fetch_orders(symbol=symbol)
+                )
+            
+            return {"success": True, "orders": orders}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            loop.close()
+    
+    # Ejecutar en thread para no bloquear
+    thread = threading.Thread(target=get_orders_async)
+    thread.start()
+    thread.join()
+    
+    # Obtener resultado o respuesta de error
+    result = getattr(thread, 'result', {"success": False, "error": "Failed to fetch orders"})
+    return jsonify(result)
+
 def register_seraphim_routes(app):
     """
     Registrar rutas del Sistema Seraphim en la aplicación Flask.
@@ -1093,6 +1313,14 @@ def register_seraphim_routes(app):
         app.add_url_rule('/api/simulator/status', 'get_simulator_status', get_simulator_status)
         app.add_url_rule('/api/simulator/market_data_demo', 'run_market_data_demo', run_market_data_demo)
         app.add_url_rule('/api/simulator/orders_demo', 'run_orders_demo', run_orders_demo)
+        
+        # Rutas para la integración Seraphim-Simulador
+        app.add_url_rule('/api/seraphim/market/data/<symbol>', 'get_market_data', get_market_data)
+        app.add_url_rule('/api/seraphim/market/symbols', 'get_available_symbols', get_available_symbols)
+        app.add_url_rule('/api/seraphim/market/connect', 'connect_exchange', connect_exchange, methods=['POST'])
+        app.add_url_rule('/api/seraphim/trade/place', 'place_trade', place_trade, methods=['POST'])
+        app.add_url_rule('/api/seraphim/trade/cancel/<trade_id>', 'cancel_trade', cancel_trade, methods=['POST'])
+        app.add_url_rule('/api/seraphim/trades', 'get_trades', get_trades)
         
         logger.info("Rutas del Simulador de Intercambio registradas correctamente")
     

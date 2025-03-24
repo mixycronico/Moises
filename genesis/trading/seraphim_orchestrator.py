@@ -82,6 +82,9 @@ class SeraphimOrchestrator:
         self.oracle: Optional[QuantumOracle] = None
         self.alert_manager: Optional[AlertManager] = None
         
+        # Componente de Exchange (simulado o real)
+        self.exchange_adapter = None  # Será configurado externamente
+        
         # Estado operacional
         self.active_cycle_id: Optional[str] = None
         self.active_cycles_count = 0
@@ -376,11 +379,16 @@ class SeraphimOrchestrator:
                     config={
                         "tick_interval_ms": 500,
                         "volatility_factor": 0.005,
-                        "pattern_duration": 120
+                        "pattern_duration": 120,
+                        "enable_failures": False,  # Desactivar fallos para más estabilidad
+                        "default_candle_count": 1000  # Velas históricas suficientes
                     }
                 )
                 
                 logger.info(f"Adaptador de exchange simulado creado: {self.exchange_adapter.__class__.__name__}")
+                
+                # Precargar símbolos comunes
+                await self._preload_symbols()
             
             # Verificar estado del adaptador
             if hasattr(self.exchange_adapter, 'get_state'):
@@ -403,6 +411,106 @@ class SeraphimOrchestrator:
         except Exception as e:
             logger.error(f"Error al verificar conexiones a exchanges: {str(e)}")
             return False
+    
+    async def _preload_symbols(self) -> None:
+        """Precargar símbolos comunes en el simulador."""
+        if self.exchange_adapter is None:
+            logger.warning("No hay adaptador de exchange para precargar símbolos")
+            return
+        
+        try:
+            # Lista de símbolos comunes
+            symbols = [
+                "BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "XRP/USDT",
+                "BNB/USDT", "DOT/USDT", "DOGE/USDT", "AVAX/USDT", "MATIC/USDT"
+            ]
+            
+            # Inicializar cada símbolo en el simulador
+            for symbol in symbols:
+                # Intentar obtener ticker para inicializar el símbolo
+                ticker = await self.exchange_adapter.get_ticker(symbol)
+                logger.debug(f"Símbolo precargado: {symbol}, precio: {ticker.get('last', 'N/A')}")
+            
+            logger.info(f"Precargados {len(symbols)} símbolos en el simulador")
+            
+        except Exception as e:
+            logger.error(f"Error al precargar símbolos: {str(e)}")
+    
+    async def get_market_data(self, symbol: str) -> Dict[str, Any]:
+        """
+        Obtener datos de mercado para un símbolo.
+        
+        Args:
+            symbol: Símbolo a consultar
+            
+        Returns:
+            Datos de mercado actuales
+        """
+        try:
+            if self.exchange_adapter is None:
+                logger.warning("No hay adaptador de exchange configurado")
+                return {"success": False, "error": "No exchange adapter configured"}
+            
+            # Obtener datos del ticker
+            ticker = await self.exchange_adapter.get_ticker(symbol)
+            
+            # Obtener últimas velas (OHLCV)
+            candles = await self.exchange_adapter.get_candles(
+                symbol=symbol,
+                timeframe="5m",  # Intervalo de 5 minutos
+                limit=20  # Las últimas 20 velas
+            )
+            
+            # Calcular algunas métricas básicas
+            prices = [candle[4] for candle in candles]  # El precio de cierre (índice 4)
+            avg_price = sum(prices) / len(prices) if prices else 0
+            
+            # Calcular tendencia simple
+            if len(prices) >= 2:
+                trend = "UP" if prices[-1] > prices[0] else "DOWN"
+            else:
+                trend = "NEUTRAL"
+            
+            return {
+                "success": True,
+                "symbol": symbol,
+                "last_price": ticker.get("last", 0),
+                "bid": ticker.get("bid", 0),
+                "ask": ticker.get("ask", 0),
+                "volume": ticker.get("volume", 0),
+                "timestamp": ticker.get("timestamp", int(time.time() * 1000)),
+                "avg_price": avg_price,
+                "trend": trend,
+                "candles": candles[:5]  # Solo incluir las últimas 5 velas para no sobrecargar
+            }
+            
+        except Exception as e:
+            logger.error(f"Error al obtener datos de mercado para {symbol}: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def get_symbols(self) -> List[str]:
+        """
+        Obtener lista de símbolos disponibles.
+        
+        Returns:
+            Lista de símbolos
+        """
+        try:
+            if self.exchange_adapter is None:
+                logger.warning("No hay adaptador de exchange configurado")
+                return []
+            
+            # Obtener mercados disponibles
+            markets = await self.exchange_adapter.get_markets()
+            
+            # Extraer símbolos
+            symbols = [market.get("symbol") for market in markets if "symbol" in market]
+            
+            return symbols
+            
+        except Exception as e:
+            logger.error(f"Error al obtener símbolos: {str(e)}")
+            return []
     
     async def process_cycle(self) -> Dict[str, Any]:
         """
