@@ -759,17 +759,79 @@ class SeraphimPool(BaseStrategy):
                 await self.behavior_engine.update_emotional_state("trade_execution", 1.0)
                 logger.debug(f"Estado emocional actualizado a: {self.behavior_engine.emotional_state.name}")
                 
-                # Simular ejecución no simultánea pero influenciada por estado emocional
-                # Los estados impulsivos o confiados tenderán a ejecutar todo juntos
-                # mientras que los cautelosos o ansiosos tenderán a espaciar las órdenes
-                if self.behavior_engine.emotional_state in [
-                    EmotionalState.IMPATIENT, EmotionalState.CONFIDENT
-                ]:
-                    # Menos aleatorización para estados impulsivos
-                    randomization_factor = 0.2
-                else:
-                    # Más aleatorización para estados contemplativos o cautelosos
+                # Determinar el patrón de ejecución basado en el estado emocional
+                emotional_state = self.behavior_engine.emotional_state
+                
+                # Los estados emocionales afectan cómo se ejecutan las operaciones
+                if emotional_state == EmotionalState.IMPATIENT:
+                    # Impaciente: Ejecuta órdenes rápidamente y con poca deliberación
+                    execution_style = "rápido"
+                    randomization_factor = 0.1  # Casi sin aleatorización (ejecuta todo junto)
+                    logger.debug("Patrón de ejecución impaciente: operaciones rápidas y secuenciales")
+                    
+                elif emotional_state == EmotionalState.CONFIDENT:
+                    # Confiado: Ejecuta decisivamente pero con cierto orden estratégico
+                    execution_style = "confiado"
+                    randomization_factor = 0.3
+                    logger.debug("Patrón de ejecución confiado: operaciones decisivas y estratégicas")
+                    
+                elif emotional_state == EmotionalState.CAUTIOUS:
+                    # Cauteloso: Mucho tiempo entre operaciones, muy espaciadas
+                    execution_style = "cauteloso"
+                    randomization_factor = 0.9  # Alta aleatorización (espaciamiento)
+                    logger.debug("Patrón de ejecución cauteloso: operaciones muy espaciadas y deliberadas")
+                    
+                elif emotional_state == EmotionalState.ANXIOUS:
+                    # Ansioso: Operaciones erráticas, a veces rápidas, a veces lentas
+                    execution_style = "ansioso"
+                    randomization_factor = 0.7
+                    # Aleatoriamente puede decidir no ejecutar algunos activos
+                    # Simular duda y decidir no invertir en algunos activos (25% de probabilidad)
+                    filtered_allocations = {}
+                    for symbol, allocation in self.asset_allocations.items():
+                        if random.random() > 0.25:  # 75% de probabilidad de mantener
+                            filtered_allocations[symbol] = allocation
+                        else:
+                            logger.debug(f"Motor Gabriel (ansioso) decidió no invertir en {symbol}")
+                    
+                    # Ajustar asignaciones eliminando algunos activos
+                    if filtered_allocations:  # Asegurarse de no eliminar todos
+                        self.asset_allocations = filtered_allocations
+                    
+                    logger.debug("Patrón de ejecución ansioso: operaciones erráticas con posible omisión")
+                
+                elif emotional_state == EmotionalState.FEARFUL:
+                    # Temeroso: Posible reducción de tamaño de posiciones
+                    execution_style = "temeroso"
                     randomization_factor = 0.8
+                    
+                    # Reducir el tamaño de las posiciones (entre 30% y 60%)
+                    reduction_factor = random.uniform(0.4, 0.7)  # Mantendremos entre 40% y 70%
+                    for symbol in self.asset_allocations:
+                        self.asset_allocations[symbol]["amount"] *= reduction_factor
+                        logger.debug(f"Motor Gabriel (temeroso) redujo posición en {symbol} al {int(reduction_factor*100)}%")
+                    
+                    logger.debug("Patrón de ejecución temeroso: operaciones reducidas en tamaño")
+                
+                else:
+                    # Estado neutro o balanceado
+                    execution_style = "balanceado"
+                    randomization_factor = 0.5
+                    logger.debug("Patrón de ejecución balanceado: operaciones con espaciamiento moderado")
+                
+                # Registrar decisión en métricas de comportamiento
+                execution_metrics = {
+                    "emotional_state": emotional_state.name,
+                    "execution_style": execution_style,
+                    "timestamp": datetime.now().isoformat(),
+                    "cycle_id": self.cycle_id,
+                    "randomization_factor": randomization_factor,
+                    "asset_count": len(self.asset_allocations)
+                }
+                
+                # Podríamos guardar en base de datos para análisis
+                # await self.database.set_data(f"behavior_metrics:{self.cycle_id}:{datetime.now().isoformat()}", 
+                #                             execution_metrics)
                 
                 # Aplicar aleatorización según estado emocional
                 self.asset_allocations = dict(
@@ -779,6 +841,7 @@ class SeraphimPool(BaseStrategy):
                     )
                 )
                 return
+                
             except Exception as e:
                 logger.warning(f"Error al usar motor Gabriel para ejecución: {e}")
                 # Continuar con el método original si falla
@@ -807,10 +870,63 @@ class SeraphimPool(BaseStrategy):
         Returns:
             Diccionario con resultado de validación
         """
-        # Implementar lógica de validación con factor humano
         symbol = order_params.get("symbol", "unknown")
         allocation = order_params.get("quantity", 0) * order_params.get("price", 0)
         
+        # Si tenemos un motor de comportamiento humano Gabriel, usarlo para validación
+        if hasattr(self, 'behavior_engine') and self.behavior_engine:
+            try:
+                # Obtener datos adicionales para validación
+                volatility = await self._get_asset_volatility(symbol)
+                
+                # Preparar contexto para la decisión
+                order_context = {
+                    "symbol": symbol,
+                    "allocation": allocation,
+                    "allocation_percentage": allocation / self.cycle_capital * 100 if self.cycle_capital > 0 else 0,
+                    "available_capital": self.cycle_performance["current_capital"],
+                    "volatility": volatility,
+                    "time_of_day": datetime.now().hour,
+                    "cycle_progress": (datetime.now() - self.cycle_start_time).total_seconds() / self.cycle_duration.total_seconds() if self.cycle_start_time else 0
+                }
+                
+                # Obtener decisión del motor Gabriel
+                decision, reason = await self.behavior_engine.validate_trade(
+                    order_context=order_context
+                )
+                
+                # Gabriel puede rechazar operaciones por razones emocionales o intuitivas
+                if not decision:
+                    logger.debug(f"Gabriel rechazó orden para {symbol}: {reason}")
+                    return {
+                        "valid": False,
+                        "reason": reason
+                    }
+                
+                # Gabriel también podría modificar la orden
+                modified_params = await self.behavior_engine.adjust_order_size(
+                    symbol=symbol,
+                    original_allocation=allocation,
+                    available_capital=self.cycle_performance["current_capital"],
+                    volatility=volatility
+                )
+                
+                if modified_params.get("modified", False):
+                    # Gabriel decidió modificar la orden (cantidad, precio, etc.)
+                    logger.debug(f"Gabriel modificó orden para {symbol}: {modified_params.get('reason', 'ajuste intuitivo')}")
+                    # Actualizar parámetros de la orden
+                    if "quantity" in modified_params:
+                        order_params["quantity"] = modified_params["quantity"]
+                        logger.info(f"Cantidad ajustada para {symbol}: {modified_params['quantity']}")
+                
+                logger.debug(f"Gabriel aprobó orden para {symbol}")
+                return {"valid": True, "params": order_params}
+                
+            except Exception as e:
+                logger.warning(f"Error al usar motor Gabriel para validar orden: {e}")
+                # Continuar con el método original si falla
+        
+        # Método original como fallback
         # Aplicar validaciones simulando criterio humano
         if allocation > self.cycle_capital * 0.5:
             # Un humano raramente pondría más del 50% en un solo activo
@@ -836,7 +952,7 @@ class SeraphimPool(BaseStrategy):
                     "reason": f"Volatility too high for {symbol} in cautious mode: {volatility:.2f}"
                 }
         
-        return {"valid": True}
+        return {"valid": True, "params": order_params}
     
     async def _get_current_price(self, symbol: str) -> float:
         """
