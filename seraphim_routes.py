@@ -136,10 +136,67 @@ def get_orchestrator() -> 'SeraphimOrchestrator':
             async def mock_initialize():
                 logger.info("Simulando inicialización del orquestador")
                 return True
+            
+            # Implementar métodos relacionados con exchange
+            async def mock_verify_exchange_connections():
+                logger.info("Simulando verificación de conexiones a exchanges")
+                return True
+                
+            async def mock_get_market_data(symbol):
+                logger.info(f"Simulando obtención de datos de mercado para {symbol}")
+                return {
+                    "success": True,
+                    "symbol": symbol,
+                    "last_price": 50000.0 if symbol.startswith("BTC") else 3000.0,
+                    "bid": 49900.0 if symbol.startswith("BTC") else 2990.0,
+                    "ask": 50100.0 if symbol.startswith("BTC") else 3010.0,
+                    "volume": 100.0,
+                    "timestamp": int(time.time() * 1000),
+                    "trend": "UP",
+                    "candles": [[int(time.time() * 1000), 50000, 50100, 49900, 50050, 10] for _ in range(5)]
+                }
+                
+            async def mock_get_symbols():
+                logger.info("Simulando obtención de símbolos")
+                return ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "XRP/USDT"]
                 
             # Asignar métodos al orquestador simulado
             mock_orchestrator.randomize_human_behavior = mock_randomize_human_behavior
             mock_orchestrator.initialize = mock_initialize
+            mock_orchestrator._verify_exchange_connections = mock_verify_exchange_connections
+            mock_orchestrator.get_market_data = mock_get_market_data
+            mock_orchestrator.get_symbols = mock_get_symbols
+            mock_orchestrator.state = "SIMULATED"
+            mock_orchestrator.active_cycle_id = None
+            
+            # Crear adaptador simulado
+            exchange_adapter = SimpleNamespace()
+            
+            # Implementar métodos del adaptador
+            async def mock_create_order(**kwargs):
+                return {"success": True, "order_id": "simulated-order-123"}
+                
+            async def mock_cancel_order(**kwargs):
+                return {"success": True, "canceled": True}
+                
+            async def mock_fetch_orders(**kwargs):
+                return {"success": True, "orders": []}
+                
+            async def mock_fetch_open_orders(**kwargs):
+                return {"success": True, "orders": []}
+                
+            async def mock_fetch_closed_orders(**kwargs):
+                return {"success": True, "orders": []}
+            
+            # Asignar métodos al adaptador
+            exchange_adapter.create_order = mock_create_order
+            exchange_adapter.cancel_order = mock_cancel_order
+            exchange_adapter.fetch_orders = mock_fetch_orders
+            exchange_adapter.fetch_open_orders = mock_fetch_open_orders
+            exchange_adapter.fetch_closed_orders = mock_fetch_closed_orders
+            
+            # Asociar adaptador con orquestador
+            mock_orchestrator.exchange_adapter = exchange_adapter
             
             _orchestrator_instance = mock_orchestrator
             
