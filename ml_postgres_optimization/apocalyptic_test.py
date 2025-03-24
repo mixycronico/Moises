@@ -51,26 +51,26 @@ logger = logging.getLogger('APOCALIPSIS')
 # Configuración apocalíptica
 APOCALYPSE_CONFIG = {
     # Parámetros temporales
-    'duration_minutes': 20,                  # Duración antes del fin del mundo
+    'duration_minutes': 2,                   # Duración antes del fin del mundo (reducido para test)
     
     # Capacidad de ataque
-    'max_pool_connections': 1000,            # Conexiones en el pool (brutal)
-    'active_connections': 200,               # Conexiones activas simultáneas
-    'max_operations_per_second': 100000,     # Intentar este número absurdo de ops/s
-    'max_threads': multiprocessing.cpu_count() * 10,  # Hilos 10x núcleos (sobrecarga deliberada)
-    'max_processes': multiprocessing.cpu_count() * 2, # Procesos 2x núcleos
+    'max_pool_connections': 50,              # Conexiones en el pool (reducido para evitar sobrecargar Replit)
+    'active_connections': 20,                # Conexiones activas simultáneas (reducido para evitar sobrecargar Replit)
+    'max_operations_per_second': 500,        # Operaciones por segundo (reducido para evitar sobrecargar Replit)
+    'max_threads': multiprocessing.cpu_count() * 2,   # Hilos 2x núcleos (reducido para evitar sobrecargar Replit)
+    'max_processes': multiprocessing.cpu_count(),     # Procesos = núcleos (reducido para evitar sobrecargar Replit)
 
     # Patrones de ataque
     'attack_patterns': [
         # Nombre                    % de conexiones  % de operaciones  Duración (s)  Probabilidad de fallos
-        ('DEVASTADOR_TOTAL',        1.0,             1.0,              60,           0.0),  # Ataque total sin fallos
-        ('AVALANCHA_CONEXIONES',    1.0,             0.3,              30,           0.0),  # Todas las conexiones, operaciones moderadas
-        ('TSUNAMI_OPERACIONES',     0.3,             1.0,              30,           0.0),  # Pocas conexiones, todas las operaciones
-        ('SOBRECARGA_MEMORIA',      0.5,             0.5,              20,           0.0),  # Consumo de memoria intensivo
-        ('INYECCION_CAOS',          0.7,             0.7,              40,           0.3),  # Inyección de fallos intensiva
-        ('OSCILACION_EXTREMA',      0.1,             1.0,              10,           0.0),  # Cambios bruscos de 10% a 100%
-        ('INTERMITENCIA_BRUTAL',    0.0,             0.0,              5,            0.0),  # Pausa para dar falsa sensación de alivio
-        ('APOCALIPSIS_FINAL',       1.0,             1.0,              90,           0.1),  # Golpe final con todo
+        ('DEVASTADOR_TOTAL',        1.0,             1.0,              10,           0.0),  # Ataque total sin fallos
+        ('AVALANCHA_CONEXIONES',    1.0,             0.3,              10,           0.0),  # Todas las conexiones, operaciones moderadas
+        ('TSUNAMI_OPERACIONES',     0.3,             1.0,              10,           0.0),  # Pocas conexiones, todas las operaciones
+        ('SOBRECARGA_MEMORIA',      0.5,             0.5,              5,            0.0),  # Consumo de memoria intensivo
+        ('INYECCION_CAOS',          0.7,             0.7,              10,           0.3),  # Inyección de fallos intensiva
+        ('OSCILACION_EXTREMA',      0.1,             1.0,              5,            0.0),  # Cambios bruscos de 10% a 100%
+        ('INTERMITENCIA_BRUTAL',    0.0,             0.0,              3,            0.0),  # Pausa para dar falsa sensación de alivio
+        ('APOCALIPSIS_FINAL',       1.0,             1.0,              20,           0.1)   # Golpe final con todo (reducido para test)
     ],
     
     # Tamaños de operaciones
@@ -95,8 +95,8 @@ APOCALYPSE_CONFIG = {
 class MemoryBomb:
     """Clase para consumir memoria de forma agresiva."""
     
-    def __init__(self, size_mb=100):
-        """Inicializar bomba de memoria."""
+    def __init__(self, size_mb=20):
+        """Inicializar bomba de memoria (tamaño reducido para Replit)."""
         self.size_mb = size_mb
         self.data = []
         
@@ -461,8 +461,8 @@ class PostgresqlApocalypse:
         while not self.stop_event.is_set():
             # Decidir si lanzamos bomba de memoria
             if random.random() < 0.3:  # 30% de probabilidad
-                # Decidir tamaño de bomba
-                size_mb = random.randint(50, 200)
+                # Decidir tamaño de bomba (reducido para Replit)
+                size_mb = random.randint(5, 20)
                 
                 logger.debug(f"Lanzando bomba de memoria de {size_mb}MB")
                 bomb = MemoryBomb(size_mb)
