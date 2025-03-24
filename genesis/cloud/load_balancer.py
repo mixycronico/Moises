@@ -475,6 +475,9 @@ class CloudLoadBalancer:
             "last_updated": time.time()
         }
         
+        # Para cálculo de tasa de operaciones
+        self._last_total_operations = 0
+        
         logger.info(f"CloudLoadBalancer '{name}' inicializado con algoritmo {algorithm.name}")
     
     async def initialize(self) -> bool:
