@@ -37,6 +37,7 @@ from genesis.cloud.circuit_breaker_v4 import CloudCircuitBreakerV4
 from genesis.cloud.distributed_checkpoint_v4 import DistributedCheckpointManagerV4
 from genesis.notifications.alert_manager import AlertManager
 from genesis.trading.buddha_integrator import BuddhaIntegrator
+from genesis.trading.human_behavior_engine import GabrielBehaviorEngine, EmotionalState
 
 # Configuración de logging
 logger = logging.getLogger(__name__)
@@ -96,6 +97,7 @@ class SeraphimPool(BaseStrategy):
         self.checkpoint_manager: Optional[DistributedCheckpointManagerV4] = None
         self.alert_manager: Optional[AlertManager] = None
         self.buddha_integrator: Optional[BuddhaIntegrator] = None
+        self.behavior_engine: Optional[GabrielBehaviorEngine] = None
         
         # Estado y configuración
         self.state = SeraphimState.DORMANT
@@ -153,6 +155,7 @@ class SeraphimPool(BaseStrategy):
             self.checkpoint_manager = DistributedCheckpointManagerV4()
             self.alert_manager = AlertManager()
             self.buddha_integrator = BuddhaIntegrator()
+            self.behavior_engine = GabrielBehaviorEngine()
             
             # Inicializar cada componente
             await self.risk_manager.initialize()
@@ -164,6 +167,9 @@ class SeraphimPool(BaseStrategy):
             await self.checkpoint_manager.initialize()
             await self.alert_manager.initialize()
             await self.buddha_integrator.initialize()
+            
+            # Inicializar motor de comportamiento humano
+            await self.behavior_engine.initialize()
             
             # Actualizar estado
             self.state = SeraphimState.CONTEMPLATING
