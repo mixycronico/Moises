@@ -246,12 +246,23 @@ class OrderManager:
     de resiliencia y adaptación al comportamiento humano simulado.
     """
     
-    def __init__(self):
-        """Inicializar el gestor trascendental de órdenes."""
+    def __init__(self, exchange_adapter=None, behavior_engine=None):
+        """
+        Inicializar el gestor trascendental de órdenes.
+        
+        Args:
+            exchange_adapter: Adaptador de exchange principal
+            behavior_engine: Motor de comportamiento humano (Gabriel)
+        """
         self.exchanges = {}  # Diccionario de adaptadores de exchange: {id: adapter}
         self.default_exchange = None  # ID del exchange por defecto
         self.orders = {}  # Diccionario de órdenes: {order_id: Order}
         self.active_orders = set()  # Conjunto de IDs de órdenes activas
+        self.behavior_engine = behavior_engine  # Motor de comportamiento
+        
+        # Registrar el adaptador de exchange si se proporciona
+        if exchange_adapter:
+            self.register_exchange(exchange_adapter, default=True)
         self.completed_orders = set()  # Conjunto de IDs de órdenes completadas
         
         # Estadísticas y métricas divinas
@@ -488,6 +499,51 @@ class OrderManager:
                 "error": f"Error interno: {str(e)}"
             }
     
+    async def get_orders(self, status=None, symbol=None, limit=None) -> Dict[str, Any]:
+        """
+        Obtener órdenes del gestor.
+        
+        Args:
+            status: Filtrar por estado de orden
+            symbol: Filtrar por símbolo
+            limit: Límite de resultados
+            
+        Returns:
+            Diccionario con resultado y órdenes
+        """
+        try:
+            result = []
+            
+            # Aplicar filtros de búsqueda
+            for order_id, order in self.orders.items():
+                # Filtrar por estado si se especifica
+                if status and order.status != status:
+                    continue
+                    
+                # Filtrar por símbolo si se especifica
+                if symbol and order.symbol != symbol:
+                    continue
+                    
+                # Añadir a resultados
+                result.append(order.to_dict())
+                
+                # Limitar resultados si se especifica
+                if limit and len(result) >= limit:
+                    break
+            
+            return {
+                "success": True,
+                "orders": result,
+                "total": len(result)
+            }
+            
+        except Exception as e:
+            logger.error(f"Error obteniendo órdenes: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Error obteniendo órdenes: {str(e)}"
+            }
+            
     async def cancel_order(self, order_id: str) -> Dict[str, Any]:
         """
         Cancelar una orden activa.

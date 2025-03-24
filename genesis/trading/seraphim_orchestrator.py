@@ -550,13 +550,19 @@ class SeraphimOrchestrator:
                     return {"success": False, "error": "OrderManager not available"}
             
             # Colocar orden a través del OrderManager
-            order_result = await self.order_manager.place_order(
-                symbol=symbol,
-                side=side,
-                order_type=order_type,
-                amount=amount,
-                price=price
-            )
+            # Crear diccionario de parámetros para cumplir con la firma del método
+            order_params = {
+                "symbol": symbol,
+                "side": side.name if isinstance(side, OrderSide) else side,
+                "order_type": order_type.name if isinstance(order_type, OrderType) else order_type,
+                "amount": amount
+            }
+            
+            # Añadir precio solo si no es None
+            if price is not None:
+                order_params["price"] = price
+                
+            order_result = await self.order_manager.place_order(order_params)
             
             logger.info(f"Orden colocada: {side.name} {order_type.name} {amount} {symbol} - ID: {order_result.get('order_id', 'unknown')}")
             
