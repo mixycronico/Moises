@@ -18,7 +18,7 @@ import uuid
 from typing import Dict, Any, List, Optional
 
 # Importar directamente desde los módulos donde están definidas las clases
-from genesis.trading.order_manager import OrderManager, OrderSide, OrderType, OrderStatus
+from genesis.trading.codicia_manager import CodiciaManager, OrderSide, OrderType, OrderStatus
 from genesis.trading.seraphim_orchestrator import SeraphimOrchestrator
 from genesis.trading.human_behavior_engine import GabrielBehaviorEngine
 
@@ -32,7 +32,7 @@ logger = logging.getLogger("order_integration_test")
 
 async def run_basic_order_test():
     """Ejecutar prueba básica de órdenes."""
-    logger.info("=== Iniciando prueba de integración entre SeraphimOrchestrator y OrderManager ===")
+    logger.info("=== Iniciando prueba de integración entre SeraphimOrchestrator y CodiciaManager ===")
     
     # Paso 1: Crear orquestador
     # Notamos que SeraphimOrchestrator no acepta parámetros en su constructor según su implementación

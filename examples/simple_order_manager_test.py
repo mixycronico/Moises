@@ -23,10 +23,10 @@ logger = logging.getLogger("simple_order_test")
 async def run_basic_order_test():
     """Ejecutar prueba básica de órdenes."""
     try:
-        logger.info("=== Iniciando prueba simplificada de OrderManager ===")
+        logger.info("=== Iniciando prueba simplificada de CodiciaManager ===")
         
         # Importar las clases necesarias aquí para evitar problemas de dependencias
-        from genesis.trading.order_manager import OrderManager, OrderSide, OrderType, OrderStatus
+        from genesis.trading.codicia_manager import CodiciaManager, OrderSide, OrderType, OrderStatus
         from genesis.exchanges.simulated_exchange_adapter import SimulatedExchangeAdapter
         from genesis.simulators.exchange_simulator import ExchangeSimulator
         
@@ -49,12 +49,12 @@ async def run_basic_order_test():
         
         logger.info("Adaptador de exchange simulado creado y conectado")
         
-        # Paso 3: Crear OrderManager
-        logger.info("Creando OrderManager...")
-        order_manager = OrderManager(exchange_adapter=adapter, behavior_engine=None)
+        # Paso 3: Crear CodiciaManager
+        logger.info("Creando CodiciaManager...")
+        order_manager = CodiciaManager(exchange_adapter=adapter, behavior_engine=None)
         await order_manager.initialize()
         
-        logger.info("OrderManager inicializado correctamente")
+        logger.info("CodiciaManager inicializado correctamente")
         
         # Paso 4: Precargar algunos símbolos
         test_symbol = "BTC/USDT"
@@ -122,7 +122,7 @@ async def run_basic_order_test():
         for i, order in enumerate(final_orders):
             logger.info(f"Orden {i+1}: {order.get('symbol')} {order.get('side')} {order.get('status')} {order.get('amount')}")
         
-        logger.info("=== Prueba simplificada de OrderManager completada exitosamente ===")
+        logger.info("=== Prueba simplificada de CodiciaManager completada exitosamente ===")
     
     except Exception as e:
         logger.error(f"Error ejecutando prueba: {str(e)}")

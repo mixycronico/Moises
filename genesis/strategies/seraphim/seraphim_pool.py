@@ -89,7 +89,7 @@ class SeraphimPool(BaseStrategy):
         
         # Componentes integrados
         self.risk_manager: Optional[AdaptiveRiskManager] = None
-        self.order_manager: Optional[OrderManager] = None
+        self.order_manager: Optional[CodiciaManager] = None
         self.classifier: Optional[TranscendentalCryptoClassifier] = None
         self.capital_manager: Optional[CapitalScalingManager] = None
         self.database: Optional[TranscendentalDatabase] = None
