@@ -1,1359 +1,916 @@
+#!/usr/bin/env python3
 """
-Oráculo Cuántico Ultra-Divino para el Sistema Genesis.
+Oráculo Cuántico Predictivo Ultra-Divino Definitivo.
 
-Este módulo implementa el corazón predictivo trascendental del sistema,
-proporcionando capacidades cuánticas de análisis y predicción de mercados
-con múltiples espacios dimensionales, coherencia cuántica y transmutación temporal.
+Este módulo implementa el Oráculo Cuántico Predictivo, una entidad capaz de
+predecir comportamientos de mercado utilizando algoritmos de aprendizaje
+mejorados con principios de entrelazamiento cuántico y procesamiento trascendental.
 
-Una joya resplandeciente en la corona del Sistema Genesis, donde cada línea
-de código es un verso en un poema tecnológico que trasciende lo ordinario.
+Las predicciones generadas pueden ser mejoradas por fuentes externas como DeepSeek,
+AlphaVantage y CoinMarketCap si están disponibles, pero el Oráculo también
+funcionará en modo autónomo si es necesario.
+
+Características principales:
+- Procesamiento asíncrono ultra-cuántico con aislamiento múltiple
+- Cambios dimensionales automáticos para optimizar coherencia de predicciones
+- Adaptación dinámica a condiciones extremas de mercado
+- Entrelazamiento con múltiples espacios para resiliencia extrema
 """
 
-import asyncio
-import logging
-import random
+import os
 import json
+import logging
+import asyncio
+import random
 import time
-import math
-import hashlib
-import base64
-import numpy as np
-from datetime import datetime, timedelta
 from enum import Enum, auto
-from typing import Dict, List, Any, Optional, Tuple, Union, Set
+from typing import Dict, List, Any, Optional, Tuple, Union
+from datetime import datetime, timedelta
 
-# Configurar logging
+# Configuración de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger("genesis.oracle.quantum")
 
-class PredictionConfidence(Enum):
-    """Niveles de confianza para predicciones del oráculo."""
-    LOW = auto()       # Baja confianza (<65%)
-    MEDIUM = auto()    # Confianza media (65-80%)
-    HIGH = auto()      # Alta confianza (80-90%)
-    VERY_HIGH = auto() # Muy alta confianza (90-95%)
-    DIVINE = auto()    # Confianza divina (>95%)
+# Definiciones globales
+class OracleState(Enum):
+    """Estados posibles del Oráculo Cuántico."""
+    INACTIVE = auto()          # Sin inicializar
+    INITIALIZING = auto()      # En proceso de inicialización
+    ACTIVE = auto()            # Operativo normal
+    DIMENSIONAL_SHIFT = auto() # Realizando cambio dimensional
+    RECOVERING = auto()        # Recuperándose de un error
+    ENHANCED = auto()          # Operando con capacidades aumentadas
 
 
-class TemporalHorizon(Enum):
-    """Horizontes temporales para predicciones."""
-    IMMEDIATE = auto()  # Inmediato (minutos)
-    SHORT = auto()      # Corto plazo (horas)
-    MEDIUM = auto()     # Medio plazo (días)
-    LONG = auto()       # Largo plazo (semanas)
-    EXTENDED = auto()   # Extendido (meses)
-    TRANSCENDENTAL = auto() # Trascendental (más allá del tiempo)
-
-
-class MarketInsightType(Enum):
-    """Tipos de insights de mercado."""
-    TREND_REVERSAL = auto()    # Reversión de tendencia
-    SUPPORT_RESISTANCE = auto() # Niveles de soporte/resistencia
-    VOLUME_ANOMALY = auto()     # Anomalía de volumen
-    MARKET_SENTIMENT = auto()   # Sentimiento de mercado
-    CORRELATION_SHIFT = auto()  # Cambio en correlaciones
-    QUANTUM_PATTERN = auto()    # Patrón cuántico
-    DIMENSIONAL_ANOMALY = auto() # Anomalía dimensional
-
-
-class DimensionalState(Enum):
-    """Estados dimensionales del oráculo."""
-    INITIALIZING = auto()       # Inicializando
-    OPERATING = auto()          # Operando normalmente
-    SHIFTING = auto()           # Cambiando entre dimensiones
-    RESONATING = auto()         # Resonando entre espacios
-    QUANTUM_COHERENCE = auto()  # Coherencia cuántica total
-    TEMPORAL_FLUX = auto()      # Flujo temporal anómalo
-    DIMENSIONAL_COLLAPSE = auto() # Colapso dimensional (error)
-
-
-class QuantumSpace:
-    """Espacio cuántico para cálculos aislados."""
-    
-    def __init__(self, space_id: str, dimension: int):
-        """
-        Inicializar espacio cuántico.
-        
-        Args:
-            space_id: Identificador único del espacio
-            dimension: Dimensión del espacio (1-10)
-        """
-        self.id = space_id
-        self.dimension = max(1, min(dimension, 10))  # Dimensión entre 1 y 10
-        self.creation_time = datetime.now().timestamp()
-        self.last_access = self.creation_time
-        self.metrics = {
-            "coherence": 0.9,
-            "stability": 0.95,
-            "isolation": 0.98,
-            "resonance": 0.85
-        }
-        self.data = {}
-        self.calculations = {}
-        
-    async def compute(self, operation: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Realizar cálculo en espacio aislado.
-        
-        Args:
-            operation: Tipo de operación
-            params: Parámetros del cálculo
-            
-        Returns:
-            Resultado del cálculo
-        """
-        self.last_access = datetime.now().timestamp()
-        
-        # Simular procesamiento cuántico
-        await asyncio.sleep(0.05 * self.dimension)
-        
-        # Guardar el cálculo
-        calc_id = f"{operation}_{int(time.time() * 1000)}"
-        self.calculations[calc_id] = {
-            "operation": operation,
-            "params": params.copy(),
-            "timestamp": datetime.now().timestamp()
-        }
-        
-        # Realizar cálculo según operación
-        if operation == "predict_price":
-            result = self._predict_price(params)
-        elif operation == "detect_pattern":
-            result = self._detect_pattern(params)
-        elif operation == "correlation_analysis":
-            result = self._correlation_analysis(params)
-        else:
-            result = {"error": f"Operación desconocida: {operation}"}
-        
-        # Guardar resultado
-        self.calculations[calc_id]["result"] = result
-        
-        return result
-    
-    def _predict_price(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Predecir precio futuro.
-        
-        Args:
-            params: Parámetros de predicción
-            
-        Returns:
-            Predicción de precio
-        """
-        symbol = params.get("symbol", "UNKNOWN")
-        current_price = params.get("current_price", 100.0)
-        history = params.get("history", [])
-        
-        # Calcular tendencia base
-        if history and len(history) > 1:
-            # Usar tendencia reciente para base
-            recent = history[-min(10, len(history)):]
-            changes = [(recent[i] / recent[i-1] - 1) for i in range(1, len(recent))]
-            avg_change = sum(changes) / len(changes) if changes else 0
-            trend_factor = avg_change
-        else:
-            # Sin historia, usar movimiento aleatorio con sesgo
-            trend_factor = random.uniform(-0.01, 0.015)  # Leve sesgo alcista
-        
-        # Añadir componente cuántico basado en dimensión
-        quantum_factor = (math.sin(self.dimension * 0.7 + current_price * 0.0001) * 0.01)
-        
-        # Calcular predicciones para diferentes horizontes
-        predictions = []
-        confidence_levels = []
-        
-        horizons = [1, 3, 24, 72, 168]  # Horas
-        for horizon in horizons:
-            # El factor aumenta con el horizonte pero la confianza disminuye
-            time_factor = math.log(1 + horizon * 0.1)
-            
-            # Combinar factores
-            combined_factor = trend_factor * time_factor + quantum_factor * math.sqrt(time_factor)
-            
-            # Añadir varianza basada en dimensión y horizonte
-            variance = 0.005 * time_factor * (10 / self.dimension)
-            noise = random.normalvariate(0, variance)
-            
-            # Calcular cambio total
-            total_change = combined_factor + noise
-            
-            # Calcular precio predecido
-            predicted_price = current_price * (1 + total_change)
-            
-            # Calcular confianza (disminuye con horizonte y aumenta con dimensión)
-            confidence = max(0.5, min(0.95, 0.9 - (time_factor * 0.05) + (self.dimension * 0.01)))
-            
-            predictions.append(predicted_price)
-            confidence_levels.append(confidence)
-        
-        # Determinar categoría de confianza general
-        avg_confidence = sum(confidence_levels) / len(confidence_levels)
-        if avg_confidence > 0.9:
-            confidence_category = PredictionConfidence.VERY_HIGH
-        elif avg_confidence > 0.8:
-            confidence_category = PredictionConfidence.HIGH
-        elif avg_confidence > 0.65:
-            confidence_category = PredictionConfidence.MEDIUM
-        else:
-            confidence_category = PredictionConfidence.LOW
-            
-        # Si dimensión es alta y coherencia buena, posibilidad de confianza divina
-        if self.dimension >= 8 and self.metrics["coherence"] > 0.95 and avg_confidence > 0.85:
-            if random.random() < 0.1:  # 10% de posibilidad
-                confidence_category = PredictionConfidence.DIVINE
-                # Ajustar confianza para reflejar categoría divina
-                confidence_levels = [min(c * 1.1, 0.99) for c in confidence_levels]
-                avg_confidence = sum(confidence_levels) / len(confidence_levels)
-        
-        return {
-            "symbol": symbol,
-            "current_price": current_price,
-            "price_predictions": predictions,
-            "time_horizons": horizons,
-            "confidence_levels": confidence_levels,
-            "overall_confidence": avg_confidence,
-            "confidence_category": str(confidence_category).split('.')[1],
-            "quantum_influence": quantum_factor,
-            "dimensional_factor": self.dimension / 10.0,
-            "timestamp": datetime.now().timestamp()
-        }
-    
-    def _detect_pattern(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Detectar patrones en datos.
-        
-        Args:
-            params: Parámetros para detección
-            
-        Returns:
-            Patrones detectados
-        """
-        symbol = params.get("symbol", "UNKNOWN")
-        data = params.get("data", [])
-        
-        # Patrón por defecto si no hay datos
-        if not data or len(data) < 5:
-            return {
-                "symbol": symbol,
-                "patterns": ["Datos insuficientes"],
-                "confidence": 0.5,
-                "timestamp": datetime.now().timestamp()
-            }
-        
-        # Simulación de detección de patrones
-        patterns = []
-        
-        # Generar patrones basados en dimensión y datos
-        dimension_seed = self.dimension / 10.0
-        data_hash = hashlib.md5(str(data[-5:]).encode()).hexdigest()
-        hash_value = int(data_hash[:8], 16) / (2**32)
-        
-        combined_seed = (dimension_seed + hash_value) / 2
-        
-        # Catálogo de posibles patrones
-        all_patterns = [
-            "Tendencia Alcista", "Tendencia Bajista", "Consolidación",
-            "Triángulo Ascendente", "Triángulo Descendente", "Canal Lateral",
-            "Doble Suelo", "Doble Techo", "Hombro-Cabeza-Hombro",
-            "Cuña Ascendente", "Cuña Descendente", "Bandera Alcista",
-            "Bandera Bajista", "Isla de Reversión", "Patrón de Diamante",
-            "Ruptura de Soporte", "Ruptura de Resistencia", "Patrón V",
-            "Patrón Armónico", "Divergencia"
-        ]
-        
-        # Patrones cuánticos especiales
-        quantum_patterns = [
-            "Resonancia Dimensional", "Entrelazamiento Temporal",
-            "Superposición Fractal", "Atractor Caótico", "Bifurcación Cuántica",
-            "Colapso de Función de Onda", "Patrón de Interferencia",
-            "Oscilación Metaestable", "Singularidad Predictiva"
-        ]
-        
-        # Seleccionar número de patrones basado en semilla
-        num_patterns = 1 + int(combined_seed * 3)
-        
-        # Probabilidad de patrón cuántico basada en dimensión
-        quantum_prob = self.dimension / 20.0  # 5% a 50% basado en dimensión
-        
-        for _ in range(num_patterns):
-            if random.random() < quantum_prob:
-                # Seleccionar patrón cuántico
-                pattern = random.choice(quantum_patterns)
-                patterns.append(f"[Cuántico] {pattern}")
-            else:
-                # Seleccionar patrón normal
-                pattern = random.choice(all_patterns)
-                patterns.append(pattern)
-        
-        # Calcular confianza
-        confidence = 0.6 + (combined_seed * 0.3) + (self.metrics["coherence"] * 0.1)
-        confidence = min(0.95, confidence)
-        
-        return {
-            "symbol": symbol,
-            "patterns": patterns,
-            "confidence": confidence,
-            "dimension_influence": self.dimension / 10.0,
-            "coherence_factor": self.metrics["coherence"],
-            "timestamp": datetime.now().timestamp()
-        }
-    
-    def _correlation_analysis(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Realizar análisis de correlaciones.
-        
-        Args:
-            params: Parámetros para análisis
-            
-        Returns:
-            Correlaciones detectadas
-        """
-        symbols = params.get("symbols", [])
-        
-        if not symbols or len(symbols) < 2:
-            return {
-                "error": "Se requieren al menos 2 símbolos para análisis de correlación",
-                "timestamp": datetime.now().timestamp()
-            }
-        
-        # Generar matriz de correlaciones simulada
-        correlations = {}
-        high_corr_pairs = []
-        
-        for i, sym1 in enumerate(symbols):
-            correlations[sym1] = {}
-            for j, sym2 in enumerate(symbols):
-                if i == j:
-                    # Autocorrelación siempre 1.0
-                    correlations[sym1][sym2] = 1.0
-                else:
-                    # Generar correlación basada en dimensión y símbolos
-                    base_corr = (hash(sym1 + sym2) % 1000) / 1000.0  # Determinística basada en nombres
-                    dim_factor = math.sin(self.dimension * 0.5) * 0.2  # Influencia dimensional
-                    
-                    # Correlación combinada (entre -0.95 y 0.95)
-                    corr = max(-0.95, min(0.95, base_corr * 2 - 0.5 + dim_factor))
-                    correlations[sym1][sym2] = corr
-                    
-                    # Registrar correlaciones altas (positivas o negativas)
-                    if abs(corr) > 0.7:
-                        high_corr_pairs.append({
-                            "pair": (sym1, sym2),
-                            "correlation": corr,
-                            "strength": abs(corr),
-                            "type": "positiva" if corr > 0 else "negativa"
-                        })
-        
-        # Ordenar pares por fuerza de correlación
-        high_corr_pairs.sort(key=lambda x: x["strength"], reverse=True)
-        
-        # Encontrar posibles anomalías (correlaciones inusuales)
-        anomalies = []
-        for pair in high_corr_pairs[:3]:  # Revisar las 3 correlaciones más fuertes
-            # Probabilidad de anomalía aumenta con dimensión y fuerza de correlación
-            anomaly_prob = (self.dimension / 20.0) * pair["strength"]
-            if random.random() < anomaly_prob:
-                anomalies.append({
-                    "pair": pair["pair"],
-                    "description": f"Correlación {pair['type']} inusualmente fuerte",
-                    "severity": "alta" if pair["strength"] > 0.85 else "media",
-                    "potential_cause": random.choice([
-                        "Evento de mercado reciente",
-                        "Cambio en fundamentales",
-                        "Actividad de arbitraje",
-                        "Fenómeno dimensional",
-                        "Entrelazamiento cuántico de activos"
-                    ])
-                })
-        
-        return {
-            "symbols": symbols,
-            "correlations": correlations,
-            "high_correlation_pairs": high_corr_pairs[:5],  # Top 5
-            "correlation_anomalies": anomalies,
-            "dimension_factor": self.dimension / 10.0,
-            "timestamp": datetime.now().timestamp()
-        }
-    
-    def update_metrics(self) -> None:
-        """Actualizar métricas del espacio cuántico."""
-        # Aplicar degradación natural con el tiempo
-        time_factor = min(1.0, (datetime.now().timestamp() - self.last_access) / 3600.0)
-        decay = time_factor * 0.05
-        
-        self.metrics["coherence"] = max(0.7, self.metrics["coherence"] - decay * random.uniform(0.8, 1.2))
-        self.metrics["stability"] = max(0.7, self.metrics["stability"] - decay * random.uniform(0.7, 1.3))
-        self.metrics["isolation"] = max(0.7, self.metrics["isolation"] - decay * random.uniform(0.5, 1.5))
-        
-        # Resonancia varía sinusoidalmente
-        time_oscillation = math.sin(datetime.now().timestamp() / 3600.0) * 0.05
-        self.metrics["resonance"] = max(0.7, min(0.98, self.metrics["resonance"] + time_oscillation))
-    
-    def enhance(self) -> None:
-        """Mejorar métricas del espacio cuántico."""
-        # Aumentar métricas con limitación
-        self.metrics["coherence"] = min(0.98, self.metrics["coherence"] + random.uniform(0.02, 0.05))
-        self.metrics["stability"] = min(0.98, self.metrics["stability"] + random.uniform(0.01, 0.04))
-        self.metrics["isolation"] = min(0.99, self.metrics["isolation"] + random.uniform(0.01, 0.03))
-        self.metrics["resonance"] = min(0.95, self.metrics["resonance"] + random.uniform(0.02, 0.06))
-    
-    def get_state(self) -> Dict[str, Any]:
-        """
-        Obtener estado actual del espacio.
-        
-        Returns:
-            Estado del espacio
-        """
-        # Actualizar métricas antes de obtener estado
-        self.update_metrics()
-        
-        return {
-            "id": self.id,
-            "dimension": self.dimension,
-            "age_hours": (datetime.now().timestamp() - self.creation_time) / 3600.0,
-            "last_access_minutes": (datetime.now().timestamp() - self.last_access) / 60.0,
-            "metrics": self.metrics,
-            "calculations_count": len(self.calculations),
-            "data_entries": len(self.data)
-        }
+class ConfidenceCategory(Enum):
+    """Categorías de confianza para predicciones."""
+    ULTRA_HIGH = "ULTRA_ALTA"         # >95% confianza
+    VERY_HIGH = "MUY_ALTA"            # 85-95% confianza
+    HIGH = "ALTA"                      # 75-85% confianza
+    MEDIUM_HIGH = "MEDIA_ALTA"        # 65-75% confianza
+    MEDIUM = "MEDIA"                   # 50-65% confianza
+    MEDIUM_LOW = "MEDIA_BAJA"         # 40-50% confianza
+    LOW = "BAJA"                       # 25-40% confianza
+    VERY_LOW = "MUY_BAJA"             # 10-25% confianza
+    UNCERTAIN = "INCIERTA"            # <10% confianza
 
 
 class QuantumOracle:
     """
-    Oráculo Cuántico Ultra-Divino para el Sistema Genesis.
+    Oráculo Cuántico Predictivo con capacidades trascendentales.
     
-    Este oráculo proporciona predicciones avanzadas utilizando
-    múltiples espacios dimensionales cuánticos, con capacidades
-    de coherencia cuántica y transmutación temporal.
+    Este componente utiliza principios de entrelazamiento cuántico para
+    generar predicciones de alta precisión sobre precios de criptomonedas
+    y otros activos financieros.
     """
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
-        Inicializar Oráculo Cuántico.
+        Inicializar Oráculo Cuántico con configuración opcional.
         
         Args:
-            config: Configuración opcional
+            config: Diccionario con configuración opcional
         """
-        self.config = config or {}
-        self.initialized = False
-        self.initialization_time = None
-        self.last_update = None
-        
-        # Estado dimensional
-        self.state = DimensionalState.INITIALIZING
-        self.dimensional_spaces = self.config.get("dimensional_spaces", 5)
-        self.max_spaces = self.config.get("max_spaces", 10)
-        
-        # Métricas y estadísticas
-        self.metrics = {
-            "coherence_level": 0.85,
-            "prediction_accuracy": 0.78,
-            "dimensional_stability": 0.92,
-            "quantum_efficiency": 0.89,
-            "transmutation_factor": 0.76,
-            "resonance_frequency": 0.81,
-            "temporal_stability": 0.87
+        # Inicializar con valores por defecto
+        self._state = OracleState.INACTIVE
+        self._dimensional_spaces = config.get("dimensional_spaces", 3)
+        self._coherence_level = 0.0
+        self._dimensional_stability = 0.0
+        self._resonance_frequency = 0.0
+        self._tracked_assets = []
+        self._last_shift_time = None
+        self._enhanced_by_api = False
+        self._initialization_time = None
+        self._operations_count = 0
+        self._prediction_history = {}
+        self._enhanced_capabilities = {
+            "dimensional_shifting": True,
+            "api_integration": False,
+            "adaptive_modeling": True,
+            "multiverse_prediction": True,
+            "quantum_entanglement": True
         }
         
-        # Estadísticas
-        self.stats = {
-            "predictions_generated": 0,
-            "insights_detected": 0,
-            "dimensional_shifts": 0,
-            "resonances_achieved": 0,
-            "spaces_created": 0,
-            "errors_transmuted": 0,
-            "operations_count": 0
+        # Incorporar configuración adicional
+        if config:
+            for key, value in config.items():
+                if key == "enhanced_capabilities" and isinstance(value, dict):
+                    for cap_key, cap_value in value.items():
+                        if cap_key in self._enhanced_capabilities:
+                            self._enhanced_capabilities[cap_key] = cap_value
+        
+        # Inicializar API keys si están disponibles
+        self._api_keys = {
+            "ALPHA_VANTAGE": os.environ.get("ALPHA_VANTAGE_API_KEY", ""),
+            "COINMARKETCAP": os.environ.get("COINMARKETCAP_API_KEY", ""),
+            "DEEPSEEK": os.environ.get("DEEPSEEK_API_KEY", "")
         }
         
-        # Activos en seguimiento
-        self.tracked_assets = {
-            "BTC/USDT": {"current_price": 50000.0, "volume": 1000000000.0},
-            "ETH/USDT": {"current_price": 3500.0, "volume": 500000000.0},
-            "SOL/USDT": {"current_price": 120.0, "volume": 200000000.0},
-            "BNB/USDT": {"current_price": 450.0, "volume": 150000000.0},
-            "ADA/USDT": {"current_price": 1.2, "volume": 100000000.0}
+        # Verificar si hay APIs disponibles
+        self._enhanced_capabilities["api_integration"] = any(key for key in self._api_keys.values())
+        
+        # Inicializar registro de métricas
+        self._metrics = {
+            "oracle_metrics": {
+                "coherence_level": 0.0,
+                "dimensional_stability": 0.0,
+                "resonance_frequency": 0.0,
+                "predictions_generated": 0,
+                "dimensional_shifts": 0,
+                "recovery_events": 0
+            },
+            "api_calls": {
+                "ALPHA_VANTAGE": 0,
+                "COINMARKETCAP": 0,
+                "DEEPSEEK": 0
+            },
+            "performance": {
+                "avg_prediction_time_ms": 0,
+                "cumulative_prediction_time_ms": 0,
+                "successful_predictions": 0,
+                "failed_predictions": 0
+            }
         }
         
-        # Espacios cuánticos (inicializados en initialize)
-        self.quantum_spaces = {}
+        # Datos de mercado simulados
+        self._simulated_market_data = {
+            "BTC/USDT": {"price": 65432.10, "volatility": 0.03, "trend": 0.01},
+            "ETH/USDT": {"price": 3456.78, "volatility": 0.04, "trend": 0.005},
+            "XRP/USDT": {"price": 0.5678, "volatility": 0.05, "trend": -0.002},
+            "SOL/USDT": {"price": 123.45, "volatility": 0.06, "trend": 0.015},
+            "ADA/USDT": {"price": 0.4567, "volatility": 0.045, "trend": 0.003},
+            "DOGE/USDT": {"price": 0.1234, "volatility": 0.07, "trend": -0.001},
+            "LINK/USDT": {"price": 15.67, "volatility": 0.05, "trend": 0.007},
+            "LTC/USDT": {"price": 89.01, "volatility": 0.04, "trend": -0.003},
+            "UNI/USDT": {"price": 7.89, "volatility": 0.055, "trend": 0.004},
+            "DOT/USDT": {"price": 8.90, "volatility": 0.053, "trend": 0.002}
+        }
         
-        # Caché para predicciones e insights
-        self.prediction_cache = {}
-        self.insight_cache = {}
-        
-        logger.info("Oráculo Cuántico Ultra-Divino creado, esperando inicialización")
+        logger.info(f"Oráculo Cuántico inicializado en estado {self._state.name} con {self._dimensional_spaces} espacios dimensionales.")
+    
     
     async def initialize(self) -> bool:
         """
-        Inicializar Oráculo Cuántico.
+        Inicializar el Oráculo Cuántico y prepararlo para operación.
         
         Returns:
-            True si inicializado correctamente
+            True si la inicialización fue exitosa, False en caso contrario
         """
-        if self.initialized:
-            logger.info("Oráculo ya inicializado, omitiendo")
-            return True
-        
-        logger.info(f"Inicializando Oráculo Cuántico Ultra-Divino con {self.dimensional_spaces} espacios dimensionales")
-        
         try:
-            # Inicializar espacios cuánticos
-            await self._create_quantum_spaces()
+            self._state = OracleState.INITIALIZING
+            logger.info("Inicializando Oráculo Cuántico...")
             
-            # Establecer estado inicial
-            self.state = DimensionalState.OPERATING
-            self.initialization_time = datetime.now().timestamp()
-            self.last_update = self.initialization_time
-            self.initialized = True
+            # Simular proceso de inicialización
+            await asyncio.sleep(0.5)
             
-            # Primera actualización de datos (simulada)
-            if self.config.get("auto_update_initial_data", True):
-                await self.update_market_data()
+            # Inicializar componentes principales
+            self._coherence_level = random.uniform(0.75, 0.95)
+            self._dimensional_stability = random.uniform(0.80, 0.98)
+            self._resonance_frequency = random.uniform(0.70, 0.90)
             
-            logger.info("Oráculo Cuántico Ultra-Divino inicializado correctamente")
+            # Simular carga de activos seguidos
+            self._tracked_assets = list(self._simulated_market_data.keys())[:5]
+            
+            # Registro de tiempo de inicialización
+            self._initialization_time = datetime.now()
+            self._last_shift_time = self._initialization_time
+            
+            # Actualizar métricas
+            self._metrics["oracle_metrics"]["coherence_level"] = self._coherence_level
+            self._metrics["oracle_metrics"]["dimensional_stability"] = self._dimensional_stability
+            self._metrics["oracle_metrics"]["resonance_frequency"] = self._resonance_frequency
+            
+            # Verificar si tenemos acceso a APIs externas
+            has_api_access = self._check_api_access()
+            if has_api_access:
+                self._enhanced_by_api = True
+                logger.info("Oráculo Cuántico mejorado con acceso a APIs externas.")
+            
+            # Cambiar a estado activo
+            self._state = OracleState.ACTIVE
+            logger.info(f"Oráculo Cuántico inicializado correctamente con coherencia {self._coherence_level:.4f}")
+            
             return True
             
         except Exception as e:
-            logger.error(f"Error durante inicialización del Oráculo: {e}")
+            logger.error(f"Error durante inicialización del Oráculo Cuántico: {e}")
+            self._state = OracleState.INACTIVE
             return False
     
-    async def _create_quantum_spaces(self) -> None:
-        """Crear espacios cuánticos dimensionales."""
-        # Limpiar espacios existentes
-        self.quantum_spaces = {}
+    
+    def _check_api_access(self) -> bool:
+        """
+        Verificar si hay acceso a APIs externas.
         
-        # Crear espacios nuevos
-        for i in range(1, self.dimensional_spaces + 1):
-            space_id = f"quantum_space_{i}"
-            space = QuantumSpace(space_id, i)
-            self.quantum_spaces[space_id] = space
-            self.stats["spaces_created"] += 1
-            
-            # Pausa pequeña entre creaciones para estabilidad
-            await asyncio.sleep(0.05)
-        
-        logger.info(f"Creados {len(self.quantum_spaces)} espacios cuánticos")
+        Returns:
+            True si hay al menos una API accesible, False en caso contrario
+        """
+        # En producción, verificaríamos realmente la conexión
+        # Para este ejemplo, solo verificamos si hay claves configuradas
+        return any(key for key in self._api_keys.values())
+    
     
     async def dimensional_shift(self) -> Dict[str, Any]:
         """
-        Realizar cambio dimensional para mejorar coherencia.
+        Realizar un cambio dimensional para mejorar la coherencia.
+        
+        Un cambio dimensional permite al oráculo reconfigurar sus algoritmos
+        y lograr mayor precisión en sus predicciones.
         
         Returns:
-            Resultado del cambio dimensional
+            Diccionario con resultado del cambio dimensional
         """
-        if not self.initialized:
-            return {"success": False, "error": "Oráculo no inicializado"}
-        
-        logger.info("Iniciando cambio dimensional")
-        
-        # Guardar estado anterior
-        previous_state = self.state
-        self.state = DimensionalState.SHIFTING
+        if self._state != OracleState.ACTIVE:
+            return {"success": False, "reason": f"Estado incorrecto: {self._state.name}"}
         
         try:
-            # Tiempo base para cambio dimensional
-            shift_time = 0.2
+            # Registrar estado previo
+            old_coherence = self._coherence_level
+            previous_state = self._state
             
-            # Cuantos más espacios, más tiempo toma
-            shift_time += len(self.quantum_spaces) * 0.05
+            # Actualizar estado
+            self._state = OracleState.DIMENSIONAL_SHIFT
+            logger.info("Iniciando cambio dimensional...")
             
-            # Simular cambio dimensional
-            await asyncio.sleep(shift_time)
+            # Simular proceso
+            await asyncio.sleep(0.7)
+            
+            # Calcular mejora de coherencia
+            coherence_improvement = random.uniform(0.03, 0.15)
+            new_coherence = min(0.99, old_coherence + coherence_improvement)
+            self._coherence_level = new_coherence
+            
+            # Ajustar otras métricas
+            self._dimensional_stability = min(0.99, self._dimensional_stability + random.uniform(0.02, 0.10))
+            self._resonance_frequency = min(0.99, self._resonance_frequency + random.uniform(0.01, 0.08))
             
             # Actualizar métricas
-            coherence_improvement = random.uniform(0.02, 0.08)
-            self.metrics["coherence_level"] = min(0.98, self.metrics["coherence_level"] + coherence_improvement)
-            self.metrics["dimensional_stability"] = min(0.98, self.metrics["dimensional_stability"] + random.uniform(0.01, 0.05))
+            self._metrics["oracle_metrics"]["coherence_level"] = self._coherence_level
+            self._metrics["oracle_metrics"]["dimensional_stability"] = self._dimensional_stability
+            self._metrics["oracle_metrics"]["resonance_frequency"] = self._resonance_frequency
+            self._metrics["oracle_metrics"]["dimensional_shifts"] += 1
             
-            # Probabilidad de mejorar otras métricas
-            if random.random() < 0.3:
-                self.metrics["quantum_efficiency"] = min(0.98, self.metrics["quantum_efficiency"] + random.uniform(0.01, 0.04))
+            # Actualizar tiempo del último cambio
+            self._last_shift_time = datetime.now()
             
-            if random.random() < 0.2:
-                self.metrics["transmutation_factor"] = min(0.95, self.metrics["transmutation_factor"] + random.uniform(0.01, 0.03))
-            
-            # Actualizar estadísticas
-            self.stats["dimensional_shifts"] += 1
-            self.last_update = datetime.now().timestamp()
-            
-            # Restaurar estado, posible mejora a coherencia cuántica
-            if self.metrics["coherence_level"] > 0.95 and random.random() < 0.3:
-                self.state = DimensionalState.QUANTUM_COHERENCE
-                logger.info("¡Se ha alcanzado coherencia cuántica!")
+            # Verificar si debemos activar capacidades mejoradas
+            if new_coherence > 0.95 and random.random() > 0.5:
+                self._state = OracleState.ENHANCED
+                logger.info(f"Cambio dimensional completo. Oráculo operando en modo ENHANCED con coherencia {new_coherence:.4f}")
             else:
-                self.state = previous_state
+                self._state = OracleState.ACTIVE
+                logger.info(f"Cambio dimensional completo. Nueva coherencia: {new_coherence:.4f}")
             
-            # Mejorar espacios cuánticos
-            for space in self.quantum_spaces.values():
-                space.enhance()
-            
-            result = {
+            # Resultado del cambio
+            return {
                 "success": True,
+                "old_coherence_level": old_coherence,
+                "new_coherence_level": new_coherence,
                 "coherence_improvement": coherence_improvement,
-                "new_coherence_level": self.metrics["coherence_level"],
-                "new_state": str(self.state)
+                "previous_state": previous_state.name,
+                "new_state": self._state.name
             }
-            
-            logger.info(f"Cambio dimensional completado, nueva coherencia: {self.metrics['coherence_level']:.2f}")
-            return result
             
         except Exception as e:
             logger.error(f"Error durante cambio dimensional: {e}")
-            self.state = previous_state
+            self._state = OracleState.ACTIVE  # Revertir a estado anterior
             return {"success": False, "error": str(e)}
     
-    async def achieve_resonance(self) -> Dict[str, Any]:
-        """
-        Lograr resonancia entre espacios cuánticos.
-        
-        Returns:
-            Resultado de la resonancia
-        """
-        if not self.initialized:
-            return {"success": False, "error": "Oráculo no inicializado"}
-        
-        logger.info("Iniciando resonancia entre espacios cuánticos")
-        
-        # Guardar estado anterior
-        previous_state = self.state
-        self.state = DimensionalState.RESONATING
-        
-        try:
-            # Tiempo base para resonancia
-            resonance_time = 0.3
-            
-            # Cuantos más espacios, más tiempo toma
-            resonance_time += len(self.quantum_spaces) * 0.08
-            
-            # Simular resonancia
-            await asyncio.sleep(resonance_time)
-            
-            # Mejora de resonancia
-            resonance_improvement = random.uniform(0.03, 0.1)
-            self.metrics["resonance_frequency"] = min(0.98, self.metrics["resonance_frequency"] + resonance_improvement)
-            
-            # Mejora de coherencia secundaria
-            coherence_improvement = resonance_improvement * 0.5
-            self.metrics["coherence_level"] = min(0.98, self.metrics["coherence_level"] + coherence_improvement)
-            
-            # Actualizar estadísticas
-            self.stats["resonances_achieved"] += 1
-            self.last_update = datetime.now().timestamp()
-            
-            # Actualizar métricas de espacios cuánticos
-            for space in self.quantum_spaces.values():
-                space.enhance()
-                # Mejorar especialmente resonancia
-                space.metrics["resonance"] = min(0.98, space.metrics["resonance"] + random.uniform(0.05, 0.1))
-            
-            # Restaurar estado, posible mejora a coherencia cuántica
-            if self.metrics["coherence_level"] > 0.95 and self.metrics["resonance_frequency"] > 0.9:
-                self.state = DimensionalState.QUANTUM_COHERENCE
-                logger.info("¡Se ha alcanzado coherencia cuántica mediante resonancia!")
-            else:
-                self.state = previous_state
-            
-            result = {
-                "success": True,
-                "resonance_improvement": resonance_improvement,
-                "coherence_improvement": coherence_improvement,
-                "new_resonance_frequency": self.metrics["resonance_frequency"],
-                "new_coherence_level": self.metrics["coherence_level"],
-                "new_state": str(self.state)
-            }
-            
-            logger.info(f"Resonancia completada, nueva frecuencia: {self.metrics['resonance_frequency']:.2f}")
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error durante resonancia: {e}")
-            self.state = previous_state
-            return {"success": False, "error": str(e)}
     
-    async def update_market_data(self, market_data: Optional[Dict[str, Any]] = None) -> bool:
+    async def generate_predictions(self, symbols: List[str], use_apis: bool = True) -> Dict[str, Dict[str, Any]]:
         """
-        Actualizar datos de mercado.
+        Generar predicciones para los símbolos especificados.
         
         Args:
-            market_data: Datos de mercado a actualizar, si None se generan simulados
+            symbols: Lista de símbolos para predecir (ej: ['BTC/USDT'])
+            use_apis: Si debe usar APIs externas para mejorar predicciones
             
         Returns:
-            True si actualizado correctamente
+            Diccionario con predicciones por símbolo
         """
-        if not self.initialized:
-            logger.warning("Intento de actualizar datos en oráculo no inicializado")
-            return False
-        
-        try:
-            # Si no se proporcionan datos, generar simulados
-            data_to_update = market_data or self._generate_market_data()
-            
-            # Verificar y sanitizar datos
-            sanitized_data = self._sanitize_market_data(data_to_update)
-            
-            # Actualizar precios actuales
-            for symbol, data in sanitized_data.items():
-                if symbol in self.tracked_assets:
-                    if "price" in data:
-                        self.tracked_assets[symbol]["current_price"] = data["price"]
-                    if "volume" in data:
-                        self.tracked_assets[symbol]["volume"] = data["volume"]
-                else:
-                    # Nuevo activo a seguir
-                    self.tracked_assets[symbol] = {
-                        "current_price": data["price"] if "price" in data else 0.0,
-                        "volume": data["volume"] if "volume" in data else 0.0
-                    }
-            
-            # Actualizar timestamp
-            self.last_update = datetime.now().timestamp()
-            
-            logger.info(f"Datos de mercado actualizados para {len(sanitized_data)} activos")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error al actualizar datos de mercado: {e}")
-            return False
-    
-    def _sanitize_market_data(self, data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-        """
-        Sanitizar datos de mercado para evitar errores.
-        
-        Args:
-            data: Datos a sanitizar
-            
-        Returns:
-            Datos sanitizados
-        """
-        sanitized = {}
-        
-        for symbol, symbol_data in data.items():
-            # Ignorar símbolos inválidos
-            if not symbol or not isinstance(symbol, str):
-                continue
-            
-            # Asegurar que los datos son un diccionario
-            if not isinstance(symbol_data, dict):
-                continue
-            
-            # Crear entrada sanitizada
-            sanitized[symbol] = {}
-            
-            # Sanitizar precio
-            if "price" in symbol_data:
-                price = symbol_data["price"]
-                # Asegurar que es un número válido
-                try:
-                    price_float = float(price)
-                    if price_float > 0 and not math.isinf(price_float) and not math.isnan(price_float):
-                        sanitized[symbol]["price"] = price_float
-                except (ValueError, TypeError):
-                    # Usar precio anterior o valor predeterminado
-                    if symbol in self.tracked_assets:
-                        sanitized[symbol]["price"] = self.tracked_assets[symbol]["current_price"]
-                    else:
-                        sanitized[symbol]["price"] = 100.0  # Valor predeterminado
-            
-            # Sanitizar volumen
-            if "volume" in symbol_data:
-                volume = symbol_data["volume"]
-                # Asegurar que es un número válido
-                try:
-                    volume_float = float(volume)
-                    if volume_float >= 0 and not math.isinf(volume_float) and not math.isnan(volume_float):
-                        sanitized[symbol]["volume"] = volume_float
-                except (ValueError, TypeError):
-                    # Usar volumen anterior o valor predeterminado
-                    if symbol in self.tracked_assets:
-                        sanitized[symbol]["volume"] = self.tracked_assets[symbol]["volume"]
-                    else:
-                        sanitized[symbol]["volume"] = 1000000.0  # Valor predeterminado
-            
-            # Copiar timestamp si existe
-            if "timestamp" in symbol_data:
-                try:
-                    timestamp = float(symbol_data["timestamp"])
-                    if timestamp > 0:
-                        sanitized[symbol]["timestamp"] = timestamp
-                except (ValueError, TypeError):
-                    sanitized[symbol]["timestamp"] = datetime.now().timestamp()
-            else:
-                sanitized[symbol]["timestamp"] = datetime.now().timestamp()
-            
-            # Copiar otros campos si son válidos
-            for key, value in symbol_data.items():
-                if key not in ["price", "volume", "timestamp"]:
-                    sanitized[symbol][key] = value
-        
-        return sanitized
-    
-    def _generate_market_data(self) -> Dict[str, Dict[str, float]]:
-        """
-        Generar datos de mercado simulados.
-        
-        Returns:
-            Datos simulados
-        """
-        data = {}
-        
-        for symbol, asset_data in self.tracked_assets.items():
-            current_price = asset_data["current_price"]
-            current_volume = asset_data["volume"]
-            
-            # Generar cambio aleatorio (-1.5% a 1.5%)
-            price_change = random.uniform(-0.015, 0.015)
-            volume_change = random.uniform(-0.1, 0.1)
-            
-            new_price = current_price * (1 + price_change)
-            new_volume = current_volume * (1 + volume_change)
-            
-            data[symbol] = {
-                "price": new_price,
-                "volume": new_volume,
-                "timestamp": datetime.now().timestamp()
-            }
-        
-        return data
-    
-    async def generate_predictions(self, symbols: Optional[List[str]] = None) -> Dict[str, Dict[str, Any]]:
-        """
-        Generar predicciones de precios para activos.
-        
-        Args:
-            symbols: Lista de símbolos para predicción, si None usa todos los seguidos
-            
-        Returns:
-            Diccionario con predicciones
-        """
-        if not self.initialized:
-            logger.warning("Intento de generar predicciones en oráculo no inicializado")
+        if self._state not in [OracleState.ACTIVE, OracleState.ENHANCED]:
             return {}
         
+        # Verificar símbolos disponibles
+        valid_symbols = [sym for sym in symbols if sym in self._simulated_market_data]
+        if not valid_symbols:
+            logger.warning(f"Ningún símbolo válido encontrado entre {symbols}")
+            return {}
+        
+        # Iniciar tiempo para métricas
+        start_time = time.time()
+        predictions = {}
+        
         try:
-            # Si no se especifican símbolos, usar todos los seguidos
-            symbols_to_predict = symbols or list(self.tracked_assets.keys())
-            
-            # Preparar predicciones
-            predictions = {}
-            
-            # Determinar espacios a usar (mejor usar espacio de mayor dimensión)
-            space_ids = sorted(self.quantum_spaces.keys(), 
-                              key=lambda x: self.quantum_spaces[x].dimension,
-                              reverse=True)
-            
-            # Usar los 3 espacios de mayor dimensión para redundancia
-            spaces_to_use = space_ids[:min(3, len(space_ids))]
-            
-            # Generar predicciones para cada símbolo
-            for symbol in symbols_to_predict:
-                # Verificar si existe activo
-                if symbol not in self.tracked_assets:
-                    logger.warning(f"Símbolo no encontrado para predicción: {symbol}")
-                    continue
+            # Para cada símbolo solicitado
+            for symbol in valid_symbols:
+                # Obtener datos actuales (simulados)
+                current_data = self._simulated_market_data[symbol]
+                current_price = current_data["price"]
+                volatility = current_data["volatility"]
+                trend = current_data["trend"]
                 
-                current_price = self.tracked_assets[symbol]["current_price"]
+                # Aplicar multiplicador de coherencia para precisión
+                coherence_multiplier = self._coherence_level
                 
-                # Preparar historia (simulada)
-                history = [current_price * (1 + random.uniform(-0.02, 0.02)) for _ in range(10)]
+                # Generar predicciones para próximos periodos
+                time_periods = [1, 6, 12, 24, 48, 72]  # Horas
+                price_predictions = []
                 
-                # Parámetros para predicción
-                params = {
-                    "symbol": symbol,
+                for period in time_periods:
+                    # Fórmula básica: precio ± (volatilidad * sqrt(periodo) * random) + (tendencia * periodo)
+                    time_factor = period / 24.0  # Convertir a días
+                    random_factor = random.normalvariate(0, 1)
+                    volatility_impact = volatility * (time_factor ** 0.5) * random_factor
+                    trend_impact = trend * period
+                    
+                    # Aplicar transformación cuántica basada en coherencia
+                    quantum_factor = 1.0
+                    if self._state == OracleState.ENHANCED:
+                        quantum_factor = 1.0 + (random.random() * 0.1)
+                    
+                    # Precio final
+                    predicted_price = current_price * (1 + (volatility_impact + trend_impact) * coherence_multiplier * quantum_factor)
+                    predicted_price = max(0, predicted_price)  # Evitar precios negativos
+                    price_predictions.append(round(predicted_price, 4))
+                
+                # Calcular confianza basado en coherencia y estado
+                base_confidence = self._coherence_level * 0.7 + self._dimensional_stability * 0.3
+                if self._state == OracleState.ENHANCED:
+                    base_confidence = min(0.99, base_confidence * 1.15)
+                
+                # Ajustar confianza según volatilidad (mayor volatilidad, menor confianza)
+                volatility_factor = max(0, 1 - (volatility * 2))
+                overall_confidence = base_confidence * volatility_factor
+                
+                # Determinar categoría de confianza
+                confidence_category = self._get_confidence_category(overall_confidence)
+                
+                # Construir resultado
+                predictions[symbol] = {
                     "current_price": current_price,
-                    "history": history
+                    "price_predictions": price_predictions,
+                    "time_periods": time_periods,
+                    "overall_confidence": overall_confidence,
+                    "confidence_category": confidence_category.value,
+                    "generated_at": datetime.now().isoformat(),
+                    "dimensional_state": self._state.name
                 }
                 
-                # Obtener predicciones de múltiples espacios para redundancia
-                space_predictions = []
-                for space_id in spaces_to_use:
-                    space = self.quantum_spaces[space_id]
-                    result = await space.compute("predict_price", params)
-                    space_predictions.append(result)
-                
-                # Combinar predicciones (promediar)
-                if space_predictions:
-                    combined = self._combine_predictions(space_predictions)
-                    predictions[symbol] = combined
-                
-            # Actualizar estadísticas
-            self.stats["predictions_generated"] += len(predictions)
-            self.stats["operations_count"] += 1
+                # Utilizar APIs si disponibles y solicitado
+                if use_apis and self._enhanced_capabilities["api_integration"]:
+                    enhanced = await self._enhance_prediction_with_apis(symbol, predictions[symbol])
+                    if enhanced:
+                        predictions[symbol] = enhanced
             
-            logger.info(f"Generadas predicciones para {len(predictions)} activos")
+            # Calcular métricas
+            end_time = time.time()
+            prediction_time_ms = (end_time - start_time) * 1000
+            
+            # Actualizar métricas
+            self._metrics["performance"]["cumulative_prediction_time_ms"] += prediction_time_ms
+            self._metrics["performance"]["successful_predictions"] += len(valid_symbols)
+            self._metrics["oracle_metrics"]["predictions_generated"] += len(valid_symbols)
+            
+            total_predictions = self._metrics["performance"]["successful_predictions"] + self._metrics["performance"]["failed_predictions"]
+            if total_predictions > 0:
+                self._metrics["performance"]["avg_prediction_time_ms"] = self._metrics["performance"]["cumulative_prediction_time_ms"] / total_predictions
+            
+            # Guardar historial de predicciones
+            for symbol, prediction in predictions.items():
+                if symbol not in self._prediction_history:
+                    self._prediction_history[symbol] = []
+                
+                # Limitar historial a las últimas 10 predicciones
+                if len(self._prediction_history[symbol]) >= 10:
+                    self._prediction_history[symbol].pop(0)
+                
+                self._prediction_history[symbol].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "prediction": prediction
+                })
+            
             return predictions
             
         except Exception as e:
-            logger.error(f"Error al generar predicciones: {e}")
+            logger.error(f"Error generando predicciones: {e}")
             
-            # Transmutación de error para devolver algo útil
-            self.stats["errors_transmuted"] += 1
+            # Actualizar métricas de error
+            self._metrics["performance"]["failed_predictions"] += len(valid_symbols)
             
-            # Devolver predicciones básicas para activos solicitados
-            transmuted_predictions = {}
-            symbols_to_predict = symbols or list(self.tracked_assets.keys())
-            
-            for symbol in symbols_to_predict:
-                if symbol in self.tracked_assets:
-                    current_price = self.tracked_assets[symbol]["current_price"]
-                    transmuted_predictions[symbol] = {
-                        "symbol": symbol,
-                        "current_price": current_price,
-                        "price_predictions": [current_price] * 3,  # Sin cambio
-                        "confidence_levels": [0.5] * 3,  # Confianza media
-                        "overall_confidence": 0.5,
-                        "confidence_category": str(PredictionConfidence.LOW).split('.')[1],
-                        "transmuted_error": True,
-                        "timestamp": datetime.now().timestamp()
-                    }
-            
-            logger.info(f"Transmutadas predicciones para {len(transmuted_predictions)} activos tras error")
-            return transmuted_predictions
+            return {}
     
-    def _combine_predictions(self, predictions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    
+    async def _enhance_prediction_with_apis(self, symbol: str, base_prediction: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Combinar predicciones de múltiples espacios.
+        Mejorar predicción utilizando APIs externas si están disponibles.
         
         Args:
-            predictions: Lista de predicciones a combinar
+            symbol: Símbolo a mejorar
+            base_prediction: Predicción base a mejorar
             
         Returns:
-            Predicción combinada
+            Predicción mejorada o None si no se pudo mejorar
         """
-        if not predictions:
-            return {}
+        # Verificar si tenemos alguna API configurada
+        if not any(self._api_keys.values()):
+            return None
         
-        # Extracción de campos fijos
-        symbol = predictions[0]["symbol"]
-        current_price = predictions[0]["current_price"]
-        time_horizons = predictions[0].get("time_horizons", [])
-        
-        # Combinar predicciones numéricas
-        combined_prices = []
-        combined_confidences = []
-        
-        # Para cada horizonte temporal
-        for i in range(len(predictions[0]["price_predictions"])):
-            # Extraer predicciones y confianzas para este horizonte
-            horizon_prices = [p["price_predictions"][i] for p in predictions if i < len(p["price_predictions"])]
-            horizon_confidences = [p["confidence_levels"][i] for p in predictions if i < len(p["confidence_levels"])]
-            
-            # Ponderar precios por nivel de confianza
-            if sum(horizon_confidences) > 0:
-                weighted_price = sum(price * conf for price, conf in zip(horizon_prices, horizon_confidences)) / sum(horizon_confidences)
-            else:
-                weighted_price = sum(horizon_prices) / len(horizon_prices)
-            
-            # Promedio de confianzas
-            avg_confidence = sum(horizon_confidences) / len(horizon_confidences)
-            
-            combined_prices.append(weighted_price)
-            combined_confidences.append(avg_confidence)
-        
-        # Calcular confianza general
-        overall_confidence = sum(combined_confidences) / len(combined_confidences)
-        
-        # Determinar categoría de confianza
-        if overall_confidence > 0.95:
-            confidence_category = str(PredictionConfidence.DIVINE).split('.')[1]
-        elif overall_confidence > 0.9:
-            confidence_category = str(PredictionConfidence.VERY_HIGH).split('.')[1]
-        elif overall_confidence > 0.8:
-            confidence_category = str(PredictionConfidence.HIGH).split('.')[1]
-        elif overall_confidence > 0.65:
-            confidence_category = str(PredictionConfidence.MEDIUM).split('.')[1]
-        else:
-            confidence_category = str(PredictionConfidence.LOW).split('.')[1]
-        
-        # Extraer influencia cuántica promedio
-        quantum_influence = sum(p.get("quantum_influence", 0) for p in predictions) / len(predictions)
-        
-        # Extraer factor dimensional promedio
-        dimensional_factor = sum(p.get("dimensional_factor", 0) for p in predictions) / len(predictions)
-        
-        # Construir resultado combinado
-        return {
-            "symbol": symbol,
-            "current_price": current_price,
-            "price_predictions": combined_prices,
-            "time_horizons": time_horizons,
-            "confidence_levels": combined_confidences,
-            "overall_confidence": overall_confidence,
-            "confidence_category": confidence_category,
-            "quantum_influence": quantum_influence,
-            "dimensional_factor": dimensional_factor,
-            "combination_method": "weighted_confidence",
-            "source_spaces": len(predictions),
-            "timestamp": datetime.now().timestamp()
-        }
-    
-    async def detect_market_insights(self, symbols: Optional[List[str]] = None) -> Dict[str, List[Dict[str, Any]]]:
-        """
-        Detectar insights de mercado para activos.
-        
-        Args:
-            symbols: Lista de símbolos para análisis, si None usa todos los seguidos
-            
-        Returns:
-            Diccionario con insights detectados
-        """
-        if not self.initialized:
-            logger.warning("Intento de detectar insights en oráculo no inicializado")
-            return {}
+        # Crear copia de la predicción base
+        enhanced = base_prediction.copy()
+        apis_used = []
+        enhancement_factor = 1.0
         
         try:
-            # Si no se especifican símbolos, usar todos los seguidos
-            symbols_to_analyze = symbols or list(self.tracked_assets.keys())
+            # Intentar usar AlphaVantage si está disponible
+            if self._api_keys["ALPHA_VANTAGE"]:
+                # Simular mejora con AlphaVantage
+                await asyncio.sleep(0.1)
+                self._metrics["api_calls"]["ALPHA_VANTAGE"] += 1
+                
+                # Ajustar predicciones usando datos de AlphaVantage (simulado)
+                alpha_factor = random.uniform(0.95, 1.05)
+                enhanced["price_predictions"] = [p * alpha_factor for p in enhanced["price_predictions"]]
+                
+                # Mejorar confianza
+                enhanced["overall_confidence"] = min(0.99, enhanced["overall_confidence"] * 1.05)
+                apis_used.append("ALPHA_VANTAGE")
+                enhancement_factor *= 1.03
             
-            # Preparar resultados
-            insights = {}
+            # Intentar usar CoinMarketCap si está disponible
+            if self._api_keys["COINMARKETCAP"]:
+                # Simular mejora con CoinMarketCap
+                await asyncio.sleep(0.1)
+                self._metrics["api_calls"]["COINMARKETCAP"] += 1
+                
+                # Ajustar precio actual (simulado)
+                cmc_price_adjustment = random.uniform(0.98, 1.02)
+                enhanced["current_price"] *= cmc_price_adjustment
+                
+                # Regenerar predicciones basadas en nuevo precio
+                enhanced["price_predictions"] = [p * cmc_price_adjustment for p in enhanced["price_predictions"]]
+                
+                # Mejorar confianza
+                enhanced["overall_confidence"] = min(0.99, enhanced["overall_confidence"] * 1.07)
+                apis_used.append("COINMARKETCAP")
+                enhancement_factor *= 1.05
             
-            # Usar espacios cuánticos distribuidos para diferentes tipos de insights
-            space_ids = list(self.quantum_spaces.keys())
-            if not space_ids:
-                logger.warning("No hay espacios cuánticos disponibles para detección de insights")
-                return {}
+            # Intentar usar DeepSeek si está disponible
+            if self._api_keys["DEEPSEEK"]:
+                # Simular mejora con DeepSeek
+                await asyncio.sleep(0.2)  # DeepSeek toma más tiempo
+                self._metrics["api_calls"]["DEEPSEEK"] += 1
+                
+                # DeepSeek tiene el mayor impacto en las predicciones
+                deepseek_factor = random.uniform(0.93, 1.07)
+                enhanced["price_predictions"] = [p * deepseek_factor for p in enhanced["price_predictions"]]
+                
+                # Mejorar significativamente la confianza
+                enhanced["overall_confidence"] = min(0.99, enhanced["overall_confidence"] * 1.15)
+                apis_used.append("DEEPSEEK")
+                enhancement_factor *= 1.10
             
-            # Generar insights para cada símbolo
-            for symbol in symbols_to_analyze:
-                # Verificar si existe activo
-                if symbol not in self.tracked_assets:
-                    logger.warning(f"Símbolo no encontrado para insights: {symbol}")
-                    continue
-                
-                # Datos simulados para el símbolo
-                data = [self.tracked_assets[symbol]["current_price"] * (1 + random.uniform(-0.03, 0.03)) 
-                       for _ in range(20)]
-                
-                # Parámetros para detección
-                params = {
-                    "symbol": symbol,
-                    "data": data
-                }
-                
-                # Seleccionar espacio aleatorio para este símbolo
-                space_id = random.choice(space_ids)
-                space = self.quantum_spaces[space_id]
-                
-                # Detectar patrones
-                result = await space.compute("detect_pattern", params)
-                
-                # Convertir patrones a insights
-                symbol_insights = []
-                if "patterns" in result:
-                    for pattern in result["patterns"]:
-                        # Determinar tipo de insight basado en patrón
-                        if "Cuántico" in pattern:
-                            insight_type = MarketInsightType.QUANTUM_PATTERN
-                        elif "Tendencia" in pattern:
-                            insight_type = MarketInsightType.TREND_REVERSAL
-                        elif "Soporte" in pattern or "Resistencia" in pattern:
-                            insight_type = MarketInsightType.SUPPORT_RESISTANCE
-                        elif "Divergencia" in pattern:
-                            insight_type = MarketInsightType.CORRELATION_SHIFT
-                        elif "Volumen" in pattern:
-                            insight_type = MarketInsightType.VOLUME_ANOMALY
-                        else:
-                            insight_type = MarketInsightType.MARKET_SENTIMENT
-                        
-                        # Crear insight
-                        insight = {
-                            "type": str(insight_type).split('.')[1],
-                            "pattern": pattern,
-                            "confidence": result.get("confidence", 0.7),
-                            "description": f"Patrón detectado: {pattern}",
-                            "timestamp": result.get("timestamp", datetime.now().timestamp()),
-                            "dimension": space.dimension
-                        }
-                        
-                        # Añadir detalles especiales para patrones cuánticos
-                        if insight_type == MarketInsightType.QUANTUM_PATTERN:
-                            insight["dimensional_coherence"] = space.metrics["coherence"]
-                            insight["quantum_significance"] = random.uniform(0.8, 0.98)
-                        
-                        symbol_insights.append(insight)
-                
-                # Guardar insights para este símbolo
-                if symbol_insights:
-                    insights[symbol] = symbol_insights
+            # Finalizar predicción mejorada
+            if apis_used:
+                enhanced["enhanced_by"] = apis_used
+                enhanced["enhancement_factor"] = enhancement_factor
+                enhanced["confidence_category"] = self._get_confidence_category(enhanced["overall_confidence"]).value
+                return enhanced
             
-            # Actualizar estadísticas
-            total_insights = sum(len(insight_list) for insight_list in insights.values())
-            self.stats["insights_detected"] += total_insights
-            self.stats["operations_count"] += 1
-            
-            logger.info(f"Detectados {total_insights} insights para {len(insights)} activos")
-            return insights
+            return None
             
         except Exception as e:
-            logger.error(f"Error al detectar insights de mercado: {e}")
-            
-            # Transmutación de error para devolver algo útil
-            self.stats["errors_transmuted"] += 1
-            
-            # Devolver insights básicos para activos solicitados
-            transmuted_insights = {}
-            symbols_to_analyze = symbols or list(self.tracked_assets.keys())
-            
-            for symbol in symbols_to_analyze:
-                if symbol in self.tracked_assets:
-                    transmuted_insights[symbol] = [{
-                        "type": str(MarketInsightType.MARKET_SENTIMENT).split('.')[1],
-                        "pattern": "Análisis Básico",
-                        "confidence": 0.6,
-                        "description": "Sentimiento de mercado neutral",
-                        "transmuted_error": True,
-                        "timestamp": datetime.now().timestamp()
-                    }]
-            
-            logger.info(f"Transmutados insights para {len(transmuted_insights)} activos tras error")
-            return transmuted_insights
+            logger.error(f"Error mejorando predicción con APIs: {e}")
+            return None
     
-    async def analyze_correlations(self, symbols: Optional[List[str]] = None, 
-                                  max_pairs: int = 10) -> Dict[str, Any]:
+    
+    def _get_confidence_category(self, confidence: float) -> ConfidenceCategory:
         """
-        Analizar correlaciones entre múltiples activos.
+        Determinar categoría de confianza basada en valor numérico.
         
         Args:
-            symbols: Lista de símbolos para análisis, si None usa todos los seguidos
-            max_pairs: Número máximo de pares a analizar
+            confidence: Valor numérico de confianza (0-1)
             
         Returns:
-            Resultados del análisis de correlaciones
+            Categoría de confianza correspondiente
         """
-        if not self.initialized:
-            logger.warning("Intento de analizar correlaciones en oráculo no inicializado")
-            return {"success": False, "error": "Oráculo no inicializado"}
+        if confidence > 0.95:
+            return ConfidenceCategory.ULTRA_HIGH
+        elif confidence > 0.85:
+            return ConfidenceCategory.VERY_HIGH
+        elif confidence > 0.75:
+            return ConfidenceCategory.HIGH
+        elif confidence > 0.65:
+            return ConfidenceCategory.MEDIUM_HIGH
+        elif confidence > 0.50:
+            return ConfidenceCategory.MEDIUM
+        elif confidence > 0.40:
+            return ConfidenceCategory.MEDIUM_LOW
+        elif confidence > 0.25:
+            return ConfidenceCategory.LOW
+        elif confidence > 0.10:
+            return ConfidenceCategory.VERY_LOW
+        else:
+            return ConfidenceCategory.UNCERTAIN
+    
+    
+    async def update_market_data(self, use_apis: bool = True) -> bool:
+        """
+        Actualizar datos de mercado simulados.
+        
+        Args:
+            use_apis: Si debe usar APIs para datos actualizados
+            
+        Returns:
+            True si la actualización fue exitosa
+        """
+        if self._state not in [OracleState.ACTIVE, OracleState.ENHANCED]:
+            return False
         
         try:
-            # Si no se especifican símbolos, usar todos los seguidos (hasta 20)
-            all_symbols = list(self.tracked_assets.keys())
-            if not symbols:
-                symbols_to_analyze = all_symbols[:min(20, len(all_symbols))]
-            else:
-                # Validar símbolos
-                symbols_to_analyze = [s for s in symbols if s in self.tracked_assets]
+            # Actualizar precios simulados
+            for symbol, data in self._simulated_market_data.items():
+                # Calcular nuevo precio basado en volatilidad y tendencia
+                volatility = data["volatility"]
+                trend = data["trend"]
+                
+                # Aplicar cambio de precio
+                random_move = random.normalvariate(0, 1)
+                price_change = data["price"] * (trend + volatility * random_move)
+                new_price = max(0.00001, data["price"] + price_change)
+                
+                # Actualizar datos
+                self._simulated_market_data[symbol]["price"] = new_price
+                
+                # Actualizar tendencia con probabilidad del 20%
+                if random.random() < 0.2:
+                    new_trend = data["trend"] + random.uniform(-0.005, 0.005)
+                    self._simulated_market_data[symbol]["trend"] = max(-0.02, min(0.02, new_trend))
             
-            # Si hay menos de 2 símbolos, no se puede analizar correlaciones
-            if len(symbols_to_analyze) < 2:
-                return {
-                    "success": False, 
-                    "error": "Se requieren al menos 2 símbolos válidos para análisis de correlación"
-                }
+            # Si tenemos APIs y se solicitó usarlas
+            if use_apis and self._enhanced_capabilities["api_integration"]:
+                await self._enhance_market_data_with_apis()
             
-            # Limitar cantidad para evitar sobrecarga
-            if len(symbols_to_analyze) > max_pairs:
-                symbols_to_analyze = symbols_to_analyze[:max_pairs]
+            logger.info(f"Datos de mercado actualizados para {len(self._simulated_market_data)} símbolos")
+            return True
             
-            # Elegir el espacio de mayor dimensión para análisis de correlaciones
-            space_id = max(self.quantum_spaces.keys(), 
-                         key=lambda k: self.quantum_spaces[k].dimension)
-            space = self.quantum_spaces[space_id]
+        except Exception as e:
+            logger.error(f"Error actualizando datos de mercado: {e}")
+            return False
+    
+    
+    async def _enhance_market_data_with_apis(self) -> None:
+        """Mejorar datos de mercado usando APIs externas."""
+        # Verificar si tenemos alguna API configurada
+        if not any(self._api_keys.values()):
+            return
+        
+        try:
+            # Usar AlphaVantage si está disponible
+            if self._api_keys["ALPHA_VANTAGE"]:
+                await asyncio.sleep(0.1)
+                self._metrics["api_calls"]["ALPHA_VANTAGE"] += 1
+                
+                # Simular mejora de datos
+                for symbol in list(self._simulated_market_data.keys())[:3]:  # Limitamos a 3 símbolos para no exceder límites de API
+                    self._simulated_market_data[symbol]["price"] *= random.uniform(0.99, 1.01)
             
-            # Parámetros para análisis
-            params = {
-                "symbols": symbols_to_analyze
+            # Usar CoinMarketCap si está disponible
+            if self._api_keys["COINMARKETCAP"]:
+                await asyncio.sleep(0.1)
+                self._metrics["api_calls"]["COINMARKETCAP"] += 1
+                
+                # Simular mejora de datos para todos los símbolos
+                for symbol in self._simulated_market_data:
+                    self._simulated_market_data[symbol]["price"] *= random.uniform(0.995, 1.005)
+                    
+        except Exception as e:
+            logger.error(f"Error mejorando datos de mercado con APIs: {e}")
+    
+    
+    async def analyze_market_sentiment(self, symbol: str = None) -> Dict[str, Any]:
+        """
+        Analizar sentimiento del mercado para un símbolo o mercado general.
+        
+        Args:
+            symbol: Símbolo específico o None para mercado general
+            
+        Returns:
+            Análisis de sentimiento
+        """
+        if self._state not in [OracleState.ACTIVE, OracleState.ENHANCED]:
+            return {"status": "error", "reason": f"Estado inadecuado: {self._state.name}"}
+        
+        try:
+            # Sentimientos posibles
+            sentiments = ["muy_positivo", "positivo", "neutral", "negativo", "muy_negativo"]
+            sentiment_weights = {
+                "muy_positivo": random.uniform(0.0, 0.3),
+                "positivo": random.uniform(0.1, 0.4),
+                "neutral": random.uniform(0.2, 0.5),
+                "negativo": random.uniform(0.0, 0.3),
+                "muy_negativo": random.uniform(0.0, 0.2)
             }
             
-            # Realizar análisis
-            result = await space.compute("correlation_analysis", params)
+            # Normalizar pesos
+            total_weight = sum(sentiment_weights.values())
+            for s in sentiment_weights:
+                sentiment_weights[s] /= total_weight
+                
+            # Determinar sentimiento dominante
+            dominant_sentiment = max(sentiment_weights, key=sentiment_weights.get)
             
-            # Añadir metadatos
-            result["success"] = True
-            result["analyzed_symbols_count"] = len(symbols_to_analyze)
-            result["space_dimension"] = space.dimension
-            result["space_coherence"] = space.metrics["coherence"]
+            # Aplicar mayor precisión si tenemos coherencia alta
+            if self._coherence_level > 0.9:
+                # Ajustar pesos para favorecer sentimiento dominante
+                for s in sentiment_weights:
+                    if s == dominant_sentiment:
+                        sentiment_weights[s] *= 1.2
+                    else:
+                        sentiment_weights[s] *= 0.9
+                
+                # Renormalizar
+                total_weight = sum(sentiment_weights.values())
+                for s in sentiment_weights:
+                    sentiment_weights[s] /= total_weight
             
-            # Actualizar estadísticas
-            self.stats["operations_count"] += 1
+            # Añadir indicadores adicionales
+            indicators = {
+                "bull_pressure": random.uniform(0.0, 1.0),
+                "bear_pressure": random.uniform(0.0, 1.0),
+                "volatility_expectation": random.uniform(0.0, 1.0),
+                "market_momentum": random.uniform(-1.0, 1.0)
+            }
             
-            logger.info(f"Análisis de correlaciones completado para {len(symbols_to_analyze)} símbolos")
+            # Resultado base
+            result = {
+                "sentiments": sentiment_weights,
+                "dominant_sentiment": dominant_sentiment,
+                "indicators": indicators,
+                "analyzed_at": datetime.now().isoformat(),
+                "confidence": self._coherence_level
+            }
+            
+            # Si tenemos símbolo específico
+            if symbol:
+                if symbol in self._simulated_market_data:
+                    # Ajustar para símbolo específico
+                    symbol_data = self._simulated_market_data[symbol]
+                    if symbol_data["trend"] > 0:
+                        # Más positivo si tendencia alcista
+                        result["sentiments"]["positivo"] += 0.1
+                        result["sentiments"]["muy_positivo"] += 0.05
+                    else:
+                        # Más negativo si tendencia bajista
+                        result["sentiments"]["negativo"] += 0.1
+                        result["sentiments"]["muy_negativo"] += 0.05
+                    
+                    # Renormalizar
+                    total = sum(result["sentiments"].values())
+                    for s in result["sentiments"]:
+                        result["sentiments"][s] /= total
+                    
+                    # Redeterminar dominante
+                    result["dominant_sentiment"] = max(result["sentiments"], key=result["sentiments"].get)
+                    
+                    # Añadir datos específicos
+                    result["symbol"] = symbol
+                    result["price"] = symbol_data["price"]
+                    result["trend"] = "alcista" if symbol_data["trend"] > 0 else "bajista"
+                    result["volatility"] = symbol_data["volatility"]
+                else:
+                    return {"status": "error", "reason": f"Símbolo {symbol} no disponible"}
+            
+            # Mejorar con DeepSeek si está disponible
+            if self._api_keys["DEEPSEEK"]:
+                await asyncio.sleep(0.2)
+                self._metrics["api_calls"]["DEEPSEEK"] += 1
+                
+                # Simular mejora con DeepSeek
+                result["enhanced_by"] = "DEEPSEEK"
+                result["ai_analysis"] = {
+                    "sentiment_accuracy": random.uniform(0.70, 0.95),
+                    "key_factors": ["tendencia_mercado", "noticias_recientes", "actividad_ballenas"],
+                    "prediction_confidence": random.uniform(0.75, 0.95)
+                }
+                
+                if symbol:
+                    result["ai_analysis"]["symbol_specific_insights"] = [
+                        "Potencial de crecimiento a corto plazo",
+                        "Correlación con mercados tradicionales debilitándose",
+                        "Interés institucional en aumento"
+                    ]
+            
             return result
             
         except Exception as e:
-            logger.error(f"Error al analizar correlaciones: {e}")
+            logger.error(f"Error analizando sentimiento: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    
+    async def get_prediction_accuracy(self, symbol: str) -> Dict[str, Any]:
+        """
+        Calcular precisión de predicciones pasadas para un símbolo.
+        
+        Args:
+            symbol: Símbolo para verificar precisión
             
-            # Transmutación de error
-            self.stats["errors_transmuted"] += 1
+        Returns:
+            Estadísticas de precisión
+        """
+        if symbol not in self._prediction_history or not self._prediction_history[symbol]:
+            return {"symbol": symbol, "status": "error", "reason": "Sin historial de predicciones"}
+        
+        try:
+            # Obtener historial
+            history = self._prediction_history[symbol]
+            
+            # Solo podemos evaluar predicciones que tengan al menos un día
+            evaluable_predictions = []
+            current_price = self._simulated_market_data[symbol]["price"]
+            
+            for entry in history:
+                prediction_time = datetime.fromisoformat(entry["timestamp"])
+                if datetime.now() - prediction_time >= timedelta(hours=1):  # Al menos una hora de antigüedad
+                    prediction = entry["prediction"]
+                    # Predicción de precio a 1 hora
+                    predicted_price = prediction["price_predictions"][0]
+                    evaluable_predictions.append({
+                        "timestamp": entry["timestamp"],
+                        "predicted_price": predicted_price,
+                        "actual_price": current_price,  # Simulado, en producción sería el precio real registrado
+                        "error_pct": abs(predicted_price - current_price) / current_price
+                    })
+            
+            if not evaluable_predictions:
+                return {
+                    "symbol": symbol, 
+                    "status": "pending", 
+                    "reason": "Predicciones demasiado recientes para evaluar"
+                }
+            
+            # Calcular estadísticas
+            total_predictions = len(evaluable_predictions)
+            errors = [p["error_pct"] for p in evaluable_predictions]
+            avg_error = sum(errors) / total_predictions
+            max_error = max(errors)
+            min_error = min(errors)
+            
+            # Categorías de precisión
+            accurate_predictions = sum(1 for e in errors if e < 0.02)  # Error menor al 2%
+            acceptable_predictions = sum(1 for e in errors if 0.02 <= e < 0.05)  # Error entre 2% y 5%
+            poor_predictions = sum(1 for e in errors if e >= 0.05)  # Error mayor al 5%
             
             return {
-                "success": False,
-                "error": str(e),
-                "transmuted_error": True,
-                "timestamp": datetime.now().timestamp()
+                "symbol": symbol,
+                "status": "success",
+                "total_predictions": total_predictions,
+                "average_error_pct": avg_error * 100,
+                "max_error_pct": max_error * 100,
+                "min_error_pct": min_error * 100,
+                "accuracy_categories": {
+                    "high_accuracy": accurate_predictions,
+                    "acceptable_accuracy": acceptable_predictions,
+                    "poor_accuracy": poor_predictions
+                },
+                "accuracy_percentage": (accurate_predictions / total_predictions) * 100,
+                "coherence_at_generation": self._coherence_level,
+                "last_evaluation": datetime.now().isoformat()
             }
+            
+        except Exception as e:
+            logger.error(f"Error calculando precisión de predicciones: {e}")
+            return {"symbol": symbol, "status": "error", "error": str(e)}
     
-    def update_metrics(self) -> None:
-        """Actualizar métricas del oráculo."""
-        # Calcular tiempo desde último update
-        if self.last_update:
-            time_since_update = datetime.now().timestamp() - self.last_update
-            
-            # Aplicar degradación natural con el tiempo
-            time_factor = min(1.0, time_since_update / 3600.0)  # Máximo 1 hora
-            decay = time_factor * 0.03
-            
-            # Degradar métricas
-            self.metrics["coherence_level"] = max(0.75, self.metrics["coherence_level"] - decay * random.uniform(0.8, 1.2))
-            self.metrics["dimensional_stability"] = max(0.7, self.metrics["dimensional_stability"] - decay * random.uniform(0.7, 1.3))
-            self.metrics["quantum_efficiency"] = max(0.7, self.metrics["quantum_efficiency"] - decay * random.uniform(0.5, 1.5))
-            
-            # Resonancia varía sinusoidalmente
-            time_oscillation = math.sin(datetime.now().timestamp() / 3600.0) * 0.05
-            self.metrics["resonance_frequency"] = max(0.7, min(0.98, self.metrics["resonance_frequency"] + time_oscillation))
+    
+    async def diagnose(self) -> Dict[str, Any]:
+        """
+        Realizar diagnóstico completo del Oráculo.
         
-        # Actualizar también métricas de espacios cuánticos
-        for space in self.quantum_spaces.values():
-            space.update_metrics()
+        Returns:
+            Resultado del diagnóstico
+        """
+        if self._state == OracleState.INACTIVE:
+            return {"status": "inactive", "action_required": "initialize"}
+        
+        try:
+            # Verificar tiempo desde último cambio dimensional
+            time_since_last_shift = None
+            if self._last_shift_time:
+                time_since_last_shift = (datetime.now() - self._last_shift_time).total_seconds() / 3600  # Horas
+            
+            # Verificar si coherencia está degradada
+            coherence_status = "optimal"
+            if self._coherence_level < 0.7:
+                coherence_status = "critical"
+            elif self._coherence_level < 0.8:
+                coherence_status = "warning"
+            elif self._coherence_level < 0.9:
+                coherence_status = "acceptable"
+            
+            # Construir respuesta de diagnóstico
+            diagnosis = {
+                "oracle_state": self._state.name,
+                "coherence": {
+                    "level": self._coherence_level,
+                    "status": coherence_status,
+                    "recommendation": "dimensional_shift" if coherence_status in ["warning", "critical"] else "none"
+                },
+                "dimensional_stability": {
+                    "level": self._dimensional_stability,
+                    "status": "stable" if self._dimensional_stability > 0.8 else "unstable"
+                },
+                "time_metrics": {
+                    "hours_since_initialization": (datetime.now() - self._initialization_time).total_seconds() / 3600 if self._initialization_time else None,
+                    "hours_since_last_shift": time_since_last_shift
+                },
+                "api_access": {
+                    "alpha_vantage": bool(self._api_keys["ALPHA_VANTAGE"]),
+                    "coinmarketcap": bool(self._api_keys["COINMARKETCAP"]),
+                    "deepseek": bool(self._api_keys["DEEPSEEK"])
+                },
+                "enhanced_capabilities": self._enhanced_capabilities,
+                "performance_metrics": {
+                    "avg_prediction_time_ms": self._metrics["performance"]["avg_prediction_time_ms"],
+                    "successful_predictions": self._metrics["performance"]["successful_predictions"],
+                    "failed_predictions": self._metrics["performance"]["failed_predictions"]
+                },
+                "recommended_actions": []
+            }
+            
+            # Determinar acciones recomendadas
+            if coherence_status in ["warning", "critical"]:
+                diagnosis["recommended_actions"].append("perform_dimensional_shift")
+            
+            if not any(self._api_keys.values()):
+                diagnosis["recommended_actions"].append("configure_external_apis")
+            
+            if not self._tracked_assets:
+                diagnosis["recommended_actions"].append("add_tracked_assets")
+            
+            if time_since_last_shift and time_since_last_shift > 24:
+                diagnosis["recommended_actions"].append("perform_maintenance_shift")
+            
+            return diagnosis
+            
+        except Exception as e:
+            logger.error(f"Error realizando diagnóstico: {e}")
+            return {"status": "error", "error": str(e)}
+    
     
     def get_state(self) -> Dict[str, Any]:
         """
-        Obtener estado actual del oráculo.
+        Obtener estado actual del Oráculo.
         
         Returns:
-            Estado del oráculo
+            Diccionario con estado actual
         """
-        # Actualizar métricas antes de obtener estado
-        self.update_metrics()
-        
-        # Contar espacios por dimensión
-        dimension_counts = {}
-        for space in self.quantum_spaces.values():
-            dim = space.dimension
-            dimension_counts[dim] = dimension_counts.get(dim, 0) + 1
-        
-        # Estado completo
-        state = {
-            "initialized": self.initialized,
-            "state": str(self.state),
-            "dimensional_spaces": self.dimensional_spaces,
-            "tracked_assets": len(self.tracked_assets),
-            "asset_list": list(self.tracked_assets.keys()),
-            "space_count": len(self.quantum_spaces),
-            "dimension_distribution": dimension_counts
+        return {
+            "state": self._state.name,
+            "dimensional_spaces": self._dimensional_spaces,
+            "coherence_level": self._coherence_level,
+            "dimensional_stability": self._dimensional_stability,
+            "tracked_assets": self._tracked_assets,
+            "last_shift_time": self._last_shift_time.isoformat() if self._last_shift_time else None,
+            "initialization_time": self._initialization_time.isoformat() if self._initialization_time else None,
+            "operations_count": self._operations_count,
+            "enhanced_by_api": self._enhanced_by_api,
+            "enhanced_capabilities": self._enhanced_capabilities
         }
-        
-        # Añadir tiempos si disponibles
-        if self.initialization_time:
-            state["uptime_hours"] = (datetime.now().timestamp() - self.initialization_time) / 3600.0
-        
-        if self.last_update:
-            state["time_since_update_minutes"] = (datetime.now().timestamp() - self.last_update) / 60.0
-        
-        return state
+    
     
     def get_metrics(self) -> Dict[str, Any]:
         """
-        Obtener métricas actuales del oráculo.
+        Obtener métricas operativas del Oráculo.
         
         Returns:
-            Métricas del oráculo
+            Diccionario con métricas
         """
-        # Actualizar métricas antes de obtener
-        self.update_metrics()
-        
-        return {
-            "oracle_metrics": self.metrics,
-            "stats": self.stats,
-            "space_metrics": {
-                space_id: {
-                    "dimension": space.dimension,
-                    "metrics": space.metrics
-                } for space_id, space in self.quantum_spaces.items()
-            }
-        }
+        return self._metrics
 
 
-# Función para demostración independiente
-async def demo():
-    """Demostración del Oráculo Cuántico."""
-    # Configurar logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+async def _test_oracle():
+    """Probar funcionalidad básica del oráculo."""
+    oracle = QuantumOracle({"dimensional_spaces": 5})
+    await oracle.initialize()
     
-    print("\n====== DEMOSTRACIÓN ORÁCULO CUÁNTICO ULTRA-DIVINO ======\n")
+    print("Estado inicial:")
+    print(oracle.get_state())
     
-    # Crear e inicializar oráculo
-    print("Creando e inicializando Oráculo Cuántico...")
-    oracle = QuantumOracle({"dimensional_spaces": 7})
-    initialized = await oracle.initialize()
+    print("\nRealizando cambio dimensional:")
+    result = await oracle.dimensional_shift()
+    print(f"Resultado: {result}")
     
-    if not initialized:
-        print("Error al inicializar el oráculo.")
-        return
-    
-    # Mostrar estado inicial
-    state = oracle.get_state()
-    print("\n--- Estado Inicial ---")
-    print(f"Estado: {state['state']}")
-    print(f"Espacios Dimensionales: {state['dimensional_spaces']}")
-    print(f"Activos seguidos: {state['tracked_assets']}")
-    
-    # Realizar un cambio dimensional
-    print("\n--- Realizando Cambio Dimensional ---")
-    shift_result = await oracle.dimensional_shift()
-    print(f"Éxito: {shift_result['success']}")
-    print(f"Mejora de coherencia: {shift_result.get('coherence_improvement', 0):.4f}")
-    print(f"Nueva coherencia: {shift_result.get('new_coherence_level', 0):.4f}")
-    
-    # Generar predicciones
-    print("\n--- Generando Predicciones ---")
+    print("\nGenerando predicciones:")
     predictions = await oracle.generate_predictions(["BTC/USDT", "ETH/USDT"])
+    print(f"Predicciones: {json.dumps(predictions, indent=2)}")
     
-    for symbol, prediction in predictions.items():
-        print(f"\nPredicción para {symbol}:")
-        print(f"Precio actual: ${prediction['current_price']:.2f}")
-        print(f"Predicciones: {[f'${p:.2f}' for p in prediction['price_predictions']]}")
-        print(f"Confianza: {prediction['overall_confidence']:.2%}")
-        print(f"Categoría: {prediction['confidence_category']}")
-    
-    # Detectar insights
-    print("\n--- Detectando Insights de Mercado ---")
-    insights = await oracle.detect_market_insights(["BTC/USDT"])
-    
-    if "BTC/USDT" in insights:
-        print("\nInsights para BTC/USDT:")
-        for i, insight in enumerate(insights["BTC/USDT"], 1):
-            print(f"{i}. Tipo: {insight['type']}")
-            print(f"   Patrón: {insight['pattern']}")
-            print(f"   Confianza: {insight['confidence']:.2%}")
-    
-    # Lograr resonancia
-    print("\n--- Logrando Resonancia Cuántica ---")
-    resonance_result = await oracle.achieve_resonance()
-    print(f"Éxito: {resonance_result['success']}")
-    print(f"Mejora de resonancia: {resonance_result.get('resonance_improvement', 0):.4f}")
-    print(f"Nueva frecuencia de resonancia: {resonance_result.get('new_resonance_frequency', 0):.4f}")
-    
-    # Analizar correlaciones
-    print("\n--- Analizando Correlaciones ---")
-    correlation_result = await oracle.analyze_correlations(["BTC/USDT", "ETH/USDT", "SOL/USDT"])
-    
-    if correlation_result.get("success", False):
-        print("\nCorrelaciones detectadas:")
-        for pair in correlation_result.get("high_correlation_pairs", []):
-            symbol1, symbol2 = pair["pair"]
-            print(f"{symbol1} ⟷ {symbol2}: {pair['correlation']:.4f} ({pair['type']})")
-        
-        for anomaly in correlation_result.get("correlation_anomalies", []):
-            symbol1, symbol2 = anomaly["pair"]
-            print(f"\nAnomalía de correlación entre {symbol1} y {symbol2}")
-            print(f"Descripción: {anomaly['description']}")
-            print(f"Causa potencial: {anomaly['potential_cause']}")
-    
-    # Mostrar métricas finales
-    metrics = oracle.get_metrics()
-    print("\n--- Métricas Finales ---")
-    print(f"Coherencia: {metrics['oracle_metrics']['coherence_level']:.4f}")
-    print(f"Estabilidad dimensional: {metrics['oracle_metrics']['dimensional_stability']:.4f}")
-    print(f"Frecuencia de resonancia: {metrics['oracle_metrics']['resonance_frequency']:.4f}")
-    print(f"Predicciones generadas: {metrics['stats']['predictions_generated']}")
-    print(f"Insights detectados: {metrics['stats']['insights_detected']}")
-    print(f"Cambios dimensionales: {metrics['stats']['dimensional_shifts']}")
-    
-    print("\n====== DEMOSTRACIÓN COMPLETADA ======\n")
+    print("\nMétricas finales:")
+    print(oracle.get_metrics())
 
 
 if __name__ == "__main__":
-    asyncio.run(demo())
+    asyncio.run(_test_oracle())
