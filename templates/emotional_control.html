@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Estados Emocionales - Gabriel Engine</title>
+    
+    <!-- Estilos CSS -->
+    <style>
+        :root {
+            --primary: #9d4edd;
+            --secondary: #3a86ff;
+            --accent: #00b4d8;
+            --highlight: #f72585;
+            --warning: #ffbe0b;
+            --background: #10002b;
+            --panel: #240046;
+            --card: #3c096c;
+            --text: #f8f9fa;
+            --border: #5a189a;
+            --fearful: #ff5400;
+            --neutral: #00b4d8;
+            --greedy: #0aff99;
+            --confident: #ffbe0b;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(90, 24, 154, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 80% 30%, rgba(0, 180, 216, 0.15) 0%, transparent 30%),
+                radial-gradient(circle at 30% 70%, rgba(157, 78, 221, 0.2) 0%, transparent 25%),
+                radial-gradient(circle at 70% 80%, rgba(58, 134, 255, 0.15) 0%, transparent 20%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+            padding-bottom: 60px;
+        }
+        
+        header {
+            background-color: var(--panel);
+            padding: 1rem 2rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(0, 180, 216, 0.7);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            color: var(--text);
+            max-width: 800px;
+            margin: 0 auto;
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+        
+        .section {
+            background-color: var(--panel);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(to right, var(--accent), var(--highlight));
+            z-index: 1;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--accent);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .section-title span {
+            font-size: 0.8em;
+            color: var(--text);
+            opacity: 0.8;
+            font-weight: normal;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        
+        .card {
+            background-color: var(--card);
+            border-radius: 8px;
+            padding: 1.2rem;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background-color: var(--accent);
+            z-index: 1;
+        }
+        
+        .card.fearful::before {
+            background-color: var(--fearful);
+        }
+        
+        .card.neutral::before {
+            background-color: var(--neutral);
+        }
+        
+        .card.greedy::before {
+            background-color: var(--greedy);
+        }
+        
+        .card.confident::before {
+            background-color: var(--confident);
+        }
+        
+        .card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.7rem;
+            color: var(--text);
+        }
+        
+        .card p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+            margin-bottom: 1rem;
+        }
+        
+        .button {
+            background-color: var(--primary);
+            color: var(--text);
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .button:hover {
+            background-color: var(--highlight);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .button.fearful {
+            background-color: var(--fearful);
+        }
+        
+        .button.neutral {
+            background-color: var(--neutral);
+        }
+        
+        .button.greedy {
+            background-color: var(--greedy);
+            color: #333;
+        }
+        
+        .button.confident {
+            background-color: var(--confident);
+            color: #333;
+        }
+        
+        .characteristics {
+            background-color: rgba(60, 9, 108, 0.6);
+            border-radius: 8px;
+            padding: 1.2rem;
+            margin-top: 2rem;
+            border: 1px solid var(--border);
+        }
+        
+        .characteristics h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+        
+        .characteristic-item {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            padding: 0.7rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .characteristic-item:last-child {
+            border-bottom: none;
+        }
+        
+        .characteristic-label {
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .characteristic-value {
+            color: var(--accent);
+        }
+        
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid var(--text);
+            border-bottom-color: var(--accent);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+        }
+        
+        @keyframes rotation {
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transform: translateX(200%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .notification.success {
+            background-color: #4caf50;
+        }
+        
+        .notification.error {
+            background-color: #f44336;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .reason-input {
+            display: flex;
+            flex-direction: column;
+            margin-top: 1rem;
+        }
+        
+        .reason-input label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .reason-input input {
+            padding: 0.7rem;
+            border-radius: 5px;
+            border: 1px solid var(--border);
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+            font-size: 1rem;
+        }
+        
+        .reason-input input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(0, 180, 216, 0.2);
+        }
+        
+        .navigation {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            background-color: var(--panel);
+            padding: 0.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .nav-link {
+            padding: 0.7rem 1.5rem;
+            margin: 0 0.5rem;
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .nav-link:hover {
+            background-color: rgba(157, 78, 221, 0.2);
+        }
+        
+        .nav-link.active {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Control de Estados Emocionales - Gabriel Engine</h1>
+        <p>Sistema de control emocional para el comportamiento de trading simulado humano del Sistema Genesis</p>
+    </header>
+    
+    <div class="container">
+        <div class="navigation">
+            <a href="/" class="nav-link">Inicio</a>
+            <a href="/seraphim" class="nav-link">Seraphim</a>
+            <a href="/emotional_control" class="nav-link active">Control Emocional</a>
+            <a href="/simulator" class="nav-link">Simulador</a>
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">Estado Emocional Actual</h2>
+            <p>El motor de comportamiento Gabriel simula diferentes estados emocionales que afectan las decisiones de trading.</p>
+            
+            <div class="characteristics" id="currentCharacteristics">
+                <h3>Características Actuales</h3>
+                <div class="loader" id="characteristicsLoader"></div>
+                <div id="characteristicsContent">
+                    <div class="characteristic-item">
+                        <div class="characteristic-label">Estado Emocional:</div>
+                        <div class="characteristic-value" id="emotionalState">Cargando...</div>
+                    </div>
+                    <div class="characteristic-item">
+                        <div class="characteristic-label">Tolerancia al Riesgo:</div>
+                        <div class="characteristic-value" id="riskTolerance">Cargando...</div>
+                    </div>
+                    <div class="characteristic-item">
+                        <div class="characteristic-label">Estilo de Decisión:</div>
+                        <div class="characteristic-value" id="decisionStyle">Cargando...</div>
+                    </div>
+                    <div class="characteristic-item">
+                        <div class="characteristic-label">Percepción del Mercado:</div>
+                        <div class="characteristic-value" id="marketSentiment">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">Cambiar Estado Emocional</h2>
+            <p>Selecciona un estado emocional para cambiar el comportamiento del sistema.</p>
+            
+            <div class="reason-input">
+                <label for="reasonInput">Motivo del cambio:</label>
+                <input type="text" id="reasonInput" placeholder="Ej: Noticias negativas del mercado" value="Cambio manual para pruebas">
+            </div>
+            
+            <div class="controls">
+                <div class="card fearful">
+                    <h3>FEARFUL (Miedo)</h3>
+                    <p>Estado de alta precaución, salidas rápidas y posiciones pequeñas</p>
+                    <button class="button fearful" id="setFearful">Activar</button>
+                </div>
+                
+                <div class="card neutral">
+                    <h3>NEUTRAL</h3>
+                    <p>Estado equilibrado, decisiones basadas en análisis racional</p>
+                    <button class="button neutral" id="setNeutral">Activar</button>
+                </div>
+                
+                <div class="card greedy">
+                    <h3>GREEDY (Codicia)</h3>
+                    <p>Búsqueda de ganancias mayores, mayor tolerancia al riesgo</p>
+                    <button class="button greedy" id="setGreedy">Activar</button>
+                </div>
+                
+                <div class="card confident">
+                    <h3>CONFIDENT (Confianza)</h3>
+                    <p>Alta seguridad en las decisiones, posiciones mayores</p>
+                    <button class="button confident" id="setConfident">Activar</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="section-title">Aleatorizar Comportamiento</h2>
+            <p>Genera un comportamiento aleatorio para simular cambios naturales en el estado emocional.</p>
+            
+            <button class="button" id="randomizeBehavior">Aleatorizar Comportamiento</button>
+        </div>
+    </div>
+    
+    <div class="notification" id="notification"></div>
+    
+    <script>
+        // Elementos DOM
+        const characteristicsLoader = document.getElementById('characteristicsLoader');
+        const emotionalStateElement = document.getElementById('emotionalState');
+        const riskToleranceElement = document.getElementById('riskTolerance');
+        const decisionStyleElement = document.getElementById('decisionStyle');
+        const marketSentimentElement = document.getElementById('marketSentiment');
+        const reasonInput = document.getElementById('reasonInput');
+        const notification = document.getElementById('notification');
+        
+        // Botones
+        const setFearfulButton = document.getElementById('setFearful');
+        const setNeutralButton = document.getElementById('setNeutral');
+        const setGreedyButton = document.getElementById('setGreedy');
+        const setConfidentButton = document.getElementById('setConfident');
+        const randomizeButton = document.getElementById('randomizeBehavior');
+        
+        // Cargar características iniciales
+        loadCurrentCharacteristics();
+        
+        // Event Listeners
+        setFearfulButton.addEventListener('click', () => setEmotionalState('FEARFUL'));
+        setNeutralButton.addEventListener('click', () => setEmotionalState('NEUTRAL'));
+        setGreedyButton.addEventListener('click', () => setEmotionalState('GREEDY'));
+        setConfidentButton.addEventListener('click', () => setEmotionalState('CONFIDENT'));
+        randomizeButton.addEventListener('click', randomizeBehavior);
+        
+        // Función para mostrar notificación
+        function showNotification(message, type = 'success') {
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.className = 'notification';
+            }, 3000);
+        }
+        
+        // Función para cargar características actuales
+        async function loadCurrentCharacteristics() {
+            try {
+                characteristicsLoader.style.display = 'block';
+                
+                const response = await fetch('/api/seraphim/human_behavior');
+                const data = await response.json();
+                
+                if (data.success && data.characteristics) {
+                    updateCharacteristicsDisplay(data.characteristics);
+                } else {
+                    showNotification('Error al cargar características: ' + (data.message || 'Error desconocido'), 'error');
+                }
+            } catch (error) {
+                showNotification('Error de red: ' + error.message, 'error');
+            } finally {
+                characteristicsLoader.style.display = 'none';
+            }
+        }
+        
+        // Función para actualizar la visualización de características
+        function updateCharacteristicsDisplay(characteristics) {
+            emotionalStateElement.textContent = characteristics.emotional_state || 'No disponible';
+            riskToleranceElement.textContent = characteristics.risk_tolerance || 'No disponible';
+            decisionStyleElement.textContent = characteristics.decision_style || 'No disponible';
+            
+            const marketPerceptions = characteristics.market_perceptions || {};
+            marketSentimentElement.textContent = marketPerceptions.market_sentiment || 'No disponible';
+            
+            // Aplicar clases de estilo basadas en el estado emocional
+            const emotionalState = characteristics.emotional_state?.toUpperCase() || '';
+            
+            document.querySelectorAll('.card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            if (emotionalState === 'FEARFUL') {
+                document.querySelector('.card.fearful')?.classList.add('active');
+            } else if (emotionalState === 'NEUTRAL') {
+                document.querySelector('.card.neutral')?.classList.add('active');
+            } else if (emotionalState === 'GREEDY') {
+                document.querySelector('.card.greedy')?.classList.add('active');
+            } else if (emotionalState === 'CONFIDENT') {
+                document.querySelector('.card.confident')?.classList.add('active');
+            }
+        }
+        
+        // Función para establecer estado emocional
+        async function setEmotionalState(state) {
+            try {
+                characteristicsLoader.style.display = 'block';
+                
+                let endpoint = '/api/seraphim/set_emotional_state';
+                let payload = {
+                    state: state,
+                    reason: reasonInput.value || 'Cambio manual'
+                };
+                
+                // Endpoint especial para FEARFUL para usar la implementación específica
+                if (state === 'FEARFUL') {
+                    endpoint = '/api/seraphim/set_fearful_state';
+                    payload = {
+                        reason: reasonInput.value || 'Cambio manual'
+                    };
+                }
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`Estado emocional cambiado a ${state}`);
+                    
+                    if (data.characteristics) {
+                        updateCharacteristicsDisplay(data.characteristics);
+                    } else {
+                        // Si no devuelve características, recargar
+                        await loadCurrentCharacteristics();
+                    }
+                } else {
+                    showNotification('Error al cambiar estado: ' + (data.message || 'Error desconocido'), 'error');
+                }
+            } catch (error) {
+                showNotification('Error de red: ' + error.message, 'error');
+            } finally {
+                characteristicsLoader.style.display = 'none';
+            }
+        }
+        
+        // Función para aleatorizar comportamiento
+        async function randomizeBehavior() {
+            try {
+                characteristicsLoader.style.display = 'block';
+                
+                const response = await fetch('/api/seraphim/randomize_behavior', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('Comportamiento aleatorizado correctamente');
+                    
+                    if (data.human_behavior) {
+                        updateCharacteristicsDisplay(data.human_behavior);
+                    } else if (data.new_characteristics) {
+                        updateCharacteristicsDisplay(data.new_characteristics);
+                    } else {
+                        // Si no devuelve características, recargar
+                        await loadCurrentCharacteristics();
+                    }
+                } else {
+                    showNotification('Error al aleatorizar: ' + (data.message || 'Error desconocido'), 'error');
+                }
+            } catch (error) {
+                showNotification('Error de red: ' + error.message, 'error');
+            } finally {
+                characteristicsLoader.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

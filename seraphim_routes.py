@@ -376,6 +376,10 @@ def run_async_task(coro_func, *args, **kwargs):
 def seraphim_page():
     """Página principal del Sistema Seraphim."""
     return render_template('seraphim.html')
+    
+def emotional_control_page():
+    """Página de control de estados emocionales."""
+    return render_template('emotional_control.html')
 
 
 def get_seraphim_status():
@@ -1494,8 +1498,9 @@ def register_seraphim_routes(app):
     Args:
         app: Aplicación Flask
     """
-    # Página principal
+    # Páginas principales
     app.add_url_rule('/seraphim', 'seraphim_page', seraphim_page)
+    app.add_url_rule('/emotional_control', 'emotional_control_page', emotional_control_page)
     
     # Rutas API del Sistema Seraphim
     app.add_url_rule('/api/seraphim/status', 'get_seraphim_status', get_seraphim_status)
