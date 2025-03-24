@@ -83,11 +83,12 @@ APOCALYPSE_CONFIG = {
     
     # Configuración de conexión a PostgreSQL
     'db_config': {
-        'dbname': os.environ.get("POSTGRES_DB", "postgres"),
-        'user': os.environ.get("POSTGRES_USER", "postgres"),
+        'dbname': os.environ.get("POSTGRES_DB", "neondb"),
+        'user': os.environ.get("POSTGRES_USER", "neondb_owner"),
         'password': os.environ.get("POSTGRES_PASSWORD", ""),
-        'host': os.environ.get("POSTGRES_HOST", "localhost"),
-        'port': os.environ.get("POSTGRES_PORT", "5432")
+        'host': os.environ.get("POSTGRES_HOST", "ep-shy-bush-a5z5mx7m.us-east-2.aws.neon.tech"),
+        'port': os.environ.get("POSTGRES_PORT", "5432"),
+        'sslmode': os.environ.get("PGSSLMODE", "require")
     }
 }
 
@@ -149,8 +150,17 @@ class PostgresqlApocalypse:
     def _create_connection(self):
         """Crear una nueva conexión a PostgreSQL."""
         try:
+            # Mostrar información de debug para la primera conexión
+            if self.stats['connection_errors'] == 0:
+                logger.info(f"Intentando conectar a PostgreSQL con: {self.config['db_config']}")
+                
             conn = psycopg2.connect(**self.config['db_config'])
             conn.autocommit = True
+            
+            # Log para la primera conexión exitosa
+            if self.stats['connection_errors'] == 0:
+                logger.info("¡Conexión exitosa a PostgreSQL!")
+                
             return conn
         except Exception as e:
             with self.connection_lock:

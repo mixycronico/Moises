@@ -72,16 +72,17 @@ fi
 # Iniciar cuenta regresiva
 countdown 3
 
-# Configurar variables de entorno para PostgreSQL
-export POSTGRES_DB=${POSTGRES_DB:-"postgres"}
-export POSTGRES_USER=${POSTGRES_USER:-"postgres"}
-export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-""}
-export POSTGRES_HOST=${POSTGRES_HOST:-"localhost"}
-export POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
+# Configurar variables de entorno para PostgreSQL usando credenciales de Replit
+export POSTGRES_DB=${PGDATABASE:-"neondb"}
+export POSTGRES_USER=${PGUSER:-"neondb_owner"}
+export POSTGRES_PASSWORD=${PGPASSWORD:-""}
+export POSTGRES_HOST=${PGHOST:-"ep-shy-bush-a5z5mx7m.us-east-2.aws.neon.tech"}
+export POSTGRES_PORT=${PGPORT:-"5432"}
+export PGSSLMODE="require"
 
 # Verificar conexión a PostgreSQL
 echo "Verificando conexión a PostgreSQL..."
-python -c "import psycopg2; conn = psycopg2.connect(dbname='$POSTGRES_DB', user='$POSTGRES_USER', password='$POSTGRES_PASSWORD', host='$POSTGRES_HOST', port='$POSTGRES_PORT'); conn.close()" > /dev/null 2>&1
+python -c "import os, psycopg2; conn = psycopg2.connect(dbname='$POSTGRES_DB', user='$POSTGRES_USER', password='$POSTGRES_PASSWORD', host='$POSTGRES_HOST', port='$POSTGRES_PORT', sslmode='require'); print('Conexión OK'); conn.close()"
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ No se pudo conectar a PostgreSQL. Verifique las credenciales.${NC}"
     exit 1
