@@ -73,6 +73,7 @@ class SeraphimOrchestrator:
         # Componentes integrados
         self.seraphim_strategy: Optional[SeraphimPool] = None
         self.buddha_integrator: Optional[BuddhaIntegrator] = None
+        self.behavior_engine: Optional[GabrielBehaviorEngine] = None  # Motor de comportamiento humano
         self.classifier: Optional[TranscendentalCryptoClassifier] = None
         self.circuit_breaker: Optional[CloudCircuitBreakerV4] = None
         self.checkpoint_manager: Optional[DistributedCheckpointManagerV4] = None
@@ -110,6 +111,7 @@ class SeraphimOrchestrator:
             # Inicializar componentes
             self.seraphim_strategy = SeraphimPool()
             self.buddha_integrator = BuddhaIntegrator()
+            self.behavior_engine = GabrielBehaviorEngine()  # Motor de comportamiento humano
             self.classifier = TranscendentalCryptoClassifier()
             self.circuit_breaker = CloudCircuitBreakerV4()
             self.checkpoint_manager = DistributedCheckpointManagerV4()
@@ -122,6 +124,7 @@ class SeraphimOrchestrator:
             components_init_results = await asyncio.gather(
                 self.seraphim_strategy.initialize(),
                 self.buddha_integrator.initialize(),
+                # El motor de comportamiento humano no requiere inicialización asíncrona
                 self.classifier.initialize(),
                 self.circuit_breaker.initialize(),
                 self.checkpoint_manager.initialize(),
@@ -234,6 +237,13 @@ class SeraphimOrchestrator:
             await self.seraphim_strategy.buddha_integrator.sync_with_external(
                 self.buddha_integrator
             )
+            
+            # Vincular estrategia con el motor de comportamiento humano Gabriel
+            logger.info("Vinculando motor de comportamiento humano Gabriel con estrategia Seraphim...")
+            # Crear una instancia del motor de comportamiento en la estrategia si no existe
+            if not hasattr(self.seraphim_strategy, 'behavior_engine') or self.seraphim_strategy.behavior_engine is None:
+                self.seraphim_strategy.behavior_engine = self.behavior_engine
+                logger.info("Motor de comportamiento humano Gabriel asignado a estrategia Seraphim")
             
             logger.info(f"Sincronización completa, salud del sistema: {self.system_health:.2f}")
             return True
@@ -710,5 +720,60 @@ class SeraphimOrchestrator:
             "completed_cycles_count": self.completed_cycles_count,
             "total_realized_profit": self.total_realized_profit,
             "system_health": self.system_health,
-            "auto_cycle_enabled": self.auto_cycle_enabled
+            "auto_cycle_enabled": self.auto_cycle_enabled,
+            "human_behavior": self.get_human_behavior() if self.behavior_engine else {}
         }
+        
+    def get_human_behavior(self) -> Dict[str, Any]:
+        """
+        Obtener configuración actual del comportamiento humano simulado.
+        
+        Returns:
+            Detalles del comportamiento humano de Gabriel
+        """
+        if not self.behavior_engine:
+            return {"available": False}
+            
+        try:
+            return {
+                "available": True,
+                "mood": self.behavior_engine.mood,
+                "risk_profile": self.behavior_engine.risk_profile,
+                "decision_style": self.behavior_engine.decision_style,
+                "experience_level": self.behavior_engine.experience_level,
+                "current_state": self.behavior_engine.get_current_state()
+            }
+        except Exception as e:
+            logger.error(f"Error al obtener estado del comportamiento humano: {str(e)}")
+            return {"available": True, "error": str(e)}
+    
+    async def randomize_human_behavior(self) -> Dict[str, Any]:
+        """
+        Aleatorizar las características del comportamiento humano simulado.
+        
+        Returns:
+            Resultado de la aleatorización
+        """
+        if not self.behavior_engine:
+            logger.warning("Motor de comportamiento humano no disponible para aleatorizar")
+            return {"success": False, "error": "Human behavior engine not available"}
+            
+        try:
+            # Aleatorizar el comportamiento
+            self.behavior_engine.randomize()
+            
+            # Si la estrategia también tiene una referencia, actualizarla
+            if hasattr(self.seraphim_strategy, 'behavior_engine'):
+                self.seraphim_strategy.behavior_engine = self.behavior_engine
+            
+            logger.info(f"Comportamiento humano aleatorizado: {self.behavior_engine.mood} / {self.behavior_engine.risk_profile}")
+            
+            # Devolver el nuevo estado
+            return {
+                "success": True,
+                "human_behavior": self.get_human_behavior()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error al aleatorizar comportamiento humano: {str(e)}")
+            return {"success": False, "error": str(e)}
