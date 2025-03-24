@@ -32,6 +32,7 @@ import random
 from genesis.strategies.seraphim.seraphim_pool import SeraphimPool, SeraphimState, CyclePhase
 from genesis.trading.buddha_integrator import BuddhaIntegrator
 from genesis.trading.human_behavior_engine import GabrielBehaviorEngine, EmotionalState, RiskTolerance, DecisionStyle
+from genesis.trading.order_manager import OrderManager, OrderType, OrderSide, OrderStatus
 from genesis.analysis.transcendental_crypto_classifier import TranscendentalCryptoClassifier
 from genesis.cloud.circuit_breaker_v4 import CloudCircuitBreakerV4
 from genesis.cloud.distributed_checkpoint_v4 import DistributedCheckpointManagerV4
@@ -84,6 +85,7 @@ class SeraphimOrchestrator:
         
         # Componente de Exchange (simulado o real)
         self.exchange_adapter = None  # Será configurado externamente
+        self.order_manager = None  # Gestor de órdenes para trading
         
         # Estado operacional
         self.active_cycle_id: Optional[str] = None
@@ -390,6 +392,16 @@ class SeraphimOrchestrator:
                 # Precargar símbolos comunes
                 await self._preload_symbols()
             
+            # Inicializar OrderManager si aún no existe
+            if not hasattr(self, 'order_manager') or self.order_manager is None:
+                logger.info("Inicializando OrderManager para gestión de órdenes...")
+                # Creamos el OrderManager con los componentes necesarios
+                self.order_manager = OrderManager(
+                    self.exchange_adapter,
+                    self.behavior_engine
+                )
+                logger.info("OrderManager inicializado y vinculado al exchange adapter")
+            
             # Verificar estado del adaptador
             if hasattr(self.exchange_adapter, 'get_state'):
                 adapter_state = self.exchange_adapter.get_state()
@@ -511,6 +523,130 @@ class SeraphimOrchestrator:
         except Exception as e:
             logger.error(f"Error al obtener símbolos: {str(e)}")
             return []
+            
+    async def place_order(self, symbol: str, side: OrderSide, order_type: OrderType, 
+                          amount: float, price: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Colocar una orden de trading a través del OrderManager.
+        
+        Args:
+            symbol: Símbolo del mercado (ej: BTC/USDT)
+            side: Lado de la orden (buy/sell)
+            order_type: Tipo de orden (market/limit)
+            amount: Cantidad
+            price: Precio (solo para órdenes limit)
+            
+        Returns:
+            Resultado de la orden
+        """
+        try:
+            # Verificar que el OrderManager esté configurado
+            if self.order_manager is None:
+                # Inicializar OrderManager si no existe
+                await self._verify_exchange_connections()
+                
+                if self.order_manager is None:
+                    logger.error("No se pudo inicializar OrderManager")
+                    return {"success": False, "error": "OrderManager not available"}
+            
+            # Colocar orden a través del OrderManager
+            order_result = await self.order_manager.place_order(
+                symbol=symbol,
+                side=side,
+                order_type=order_type,
+                amount=amount,
+                price=price
+            )
+            
+            logger.info(f"Orden colocada: {side.name} {order_type.name} {amount} {symbol} - ID: {order_result.get('order_id', 'unknown')}")
+            
+            return {
+                "success": True,
+                "order_id": order_result.get("order_id"),
+                "symbol": symbol,
+                "side": side.name,
+                "type": order_type.name,
+                "amount": amount,
+                "price": price,
+                "status": order_result.get("status", OrderStatus.NEW.name),
+                "created_at": order_result.get("created_at", datetime.now().isoformat())
+            }
+            
+        except Exception as e:
+            logger.error(f"Error al colocar orden para {symbol}: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def cancel_order(self, order_id: str) -> Dict[str, Any]:
+        """
+        Cancelar una orden existente.
+        
+        Args:
+            order_id: Identificador de la orden a cancelar
+            
+        Returns:
+            Resultado de la cancelación
+        """
+        try:
+            # Verificar que el OrderManager esté configurado
+            if self.order_manager is None:
+                logger.error("OrderManager no inicializado")
+                return {"success": False, "error": "OrderManager not available"}
+            
+            # Cancelar orden a través del OrderManager
+            cancel_result = await self.order_manager.cancel_order(order_id)
+            
+            if cancel_result.get("success", False):
+                logger.info(f"Orden cancelada correctamente: {order_id}")
+                return {
+                    "success": True,
+                    "order_id": order_id,
+                    "message": "Order cancelled successfully"
+                }
+            else:
+                logger.warning(f"No se pudo cancelar orden {order_id}: {cancel_result.get('error', 'unknown reason')}")
+                return {
+                    "success": False,
+                    "order_id": order_id,
+                    "error": cancel_result.get("error", "Failed to cancel order")
+                }
+            
+        except Exception as e:
+            logger.error(f"Error al cancelar orden {order_id}: {str(e)}")
+            return {"success": False, "order_id": order_id, "error": str(e)}
+    
+    async def get_orders(self, symbol: Optional[str] = None, status: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Obtener órdenes existentes.
+        
+        Args:
+            symbol: Filtrar por símbolo (opcional)
+            status: Filtrar por estado (optional: "open", "closed", o None para todas)
+            
+        Returns:
+            Resultado con lista de órdenes
+        """
+        try:
+            # Verificar que el OrderManager esté configurado
+            if self.order_manager is None:
+                logger.error("OrderManager no inicializado")
+                return {"success": False, "error": "OrderManager not available", "orders": []}
+            
+            # Obtener órdenes a través del OrderManager
+            orders = await self.order_manager.get_orders(symbol=symbol, status=status)
+            
+            logger.info(f"Obtenidas {len(orders)} órdenes para {symbol or 'todos los símbolos'}")
+            
+            return {
+                "success": True,
+                "count": len(orders),
+                "symbol": symbol,
+                "status": status,
+                "orders": orders
+            }
+            
+        except Exception as e:
+            logger.error(f"Error al obtener órdenes: {str(e)}")
+            return {"success": False, "error": str(e), "orders": []}
     
     async def process_cycle(self) -> Dict[str, Any]:
         """
