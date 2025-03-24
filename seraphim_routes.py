@@ -55,8 +55,58 @@ def get_orchestrator() -> 'SeraphimOrchestrator':
     if _orchestrator_instance is None:
         try:
             from genesis.trading.seraphim_orchestrator import SeraphimOrchestrator
+            
+            # Crear orquestador
             _orchestrator_instance = SeraphimOrchestrator()
+            
+            # Configurar simulador si está disponible
+            if SIMULATOR_AVAILABLE:
+                # Importar componentes necesarios
+                from genesis.exchanges.adapter_factory import ExchangeAdapterFactory, AdapterType
+                
+                # Configurar simulador en thread separado
+                async def setup_simulator():
+                    try:
+                        # Crear adaptador simulado
+                        adapter = await ExchangeAdapterFactory.create_adapter(
+                            exchange_id="BINANCE",
+                            adapter_type=AdapterType.SIMULATED,
+                            config={
+                                "tick_interval_ms": 500,        # Actualizaciones cada 500ms
+                                "volatility_factor": 0.005,     # 0.5% de volatilidad
+                                "error_rate": 0.05,             # 5% de probabilidad de error
+                                "pattern_duration": 30,         # 30 segundos por patrón
+                                "enable_failures": True,        # Habilitar fallos simulados
+                                "default_candle_count": 1000,   # 1000 velas históricas
+                                "enable_websocket": True        # Habilitar websocket
+                            }
+                        )
+                        
+                        # Asignar adaptador al orquestador
+                        _orchestrator_instance.exchange_adapter = adapter
+                        
+                        # Configurar símbolos iniciales
+                        symbols = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "XRP/USDT"]
+                        for symbol in symbols:
+                            # Configurar símbolos en el simulador
+                            await adapter.get_ticker(symbol)
+                            
+                        logger.info("Simulador de exchange configurado correctamente en orquestador Seraphim")
+                        return True
+                    except Exception as e:
+                        logger.error(f"Error configurando simulador en orquestador: {e}")
+                        return False
+                
+                # Ejecutar configuración
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(setup_simulator())
+                finally:
+                    loop.close()
+            
             logger.info("Orquestador Seraphim inicializado correctamente")
+            
         except Exception as e:
             logger.error(f"Error al inicializar orquestador Seraphim: {e}")
             # Devolver un orquestador simulado para evitar errores
