@@ -485,8 +485,12 @@ class CodiciaManager:
             "error_original": error_original
         }
         
-        if contexto:
-            contexto_completo.update(contexto)
+        # Asegurar que el contexto no sea None para evitar el error de tipo
+        if contexto is None:
+            contexto = {}
+            
+        # Actualizar contexto con la información proporcionada
+        contexto_completo.update(contexto)
             
         # Registrar en log para análisis
         logger.error(f"Error transmutado [{error_id}]: {mensaje} - {error_original}")
@@ -861,13 +865,6 @@ class CodiciaManager:
                     "error": error_msg,
                     "order_id": order.id
                 }
-                
-        except Exception as e:
-            logger.error(f"Error crítico procesando orden: {str(e)}")
-            return {
-                "success": False,
-                "error": f"Error interno: {str(e)}"
-            }
     
     async def get_orders(self, status=None, symbol=None, limit=None) -> Dict[str, Any]:
         """

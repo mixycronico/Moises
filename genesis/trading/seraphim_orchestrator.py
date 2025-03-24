@@ -32,7 +32,7 @@ import random
 from genesis.strategies.seraphim.seraphim_pool import SeraphimPool, SeraphimState, CyclePhase
 from genesis.trading.buddha_integrator import BuddhaIntegrator
 from genesis.trading.human_behavior_engine import GabrielBehaviorEngine, EmotionalState, RiskTolerance, DecisionStyle
-from genesis.trading.order_manager import OrderManager, OrderType, OrderSide, OrderStatus
+from genesis.trading.order_manager import CodiciaManager, OrderType, OrderSide, OrderStatus
 from genesis.analysis.transcendental_crypto_classifier import TranscendentalCryptoClassifier
 from genesis.cloud.circuit_breaker_v4 import CloudCircuitBreakerV4
 from genesis.cloud.distributed_checkpoint_v4 import DistributedCheckpointManagerV4
@@ -392,17 +392,17 @@ class SeraphimOrchestrator:
                 # Precargar símbolos comunes
                 await self._preload_symbols()
             
-            # Inicializar OrderManager si aún no existe
+            # Inicializar CodiciaManager si aún no existe
             if not hasattr(self, 'order_manager') or self.order_manager is None:
-                logger.info("Inicializando OrderManager para gestión de órdenes...")
-                # Creamos el OrderManager con los componentes necesarios
-                self.order_manager = OrderManager(
+                logger.info("Inicializando CodiciaManager para gestión de órdenes...")
+                # Creamos el CodiciaManager con los componentes necesarios
+                self.order_manager = CodiciaManager(
                     self.exchange_adapter,
                     self.behavior_engine
                 )
-                # Inicializar el OrderManager para activar el seguimiento de órdenes
+                # Inicializar el CodiciaManager para activar el seguimiento de órdenes
                 await self.order_manager.initialize()
-                logger.info("OrderManager inicializado y vinculado al exchange adapter")
+                logger.info("CodiciaManager inicializado y vinculado al exchange adapter")
             
             # Verificar estado del adaptador
             if hasattr(self.exchange_adapter, 'get_state'):
@@ -529,7 +529,7 @@ class SeraphimOrchestrator:
     async def place_order(self, symbol: str, side: OrderSide, order_type: OrderType, 
                           amount: float, price: Optional[float] = None) -> Dict[str, Any]:
         """
-        Colocar una orden de trading a través del OrderManager.
+        Colocar una orden de trading a través del CodiciaManager.
         
         Args:
             symbol: Símbolo del mercado (ej: BTC/USDT)
@@ -542,14 +542,14 @@ class SeraphimOrchestrator:
             Resultado de la orden
         """
         try:
-            # Verificar que el OrderManager esté configurado
+            # Verificar que el CodiciaManager esté configurado
             if self.order_manager is None:
-                # Inicializar OrderManager si no existe
+                # Inicializar CodiciaManager si no existe
                 await self._verify_exchange_connections()
                 
                 if self.order_manager is None:
-                    logger.error("No se pudo inicializar OrderManager")
-                    return {"success": False, "error": "OrderManager not available"}
+                    logger.error("No se pudo inicializar CodiciaManager")
+                    return {"success": False, "error": "CodiciaManager not available"}
             
             # Colocar orden a través del OrderManager
             # Crear diccionario de parámetros para cumplir con la firma del método
