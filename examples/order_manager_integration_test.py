@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Prueba de integración entre SeraphimOrchestrator y OrderManager.
+Prueba de integración entre SeraphimOrchestrator y CodiciaManager.
 
 Este script demuestra el flujo completo de trading utilizando:
 1. Creación del SeraphimOrchestrator
@@ -49,7 +49,7 @@ async def run_basic_order_test():
     logger.info("Orquestador inicializado correctamente")
     
     # Paso 3: Verificar conexiones de exchange
-    # Este método configura y crea el exchange_adapter y el order_manager si no existen
+    # Este método configura y crea el exchange_adapter y el codicia_manager si no existen
     logger.info("Verificando conexiones de exchange...")
     exchange_connected = await orchestrator._verify_exchange_connections()
     
