@@ -68,21 +68,6 @@ class GabrielBehaviorEngine:
     
     def __init__(self):
         """Inicializar motor de comportamiento humano Gabriel."""
-        
-    async def initialize(self):
-        """
-        Inicialización asíncrona del motor de comportamiento Gabriel.
-        
-        Esta función es necesaria para mantener la consistencia con la interfaz
-        del orquestador Seraphim y otros componentes del sistema.
-        
-        Returns:
-            True si la inicialización fue exitosa
-        """
-        logger.info("Motor de comportamiento Gabriel inicializando de forma asíncrona...")
-        await asyncio.sleep(0.1)  # Pausa mínima para simular procesamiento
-        logger.info("Motor de comportamiento Gabriel inicializado correctamente")
-        return True
         # Estado emocional actual y características de comportamiento
         self.emotional_state = EmotionalState.NEUTRAL
         self.risk_tolerance = RiskTolerance.MODERATE
@@ -112,6 +97,21 @@ class GabrielBehaviorEngine:
         self.configuration = self._create_default_configuration()
         
         logger.info("Motor de Comportamiento Humano Gabriel inicializado")
+        
+    async def initialize(self):
+        """
+        Inicialización asíncrona del motor de comportamiento Gabriel.
+        
+        Esta función es necesaria para mantener la consistencia con la interfaz
+        del orquestador Seraphim y otros componentes del sistema.
+        
+        Returns:
+            True si la inicialización fue exitosa
+        """
+        logger.info("Motor de comportamiento Gabriel inicializando de forma asíncrona...")
+        await asyncio.sleep(0.1)  # Pausa mínima para simular procesamiento
+        logger.info("Motor de comportamiento Gabriel inicializado correctamente")
+        return True
     
     def _create_default_configuration(self) -> Dict[str, Any]:
         """
