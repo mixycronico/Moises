@@ -40,7 +40,7 @@ class BinanceTestnetDemo:
     
     def __init__(self):
         """Inicializar demostrador."""
-        self.orchestrator = None
+        # Componentes principales
         self.binance_adapter = None
         self.behavior_engine = None
         
@@ -136,7 +136,8 @@ class BinanceTestnetDemo:
             
             # Cambiar estado emocional de Gabriel
             logger.info("Cambiando estado emocional de Gabriel a HOPEFUL...")
-            await self.behavior_engine.set_emotional_state("OPTIMISTIC", "Demo iniciada")
+            from genesis.trading.gabriel.essence import EmotionalState
+            await self.behavior_engine.change_emotional_state(EmotionalState.HOPEFUL, reason="Demo iniciada")
             
             # Bucle principal de la demostración
             while self.running and time.time() < end_time:
@@ -164,10 +165,10 @@ class BinanceTestnetDemo:
                         elapsed = time.time() - start_time
                         if elapsed > 20 and elapsed < 25:
                             logger.info("Cambiando estado emocional de Gabriel a CAUTIOUS...")
-                            await self.behavior_engine.set_emotional_state("CAUTIOUS", "Mercado inestable")
+                            await self.behavior_engine.change_emotional_state(EmotionalState.CAUTIOUS, reason="Mercado inestable")
                         elif elapsed > 40 and elapsed < 45:
                             logger.info("Cambiando estado emocional de Gabriel a FEARFUL...")
-                            await self.behavior_engine.set_emotional_state("FEARFUL", "Colapso de mercado simulado")
+                            await self.behavior_engine.change_emotional_state(EmotionalState.FEARFUL, reason="Colapso de mercado simulado")
                     
                 except Exception as iteration_error:
                     logger.error(f"Error en iteración: {str(iteration_error)}")
@@ -193,28 +194,39 @@ class BinanceTestnetDemo:
             symbol: Símbolo a consultar
         """
         try:
-            # Obtener datos de mercado a través del orquestador
-            market_data = await self.orchestrator.get_market_data(symbol)
+            # Obtener datos de mercado directamente del adaptador
+            ticker = await self.binance_adapter.get_ticker(symbol)
             
-            if not market_data.get("success", False):
-                logger.warning(f"No se pudieron obtener datos para {symbol}: {market_data.get('error', 'Unknown error')}")
+            if not ticker:
+                logger.warning(f"No se pudieron obtener datos para {symbol}")
                 return
             
-            # Mostrar precio y tendencia
-            last_price = market_data.get("last_price", 0)
-            trend = market_data.get("trend", "NEUTRAL")
+            # Extraer datos del ticker
+            last_price = float(ticker.get("last", 0))
             
+            # Determinar tendencia básica basada en cambio de precio
+            price_change_percent = float(ticker.get("percentage", 0))
+            if price_change_percent > 1.0:
+                trend = "UP"
+            elif price_change_percent < -1.0:
+                trend = "DOWN"
+            else:
+                trend = "NEUTRAL"
+            
+            # Mostrar precio y tendencia
             logger.info(f"Datos de mercado para {symbol}:")
             logger.info(f"  - Precio actual: {last_price:.2f} USDT")
-            logger.info(f"  - Tendencia: {trend}")
+            logger.info(f"  - Tendencia: {trend} ({price_change_percent:.2f}%)")
             
             # Mostrar volumen si está disponible
-            volume = market_data.get("volume", 0)
+            volume = float(ticker.get("quoteVolume", 0))
             if volume:
-                logger.info(f"  - Volumen 24h: {volume:.2f}")
+                logger.info(f"  - Volumen 24h: {volume:.2f} USDT")
                 
         except Exception as e:
             logger.error(f"Error al mostrar datos de mercado: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     async def _simulate_trading_decision(self, symbol: str):
         """
@@ -224,31 +236,45 @@ class BinanceTestnetDemo:
             symbol: Símbolo a operar
         """
         try:
-            # Obtener datos de mercado
-            market_data = await self.orchestrator.get_market_data(symbol)
+            # Obtener datos de mercado directamente del adaptador
+            ticker = await self.binance_adapter.get_ticker(symbol)
             
-            if not market_data.get("success", False):
+            if not ticker:
                 logger.warning(f"No se pudieron obtener datos para {symbol}")
                 return
+            
+            # Extraer datos del ticker
+            last_price = float(ticker.get("last", 0))
+            price_change_percent = float(ticker.get("percentage", 0))
+            volume = float(ticker.get("quoteVolume", 0))
+            
+            # Determinar tendencia básica
+            if price_change_percent > 1.0:
+                trend = "UP"
+            elif price_change_percent < -1.0:
+                trend = "DOWN"
+            else:
+                trend = "NEUTRAL"
             
             # Crear señal básica (alcista o bajista según la tendencia)
             signal = {
                 "symbol": symbol,
-                "direction": 1 if market_data.get("trend") == "UP" else -1,
+                "direction": 1 if trend == "UP" else -1,
                 "strength": 0.7,  # Fuerza de la señal (0-1)
                 "source": "simple_trend_following",
                 "timestamp": int(time.time() * 1000)
             }
             
             # Consultar a Gabriel si debemos entrar al mercado
-            decision = await self.behavior_engine.should_enter(
+            decision = await self.behavior_engine.evaluate_trade_opportunity(
                 market=symbol,
                 signal_strength=signal["strength"],
                 signal_direction=signal["direction"],
                 metadata={
-                    "price": market_data.get("last_price", 0),
-                    "trend": market_data.get("trend"),
-                    "volume": market_data.get("volume", 0)
+                    "price": last_price,
+                    "trend": trend,
+                    "volume": volume,
+                    "percentage": price_change_percent
                 }
             )
             
@@ -261,7 +287,7 @@ class BinanceTestnetDemo:
             if decision.get("should_enter", False):
                 # Calcular parámetros de la orden
                 side = "buy" if signal["direction"] > 0 else "sell"
-                price = market_data.get("last_price", 0)
+                price = last_price
                 
                 # Ajustar tamaño de posición según el estado emocional de Gabriel
                 position_size = decision.get("position_size", 0.1)  # 10% por defecto
@@ -280,27 +306,39 @@ class BinanceTestnetDemo:
                 
         except Exception as e:
             logger.error(f"Error al simular decisión de trading: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     async def _show_gabriel_state(self):
         """Mostrar estado actual del motor de comportamiento Gabriel."""
         try:
-            state = self.behavior_engine.get_state()
+            state = await self.behavior_engine.get_emotional_state()
+            risk = await self.behavior_engine.get_risk_profile()
             
             logger.info(f"Estado actual de Gabriel:")
-            logger.info(f"  - Estado emocional: {state.get('emotional_state', 'UNKNOWN')}")
-            logger.info(f"  - Nivel de riesgo: {state.get('risk_tolerance', 0):.2f}")
-            logger.info(f"  - Sesgo direccional: {state.get('directional_bias', 0):.2f}")
-            logger.info(f"  - Indecisión: {state.get('indecision', 0):.2f}")
+            logger.info(f"  - Estado emocional: {state.name}")
+            logger.info(f"  - Nivel de riesgo: {risk.get('tolerance', 0):.2f}")
+            logger.info(f"  - Sesgo direccional: {risk.get('directional_bias', 0):.2f}")
+            logger.info(f"  - Indecisión: {risk.get('indecision', 0):.2f}")
             
         except Exception as e:
             logger.error(f"Error al mostrar estado de Gabriel: {str(e)}")
+            import traceback
+            traceback.print_exc()
     
     async def cleanup(self):
         """Limpiar recursos al finalizar."""
-        if self.orchestrator:
-            logger.info("Cerrando orquestador...")
-            await self.orchestrator.shutdown()
+        try:
+            # Cerrar adaptador de Binance Testnet
+            if self.binance_adapter:
+                logger.info("Cerrando adaptador Binance Testnet...")
+                await self.binance_adapter.close()
+            
             logger.info("Recursos liberados correctamente")
+        except Exception as e:
+            logger.error(f"Error al cerrar recursos: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
 async def main():
     """Función principal."""
