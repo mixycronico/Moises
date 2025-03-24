@@ -22,11 +22,11 @@ logger = logging.getLogger("genesis.oracle.armageddon_adapter")
 
 # Importaciones opcionales (algunas pueden requerir instalación)
 try:
-    import numpy as np
-    HAS_NUMPY = True
+    import requests
+    HAS_REQUESTS = True
 except ImportError:
-    HAS_NUMPY = False
-    logger.warning("NumPy no disponible, algunas funcionalidades de procesamiento de datos estarán limitadas")
+    HAS_REQUESTS = False
+    logger.warning("Requests no disponible, la comunicación con APIs externas estará limitada")
 
 
 class IntegrationStatus(Enum):
@@ -515,18 +515,18 @@ class ArmageddonAdapter:
         volume = base_price * 1000
         
         for i in range(days):
-            # Simular movimiento de precio
-            change = random.normalvariate(0, volatility)
+            # Simular movimiento de precio (sin usar numpy)
+            change = random.uniform(-volatility, volatility)
             price *= (1 + change)
             
-            # Simular volumen
-            volume_change = random.normalvariate(0, 0.2)
+            # Simular volumen (sin usar numpy)
+            volume_change = random.uniform(-0.2, 0.2)
             volume *= (1 + volume_change)
             
-            # Datos OHLC
-            open_price = price * (1 + random.normalvariate(0, volatility / 3))
-            high_price = max(price, open_price) * (1 + abs(random.normalvariate(0, volatility / 2)))
-            low_price = min(price, open_price) * (1 - abs(random.normalvariate(0, volatility / 2)))
+            # Datos OHLC (sin usar numpy)
+            open_price = price * (1 + random.uniform(-volatility/3, volatility/3))
+            high_price = max(price, open_price) * (1 + abs(random.uniform(0, volatility/2)))
+            low_price = min(price, open_price) * (1 - abs(random.uniform(0, volatility/2)))
             close_price = price
             
             # Timestamp
