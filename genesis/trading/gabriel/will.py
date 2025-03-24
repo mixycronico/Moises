@@ -363,7 +363,7 @@ class Will:
         # === IMPLEMENTACIÓN 100% DEL ESTADO FEARFUL ===
         if mood == Mood.DREAD and side.lower() == "buy":
             # 1. Rechazo total de compras con confianza menor al umbral
-            fearful_confidence_threshold = 1.0  # 100% de confianza requerida (imposible)
+            fearful_confidence_threshold = 1.0  # 100% de confianza requerida
             
             if confidence < fearful_confidence_threshold:
                 reject_reason = "confianza_insuficiente_en_estado_de_miedo"
@@ -379,14 +379,21 @@ class Will:
                 
                 return False, reject_reason, details
                 
-            # 2. Verificación extrema de condiciones de mercado (no implementadas completamente aquí)
-            details["validations"].append({
-                "check": "fearful_market_conditions",
-                "passed": False,
-                "note": "En estado de miedo, se requieren condiciones de mercado excepcionales"
-            })
-            
-            return False, "condiciones_de_mercado_insuficientes", details
+            # Si la confianza es exactamente 1.0, permitir la operación incluso en estado de miedo
+            if confidence >= fearful_confidence_threshold:
+                details["validations"].append({
+                    "check": "confidence_threshold",
+                    "passed": True,
+                    "required": fearful_confidence_threshold,
+                    "actual": confidence,
+                    "note": "Operación permitida a pesar del miedo debido a confianza máxima"
+                })
+                logger.info(f"VALIDACIÓN APROBADA A PESAR DEL MIEDO - {symbol} {side} - " +
+                         f"Confianza {confidence:.2f} igual al umbral exigido {fearful_confidence_threshold:.2f}")
+                return True, None, details
+                
+            # Fallback (no debería llegar aquí)
+            return False, "error_en_validación", details
         
         # Validaciones normales para otros estados emocionales
         # (Simplificadas para este ejemplo)
