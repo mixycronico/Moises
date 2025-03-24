@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Intercambio - Genesis Ultra-Divino Trading Nexus 10M</title>
+    
+    <!-- Estilos CSS -->
+    <style>
+        :root {
+            --primary: #9d4edd;
+            --secondary: #3a86ff;
+            --accent: #00b4d8;
+            --highlight: #f72585;
+            --warning: #ffbe0b;
+            --background: #10002b;
+            --panel: #240046;
+            --card: #3c096c;
+            --text: #f8f9fa;
+            --border: #5a189a;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(90, 24, 154, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 80% 30%, rgba(0, 180, 216, 0.15) 0%, transparent 30%),
+                radial-gradient(circle at 30% 70%, rgba(157, 78, 221, 0.2) 0%, transparent 25%),
+                radial-gradient(circle at 70% 80%, rgba(58, 134, 255, 0.15) 0%, transparent 20%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+            padding-bottom: 60px;
+        }
+        
+        header {
+            background-color: var(--panel);
+            padding: 1rem 2rem;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            color: var(--accent);
+            text-shadow: 0 0 10px rgba(0, 180, 216, 0.7);
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        
+        header p {
+            color: var(--text);
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            margin: 2rem auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .card {
+            background-color: var(--panel);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card h2 {
+            color: var(--accent);
+            margin-bottom: 1rem;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #8338ec;
+            box-shadow: 0 0 15px rgba(157, 78, 221, 0.5);
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #4361ee;
+            box-shadow: 0 0 15px rgba(58, 134, 255, 0.5);
+        }
+        
+        .btn-accent {
+            background-color: var(--accent);
+            color: white;
+        }
+        
+        .btn-accent:hover {
+            background-color: #0096c7;
+            box-shadow: 0 0 15px rgba(0, 180, 216, 0.5);
+        }
+        
+        .results-container {
+            background-color: var(--card);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            width: 100%;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(90, 24, 154, 0.5);
+        }
+        
+        .result-item {
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 0.8rem;
+            border-radius: 6px;
+            margin-bottom: 0.8rem;
+            border-left: 3px solid var(--accent);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-content {
+            font-size: 0.9rem;
+            padding-left: 0.5rem;
+        }
+        
+        .result-data {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.3rem;
+        }
+        
+        .result-label {
+            color: #b5b5b5;
+        }
+        
+        .result-value {
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        pre {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 0.8rem;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .loader {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Simulador de Intercambio</h1>
+        <p>Genesis Ultra-Divino Trading Nexus 10M</p>
+    </header>
+    
+    <div class="container">
+        <div class="card">
+            <h2>Estado del Simulador</h2>
+            <p>Inicialice el simulador para probar el Sistema Genesis con datos simulados sin conexión a un exchange real.</p>
+            
+            <div id="simulator-status">
+                <p>Estado: <span id="sim-status-text">No inicializado</span></p>
+                <p id="sim-details" class="hidden">
+                    Exchange: <span id="sim-exchange"></span><br>
+                    Volatilidad: <span id="sim-volatility"></span><br>
+                    Símbolos: <span id="sim-symbols-count"></span>
+                </p>
+            </div>
+            
+            <button id="initialize-btn" class="btn btn-primary">Inicializar Simulador</button>
+        </div>
+        
+        <div class="card">
+            <h2>Demostración de Datos de Mercado</h2>
+            <p>Prueba la obtención de datos de mercado simulados, incluyendo tickers, libro de órdenes y velas.</p>
+            
+            <button id="market-data-btn" class="btn btn-secondary">Ejecutar Demo</button>
+            
+            <div id="market-data-results" class="results-container hidden">
+                <div id="market-data-loader" class="hidden">
+                    <span class="loader"></span> Ejecutando demostración...
+                </div>
+                <div id="market-data-content"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Demostración de Órdenes</h2>
+            <p>Prueba la gestión de órdenes simuladas, incluyendo órdenes de mercado, órdenes límite y cancelaciones.</p>
+            
+            <button id="orders-btn" class="btn btn-accent">Ejecutar Demo</button>
+            
+            <div id="orders-results" class="results-container hidden">
+                <div id="orders-loader" class="hidden">
+                    <span class="loader"></span> Ejecutando demostración...
+                </div>
+                <div id="orders-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Elementos DOM
+        const initializeBtn = document.getElementById('initialize-btn');
+        const marketDataBtn = document.getElementById('market-data-btn');
+        const ordersBtn = document.getElementById('orders-btn');
+        
+        const simStatusText = document.getElementById('sim-status-text');
+        const simDetails = document.getElementById('sim-details');
+        const simExchange = document.getElementById('sim-exchange');
+        const simVolatility = document.getElementById('sim-volatility');
+        const simSymbolsCount = document.getElementById('sim-symbols-count');
+        
+        const marketDataResults = document.getElementById('market-data-results');
+        const marketDataLoader = document.getElementById('market-data-loader');
+        const marketDataContent = document.getElementById('market-data-content');
+        
+        const ordersResults = document.getElementById('orders-results');
+        const ordersLoader = document.getElementById('orders-loader');
+        const ordersContent = document.getElementById('orders-content');
+        
+        // Estado inicial
+        let simulatorInitialized = false;
+        
+        // Inicializar simulador
+        initializeBtn.addEventListener('click', async () => {
+            try {
+                simStatusText.textContent = "Inicializando...";
+                
+                const response = await fetch('/api/simulator/initialize', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    simulatorInitialized = true;
+                    simStatusText.textContent = "Inicializado";
+                    simDetails.classList.remove('hidden');
+                    
+                    simExchange.textContent = data.simulator_info.exchange_id;
+                    simVolatility.textContent = (data.simulator_info.volatility * 100).toFixed(2) + '%';
+                    simSymbolsCount.textContent = data.simulator_info.symbols_count;
+                    
+                    // Habilitar botones
+                    marketDataBtn.disabled = false;
+                    ordersBtn.disabled = false;
+                } else {
+                    simStatusText.textContent = "Error: " + data.message;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                simStatusText.textContent = "Error de conexión";
+            }
+        });
+        
+        // Ejecutar demo de datos de mercado
+        marketDataBtn.addEventListener('click', async () => {
+            if (!simulatorInitialized) {
+                alert("Por favor inicialice el simulador primero");
+                return;
+            }
+            
+            try {
+                marketDataResults.classList.remove('hidden');
+                marketDataLoader.classList.remove('hidden');
+                marketDataContent.innerHTML = '';
+                
+                const response = await fetch('/api/simulator/market_data_demo');
+                const data = await response.json();
+                
+                marketDataLoader.classList.add('hidden');
+                
+                if (data.success) {
+                    renderMarketDataResults(data.results);
+                } else {
+                    marketDataContent.innerHTML = `<div class="result-item">
+                        <div class="result-title">Error</div>
+                        <div class="result-content">${data.message}</div>
+                    </div>`;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                marketDataLoader.classList.add('hidden');
+                marketDataContent.innerHTML = `<div class="result-item">
+                    <div class="result-title">Error</div>
+                    <div class="result-content">Error de conexión al servidor</div>
+                </div>`;
+            }
+        });
+        
+        // Ejecutar demo de órdenes
+        ordersBtn.addEventListener('click', async () => {
+            if (!simulatorInitialized) {
+                alert("Por favor inicialice el simulador primero");
+                return;
+            }
+            
+            try {
+                ordersResults.classList.remove('hidden');
+                ordersLoader.classList.remove('hidden');
+                ordersContent.innerHTML = '';
+                
+                const response = await fetch('/api/simulator/orders_demo');
+                const data = await response.json();
+                
+                ordersLoader.classList.add('hidden');
+                
+                if (data.success) {
+                    renderOrdersResults(data.results);
+                } else {
+                    ordersContent.innerHTML = `<div class="result-item">
+                        <div class="result-title">Error</div>
+                        <div class="result-content">${data.message}</div>
+                    </div>`;
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                ordersLoader.classList.add('hidden');
+                ordersContent.innerHTML = `<div class="result-item">
+                    <div class="result-title">Error</div>
+                    <div class="result-content">Error de conexión al servidor</div>
+                </div>`;
+            }
+        });
+        
+        // Renderizar resultados de datos de mercado
+        function renderMarketDataResults(results) {
+            marketDataContent.innerHTML = '';
+            
+            if (!results || results.length === 0) {
+                marketDataContent.innerHTML = `<div class="result-item">
+                    <div class="result-title">Sin resultados</div>
+                    <div class="result-content">No se encontraron datos</div>
+                </div>`;
+                return;
+            }
+            
+            results.forEach(result => {
+                let html = '';
+                
+                switch (result.type) {
+                    case 'ticker':
+                        html = `<div class="result-item">
+                            <div class="result-title">Ticker ${result.symbol}</div>
+                            <div class="result-content">
+                                <div class="result-data">
+                                    <span class="result-label">Precio:</span>
+                                    <span class="result-value">$${result.price.toFixed(2)}</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Cambio 24h:</span>
+                                    <span class="result-value">${result.change_24h.toFixed(2)}%</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        break;
+                        
+                    case 'orderbook':
+                        html = `<div class="result-item">
+                            <div class="result-title">Libro de Órdenes ${result.symbol}</div>
+                            <div class="result-content">
+                                <div class="result-data">
+                                    <span class="result-label">Mejor compra:</span>
+                                    <span class="result-value">$${result.best_bid.price.toFixed(2)} (${result.best_bid.quantity.toFixed(4)})</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Mejor venta:</span>
+                                    <span class="result-value">$${result.best_ask.price.toFixed(2)} (${result.best_ask.quantity.toFixed(4)})</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        break;
+                        
+                    case 'candles':
+                        let candlesHtml = '';
+                        result.data.forEach(candle => {
+                            candlesHtml += `<div class="result-data">
+                                <span class="result-label">${candle.timestamp}:</span>
+                                <span class="result-value">O: $${candle.open.toFixed(2)}, H: $${candle.high.toFixed(2)}, L: $${candle.low.toFixed(2)}, C: $${candle.close.toFixed(2)}, V: ${candle.volume.toFixed(2)}</span>
+                            </div>`;
+                        });
+                        
+                        html = `<div class="result-item">
+                            <div class="result-title">Velas ${result.symbol} (${result.timeframe})</div>
+                            <div class="result-content">
+                                ${candlesHtml}
+                            </div>
+                        </div>`;
+                        break;
+                }
+                
+                marketDataContent.innerHTML += html;
+            });
+        }
+        
+        // Renderizar resultados de órdenes
+        function renderOrdersResults(results) {
+            ordersContent.innerHTML = '';
+            
+            if (!results || results.length === 0) {
+                ordersContent.innerHTML = `<div class="result-item">
+                    <div class="result-title">Sin resultados</div>
+                    <div class="result-content">No se encontraron datos</div>
+                </div>`;
+                return;
+            }
+            
+            results.forEach(result => {
+                let html = '';
+                
+                switch (result.type) {
+                    case 'price_check':
+                        html = `<div class="result-item">
+                            <div class="result-title">Precio Actual ${result.symbol}</div>
+                            <div class="result-content">
+                                <div class="result-data">
+                                    <span class="result-label">Precio:</span>
+                                    <span class="result-value">$${result.price.toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        break;
+                        
+                    case 'market_order':
+                        html = `<div class="result-item">
+                            <div class="result-title">Orden de Mercado</div>
+                            <div class="result-content">
+                                <div class="result-data">
+                                    <span class="result-label">ID:</span>
+                                    <span class="result-value">${result.order_id}</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Estado:</span>
+                                    <span class="result-value">${result.status}</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Precio:</span>
+                                    <span class="result-value">$${result.price.toFixed(2)}</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Cantidad:</span>
+                                    <span class="result-value">${result.quantity.toFixed(8)}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        break;
+                        
+                    case 'limit_order':
+                        html = `<div class="result-item">
+                            <div class="result-title">Orden Límite</div>
+                            <div class="result-content">
+                                <div class="result-data">
+                                    <span class="result-label">ID:</span>
+                                    <span class="result-value">${result.order_id}</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Estado:</span>
+                                    <span class="result-value">${result.status}</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Precio:</span>
+                                    <span class="result-value">$${result.price.toFixed(2)}</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Cantidad:</span>
+                                    <span class="result-value">${result.quantity.toFixed(8)}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        break;
+                        
+                    case 'active_orders':
+                        html = `<div class="result-item">
+                            <div class="result-title">Órdenes Activas ${result.symbol}</div>
+                            <div class="result-content">
+                                <div class="result-data">
+                                    <span class="result-label">Total:</span>
+                                    <span class="result-value">${result.count}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        break;
+                        
+                    case 'cancel_order':
+                        html = `<div class="result-item">
+                            <div class="result-title">Cancelación de Orden</div>
+                            <div class="result-content">
+                                <div class="result-data">
+                                    <span class="result-label">ID:</span>
+                                    <span class="result-value">${result.order_id}</span>
+                                </div>
+                                <div class="result-data">
+                                    <span class="result-label">Estado:</span>
+                                    <span class="result-value">${result.status}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        break;
+                        
+                    case 'active_orders_after_cancel':
+                        html = `<div class="result-item">
+                            <div class="result-title">Órdenes Activas Después de Cancelación</div>
+                            <div class="result-content">
+                                <div class="result-data">
+                                    <span class="result-label">Total:</span>
+                                    <span class="result-value">${result.count}</span>
+                                </div>
+                            </div>
+                        </div>`;
+                        break;
+                }
+                
+                ordersContent.innerHTML += html;
+            });
+        }
+        
+        // Deshabilitar botones inicialmente
+        marketDataBtn.disabled = true;
+        ordersBtn.disabled = true;
+        
+        // Verificar estado inicial del simulador
+        async function checkInitialStatus() {
+            try {
+                const response = await fetch('/api/simulator/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    simulatorInitialized = true;
+                    simStatusText.textContent = "Inicializado";
+                    simDetails.classList.remove('hidden');
+                    
+                    simExchange.textContent = "BINANCE";  // Valor por defecto
+                    simVolatility.textContent = (data.simulator_status.error_rate * 100).toFixed(2) + '%';
+                    simSymbolsCount.textContent = data.simulator_status.symbols.length;
+                    
+                    // Habilitar botones
+                    marketDataBtn.disabled = false;
+                    ordersBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error("Error verificando estado inicial:", error);
+            }
+        }
+        
+        // Ejecutar al cargar la página
+        checkInitialStatus();
+    </script>
+</body>
+</html>

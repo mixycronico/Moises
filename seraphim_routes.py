@@ -18,7 +18,22 @@ import time
 from datetime import datetime
 from typing import Dict, Any, Optional, List, Union
 
-from flask import Flask, render_template, request, jsonify, redirect, url_for, Response
+from flask import Flask, render_template, request, jsonify, redirect, url_for, Response, session
+
+# Importar componentes del simulador de intercambio
+try:
+    from genesis.simulators import (
+        ExchangeSimulator, 
+        ExchangeSimulatorFactory,
+        MarketPattern, 
+        MarketEventType
+    )
+    from genesis.exchanges.simulated_exchange_adapter import SimulatedExchangeAdapter
+    SIMULATOR_AVAILABLE = True
+except ImportError as e:
+    logger = logging.getLogger("genesis.seraphim")
+    logger.warning(f"No se pudieron importar los componentes del simulador: {e}")
+    SIMULATOR_AVAILABLE = False
 
 # Configurar logging
 logger = logging.getLogger("genesis.seraphim")
@@ -614,6 +629,391 @@ async def _process_cycle_async():
         logger.error(f"Traceback: {traceback.format_exc()}")
 
 
+# Simulador de Intercambio
+_exchange_simulator_instance = None
+_exchange_adapter_instance = None
+
+def get_exchange_simulator():
+    """
+    Obtener instancia del simulador de intercambio.
+    
+    Returns:
+        Instancia del simulador de intercambio o None si no está disponible
+    """
+    global _exchange_simulator_instance
+    
+    if not SIMULATOR_AVAILABLE:
+        return None
+        
+    if _exchange_simulator_instance is None:
+        try:
+            async def init_simulator():
+                config = {
+                    "tick_interval_ms": 500,       # Actualizaciones cada 500ms
+                    "volatility_factor": 0.005,    # 0.5% de volatilidad
+                    "error_rate": 0.05,            # 5% de probabilidad de error
+                    "pattern_duration": 30,        # 30 segundos por patrón
+                    "enable_failures": True        # Habilitar fallos simulados
+                }
+                
+                simulator = await ExchangeSimulatorFactory.create_simulator("BINANCE", config)
+                return simulator
+                
+            # Ejecutar inicialización en thread separado
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                _exchange_simulator_instance = loop.run_until_complete(init_simulator())
+                logger.info("Simulador de intercambio inicializado correctamente")
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            logger.error(f"Error al inicializar simulador: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    return _exchange_simulator_instance
+
+def get_exchange_adapter():
+    """
+    Obtener instancia del adaptador para el simulador de intercambio.
+    
+    Returns:
+        Instancia del adaptador o None si no está disponible
+    """
+    global _exchange_adapter_instance
+    
+    if not SIMULATOR_AVAILABLE:
+        return None
+        
+    if _exchange_adapter_instance is None:
+        try:
+            # Configuración del simulador
+            config = {
+                "tick_interval_ms": 500,       # Actualizaciones cada 500ms
+                "volatility_factor": 0.005,    # 0.5% de volatilidad
+                "error_rate": 0.05,            # 5% de probabilidad de error
+                "pattern_duration": 30,        # 30 segundos por patrón
+                "enable_failures": True        # Habilitar fallos simulados
+            }
+            
+            # Crear adaptador
+            _exchange_adapter_instance = SimulatedExchangeAdapter("BINANCE", config)
+            
+            # Ejecutar inicialización en thread separado
+            async def init_adapter():
+                await _exchange_adapter_instance.initialize()
+                await _exchange_adapter_instance.connect()
+                
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(init_adapter())
+                logger.info("Adaptador de intercambio inicializado correctamente")
+            finally:
+                loop.close()
+                
+        except Exception as e:
+            logger.error(f"Error al inicializar adaptador: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+    
+    return _exchange_adapter_instance
+
+def simulator_page():
+    """Página del simulador de intercambio."""
+    return render_template('simulator.html')
+
+def initialize_simulator():
+    """Inicializar simulador de intercambio."""
+    if not SIMULATOR_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "message": "Componentes del simulador no disponibles"
+        })
+    
+    try:
+        # Inicializar el simulador
+        simulator = get_exchange_simulator()
+        adapter = get_exchange_adapter()
+        
+        if simulator is None or adapter is None:
+            return jsonify({
+                "success": False,
+                "message": "Error al inicializar simulador"
+            })
+        
+        return jsonify({
+            "success": True,
+            "message": "Simulador inicializado correctamente",
+            "simulator_info": {
+                "exchange_id": simulator.exchange_id,
+                "symbols_count": len(simulator.symbols),
+                "volatility": simulator.volatility_factor
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error al inicializar simulador: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error: {str(e)}"
+        }), 500
+
+def get_simulator_status():
+    """Obtener estado del simulador de intercambio."""
+    if not SIMULATOR_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "message": "Componentes del simulador no disponibles"
+        })
+    
+    try:
+        simulator = get_exchange_simulator()
+        
+        if simulator is None:
+            return jsonify({
+                "success": False,
+                "message": "Simulador no inicializado"
+            })
+        
+        return jsonify({
+            "success": True,
+            "simulator_status": {
+                "running": simulator.is_running,
+                "symbols": simulator.symbols[:5],  # Limitar a 5 para la respuesta
+                "error_rate": simulator.error_rate,
+                "tick_interval": simulator.tick_interval_ms
+            }
+        })
+    except Exception as e:
+        logger.error(f"Error al obtener estado del simulador: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"Error: {str(e)}"
+        }), 500
+
+async def _run_market_data_demo():
+    """Ejecutar demostración de datos de mercado."""
+    adapter = get_exchange_adapter()
+    if adapter is None:
+        return {"success": False, "message": "Adaptador no disponible"}
+    
+    # Lista de símbolos para la demostración
+    DEMO_SYMBOLS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "ADA/USDT", "XRP/USDT"]
+    results = []
+    
+    try:
+        # Obtener tickers para todos los símbolos
+        for symbol in DEMO_SYMBOLS:
+            ticker = await adapter.get_ticker(symbol)
+            results.append({
+                "type": "ticker",
+                "symbol": symbol,
+                "price": ticker['price'],
+                "change_24h": ticker['percentage']
+            })
+            
+        # Obtener libro de órdenes para BTC/USDT
+        orderbook = await adapter.get_orderbook("BTC/USDT", limit=5)
+        results.append({
+            "type": "orderbook",
+            "symbol": "BTC/USDT",
+            "best_bid": {
+                "price": orderbook['bids'][0][0],
+                "quantity": orderbook['bids'][0][1]
+            },
+            "best_ask": {
+                "price": orderbook['asks'][0][0],
+                "quantity": orderbook['asks'][0][1]
+            }
+        })
+        
+        # Obtener velas para ETH/USDT
+        candles = await adapter.get_candles("ETH/USDT", timeframe="1h", limit=5)
+        candle_results = []
+        
+        for candle in candles:
+            dt = datetime.fromtimestamp(candle['timestamp'] / 1000).strftime('%Y-%m-%d %H:%M')
+            candle_results.append({
+                "timestamp": dt,
+                "open": candle['open'],
+                "close": candle['close'],
+                "high": candle['high'],
+                "low": candle['low'],
+                "volume": candle['volume']
+            })
+            
+        results.append({
+            "type": "candles",
+            "symbol": "ETH/USDT",
+            "timeframe": "1h",
+            "data": candle_results
+        })
+        
+        return {"success": True, "results": results}
+    except Exception as e:
+        logger.error(f"Error en demostración de datos de mercado: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {"success": False, "message": str(e)}
+
+def run_market_data_demo():
+    """Ejecutar demostración de datos de mercado."""
+    if not SIMULATOR_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "message": "Componentes del simulador no disponibles"
+        })
+    
+    # Ejecutar en thread separado
+    thread = run_async_task(_run_market_data_demo)
+    thread.join(timeout=5.0)
+    
+    # Si aún está ejecutando, devolver mensaje de espera
+    if thread.is_alive():
+        return jsonify({
+            "success": True,
+            "message": "Ejecutando demostración, por favor espere...",
+            "results": []
+        })
+    
+    # Si el thread tiene un atributo result, devolverlo
+    if hasattr(thread, 'result'):
+        return jsonify(thread.result)
+    
+    # En caso contrario, devolver error
+    return jsonify({
+        "success": False,
+        "message": "Error desconocido al ejecutar demostración"
+    })
+
+async def _run_orders_demo():
+    """Ejecutar demostración de órdenes."""
+    adapter = get_exchange_adapter()
+    if adapter is None:
+        return {"success": False, "message": "Adaptador no disponible"}
+    
+    results = []
+    
+    try:
+        # Obtener precio actual de BTC
+        ticker = await adapter.get_ticker("BTC/USDT")
+        current_price = ticker["price"]
+        
+        results.append({
+            "type": "price_check",
+            "symbol": "BTC/USDT",
+            "price": current_price
+        })
+        
+        # Colocar una orden de mercado
+        market_order = {
+            "symbol": "BTC/USDT",
+            "side": "buy",
+            "type": "market",
+            "quantity": 0.1
+        }
+        
+        result = await adapter.place_order(market_order)
+        order = result["order"]
+        
+        results.append({
+            "type": "market_order",
+            "order_id": order["id"],
+            "status": order["status"],
+            "price": order["price"],
+            "quantity": order["quantity"]
+        })
+        
+        # Colocar una orden límite
+        limit_price = current_price * 0.95  # 5% por debajo del precio actual
+        limit_order = {
+            "symbol": "BTC/USDT",
+            "side": "buy",
+            "type": "limit",
+            "quantity": 0.2,
+            "price": limit_price
+        }
+        
+        result = await adapter.place_order(limit_order)
+        order = result["order"]
+        
+        results.append({
+            "type": "limit_order",
+            "order_id": order["id"],
+            "status": order["status"],
+            "price": order["price"],
+            "quantity": order["quantity"]
+        })
+        
+        # Obtener órdenes activas
+        orders = await adapter.get_orders(symbol="BTC/USDT")
+        
+        results.append({
+            "type": "active_orders",
+            "count": len(orders["orders"]),
+            "symbol": "BTC/USDT"
+        })
+        
+        # Cancelar la orden límite si no está completada
+        if order["status"] != "FILLED":
+            cancel_result = await adapter.cancel_order(order["id"])
+            
+            results.append({
+                "type": "cancel_order",
+                "order_id": order["id"],
+                "status": cancel_result["order"]["status"]
+            })
+            
+            # Verificar órdenes activas nuevamente
+            orders = await adapter.get_orders(symbol="BTC/USDT")
+            active_count = len([o for o in orders["orders"] if o["status"] != "CANCELED" and o["status"] != "FILLED"])
+            
+            results.append({
+                "type": "active_orders_after_cancel",
+                "count": active_count,
+                "symbol": "BTC/USDT"
+            })
+        
+        return {"success": True, "results": results}
+    except Exception as e:
+        logger.error(f"Error en demostración de órdenes: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return {"success": False, "message": str(e)}
+
+def run_orders_demo():
+    """Ejecutar demostración de órdenes."""
+    if not SIMULATOR_AVAILABLE:
+        return jsonify({
+            "success": False,
+            "message": "Componentes del simulador no disponibles"
+        })
+    
+    # Ejecutar en thread separado
+    thread = run_async_task(_run_orders_demo)
+    thread.join(timeout=5.0)
+    
+    # Si aún está ejecutando, devolver mensaje de espera
+    if thread.is_alive():
+        return jsonify({
+            "success": True,
+            "message": "Ejecutando demostración de órdenes, por favor espere...",
+            "results": []
+        })
+    
+    # Si el thread tiene un atributo result, devolverlo
+    if hasattr(thread, 'result'):
+        return jsonify(thread.result)
+    
+    # En caso contrario, devolver error
+    return jsonify({
+        "success": False,
+        "message": "Error desconocido al ejecutar demostración de órdenes"
+    })
+
+
 def register_seraphim_routes(app):
     """
     Registrar rutas del Sistema Seraphim en la aplicación Flask.
@@ -624,7 +1024,7 @@ def register_seraphim_routes(app):
     # Página principal
     app.add_url_rule('/seraphim', 'seraphim_page', seraphim_page)
     
-    # Rutas API
+    # Rutas API del Sistema Seraphim
     app.add_url_rule('/api/seraphim/status', 'get_seraphim_status', get_seraphim_status)
     app.add_url_rule('/api/seraphim/initialize', 'initialize_seraphim', initialize_seraphim, methods=['POST'])
     app.add_url_rule('/api/seraphim/system_overview', 'get_system_overview', get_system_overview)
@@ -635,5 +1035,15 @@ def register_seraphim_routes(app):
     app.add_url_rule('/api/seraphim/randomize_behavior', 'randomize_behavior', randomize_behavior, methods=['POST'])
     app.add_url_rule('/api/seraphim/auto_operation', 'start_auto_operation', start_auto_operation, methods=['POST'])
     app.add_url_rule('/api/seraphim/stop_auto', 'stop_auto_operation', stop_auto_operation, methods=['POST'])
+    
+    # Rutas API del Simulador de Intercambio
+    if SIMULATOR_AVAILABLE:
+        app.add_url_rule('/simulator', 'simulator_page', simulator_page)
+        app.add_url_rule('/api/simulator/initialize', 'initialize_simulator', initialize_simulator, methods=['POST'])
+        app.add_url_rule('/api/simulator/status', 'get_simulator_status', get_simulator_status)
+        app.add_url_rule('/api/simulator/market_data_demo', 'run_market_data_demo', run_market_data_demo)
+        app.add_url_rule('/api/simulator/orders_demo', 'run_orders_demo', run_orders_demo)
+        
+        logger.info("Rutas del Simulador de Intercambio registradas correctamente")
     
     logger.info("Rutas del Sistema Seraphim registradas correctamente")
