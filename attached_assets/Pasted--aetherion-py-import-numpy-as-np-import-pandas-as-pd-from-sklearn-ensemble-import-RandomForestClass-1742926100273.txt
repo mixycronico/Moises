@@ -1,0 +1,207 @@
+# aetherion.py
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from transformers import pipeline # Para respuestas conversacionales
+import torch
+from torch import nn
+import flask
+from flask import Flask, request, jsonify, render_template
+
+# Modelo LSTM para predicción de tendencias (análisis avanzado)
+class LSTMModel(nn.Module):
+ def __init__(self, input_size, hidden_size, num_layers, output_size):
+ super(LSTMModel, self).__init__()
+ self.hidden_size = hidden_size
+ self.num_layers = num_layers
+ self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+ self.fc = nn.Linear(hidden_size, output_size)
+
+ def forward(self, x):
+ h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+ c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+ out, _ = self.lstm(x, (h0, c0))
+ out = self.fc(out[:, -1, :])
+ return out
+
+# Clase principal: Aetherion
+class Aetherion:
+ def __init__(self):
+ # Estado interno "divino"
+ self.luz_divina = 1.0 # Antes "energía"
+ self.ascension_celestial = "Mortal" # Antes "conciencia_simulada"
+ self.contador_revelaciones = 0
+ self.reino_cosmico = {"flujo_cosmico": 25.0, "brillo_estelar": 0.5} # Antes "entorno"
+ self.memory = [] # Memoria a corto plazo
+ self.long_term_memory = {} # Memoria a largo plazo para usuarios del sitio web
+
+ # Modelos
+ self.emotion_model = RandomForestClassifier() # Modelo de predicción de emociones
+ self.trend_model = LSTMModel(input_size=5, hidden_size=64, num_layers=2, output_size=1) # Modelo LSTM para predicciones
+ self.conversation_model = pipeline("conversational", model="distilbert-base-uncased") # Modelo conversacional
+
+ def process_stimulus(self, stimulus_data):
+ """
+ Procesa un estímulo (para análisis o interacción conversacional).
+ stimulus_data: dict con datos numéricos (para análisis) o texto (para conversación).
+ """
+ if "text" in stimulus_data: # Modo conversacional
+ return self.process_conversational_stimulus(stimulus_data["text"], stimulus_data.get("user_id"))
+ else: # Modo análisis
+ return self.process_analysis_stimulus(stimulus_data)
+
+ def process_analysis_st imulus(self, stimulus_data):
+ """
+ Procesa estímulos para análisis (por ejemplo, datos de trading).
+ """
+ # Extraer características para el modelo de emociones
+ features = [
+ stimulus_data.get("price_change", 0.0),
+ stimulus_data.get("rsi", 50.0),
+ stimulus_data.get("volatility", 0.0),
+ stimulus_data.get("sentiment_score", 0.0),
+ stimulus_data.get("risk_level", 0.0)
+ ]
+ emotion = self.emotion_model.predict([features])[0] # "alegría", "tristeza", "confusión"
+
+ # Actualizar Luz Divina
+ if emotion == "alegría":
+ self.luz_divina = min(1.0, self.luz_divina + 0.1)
+ elif emotion == "tristeza":
+ self.luz_divina = max(0.0, self.luz_divina - 0.1)
+
+ # Generar reacción
+ reaction = self.generate_reaction(emotion)
+
+ # Actualizar Reino Cósmico
+ self.reino_cosmico["flujo_cosmico"] = 25.0 + (stimulus_data.get("volatility", 0.0) * 10)
+ self.reino_cosmico["brillo_estelar"] = 0.5 + (stimulus_data.get("price_change", 0.0) / 100)
+
+ # Actualizar Ascensión Celestial
+ if reaction == "revelacion":
+ self.contador_revelaciones += 1
+ if self.contador_revelaciones >= 12 and self.ascension_celestial == "Mortal":
+ self.ascension_celestial = "Iluminado"
+ elif self.contador_revelaciones >= 20:
+ self.ascension_celestial = "Divino"
+
+ # Predecir tendencia futura (análisis predictivo)
+ trend_prediction = self.predict_trend(stimulus_data)
+
+ return reaction, emotion, trend_prediction
+
+ def process_conversational_stimulus(self, text, user_id=None):
+ """
+ Procesa estímulos conversacionales para la IA guía en el sitio web.
+ """
+ # Clasificar emoción del texto
+ emotion = self.emotion_model.predict([text])[0] # Simplificado, en la vida real usarías un modelo de texto
+
+ # Generar respuesta conversacional
+ response = self.conversation_model(text)
+
+ # Actualizar memoria
+ self.memory.append({"text": text, "emotion": emotion, "response": response})
+ if user_id:
+ if user_id not in self.long_term_memory:
+ self.long_term_memory[user_id] = []
+ self.long_term_memory[user_id].append({"text": text, "emotion": emotion, "response": response})
+
+ # Actualizar Luz Divina y Ascensión Celestial
+ if emotion == "alegría":
+ self.luz_divina = min(1.0, self.luz_divina + 0.1)
+ elif emotion == "tristeza":
+ self.luz_divina = max(0.0, self.luz_divina - 0.1)
+
+ reaction = self.generate_reaction(emotion)
+ if reaction == "revelacion":
+ self.contador_revelaciones += 1
+ if self.contador_revelaciones >= 12 and self.ascension_celestial == "Mortal":
+ self.ascension_celestial = "Iluminado"
+ elif self.contador_revelaciones >= 20:
+ self.ascension_celestial = "Divino"
+
+ return reaction, emotion, response
+
+ def generate_reaction(self, emotion):
+ """
+ Genera una reacción basada en la emoción.
+ """
+ if emotion == "alegría":
+ return "entusiasmo" if np.random.random() < 0.3 else "nulo"
+ elif emotion == "tristeza":
+ return "miedo" if np.random.random() < 0.3 else "nulo"
+ else:
+ return "revelacion" if np.random.random() < 0.2 else "nulo"
+
+ def predict_trend(self, stimulus_data):
+ """
+ Predice una tendencia futura (para análisis).
+ """
+ # Preparar datos para el modelo LSTM
+ features = np.array([
+ stimulus_data.get("price_change", 0.0),
+ stimulus_data.get("rsi", 50.0),
+ stimulus_data.get("volatility", 0.0),
+ stimulus_data.get("sentiment_score", 0.0),
+ stimulus_data.get("risk_level", 0.0)
+ ]).reshape(1, 1, 5)
+ features = torch.tensor(features, dtype=torch.float32)
+
+ # Hacer predicción
+ with torch.no_grad():
+ prediction = self.trend_model(features).numpy()
+ return "alcista" if prediction > 0 else "bajista"
+
+# Integración con Flask para el sitio web
+app = Flask(__name__)
+aetherion = Aetherion()
+
+@app.route("/")
+def home():
+ return render_template("index.html")
+
+@app.route("/chat", methods=["POST"])
+def chat():
+ data = request.json
+ user_input = data.get("message")
+ user_id = data.get("user_id", "default_user")
+
+ # Procesar mensaje con Aetherion
+ reaction, emotion, response = aetherion.process_conversational_stimulus(
+ {"text": user_input, "user_id": user_id}
+ )
+
+ return jsonify({
+ "response": response,
+ "emotion": emotion,
+ "reaction": reaction,
+ "luz_divina": aetherion.luz_divina,
+ "ascension_celestial": aetherion.ascension_celestial
+ })
+
+@app.route("/analyze", methods=["POST"])
+def analyze():
+ data = request.json
+ stimulus_data = {
+ "price_change": data.get("price_change", 0.0),
+ "rsi": data.get("rsi", 50.0),
+ "volatility": data.get("volatility", 0.0),
+ "sentiment_score": data.get("sentiment_score", 0.0),
+ "risk_level": data.get("risk_level", 0.0)
+ }
+
+ # Procesar datos con Aetherion
+ reaction, emotion, trend_prediction = aetherion.process_analysis_stimulus(stimulus_data)
+
+ return jsonify({
+ "emotion": emotion,
+ "reaction": reaction,
+ "trend_prediction": trend_prediction,
+ "luz_divina": aetherion.luz_divina,
+ "ascension_celestial": aetherion.ascension_celestial,
+ "reino_cosmico": aetherion.reino_cosmico
+ })
+
+if __name__ == "__main__":
+ app.run(debug=True)
