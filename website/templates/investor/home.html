@@ -293,32 +293,32 @@
 {% block content %}
 <div class="investor-dashboard">
     <div class="investor-welcome">
-        <h1 class="investor-name">{{ investor.name }}</h1>
+        <h1 class="investor-name">{{ investor['name'] }}</h1>
         <p class="welcome-subtitle">Bienvenido a tu panel de inversiones en Genesis. Aquí podrás ver el rendimiento de tu inversión y las operaciones recientes.</p>
     </div>
     
     <div class="performance-summary">
         <div class="summary-card">
             <div class="summary-label">Saldo Actual</div>
-            <div class="summary-value">${{ "%.2f"|format(investor.balance) }}</div>
+            <div class="summary-value">${{ "%.2f"|format(investor['balance']) }}</div>
             <div class="summary-change positive-change">
-                <i class="fas fa-arrow-up"></i> {{ "%.2f"|format(investor.balance_change_pct) }}% en los últimos 7 días
+                <i class="fas fa-arrow-up"></i> {{ "%.2f"|format(investor['balance_change_pct']) }}% en los últimos 7 días
             </div>
         </div>
         
         <div class="summary-card">
             <div class="summary-label">Rendimiento Total</div>
-            <div class="summary-value">{{ "%.2f"|format(investor.total_return_pct) }}%</div>
+            <div class="summary-value">{{ "%.2f"|format(investor['total_return_pct']) }}%</div>
             <div class="summary-change positive-change">
-                <i class="fas fa-arrow-up"></i> ${{ "%.2f"|format(investor.total_return_amount) }}
+                <i class="fas fa-arrow-up"></i> ${{ "%.2f"|format(investor['total_return_amount']) }}
             </div>
         </div>
         
         <div class="summary-card">
             <div class="summary-label">Operaciones</div>
-            <div class="summary-value">{{ investor.operations_count }}</div>
+            <div class="summary-value">{{ investor['operations_count'] }}</div>
             <div class="summary-change">
-                <i class="fas fa-check-circle" style="color: var(--cyan-color);"></i> {{ investor.successful_operations_pct }}% exitosas
+                <i class="fas fa-check-circle" style="color: var(--cyan-color);"></i> {{ investor['successful_operations_pct'] }}% exitosas
             </div>
         </div>
     </div>
