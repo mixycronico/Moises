@@ -1,0 +1,201 @@
+
+# Módulos Financieros Avanzados — GENESIS
+
+Sistema diseñado para gestionar dinámicamente capital, relaciones entre inversionistas, bonos y préstamos internos, bajo una lógica transparente, ética y adaptable.  
+
+---
+
+## 1. Transferencias entre Inversionistas (`Transfers`)
+
+### Objetivo:
+Permitir enviar o recibir dinero entre usuarios del sistema, incentivando colaboración y apoyo financiero.
+
+### Flujo:
+- En el panel de cada inversionista:
+  - Opción: “Transferir saldo”.
+  - Selección del usuario receptor.
+  - Monto + motivo del envío (opcional).
+- Confirmación con PIN o autenticación.
+- Registro automático con fecha y ID.
+
+### Límite de Seguridad:
+- Máximo diario transferible: configurable por admin.
+- Las transferencias están sujetas a revisión si se detectan patrones inusuales.
+
+### Estructura:
+```ts
+interface Transferencia {
+  id: string;
+  emisor: string;
+  receptor: string;
+  monto: number;
+  motivo?: string;
+  fecha: string;
+  estado: "completada" | "revertida";
+}
+```
+
+---
+
+## 2. Bonos por Buen Rendimiento (`PerformanceBonus`)
+
+### Objetivo:
+Recompensar a todos los inversionistas cuando Genesis supere cierto capital colectivo, motivando el crecimiento conjunto.
+
+### Niveles:
+- $5,000 → 5% adicional de ganancia diaria.
+- $10,000 → 7% adicional (opcional).
+- $25,000+ → bonificaciones especiales (manuales).
+
+### Condiciones:
+- Solo se entrega si la ganancia diaria global fue positiva.
+- Superadmins pueden activarlo/desactivarlo global o por usuario.
+- Registro histórico visible por usuario.
+
+### Estructura:
+```ts
+interface BonoRendimiento {
+  id: string;
+  inversionista: string;
+  montoGanancia: number;
+  bonoAplicado: number;
+  fecha: string;
+  aprobadoPor: string;
+  nivel: "5%" | "7%" | "especial";
+}
+```
+
+---
+
+## 3. Préstamos por Capital (`CapitalLoans`)
+
+### Objetivo:
+Genesis ofrece préstamos internos del 40% del capital para usuarios con +3 meses de antigüedad.
+
+### Opciones del Usuario:
+- Retirar el préstamo.
+- Reinvertirlo directamente.
+
+### Pagos:
+- Se descuenta el 30% de la ganancia diaria hasta completar el préstamo.
+- Si se retira antes de saldar, se descuenta del capital.
+
+### Alertas:
+- Genesis envía recordatorios semanales con progreso del préstamo.
+- Puede ofrecer refinanciación si se detecta dificultad.
+
+### Estructura:
+```ts
+interface Prestamo {
+  id: string;
+  inversionista: string;
+  capitalElegible: number;
+  montoPrestado: number;
+  fechaInicio: string;
+  estado: "activo" | "pagado" | "cancelado";
+  porcentajeRetencion: number;
+  saldoPendiente: number;
+}
+```
+
+---
+
+## 4. Comisiones entre Admins e Inversionistas (`ReferralContract`)
+
+### Objetivo:
+Permitir a un administrador recibir comisión por invitar a un nuevo inversionista, **solo si el usuario acepta**.
+
+### Flujo Ético:
+- El admin genera el contrato.
+- El usuario recibe una notificación explicando:
+  - Admin responsable.
+  - Porcentaje propuesto.
+  - Duración (ej. 6 meses).
+- Solo si acepta, el sistema empieza a aplicar la comisión.
+
+### Transparencia:
+- El contrato aceptado se puede descargar o ver en cualquier momento.
+- Solo un **superadmin** puede revocar o modificarlo.
+
+### Estructura:
+```ts
+interface ContratoComision {
+  id: string;
+  admin: string;
+  inversionista: string;
+  porcentaje: number;
+  estado: "pendiente" | "activo" | "revocado";
+  fechaInicio: string;
+  fechaFin?: string;
+  autorizadoPor: string;
+}
+```
+
+---
+
+## 5. Panel de Estado Diario (`Sistema > Reglas del Día`)
+
+Cada día, Genesis muestra en el dashboard un resumen visible:
+
+```json
+{
+  "bono": "activado",
+  "prestamos": "habilitados",
+  "comisiones": "permitidas",
+  "límiteTransferencia": "$200",
+  "notas": "Mercado inestable, precaución en trading de alto riesgo."
+}
+```
+
+Esto aporta confianza y transparencia a los inversionistas.
+
+---
+
+## 6. Simulador de Decisiones (Beta)
+
+Antes de aceptar un préstamo, bono o comisión, el usuario puede simular:
+
+- Ganancia estimada
+- Tiempo de recuperación
+- Afectación en su capital
+- Recomendación de la IA
+
+---
+
+## 7. Reconocimientos Éticos (Opcional)
+
+Pequeños logros se pueden mostrar como medallas en el dashboard:
+
+- “Completó préstamo sin demoras”
+- “Recibió bono 5 días seguidos”
+- “Ayudó a otro usuario con transferencia”
+- “Sin retiros en 6 meses (compromiso Genesis)”
+
+---
+
+## 8. Permisos por Rol
+
+| Módulo               | Inversionista | Admin | Superadmin |
+|---------------------|:-------------:|:-----:|:----------:|
+| Transferencias       | Sí            | Sí    | Sí         |
+| Bono de Rendimiento  | Ver           | Activar global | Activar/desactivar por usuario |
+| Préstamos            | Ver / Tomar   | Ver   | Aprobar, revocar, personalizar |
+| Comisiones           | Aceptar       | Crear | Revocar, editar contratos |
+| Simulador / Reglas   | Ver           | Ver   | Editar     |
+
+---
+
+## 9. Filosofía de Genesis
+
+> *“El capital no debe ser solo un recurso, sino una experiencia justa y compartida.”*  
+> - Moises Alvarenga
+
+Genesis busca eliminar la desigualdad en el acceso a oportunidades financieras, manteniendo ética, transparencia y humanidad como pilares fundamentales.
+
+---
+
+## Créditos
+
+- Diseñado por: **Moises Alvarenga**  
+- Superadmins: **Jeremias Lazo** & **Stephany Sandoval**  
+- Documentado por: **Luna AI**
