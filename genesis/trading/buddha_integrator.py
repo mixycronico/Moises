@@ -21,6 +21,9 @@ from typing import Dict, List, Any, Optional, Tuple, Union
 import aiohttp
 from datetime import datetime, timedelta
 
+# Importar el scraper de noticias
+from genesis.trading.news_scraper import NewsScraper, NewsItem
+
 # Configuración de logging
 logger = logging.getLogger("genesis.trading.buddha_integrator")
 
@@ -71,6 +74,9 @@ class BuddhaIntegrator:
             "market_intuition": 0.88,
             "karmic_balance": 1.0
         }
+        
+        # Inicializar scraper de noticias
+        self.news_scraper = NewsScraper(cache_file="cached_news.json")
         
         logger.info(f"Buddha Integrator inicializado con modelo {self.config['default_model']}")
         
@@ -815,6 +821,196 @@ class BuddhaIntegrator:
             "wisdom_state": self.wisdom_state
         }
     
+    async def get_latest_news(self, category: str = "all", limit: int = 10, force_update: bool = False) -> List[Dict[str, Any]]:
+        """
+        Obtener últimas noticias para mostrar en carousel.
+        
+        Args:
+            category: Categoría de noticias ('crypto', 'finance', 'whales', 'all')
+            limit: Número máximo de noticias a retornar
+            force_update: Si es True, fuerza actualización aunque no toque
+            
+        Returns:
+            Lista de noticias más recientes
+        """
+        try:
+            # Obtener noticias del scraper
+            news_items = await self.news_scraper.get_news(category, limit, force_update)
+            
+            # Convertir a formato para frontend
+            return [item.to_dict() for item in news_items]
+        except Exception as e:
+            logger.error(f"Error al obtener noticias: {str(e)}")
+            return []
+    
+    async def get_market_sentiment_from_news(self, category: str = "crypto", timeframe_hours: int = 24) -> Dict[str, Any]:
+        """
+        Obtener sentimiento del mercado basado en noticias recientes.
+        
+        Args:
+            category: Categoría de noticias a considerar
+            timeframe_hours: Periodo de tiempo a considerar en horas
+            
+        Returns:
+            Información de sentimiento
+        """
+        try:
+            # Obtener noticias del scraper (para asegurar que están actualizadas)
+            await self.news_scraper.get_news(category, 20, force_update=False)
+            
+            # Calcular sentimiento del mercado
+            sentiment_score = self.news_scraper.get_market_sentiment(category, timeframe_hours)
+            
+            # Determinar categoría de sentimiento
+            if sentiment_score > 0.3:
+                sentiment_category = "positivo"
+            elif sentiment_score < -0.3:
+                sentiment_category = "negativo"
+            else:
+                sentiment_category = "neutral"
+            
+            return {
+                "category": category,
+                "timeframe_hours": timeframe_hours,
+                "sentiment_score": round(sentiment_score, 2),
+                "sentiment_category": sentiment_category,
+                "timestamp": time.time()
+            }
+        except Exception as e:
+            logger.error(f"Error al obtener sentimiento del mercado: {str(e)}")
+            return {
+                "category": category,
+                "timeframe_hours": timeframe_hours,
+                "sentiment_score": 0.0,
+                "sentiment_category": "neutral",
+                "timestamp": time.time(),
+                "error": str(e)
+            }
+    
+    async def analyze_news_sentiment(self, news_text: str) -> float:
+        """
+        Analizar sentimiento de un texto de noticias con Buddha AI.
+        
+        Args:
+            news_text: Texto de la noticia
+            
+        Returns:
+            Puntuación de sentimiento (-1.0 a 1.0)
+        """
+        if not self.enabled:
+            # Análisis simple basado en palabras clave
+            return self._simple_sentiment_analysis(news_text)
+        
+        # Preparar prompt para Buddha
+        prompt = f"""
+        Analiza el sentimiento del siguiente texto relacionado con mercados financieros.
+        Clasifica si el sentimiento es positivo, negativo o neutral para un inversor.
+        Proporciona una puntuación de sentimiento entre -1.0 (muy negativo) y 1.0 (muy positivo).
+        
+        Texto: {news_text}
+        """
+        
+        # Consultar Buddha
+        try:
+            result = await self._query_buddha_api(prompt)
+            
+            # Intentar extraer la puntuación de sentimiento
+            sentiment_score = self._extract_sentiment_score(result)
+            
+            return sentiment_score
+        except Exception as e:
+            logger.error(f"Error al analizar sentimiento: {str(e)}")
+            return self._simple_sentiment_analysis(news_text)
+    
+    def _simple_sentiment_analysis(self, text: str) -> float:
+        """
+        Análisis de sentimiento simple basado en palabras clave.
+        
+        Args:
+            text: Texto a analizar
+            
+        Returns:
+            Puntuación de sentimiento (-1.0 a 1.0)
+        """
+        # Diccionarios de palabras positivas y negativas
+        positive_words = {
+            'subió', 'aumentó', 'creció', 'ganancias', 'beneficios', 'positivo', 'alcista',
+            'optimista', 'éxito', 'logro', 'mejora', 'recuperación', 'bullish', 'bull',
+            'rally', 'oportunidad', 'auge', 'crecimiento', 'innovación', 'adopción',
+            'respaldo', 'éxito', 'respaldo', 'impresionante', 'rompe', 'supera',
+            'histórico', 'récord', 'lanzamiento', 'alianza', 'asociación', 'colaboración'
+        }
+        
+        negative_words = {
+            'cayó', 'bajó', 'disminuyó', 'pérdidas', 'negativo', 'bajista', 'pesimista',
+            'fracaso', 'problema', 'deterioro', 'caída', 'bearish', 'bear', 'corrección',
+            'riesgo', 'colapso', 'crisis', 'preocupación', 'amenaza', 'regulación',
+            'prohibición', 'fraude', 'hack', 'ataque', 'investigación', 'pánico',
+            'incertidumbre', 'desplome', 'miedo', 'advertencia', 'sanción', 'multa'
+        }
+        
+        # Texto a minúsculas
+        text_lower = text.lower()
+        
+        # Contar palabras positivas y negativas
+        positive_count = sum(1 for word in positive_words if word in text_lower)
+        negative_count = sum(1 for word in negative_words if word in text_lower)
+        
+        # Calcular sentimiento
+        total = positive_count + negative_count
+        if total == 0:
+            return 0.0  # Neutral
+        else:
+            return (positive_count - negative_count) / total
+    
+    def _extract_sentiment_score(self, text: str) -> float:
+        """
+        Extraer puntuación de sentimiento de una respuesta de texto.
+        
+        Args:
+            text: Texto de respuesta
+            
+        Returns:
+            Puntuación de sentimiento
+        """
+        # Buscar patrones como "sentimiento: 0.75" o "puntuación: -0.5"
+        import re
+        patterns = [
+            r'sentimiento:?\s*([-+]?\d+\.\d+)',
+            r'puntuación:?\s*([-+]?\d+\.\d+)',
+            r'score:?\s*([-+]?\d+\.\d+)',
+            r'valor:?\s*([-+]?\d+\.\d+)',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                try:
+                    score = float(match.group(1))
+                    # Asegurar que está en el rango correcto
+                    return max(-1.0, min(1.0, score))
+                except (ValueError, IndexError):
+                    pass
+        
+        # Si no se encuentra un valor específico, estimar por palabras clave
+        if "muy positivo" in text.lower() or "extremadamente positivo" in text.lower():
+            return 0.9
+        elif "positivo" in text.lower():
+            return 0.6
+        elif "ligeramente positivo" in text.lower():
+            return 0.3
+        elif "muy negativo" in text.lower() or "extremadamente negativo" in text.lower():
+            return -0.9
+        elif "negativo" in text.lower():
+            return -0.6
+        elif "ligeramente negativo" in text.lower():
+            return -0.3
+        elif "neutral" in text.lower():
+            return 0.0
+        
+        # Si no se puede determinar, devolver neutral
+        return 0.0
+        
     def is_enabled(self) -> bool:
         """
         Verificar si Buddha está habilitado.

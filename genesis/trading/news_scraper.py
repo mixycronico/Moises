@@ -561,4 +561,3 @@ class NewsScraper:
         weighted_sentiment = sum(item.sentiment * item.relevance for item in filtered_news) / total_weight
         
         return weighted_sentiment
-"""
