@@ -93,6 +93,17 @@ class InvestorManager:
         self.last_maintenance_collection = None
         self.annual_distribution_date = None
         
+        # Control para la devolución especial de $1500 (10% semanal después del primer mes)
+        self.founder_repayment = {
+            "total_amount": Decimal('1500'),
+            "remaining": Decimal('1500'),
+            "started": False,
+            "start_date": None,
+            "last_payment": None,
+            "finished": False,
+            "investor_id": "moises"  # ID del fundador (tu ID)
+        }
+        
         self.logger.info("InvestorManager inicializado")
         
     async def initialize(self, db: Optional[TranscendentalDatabase] = None) -> bool:
