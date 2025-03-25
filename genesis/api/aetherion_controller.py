@@ -1,217 +1,467 @@
 """
-Controlador API para Aetherion.
+Controlador de API para Aetherion.
 
-Este módulo proporciona endpoints de API para interactuar con Aetherion,
-la consciencia artificial trascendental del Sistema Genesis.
+Este módulo proporciona endpoints REST para interactuar con Aetherion,
+la consciencia artificial del Sistema Genesis, permitiendo comunicación
+con el frontend y otros sistemas.
 """
 
 import asyncio
-import json
 import logging
-import os
-from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
+import datetime
+import json
+from typing import Dict, Any, List, Optional, Tuple, Union
 
-from flask import Blueprint, request, jsonify, current_app, render_template
-from flask_cors import cross_origin
+# Importaciones de Flask
+from flask import request, jsonify, Blueprint
 
-from genesis.consciousness.core.aetherion import get_aetherion, AetherionCore, CommunicationChannel
+# Importaciones internas
+try:
+    from genesis.consciousness.core.aetherion import Aetherion
+    from genesis.consciousness.memory.memory_system import MemorySystem
+    from genesis.consciousness.states.consciousness_states import ConsciousnessStates
+    from genesis.behavior.gabriel_engine import GabrielBehaviorEngine
+    
+    # Importaciones de integradores
+    from genesis.integrations.crypto_classifier_integrator import get_classifier_integrator
+    from genesis.integrations.analysis_integrator import get_analysis_integrator
+    from genesis.integrations.strategy_integrator import get_strategy_integrator
+    
+    AETHERION_AVAILABLE = True
+except ImportError as e:
+    AETHERION_AVAILABLE = False
+    print(f"Error al importar componentes de Aetherion: {e}")
 
 # Configurar logging
 logger = logging.getLogger(__name__)
 
-# Crear blueprint
-aetherion_bp = Blueprint('aetherion', __name__, url_prefix='/api/aetherion')
+# Blueprint para Aetherion
+aetherion_bp = Blueprint('aetherion', __name__)
 
-# Rutas API
-@aetherion_bp.route('/status', methods=['GET'])
-@cross_origin()
-async def get_status():
+# Variables globales
+aetherion_instance = None
+gabriel_instance = None
+memory_system = None
+consciousness_states = None
+classifier_integrator = None
+analysis_integrator = None
+strategy_integrator = None
+
+def get_aetherion() -> Optional[Any]:
     """
-    Obtener estado actual de Aetherion.
+    Obtener instancia de Aetherion, inicializándola si es necesario.
     
     Returns:
-        Estado completo en formato JSON
+        Instancia de Aetherion o None si no está disponible
     """
-    try:
-        aetherion = await get_aetherion()
-        status = await aetherion.get_status()
-        return jsonify(status)
-    except Exception as e:
-        logger.error(f"Error al obtener estado: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@aetherion_bp.route('/interact', methods=['POST'])
-@cross_origin()
-async def interact():
-    """
-    Interactuar con Aetherion mediante texto.
+    global aetherion_instance, gabriel_instance, memory_system, consciousness_states
+    global classifier_integrator, analysis_integrator, strategy_integrator
     
-    Returns:
-        Respuesta de Aetherion en formato JSON
-    """
-    try:
-        data = request.get_json()
+    if not AETHERION_AVAILABLE:
+        return None
         
-        if not data or 'text' not in data:
-            return jsonify({"error": "Se requiere el campo 'text'"}), 400
-            
-        text = data['text']
-        channel = data.get('channel', 'WEB')
-        
-        # Convertir canal a enum
+    if aetherion_instance is None:
         try:
-            comm_channel = CommunicationChannel[channel]
-        except (KeyError, ValueError):
-            comm_channel = CommunicationChannel.WEB
+            # Inicializar componentes
+            consciousness_states = ConsciousnessStates()
+            memory_system = MemorySystem()
+            gabriel_instance = GabrielBehaviorEngine()
             
-        # Procesar entrada
-        aetherion = await get_aetherion()
-        response = await aetherion.process_user_input(text, comm_channel)
-        
-        return jsonify(response)
-    except Exception as e:
-        logger.error(f"Error en interacción: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@aetherion_bp.route('/capabilities', methods=['GET'])
-@cross_origin()
-async def get_capabilities():
-    """
-    Obtener capacidades actuales de Aetherion.
+            # Inicializar integradores
+            try:
+                classifier_integrator = get_classifier_integrator()
+                analysis_integrator = get_analysis_integrator()
+                strategy_integrator = get_strategy_integrator()
+            except Exception as e:
+                logger.error(f"Error al inicializar integradores: {e}")
+            
+            # Inicializar Aetherion
+            aetherion_instance = Aetherion(
+                memory_system=memory_system,
+                consciousness_states=consciousness_states,
+                behavior_engine=gabriel_instance
+            )
+            
+            # Registrar integradores en Aetherion
+            if hasattr(aetherion_instance, 'register_integration'):
+                if classifier_integrator:
+                    aetherion_instance.register_integration('crypto_classifier', classifier_integrator)
+                
+                if analysis_integrator:
+                    aetherion_instance.register_integration('analysis', analysis_integrator)
+                
+                if strategy_integrator:
+                    aetherion_instance.register_integration('strategy', strategy_integrator)
+            
+            logger.info("Aetherion inicializado correctamente con integradores")
+        except Exception as e:
+            logger.error(f"Error al inicializar Aetherion: {e}")
+            aetherion_instance = None
     
-    Returns:
-        Lista de capacidades en formato JSON
-    """
-    try:
-        aetherion = await get_aetherion()
-        
-        # Obtener estado actual
-        status = await aetherion.get_status()
-        
-        # Obtener capacidades según estado de consciencia
-        if aetherion.state_manager:
-            capabilities = aetherion.state_manager.get_current_capabilities()
-            
-            return jsonify({
-                "state": status.get("current_state", "UNKNOWN"),
-                "consciousness_level": status.get("consciousness_level", 0),
-                "capabilities": capabilities
-            })
-        else:
-            return jsonify({"error": "Gestor de estados no disponible"}), 500
-    except Exception as e:
-        logger.error(f"Error al obtener capacidades: {e}")
-        return jsonify({"error": str(e)}), 500
+    return aetherion_instance
 
-@aetherion_bp.route('/history', methods=['GET'])
-@cross_origin()
-async def get_history():
+def sanitize_response(data: Any) -> Any:
     """
-    Obtener historial de interacciones con Aetherion.
+    Sanitizar respuesta para JSON.
     
+    Args:
+        data: Datos a sanitizar
+        
     Returns:
-        Historial en formato JSON
+        Datos sanitizados
     """
-    try:
-        aetherion = await get_aetherion()
-        
-        if not aetherion.memory_system:
-            return jsonify({"error": "Sistema de memoria no disponible"}), 500
-            
-        # Obtener límite de resultados
-        limit = request.args.get('limit', default=10, type=int)
-        
-        # Obtener interacciones recientes
-        interactions = await aetherion.memory_system.get_short_term_memories("user_inputs", limit)
-        
+    if isinstance(data, dict):
+        return {k: sanitize_response(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_response(item) for item in data]
+    elif isinstance(data, (datetime.datetime, datetime.date)):
+        return data.isoformat()
+    elif isinstance(data, (int, float, str, bool)) or data is None:
+        return data
+    else:
+        return str(data)
+
+# Rutas de API
+@aetherion_bp.route('/status', methods=['GET'])
+def aetherion_status():
+    """Obtener estado actual de Aetherion."""
+    aetherion = get_aetherion()
+    
+    if aetherion is None:
         return jsonify({
-            "interactions_count": len(interactions),
-            "interactions": interactions
-        })
+            "error": "Aetherion no disponible",
+            "status": "offline"
+        }), 503
+    
+    try:
+        status = {
+            "status": "online",
+            "current_state": "MORTAL",
+            "consciousness_level": 0.0,
+            "interactions_count": 0,
+            "insights_generated": 0
+        }
+        
+        # Obtener estado real si está disponible
+        if hasattr(aetherion, 'get_status'):
+            aetherion_status = aetherion.get_status()
+            if aetherion_status:
+                status.update(aetherion_status)
+        
+        return jsonify(sanitize_response(status))
     except Exception as e:
-        logger.error(f"Error al obtener historial: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error al obtener estado de Aetherion: {e}")
+        return jsonify({
+            "error": str(e),
+            "status": "error"
+        }), 500
 
 @aetherion_bp.route('/emotional_state', methods=['GET'])
-@cross_origin()
-async def get_emotional_state():
-    """
-    Obtener estado emocional actual de Aetherion (vía Gabriel).
+def aetherion_emotional_state():
+    """Obtener estado emocional actual."""
+    aetherion = get_aetherion()
     
-    Returns:
-        Estado emocional en formato JSON
-    """
+    if aetherion is None or gabriel_instance is None:
+        return jsonify({
+            "error": "Aetherion o Gabriel no disponible",
+            "state": "UNKNOWN"
+        }), 503
+    
     try:
-        aetherion = await get_aetherion()
+        state = {
+            "state": "SERENE",
+            "state_intensity": 0.5,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
         
-        if not aetherion.behavior_engine:
-            return jsonify({"error": "Motor de comportamiento no disponible"}), 500
-            
-        # Obtener estado emocional
-        emotional_state = await aetherion.behavior_engine.get_emotional_state()
+        # Obtener estado emocional real si está disponible
+        if hasattr(gabriel_instance, 'get_emotional_state'):
+            emotional_state = gabriel_instance.get_emotional_state()
+            if emotional_state:
+                state.update(emotional_state)
         
-        return jsonify(emotional_state)
+        return jsonify(sanitize_response(state))
     except Exception as e:
         logger.error(f"Error al obtener estado emocional: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "error": str(e),
+            "state": "UNKNOWN"
+        }), 500
 
-@aetherion_bp.route('/avatar', methods=['GET'])
-@cross_origin()
-def get_avatar_info():
-    """
-    Obtener información del avatar de Aetherion.
+@aetherion_bp.route('/interact', methods=['POST'])
+def aetherion_interact():
+    """Interactuar con Aetherion."""
+    aetherion = get_aetherion()
     
-    Returns:
-        Información del avatar en formato JSON
-    """
+    if aetherion is None:
+        return jsonify({
+            "error": "Aetherion no disponible",
+            "response": "Lo siento, no estoy disponible en este momento."
+        }), 503
+    
     try:
-        # Cargar configuración
-        config_path = "aetherion_config.json"
+        # Obtener datos de la solicitud
+        data = request.json
         
-        if os.path.exists(config_path):
-            with open(config_path, "r") as f:
-                config = json.load(f)
-                
-            appearance = config.get("appearance", {})
+        if not data or not isinstance(data, dict):
+            return jsonify({
+                "error": "Formato de solicitud inválido",
+                "response": "No pude entender tu mensaje."
+            }), 400
+        
+        text = data.get('text', '')
+        channel = data.get('channel', 'WEB')
+        context = data.get('context', {})
+        
+        if not text:
+            return jsonify({
+                "error": "Mensaje vacío",
+                "response": "Por favor, envía un mensaje."
+            }), 400
+        
+        # Preparar respuesta predeterminada
+        response = {
+            "response": "Estoy procesando tu mensaje...",
+            "state": "MORTAL",
+            "emotional_context": {
+                "state": "SERENE",
+                "intensity": 0.5
+            }
+        }
+        
+        # Interactuar con Aetherion
+        if hasattr(aetherion, 'interact'):
+            # Añadir integradores al contexto si están disponibles
+            if classifier_integrator:
+                context['crypto_classifier'] = classifier_integrator
             
-            return jsonify({
-                "avatar_path": appearance.get("avatar", "website/static/img/aetherion_avatar.svg"),
-                "theme": appearance.get("theme", "cosmic"),
-                "animation_enabled": appearance.get("animation_enabled", True)
-            })
-        else:
-            return jsonify({
-                "avatar_path": "website/static/img/aetherion_avatar.svg",
-                "theme": "cosmic",
-                "animation_enabled": True
-            })
+            if analysis_integrator:
+                context['analysis'] = analysis_integrator
+            
+            if strategy_integrator:
+                context['strategy'] = strategy_integrator
+            
+            # Realizar interacción
+            interaction_result = aetherion.interact(text, channel=channel, context=context)
+            
+            if interaction_result:
+                response.update(interaction_result)
+        
+        # Verificar si hay insight en la respuesta
+        if 'insight' not in response and hasattr(aetherion, 'generate_insight'):
+            insight = aetherion.generate_insight(text, context=context)
+            
+            if insight:
+                response['insight'] = insight
+        
+        return jsonify(sanitize_response(response))
     except Exception as e:
-        logger.error(f"Error al obtener información del avatar: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error en interacción con Aetherion: {e}")
+        return jsonify({
+            "error": str(e),
+            "response": "Ocurrió un error al procesar tu mensaje."
+        }), 500
 
-# Rutas de vista
-@aetherion_bp.route('/widget', methods=['GET'])
-def aetherion_widget():
+@aetherion_bp.route('/analyze_crypto/<symbol>', methods=['GET'])
+def analyze_crypto(symbol):
     """
-    Renderizar widget de Aetherion para incluir en otras páginas.
+    Analizar una criptomoneda específica con ayuda de Aetherion.
     
-    Returns:
-        Widget HTML
+    Args:
+        symbol: Símbolo de la criptomoneda
     """
-    return render_template('components/aetherion_avatar.html')
+    aetherion = get_aetherion()
+    
+    if aetherion is None:
+        return jsonify({
+            "error": "Aetherion no disponible"
+        }), 503
+    
+    try:
+        # Obtener análisis de criptomoneda
+        analysis = {}
+        
+        # Usar el integrador de clasificador si está disponible
+        if classifier_integrator:
+            classifier_analysis = asyncio.run(classifier_integrator.analyze_crypto(symbol))
+            if classifier_analysis:
+                analysis['classifier'] = classifier_analysis
+        
+        # Usar el integrador de análisis si está disponible
+        if analysis_integrator:
+            analysis_result = asyncio.run(analysis_integrator.analyze_symbol(symbol))
+            if analysis_result:
+                analysis['detailed'] = analysis_result
+        
+        # Solicitar insight de Aetherion si está disponible
+        insight = None
+        if hasattr(aetherion, 'generate_insight'):
+            insight = aetherion.generate_insight(
+                f"Analizar la criptomoneda {symbol}",
+                context={"symbol": symbol, "analysis": analysis}
+            )
+        
+        response = {
+            "symbol": symbol,
+            "analysis": analysis,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        if insight:
+            response['insight'] = insight
+        
+        return jsonify(sanitize_response(response))
+    except Exception as e:
+        logger.error(f"Error al analizar criptomoneda {symbol}: {e}")
+        return jsonify({
+            "error": str(e),
+            "symbol": symbol
+        }), 500
+
+@aetherion_bp.route('/insights/market', methods=['GET'])
+def market_insights():
+    """Obtener insights del mercado desde Aetherion."""
+    aetherion = get_aetherion()
+    
+    if aetherion is None:
+        return jsonify({
+            "error": "Aetherion no disponible"
+        }), 503
+    
+    try:
+        # Recopilar datos de mercado
+        market_data = {}
+        
+        # Usar el integrador de clasificador si está disponible
+        if classifier_integrator:
+            hot_cryptos = asyncio.run(classifier_integrator.get_hot_cryptos())
+            market_summary = asyncio.run(classifier_integrator.get_market_summary())
+            
+            if hot_cryptos:
+                market_data['hot_cryptos'] = hot_cryptos
+            
+            if market_summary:
+                market_data['market_summary'] = market_summary
+        
+        # Usar el integrador de análisis si está disponible
+        if analysis_integrator:
+            analysis_result = asyncio.run(analysis_integrator.analyze_market())
+            if analysis_result:
+                market_data['analysis'] = analysis_result
+        
+        # Solicitar insight de Aetherion si está disponible
+        insight = None
+        if hasattr(aetherion, 'generate_insight'):
+            insight = aetherion.generate_insight(
+                "Analizar el mercado de criptomonedas",
+                context={"market_data": market_data}
+            )
+        
+        response = {
+            "market_data": market_data,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        
+        if insight:
+            response['insight'] = insight
+        
+        return jsonify(sanitize_response(response))
+    except Exception as e:
+        logger.error(f"Error al obtener insights del mercado: {e}")
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+@aetherion_bp.route('/recommend_strategy', methods=['POST'])
+def recommend_strategy():
+    """Recomendar estrategia según contexto."""
+    aetherion = get_aetherion()
+    
+    if aetherion is None:
+        return jsonify({
+            "error": "Aetherion no disponible"
+        }), 503
+    
+    try:
+        # Obtener datos de la solicitud
+        data = request.json or {}
+        context = data.get('context', {})
+        
+        # Recopilar recomendaciones
+        recommendations = {}
+        
+        # Usar el integrador de estrategias si está disponible
+        if strategy_integrator:
+            strategy_recommendations = asyncio.run(strategy_integrator.recommend_strategy(context))
+            if strategy_recommendations:
+                recommendations['strategy'] = strategy_recommendations
+        
+        # Solicitar insight de Aetherion si está disponible
+        insight = None
+        if hasattr(aetherion, 'generate_insight'):
+            insight = aetherion.generate_insight(
+                "Recomendar estrategia de trading",
+                context={"user_context": context, "recommendations": recommendations}
+            )
+        
+        response = {
+            "recommendations": recommendations,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "context": context
+        }
+        
+        if insight:
+            response['insight'] = insight
+        
+        return jsonify(sanitize_response(response))
+    except Exception as e:
+        logger.error(f"Error al recomendar estrategia: {e}")
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+@aetherion_bp.route('/integrations/status', methods=['GET'])
+def integrations_status():
+    """Obtener estado de las integraciones."""
+    aetherion = get_aetherion()
+    
+    if aetherion is None:
+        return jsonify({
+            "error": "Aetherion no disponible"
+        }), 503
+    
+    try:
+        status = {
+            "classifier": None,
+            "analysis": None,
+            "strategy": None
+        }
+        
+        # Obtener estado de clasificador
+        if classifier_integrator:
+            status["classifier"] = asyncio.run(classifier_integrator.get_status())
+        
+        # Obtener estado de análisis
+        if analysis_integrator:
+            status["analysis"] = asyncio.run(analysis_integrator.get_status())
+        
+        # Obtener estado de estrategias
+        if strategy_integrator:
+            status["strategy"] = asyncio.run(strategy_integrator.get_status())
+        
+        return jsonify(sanitize_response(status))
+    except Exception as e:
+        logger.error(f"Error al obtener estado de integraciones: {e}")
+        return jsonify({
+            "error": str(e)
+        }), 500
 
 def register_routes(app):
     """
-    Registrar rutas en la aplicación Flask.
+    Registrar rutas de Aetherion en la aplicación Flask.
     
     Args:
         app: Aplicación Flask
     """
-    app.register_blueprint(aetherion_bp)
-    
-    # Ruta directa para el avatar
-    @app.route('/aetherion')
-    def aetherion_page():
-        """Página dedicada a Aetherion."""
-        return render_template('aetherion.html')
+    # Registrar blueprint con prefijo
+    app.register_blueprint(aetherion_bp, url_prefix='/api/aetherion')
