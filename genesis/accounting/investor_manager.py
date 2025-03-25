@@ -61,6 +61,16 @@ class AuditActionType:
     INVESTOR_STATUS_CHANGE = "investor_status_change"       # Cambio en estado de inversionista
     ADMIN_ACTION = "admin_action"                          # Acción administrativa general
 
+# Categorías de gastos del fondo de mantenimiento
+class MaintenanceExpenseCategory:
+    """Categorías para clasificar los gastos del fondo de mantenimiento."""
+    API_SERVICES = "api_services"           # Servicios de API (DeepSeek, Alpha Vantage, etc.)
+    SERVER_COSTS = "server_costs"           # Costos de servidor y hosting
+    DEVELOPMENT = "development"             # Desarrollo y mejoras del sistema
+    SECURITY = "security"                   # Seguridad y protección
+    LEGAL = "legal"                         # Aspectos legales y cumplimiento
+    EMERGENCY = "emergency"                 # Fondo de emergencia para imprevistos
+
 class InvestorManager:
     """
     Gestor de inversionistas para el Sistema Genesis.
@@ -90,6 +100,14 @@ class InvestorManager:
         
         # Fondo de mantenimiento (5% semanal)
         self.maintenance_fund = Decimal('0')
+        self.maintenance_expenses = {
+            MaintenanceExpenseCategory.API_SERVICES: Decimal('0'),      # Gastos en APIs (DeepSeek, etc.)
+            MaintenanceExpenseCategory.SERVER_COSTS: Decimal('0'),      # Gastos en servidores
+            MaintenanceExpenseCategory.DEVELOPMENT: Decimal('0'),       # Desarrollo y mejoras
+            MaintenanceExpenseCategory.SECURITY: Decimal('0'),          # Seguridad
+            MaintenanceExpenseCategory.LEGAL: Decimal('0'),             # Aspectos legales
+            MaintenanceExpenseCategory.EMERGENCY: Decimal('0')          # Fondo de emergencia
+        }
         self.last_maintenance_collection = None
         self.annual_distribution_date = None
         
