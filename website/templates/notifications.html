@@ -1,0 +1,632 @@
+{% extends "base.html" %}
+
+{% block title %}Notificaciones - Genesis Trading System{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .notifications-page {
+        padding: 2rem 0;
+    }
+    
+    .notifications-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .notifications-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(to right, var(--cyan-color), var(--magenta-color));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-fill-color: transparent;
+    }
+    
+    .notifications-subtitle {
+        font-size: 1.2rem;
+        color: var(--medium-text);
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    
+    .notifications-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .notification-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    
+    .notification-filters {
+        display: flex;
+        gap: 0.8rem;
+    }
+    
+    .filter-btn {
+        background: none;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        color: var(--light-text);
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-btn:hover {
+        background-color: rgba(0, 255, 255, 0.05);
+        border-color: var(--cyan-color);
+    }
+    
+    .filter-btn.active {
+        background-color: rgba(0, 255, 255, 0.1);
+        border-color: var(--cyan-color);
+    }
+    
+    .notification-actions {
+        display: flex;
+        gap: 0.8rem;
+    }
+    
+    .action-btn {
+        background: none;
+        border: 1px solid rgba(255, 0, 255, 0.2);
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        color: var(--light-text);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .action-btn:hover {
+        background-color: rgba(255, 0, 255, 0.05);
+        border-color: var(--magenta-color);
+    }
+    
+    .action-btn i {
+        color: var(--magenta-color);
+    }
+    
+    .notifications-list {
+        margin-bottom: 3rem;
+    }
+    
+    .notification-item {
+        background: var(--holographic-card-bg);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .notification-item:hover {
+        transform: translateY(-3px);
+        border-color: rgba(0, 255, 255, 0.3);
+        box-shadow: var(--cosmic-shadow);
+    }
+    
+    .notification-item::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 5px;
+        height: 100%;
+    }
+    
+    .notification-item.priority-high::before {
+        background: linear-gradient(to bottom, #FF4040, #FF0080);
+    }
+    
+    .notification-item.priority-medium::before {
+        background: linear-gradient(to bottom, #FFD700, #FFA500);
+    }
+    
+    .notification-item.priority-low::before {
+        background: linear-gradient(to bottom, #00FFFF, #0080FF);
+    }
+    
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .notification-source {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .source-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .source-icon.system {
+        background-color: rgba(0, 255, 255, 0.1);
+        color: var(--cyan-color);
+    }
+    
+    .source-icon.trading {
+        background-color: rgba(255, 215, 0, 0.1);
+        color: var(--gold-color);
+    }
+    
+    .source-icon.alert {
+        background-color: rgba(255, 0, 255, 0.1);
+        color: var(--magenta-color);
+    }
+    
+    .source-info {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .source-name {
+        font-weight: 500;
+        margin-bottom: 0.2rem;
+    }
+    
+    .notification-time {
+        font-size: 0.8rem;
+        color: var(--medium-text);
+    }
+    
+    .notification-actions {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .notification-action {
+        background: none;
+        border: none;
+        color: var(--medium-text);
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .notification-action:hover {
+        color: var(--light-text);
+    }
+    
+    .notification-content {
+        padding: 1.5rem;
+    }
+    
+    .notification-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.2rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    .priority-high .notification-title {
+        color: #FF4040;
+    }
+    
+    .priority-medium .notification-title {
+        color: #FFD700;
+    }
+    
+    .priority-low .notification-title {
+        color: #00FFFF;
+    }
+    
+    .notification-message {
+        margin-bottom: 1.5rem;
+        line-height: 1.6;
+    }
+    
+    .notification-footer {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .notification-tags {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .notification-tag {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 20px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.8rem;
+        color: var(--medium-text);
+    }
+    
+    .notification-controls {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .notification-button {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 4px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.8rem;
+        color: var(--light-text);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .notification-button:hover {
+        background: rgba(0, 255, 255, 0.1);
+        border-color: var(--cyan-color);
+    }
+    
+    .notification-chart {
+        margin-top: 1rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        padding: 1rem;
+        height: 200px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chart-pulse {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+            to top,
+            rgba(0, 255, 255, 0.1) 0%,
+            transparent 50%
+        );
+    }
+    
+    .chart-line {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 70%;
+        clip-path: polygon(
+            0% 100%,
+            5% 80%,
+            10% 85%,
+            15% 75%,
+            20% 80%,
+            25% 70%,
+            30% 75%,
+            35% 65%,
+            40% 70%,
+            45% 60%,
+            50% 65%,
+            55% 50%,
+            60% 55%,
+            65% 45%,
+            70% 50%,
+            75% 40%,
+            80% 45%,
+            85% 30%,
+            90% 35%,
+            95% 25%,
+            100% 30%,
+            100% 100%
+        );
+        background: linear-gradient(
+            to top,
+            rgba(0, 255, 255, 0.4) 0%,
+            rgba(255, 0, 255, 0.2) 100%
+        );
+    }
+    
+    .chart-dots {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+    }
+    
+    .chart-dot {
+        width: 4px;
+        height: 4px;
+        background-color: var(--cyan-color);
+        border-radius: 50%;
+        position: relative;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .page-item {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .page-item:hover {
+        background-color: rgba(0, 255, 255, 0.1);
+    }
+    
+    .page-item.active {
+        background-color: rgba(0, 255, 255, 0.2);
+        color: var(--cyan-color);
+    }
+    
+    .page-item.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .preferences-button {
+        background: none;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        color: var(--light-text);
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 2rem;
+    }
+    
+    .preferences-button:hover {
+        background-color: rgba(0, 255, 255, 0.05);
+        border-color: var(--cyan-color);
+    }
+    
+    .empty-notifications {
+        text-align: center;
+        padding: 3rem 0;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        color: var(--medium-text);
+        margin-bottom: 1rem;
+    }
+    
+    .empty-message {
+        font-size: 1.2rem;
+        color: var(--medium-text);
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notifications-page">
+    <div class="notifications-header">
+        <h1 class="notifications-title">Notificaciones</h1>
+        <p class="notifications-subtitle">Recibe alertas y actualizaciones importantes sobre tu inversión y el sistema Genesis</p>
+    </div>
+    
+    <div class="notifications-container">
+        <div class="notification-controls">
+            <div class="notification-filters">
+                <button class="filter-btn active">Todas</button>
+                <button class="filter-btn">Sistema</button>
+                <button class="filter-btn">Trading</button>
+                <button class="filter-btn">Alertas</button>
+            </div>
+            
+            <div class="notification-actions">
+                <button class="action-btn">
+                    <i class="fas fa-check-double"></i>
+                    Marcar todas como leídas
+                </button>
+            </div>
+        </div>
+        
+        {% if notifications %}
+        <div class="notifications-list">
+            {% for notification in notifications %}
+            <div class="notification-item priority-{{ notification.priority }}">
+                <div class="notification-header">
+                    <div class="notification-source">
+                        <div class="source-icon {{ notification.source_type }}">
+                            {% if notification.source_type == 'system' %}
+                                <i class="fas fa-cog"></i>
+                            {% elif notification.source_type == 'trading' %}
+                                <i class="fas fa-chart-line"></i>
+                            {% elif notification.source_type == 'alert' %}
+                                <i class="fas fa-bell"></i>
+                            {% endif %}
+                        </div>
+                        <div class="source-info">
+                            <div class="source-name">{{ notification.source_name }}</div>
+                            <div class="notification-time">{{ notification.time }}</div>
+                        </div>
+                    </div>
+                    <div class="notification-actions">
+                        {% if not notification.is_read %}
+                            <button class="notification-action" title="Marcar como leído">
+                                <i class="fas fa-envelope-open"></i>
+                            </button>
+                        {% endif %}
+                        <button class="notification-action" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="notification-content">
+                    <h2 class="notification-title">{{ notification.title }}</h2>
+                    <div class="notification-message">{{ notification.message }}</div>
+                    
+                    {% if notification.has_chart %}
+                    <div class="notification-chart">
+                        <div class="chart-pulse"></div>
+                        <div class="chart-line"></div>
+                        <div class="chart-dots">
+                            {% for i in range(30) %}
+                            <div class="chart-dot" style="bottom: {{ range(10, 90)|random }}%;"></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="notification-footer">
+                    <div class="notification-tags">
+                        {% for tag in notification.tags %}
+                        <div class="notification-tag">{{ tag }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="notification-controls">
+                        {% if notification.action_url %}
+                        <a href="{{ notification.action_url }}" class="notification-button">
+                            <i class="fas fa-external-link-alt"></i>
+                            {{ notification.action_text }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="pagination">
+            <div class="page-item disabled">
+                <i class="fas fa-chevron-left"></i>
+            </div>
+            <div class="page-item active">1</div>
+            <div class="page-item">2</div>
+            <div class="page-item">3</div>
+            <div class="page-item">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+        </div>
+        {% else %}
+        <div class="empty-notifications">
+            <div class="empty-icon">
+                <i class="fas fa-bell-slash"></i>
+            </div>
+            <div class="empty-message">No tienes notificaciones en este momento</div>
+            <button class="preferences-button">
+                <i class="fas fa-cog"></i>
+                Configurar preferencias de notificaciones
+            </button>
+        </div>
+        {% endif %}
+        
+        <button class="preferences-button">
+            <i class="fas fa-cog"></i>
+            Configurar preferencias de notificaciones
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filtros de notificaciones
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Eliminar clase activa de todos los botones
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Añadir clase activa al botón clickeado
+            this.classList.add('active');
+            
+            // Aquí iría el código para filtrar las notificaciones
+            // Por ahora solo es un ejemplo visual
+        });
+    });
+    
+    // Paginación
+    const pageItems = document.querySelectorAll('.page-item:not(.disabled)');
+    
+    pageItems.forEach(item => {
+        item.addEventListener('click', function() {
+            // Eliminar clase activa de todos los items
+            pageItems.forEach(page => page.classList.remove('active'));
+            
+            // Añadir clase activa al item clickeado
+            this.classList.add('active');
+            
+            // Aquí iría el código para cargar la página correspondiente
+            // Por ahora solo es un ejemplo visual
+        });
+    });
+    
+    // Efectos para el gráfico
+    const charts = document.querySelectorAll('.notification-chart');
+    
+    charts.forEach(chart => {
+        // Efecto de pulso para el gráfico
+        setInterval(() => {
+            const pulse = chart.querySelector('.chart-pulse');
+            pulse.style.opacity = '0.3';
+            setTimeout(() => {
+                pulse.style.opacity = '0.1';
+            }, 1000);
+        }, 2000);
+        
+        // Mover los puntos aleatoriamente
+        const dots = chart.querySelectorAll('.chart-dot');
+        dots.forEach(dot => {
+            setInterval(() => {
+                const randomBottom = Math.floor(Math.random() * 80) + 10;
+                dot.style.bottom = `${randomBottom}%`;
+            }, Math.random() * 3000 + 2000);
+        });
+    });
+    
+    // Marcar como leída al hacer clic en el botón correspondiente
+    const readButtons = document.querySelectorAll('.notification-action:first-child');
+    
+    readButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Ocultar el botón al hacer clic
+            this.style.display = 'none';
+            
+            // Aquí iría el código para marcar la notificación como leída
+            // Por ahora solo es un ejemplo visual
+        });
+    });
+});
+</script>
+{% endblock %}
