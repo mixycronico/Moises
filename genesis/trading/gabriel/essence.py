@@ -1,145 +1,285 @@
 """
-La Esencia de Gabriel - Configuraciones, principios y valores intrínsecos
+Esencia de Gabriel - Arquetipos de personalidad y comportamiento
 
-Este módulo define los valores centrales, límites, umbrales y principios
-que guían el comportamiento de Gabriel, dándole una personalidad coherente.
+Este módulo define los arquetipos fundamentales para el motor de comportamiento humano Gabriel,
+proporcionando configuraciones predefinidas que mantienen coherencia interna entre sus
+componentes: Alma (Soul), Mirada (Gaze) y Voluntad (Will).
+
+Autor: Genesis AI Assistant
+Versión: 1.0.0 (Divina)
 """
 
-from genesis.trading.human_behavior_engine import EmotionalState, RiskTolerance, DecisionStyle
-
-__all__ = [
-    'essence',
-    'archetypes',
-    'EmotionalState',
-    'RiskTolerance',
-    'DecisionStyle'
-]
-
-# Configuración principal de Gabriel
-essence = {
-    # === UMBRALES Y VALORES PARA DECISIONES ===
-    
-    # Umbral de confianza para entrar en operaciones según nivel de coraje
-    "courage_thresholds": {
-        "TIMID": 0.75,       # Necesita 75% de confianza para actuar
-        "BALANCED": 0.60,    # Punto medio equilibrado
-        "DARING": 0.45,      # Se atreve con solo 45% de confianza
-    },
-    
-    # Objetivos de beneficio según nivel de coraje (porcentaje)
-    "profit_targets": {
-        "TIMID": 5.0,        # Toma beneficios pequeños pero seguros
-        "BALANCED": 10.0,    # Objetivo moderado
-        "DARING": 20.0,      # Busca grandes ganancias
-    },
-    
-    # Límites de pérdidas según nivel de coraje (porcentaje negativo)
-    "loss_limits": {
-        "TIMID": -3.0,       # Corta pérdidas muy rápido
-        "BALANCED": -8.0,    # Tolerancia moderada
-        "DARING": -15.0,     # Aguanta pérdidas mayores esperando recuperación
-    },
-    
-    # === EFECTOS EMOCIONALES DE EVENTOS ===
-    
-    # Cómo de intensamente afectan ciertos eventos al estado emocional
-    "emotional_echoes": {
-        "on_victory": 0.3,       # Efecto de una ganancia
-        "on_defeat": -0.4,       # Efecto de una pérdida
-        "on_stress": -0.3,       # Efecto de estrés en el mercado
-        "on_opportunity": 0.25,  # Efecto de ver una oportunidad
-        "on_relief": 0.2,        # Efecto de alivio (ej. recuperación)
-        "natural_fade": 0.05,    # Desvanecimiento natural de emociones con el tiempo
-    },
-    
-    # === PATRONES DE DECISIÓN ===
-    
-    # Influencia del estilo de decisión en el tiempo de reflexión
-    "reflection_periods": {
-        "THOUGHTFUL": {          # Estilo reflexivo
-            "entry": 5.0,        # Tiempo (s) para decisiones de entrada 
-            "exit": 3.0          # Tiempo (s) para decisiones de salida
+# Definición de arquetipos para mantener coherencia entre componentes
+archetypes = {
+    # El Conservador - Evita riesgos y prioriza seguridad
+    "CONSERVATIVE": {
+        "description": "Priorizando seguridad y preservación de capital ante todo",
+        "soul": {
+            "emotional_stability": 0.7,
+            "optimism_bias": -0.3,
+            "risk_sensitivity": 0.8,
+            "market_sensitivity": 0.6,
+            "initial_mood": "CAUTIOUS",
+            "initial_intensity": 0.6
         },
-        "INSTINCTIVE": {         # Estilo instintivo
-            "entry": 1.0,
-            "exit": 0.5
-        }, 
-        "STEADFAST": {           # Estilo firme
-            "entry": 3.0,
-            "exit": 4.0          # Más meditación para salidas que entradas
+        "gaze": {
+            "pattern_recognition": 0.7,
+            "attention_span": 0.8,
+            "recency_bias": 0.4,
+            "confirmation_bias": 0.6,
+            "adaptability": 0.5,
+            "initial_perspective": "CAUTIOUSLY_BEARISH",
+            "initial_confidence": 0.6
+        },
+        "will": {
+            "decision_style": "CAUTIOUS",
+            "risk_preference": 0.3,
+            "patience": 0.8,
+            "conviction": 0.6,
+            "loss_aversion": 0.9,
+            "recency_bias": 0.5,
+            "confirmation_bias": 0.5,
+            "min_signal_threshold": 0.5,
+            "exit_profit_threshold": 0.12,
+            "stop_loss_threshold": 0.05
         }
     },
     
-    # === CARACTERÍSTICAS COMPORTAMENTALES ===
-    
-    # Tendencias de adaptación según estado emocional
-    "adaptation_rates": {
-        "SERENE": 1.0,           # Adaptación normal
-        "DREAD": 5.0,            # Adaptación extremadamente rápida en miedo
-        "BOLD": 0.7,             # Adaptación más lenta, más consistente
-        "FRAUGHT": 2.0,          # Adaptación acelerada en ansiedad
+    # El Equilibrado - Busca balance entre riesgo y recompensa
+    "BALANCED": {
+        "description": "Manteniendo equilibrio entre oportunidades y riesgos",
+        "soul": {
+            "emotional_stability": 0.75,
+            "optimism_bias": 0.0,
+            "risk_sensitivity": 0.5,
+            "market_sensitivity": 0.5,
+            "initial_mood": "NEUTRAL",
+            "initial_intensity": 0.5
+        },
+        "gaze": {
+            "pattern_recognition": 0.7,
+            "attention_span": 0.7,
+            "recency_bias": 0.5,
+            "confirmation_bias": 0.5,
+            "adaptability": 0.7,
+            "initial_perspective": "NEUTRAL",
+            "initial_confidence": 0.6
+        },
+        "will": {
+            "decision_style": "BALANCED",
+            "risk_preference": 0.5,
+            "patience": 0.6,
+            "conviction": 0.6,
+            "loss_aversion": 0.7,
+            "recency_bias": 0.5,
+            "confirmation_bias": 0.5,
+            "min_signal_threshold": 0.35,
+            "exit_profit_threshold": 0.15,
+            "stop_loss_threshold": 0.10
+        }
     },
     
-    # Disposición contraria (ir contra la tendencia) según estado
-    "contrarian_bias": {
-        "SERENE": 0.1,           # Ligeramente contrario
-        "BOLD": 0.3,             # Moderadamente contrario
-        "DREAD": -0.5,           # Sigue la manada en miedo (anti-contrario)
-        "WARY": 0.2              # Moderadamente contrario en cautela
+    # El Optimista - Ve oportunidades donde otros ven problemas
+    "OPTIMISTIC": {
+        "description": "Enfocado en oportunidades y potencial alcista",
+        "soul": {
+            "emotional_stability": 0.6,
+            "optimism_bias": 0.5,
+            "risk_sensitivity": 0.4,
+            "market_sensitivity": 0.6,
+            "initial_mood": "HOPEFUL",
+            "initial_intensity": 0.7
+        },
+        "gaze": {
+            "pattern_recognition": 0.6,
+            "attention_span": 0.5,
+            "recency_bias": 0.7,
+            "confirmation_bias": 0.7,
+            "adaptability": 0.6,
+            "initial_perspective": "BULLISH",
+            "initial_confidence": 0.7
+        },
+        "will": {
+            "decision_style": "AGGRESSIVE",
+            "risk_preference": 0.7,
+            "patience": 0.5,
+            "conviction": 0.8,
+            "loss_aversion": 0.4,
+            "recency_bias": 0.7,
+            "confirmation_bias": 0.6,
+            "min_signal_threshold": 0.25,
+            "exit_profit_threshold": 0.25,
+            "stop_loss_threshold": 0.15
+        }
     },
     
-    # === MEMORIA Y APRENDIZAJE ===
-    
-    # Pesos de recencia para diferentes tipos de experiencias
-    "memory_weights": {
-        "successes": 0.6,        # Recuerda 60% de los éxitos
-        "failures": 0.8,         # Recuerda 80% de los fracasos
-        "trauma": 0.95,          # Recuerda 95% de las experiencias traumáticas
-        "baseline": 0.3          # Memoria general
+    # El Analítico - Prioriza datos y análisis profundo
+    "ANALYTICAL": {
+        "description": "Basado en análisis riguroso de patrones y datos",
+        "soul": {
+            "emotional_stability": 0.9,
+            "optimism_bias": -0.1,
+            "risk_sensitivity": 0.6,
+            "market_sensitivity": 0.4,
+            "initial_mood": "NEUTRAL",
+            "initial_intensity": 0.4
+        },
+        "gaze": {
+            "pattern_recognition": 0.9,
+            "attention_span": 0.9,
+            "recency_bias": 0.3,
+            "confirmation_bias": 0.3,
+            "adaptability": 0.5,
+            "initial_perspective": "NEUTRAL",
+            "initial_confidence": 0.5
+        },
+        "will": {
+            "decision_style": "ANALYTICAL",
+            "risk_preference": 0.5,
+            "patience": 0.8,
+            "conviction": 0.7,
+            "loss_aversion": 0.6,
+            "recency_bias": 0.3,
+            "confirmation_bias": 0.3,
+            "min_signal_threshold": 0.45,
+            "exit_profit_threshold": 0.18,
+            "stop_loss_threshold": 0.08
+        }
     },
     
-    # === CONDUCTAS ESPECÍFICAS PARA ESTADO DE MIEDO (100%) ===
+    # El Adaptativo - Se ajusta rápidamente a las condiciones cambiantes
+    "ADAPTIVE": {
+        "description": "Adaptándose continuamente a las condiciones del mercado",
+        "soul": {
+            "emotional_stability": 0.6,
+            "optimism_bias": 0.1,
+            "risk_sensitivity": 0.5,
+            "market_sensitivity": 0.8,
+            "initial_mood": "NEUTRAL",
+            "initial_intensity": 0.5
+        },
+        "gaze": {
+            "pattern_recognition": 0.7,
+            "attention_span": 0.6,
+            "recency_bias": 0.7,
+            "confirmation_bias": 0.4,
+            "adaptability": 0.9,
+            "initial_perspective": "NEUTRAL",
+            "initial_confidence": 0.5
+        },
+        "will": {
+            "decision_style": "ADAPTIVE",
+            "risk_preference": 0.6,
+            "patience": 0.6,
+            "conviction": 0.5,
+            "loss_aversion": 0.6,
+            "recency_bias": 0.7,
+            "confirmation_bias": 0.4,
+            "min_signal_threshold": 0.3,
+            "exit_profit_threshold": 0.15,
+            "stop_loss_threshold": 0.10
+        }
+    },
     
-    "fearful_behavior": {
-        "buy_rejection_chance": 1.0,      # 100% de rechazo para compras
-        "buy_size_multiplier": 0.1,       # Compras al 10% del tamaño normal
-        "sell_size_multiplier": 1.5,      # Ventas al 150% del tamaño normal
-        "profit_target_multiplier": 0.2,  # Objetivo de beneficio reducido al 20%
-        "loss_limit_multiplier": 0.1,     # Stop loss al 10% del normal
-        "confidence_threshold": 0.95,     # Requiere 95% de confianza (imposible)
-        "market_deterioration_threshold": -0.001,  # Cualquier caída minúscula
-        "max_holding_time_hours": 1.0     # Máximo 1 hora de mantenimiento
-    }
-}
-
-# Características de personalidad predefinidas
-archetypes = {
-    "cautious_investor": {
-        "courage": "TIMID",
-        "resolve": "THOUGHTFUL",
-        "base_mood": "WARY",
-        "stability": 0.8,
-        "whimsy": 0.1
+    # El Reactivo - Responde rápidamente a eventos recientes
+    "REACTIVE": {
+        "description": "Reaccionando rápidamente a los desarrollos del mercado",
+        "soul": {
+            "emotional_stability": 0.4,
+            "optimism_bias": 0.0,
+            "risk_sensitivity": 0.6,
+            "market_sensitivity": 0.9,
+            "initial_mood": "RESTLESS",
+            "initial_intensity": 0.6
+        },
+        "gaze": {
+            "pattern_recognition": 0.6,
+            "attention_span": 0.4,
+            "recency_bias": 0.9,
+            "confirmation_bias": 0.6,
+            "adaptability": 0.8,
+            "initial_perspective": "CAUTIOUSLY_BULLISH",
+            "initial_confidence": 0.6
+        },
+        "will": {
+            "decision_style": "IMPULSIVE",
+            "risk_preference": 0.6,
+            "patience": 0.3,
+            "conviction": 0.7,
+            "loss_aversion": 0.6,
+            "recency_bias": 0.9,
+            "confirmation_bias": 0.6,
+            "min_signal_threshold": 0.25,
+            "exit_profit_threshold": 0.12,
+            "stop_loss_threshold": 0.09
+        }
     },
-    "bold_trader": {
-        "courage": "DARING",
-        "resolve": "INSTINCTIVE", 
-        "base_mood": "BOLD",
-        "stability": 0.5,
-        "whimsy": 0.3
+    
+    # El Conjunto - Maximiza el principio de "todos ganamos o todos perdemos"
+    "COLLECTIVE": {
+        "description": "Priorizando el principio 'todos ganamos o todos perdemos'",
+        "soul": {
+            "emotional_stability": 0.8,
+            "optimism_bias": 0.2,
+            "risk_sensitivity": 0.6,
+            "market_sensitivity": 0.5,
+            "initial_mood": "HOPEFUL",
+            "initial_intensity": 0.6
+        },
+        "gaze": {
+            "pattern_recognition": 0.7,
+            "attention_span": 0.7,
+            "recency_bias": 0.5,
+            "confirmation_bias": 0.4,
+            "adaptability": 0.7,
+            "initial_perspective": "CAUTIOUSLY_BULLISH",
+            "initial_confidence": 0.6
+        },
+        "will": {
+            "decision_style": "BALANCED",
+            "risk_preference": 0.5,
+            "patience": 0.8,
+            "conviction": 0.7,
+            "loss_aversion": 0.7,
+            "recency_bias": 0.5,
+            "confirmation_bias": 0.4,
+            "min_signal_threshold": 0.4,
+            "exit_profit_threshold": 0.15,
+            "stop_loss_threshold": 0.08
+        }
     },
-    "balanced_operator": {
-        "courage": "BALANCED",
-        "resolve": "STEADFAST",
-        "base_mood": "SERENE",
-        "stability": 0.7, 
-        "whimsy": 0.15
-    },
-    "anxious_observer": {
-        "courage": "TIMID",
-        "resolve": "THOUGHTFUL",
-        "base_mood": "FRAUGHT",
-        "stability": 0.4,
-        "whimsy": 0.2
+    
+    # El Guardián - Priorizando protección del capital sobre todo
+    "GUARDIAN": {
+        "description": "Protegiendo el capital y minimizando pérdidas a toda costa",
+        "soul": {
+            "emotional_stability": 0.8,
+            "optimism_bias": -0.2,
+            "risk_sensitivity": 0.9,
+            "market_sensitivity": 0.7,
+            "initial_mood": "CAUTIOUS",
+            "initial_intensity": 0.7
+        },
+        "gaze": {
+            "pattern_recognition": 0.8,
+            "attention_span": 0.7,
+            "recency_bias": 0.5,
+            "confirmation_bias": 0.6,
+            "adaptability": 0.5,
+            "initial_perspective": "CAUTIOUSLY_BEARISH",
+            "initial_confidence": 0.7
+        },
+        "will": {
+            "decision_style": "CAUTIOUS",
+            "risk_preference": 0.2,
+            "patience": 0.8,
+            "conviction": 0.7,
+            "loss_aversion": 1.0,
+            "recency_bias": 0.5,
+            "confirmation_bias": 0.5,
+            "min_signal_threshold": 0.6,
+            "exit_profit_threshold": 0.1,
+            "stop_loss_threshold": 0.03
+        }
     }
 }

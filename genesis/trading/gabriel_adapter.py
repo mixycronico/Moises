@@ -1,496 +1,480 @@
 """
-Adaptador del Motor de Comportamiento Humano Gabriel para el Sistema Genesis
+Adaptador para el Motor de Comportamiento Humano Gabriel
 
-Este módulo proporciona una capa de adaptación entre el nuevo motor de comportamiento
-Gabriel (con su estructura poética de Alma, Mirada y Voluntad) y el sistema existente,
-manteniendo la compatibilidad con las interfaces actuales.
+Este módulo implementa un adaptador que integra el Motor de Comportamiento Humano Gabriel
+con el resto del Sistema Genesis, proporcionando una interfaz consistente
+para la simulación de trading con comportamiento humano.
 
 Autor: Genesis AI Assistant
+Versión: 1.0.0 (Divina)
 """
 
 import logging
-import random
-from typing import Dict, Any, Optional, List, Tuple
-from datetime import datetime, timedelta
 import asyncio
+from typing import Dict, Any, Optional, List, Tuple, Union
+from datetime import datetime
 
 from genesis.trading.gabriel.symphony import Gabriel
 from genesis.trading.gabriel.soul import Mood
-from genesis.trading.human_behavior_engine import EmotionalState, RiskTolerance, DecisionStyle
+from genesis.trading.gabriel.gaze import Perspective
 
 logger = logging.getLogger(__name__)
 
-class GabrielAdapter:
+class GabrielBehaviorEngine:
     """
-    Adaptador que conecta el nuevo motor Gabriel con el sistema existente,
-    manteniendo la compatibilidad con la interfaz actual.
+    Adaptador para el Motor de Comportamiento Humano Gabriel.
+    
+    Esta clase proporciona una interfaz simplificada para integrar Gabriel
+    con el resto de los componentes del sistema, ocultando los detalles
+    de implementación internos y exponiendo solo las funcionalidades necesarias.
     """
     
-    def __init__(self):
-        """Inicializa el adaptador con una instancia del motor Gabriel."""
-        self.gabriel = Gabriel(archetype="balanced_operator")
+    def __init__(self, archetype: str = "COLLECTIVE"):
+        """
+        Inicializar el adaptador de Gabriel.
         
-        # Mapeos para traducción entre sistemas
-        self._mood_to_emotional_state = {
-            "SERENE": EmotionalState.NEUTRAL,
-            "HOPEFUL": EmotionalState.OPTIMISTIC,
-            "WARY": EmotionalState.CAUTIOUS,
-            "RESTLESS": EmotionalState.IMPATIENT,
-            "BOLD": EmotionalState.CONFIDENT,
-            "FRAUGHT": EmotionalState.ANXIOUS,
-            "DREAD": EmotionalState.FEARFUL,
-            "PENSIVE": EmotionalState.CONTEMPLATIVE
+        Args:
+            archetype: Arquetipo de comportamiento ("BALANCED", "COLLECTIVE", etc.)
+        """
+        self.gabriel = Gabriel(archetype_name=archetype)
+        self.is_initialized = False
+        self.last_update = datetime.now()
+        
+        # Métricas de comportamiento
+        self.metrics = {
+            "total_decisions": 0,
+            "positive_decisions": 0,
+            "negative_decisions": 0,
+            "mood_changes": 0,
         }
         
-        self._emotional_state_to_mood = {v.name: k for k, v in self._mood_to_emotional_state.items()}
-        
-        # Configuración inicial
-        self._last_update = datetime.now()
-        self._is_initialized = False
-        logger.info("GabrielAdapter inicializado correctamente")
-        
+        logger.info(f"GabrielBehaviorEngine inicializado con arquetipo {archetype}")
+    
     async def initialize(self) -> bool:
         """
-        Inicializa el adaptador de forma asíncrona.
-        
-        Esta función es necesaria para mantener compatibilidad con 
-        otros componentes del sistema que esperan un método initialize().
+        Inicializar el motor de comportamiento Gabriel.
         
         Returns:
             True si la inicialización fue exitosa
         """
-        if self._is_initialized:
-            logger.debug("GabrielAdapter ya estaba inicializado")
+        if self.is_initialized:
             return True
-            
+        
         try:
-            logger.info("Inicializando GabrielAdapter de forma asíncrona...")
-            
-            # Aplicar configuración inicial al alma de Gabriel (estado neutral)
-            await self.gabriel.hear("initialize", 1.0)
-            
-            # Hacer que Gabriel observe el mercado neutral inicial
-            initial_market = {
-                "volatility": 0.5,
-                "trend_direction": 0,
-                "volume_change_percent": 0,
-                "price_direction": 0,
-                "market_sentiment": "neutral",
-                "risk_level": 0.5
-            }
-            await self.gabriel.see(initial_market)
-            
-            self._is_initialized = True
-            logger.info("GabrielAdapter inicializado correctamente de forma asíncrona")
-            return True
-            
+            result = await self.gabriel.initialize()
+            self.is_initialized = result
+            return result
         except Exception as e:
-            logger.error(f"Error al inicializar GabrielAdapter: {str(e)}")
+            logger.error(f"Error al inicializar GabrielBehaviorEngine: {str(e)}")
             return False
     
-    # === MÉTODOS DE COMPATIBILIDAD ===
-    
-    async def randomize_human_characteristics(self) -> Dict[str, Any]:
+    async def process_news(self, news: Dict[str, Any]) -> None:
         """
-        Emula el método existente randomize_human_characteristics()
-        generando un estado aleatorio en Gabriel.
-        
-        Returns:
-            Características humanas actualizadas en formato compatible
-        """
-        # Elegir un evento aleatorio para cambiar el estado emocional
-        events = ["neutral", "opportunity", "stress", "victory", "defeat"]
-        intensities = [0.3, 0.5, 0.7, 0.9]
-        
-        event = random.choice(events)
-        intensity = random.choice(intensities)
-        
-        # Aplicar el evento al alma de Gabriel
-        await self.gabriel.hear(event, intensity)
-        
-        # Traducir estado actual de Gabriel al formato esperado
-        return self._translate_to_legacy_format()
-    
-    def get_current_characteristics(self) -> Dict[str, Any]:
-        """
-        Emula el método existente get_current_characteristics()
-        traduciendo el estado actual de Gabriel al formato esperado.
-        
-        Returns:
-            Características actuales en formato compatible
-        """
-        return self._translate_to_legacy_format()
-    
-    def set_emotional_state(self, state: EmotionalState, reason: str = "manual_override") -> None:
-        """
-        Emula el método existente set_emotional_state()
-        traduciendo y aplicando el estado a Gabriel.
+        Procesar noticias y eventos externos.
         
         Args:
-            state: Estado emocional a establecer
-            reason: Motivo del cambio
+            news: Información de noticias y eventos
         """
-        # Si es estado FEARFUL, usar método directo
-        if state == EmotionalState.FEARFUL:
-            self.gabriel.set_fearful(f"manual_override:{reason}")
-            logger.info(f"Estado FEARFUL establecido en Gabriel: {reason}")
-            return
-            
-        # Para otros estados, traducir y aplicar
-        mood_name = self._emotional_state_to_mood.get(state.name, "SERENE")
+        if not self.is_initialized:
+            await self.initialize()
         
-        # Ejecutar de forma asíncrona
-        async def _set_mood():
-            await self.gabriel.hear(f"set_{mood_name.lower()}", 1.0)
-        
-        # Ejecutar la corutina
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            future = asyncio.run_coroutine_threadsafe(_set_mood(), loop)
-            future.result()  # Esperar resultado
-        else:
-            loop.run_until_complete(_set_mood())
-            
-        logger.info(f"Estado emocional {state.name} establecido en Gabriel (como {mood_name})")
+        try:
+            await self.gabriel.hear(news)
+        except Exception as e:
+            logger.error(f"Error al procesar noticias: {e}")
+            # Caída segura en caso de error con el método hear
     
-    def set_fearful_state(self, reason: str = "manual_override") -> None:
+    async def process_market_data(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Emula el método existente set_fearful_state()
-        estableciendo el estado DREAD en Gabriel.
+        Procesar datos de mercado a través de la percepción humana.
         
         Args:
-            reason: Motivo del cambio
-        """
-        self.gabriel.set_fearful(reason)
-        logger.info(f"Estado FEARFUL establecido en Gabriel: {reason}")
-    
-    # === MÉTODOS DE COMPATIBILIDAD PARA TRADING ===
-    
-    async def should_enter_trade(self, signal_strength: float, 
-                               market_context: Dict[str, Any]) -> Tuple[bool, str]:
-        """
-        Emula el método existente should_enter_trade()
-        consultando la decisión de Gabriel.
-        
-        Args:
-            signal_strength: Fuerza de la señal (0.0-1.0)
-            market_context: Contexto del mercado
+            market_data: Datos crudos del mercado
             
         Returns:
-            (decisión, razón)
+            Interpretación de los datos filtrados por Gabriel
         """
-        # Traducir contexto del mercado al formato que espera Gabriel
-        gabriel_context = self._translate_market_context(market_context)
+        if not self.is_initialized:
+            await self.initialize()
         
-        # Actualizar percepción del mercado
-        await self.gabriel.see(gabriel_context)
-        
-        # Consultar decisión de entrada
-        decision, reason, _ = await self.gabriel.decide_entry(
-            signal_strength, 
-            {"market_vision": gabriel_context}
-        )
-        
-        return decision, reason
+        result = await self.gabriel.see(market_data)
+        return result
     
-    async def should_exit_trade(self, profit_percent: float, 
-                              time_in_trade_hours: float, 
-                              price_momentum: float) -> Tuple[bool, str]:
+    async def react_to_event(self, event_type: str, event_data: Dict[str, Any]) -> None:
         """
-        Emula el método existente should_exit_trade()
-        consultando la decisión de salida de Gabriel.
+        Reaccionar a eventos específicos del sistema.
         
         Args:
-            profit_percent: Porcentaje de ganancia actual
-            time_in_trade_hours: Tiempo en la operación (horas)
-            price_momentum: Impulso del precio reciente
-            
-        Returns:
-            (decisión, razón)
+            event_type: Tipo de evento ("trade_executed", "error", "warning", etc.)
+            event_data: Datos del evento
         """
-        # Crear datos de posición para Gabriel
-        position_data = {
-            "profit_percent": profit_percent,
-            "entry_time": datetime.now() - timedelta(hours=time_in_trade_hours),
-            "price_momentum": price_momentum,
-            "symbol": "GENERIC",
-            "side": "buy"
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Convertir evento a formato de noticias para Gabriel
+        news = {
+            "title": f"Event: {event_type}",
+            "content": str(event_data),
+            "sentiment": self._map_event_to_sentiment(event_type, event_data),
+            "importance": self._calculate_event_importance(event_type, event_data),
+            "related_to_portfolio": True,
+            "impact": self._calculate_event_impact(event_type, event_data)
         }
         
-        # Consultar decisión de salida
-        decision, reason, _ = await self.gabriel.decide_exit(position_data)
-        
-        return decision, reason
+        await self.gabriel.hear(news)
     
-    async def adjust_order_size(self, base_size: float, 
-                              confidence: float, 
-                              is_buy: bool = True) -> float:
+    def _map_event_to_sentiment(self, event_type: str, event_data: Dict[str, Any]) -> str:
         """
-        Emula el método existente adjust_order_size()
-        consultando el ajuste de tamaño de Gabriel.
+        Mapear tipo de evento a sentimiento.
         
         Args:
-            base_size: Tamaño base de la operación
-            confidence: Nivel de confianza (0.0-1.0)
-            is_buy: Si es una operación de compra
+            event_type: Tipo de evento
+            event_data: Datos del evento
             
         Returns:
-            Tamaño ajustado
+            Sentimiento ("bullish", "neutral", "bearish", etc.)
         """
-        # Consultar ajuste de tamaño
-        adjusted_size, _ = await self.gabriel.size_position(
+        if "error" in event_type.lower():
+            return "bearish"
+        
+        if "warning" in event_type.lower():
+            return "slightly_bearish"
+        
+        if "profit" in event_type.lower():
+            profit = event_data.get("profit", 0.0)
+            if profit > 0:
+                return "bullish"
+            else:
+                return "bearish"
+        
+        if "executed" in event_type.lower():
+            return "neutral"
+        
+        return "neutral"
+    
+    def _calculate_event_importance(self, event_type: str, event_data: Dict[str, Any]) -> float:
+        """
+        Calcular importancia de un evento.
+        
+        Args:
+            event_type: Tipo de evento
+            event_data: Datos del evento
+            
+        Returns:
+            Importancia (0-1)
+        """
+        if "error" in event_type.lower():
+            return 0.8
+        
+        if "warning" in event_type.lower():
+            return 0.6
+        
+        if "profit" in event_type.lower():
+            profit = event_data.get("profit", 0.0)
+            profit_pct = event_data.get("profit_percent", 0.0)
+            
+            # Mayor importancia a operaciones grandes
+            if abs(profit_pct) > 0.1:  # Más del 10%
+                return 0.8
+            elif abs(profit_pct) > 0.05:  # Más del 5%
+                return 0.6
+            else:
+                return 0.4
+        
+        if "executed" in event_type.lower():
+            # Importancia según tamaño de operación
+            size = event_data.get("size", 0.0)
+            account_percentage = event_data.get("account_percentage", 0.0)
+            
+            if account_percentage > 0.1:  # Más del 10% de la cuenta
+                return 0.7
+            elif account_percentage > 0.05:  # Más del 5% de la cuenta
+                return 0.5
+            else:
+                return 0.3
+        
+        return 0.5  # Valor por defecto
+    
+    def _calculate_event_impact(self, event_type: str, event_data: Dict[str, Any]) -> float:
+        """
+        Calcular impacto emocional de un evento.
+        
+        Args:
+            event_type: Tipo de evento
+            event_data: Datos del evento
+            
+        Returns:
+            Impacto (-1 a 1)
+        """
+        if "error" in event_type.lower():
+            return -0.7
+        
+        if "warning" in event_type.lower():
+            return -0.4
+        
+        if "profit" in event_type.lower():
+            profit = event_data.get("profit", 0.0)
+            profit_pct = event_data.get("profit_percent", 0.0)
+            
+            # Mapear porcentaje a impacto
+            impact = min(max(profit_pct * 10, -1.0), 1.0)
+            return impact
+        
+        if "executed" in event_type.lower():
+            # Impacto neutro ligeramente positivo
+            return 0.1
+        
+        return 0.0  # Impacto neutro por defecto
+    
+    async def set_emergency_mode(self, emergency_type: str) -> None:
+        """
+        Establecer modo de emergencia según el tipo indicado.
+        
+        Args:
+            emergency_type: Tipo de emergencia ("market_crash", "system_failure", "extreme_volatility", etc.)
+        """
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Modo de emergencia = establecer estado temeroso
+        self.gabriel.set_fearful()
+        
+        logger.warning(f"Gabriel en modo de emergencia por {emergency_type}")
+    
+    async def normalize_state(self) -> None:
+        """Normalizar el estado de Gabriel a un estado equilibrado."""
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Reiniciar a estado por defecto
+        self.gabriel.reset()
+        
+        logger.info("Estado de Gabriel normalizado")
+    
+    async def evaluate_trade_opportunity(self, 
+                                       symbol: str, 
+                                       signal_strength: float, 
+                                       market_data: Dict[str, Any]) -> Tuple[bool, str, float]:
+        """
+        Evaluar una oportunidad de trading desde perspectiva humana.
+        
+        Args:
+            symbol: Símbolo a evaluar
+            signal_strength: Fuerza de la señal (0-1)
+            market_data: Datos adicionales del mercado
+            
+        Returns:
+            Tupla (decisión, razón, confianza)
+        """
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Añadir símbolo a datos de mercado
+        market_data["symbol"] = symbol
+        
+        # Obtener decisión de Gabriel
+        decision, reason, confidence = await self.gabriel.decide_entry(
+            signal_strength,
+            market_data
+        )
+        
+        # Actualizar métricas
+        self.metrics["total_decisions"] += 1
+        if decision:
+            self.metrics["positive_decisions"] += 1
+        else:
+            self.metrics["negative_decisions"] += 1
+        
+        return decision, reason, confidence
+    
+    async def evaluate_exit_opportunity(self,
+                                      position_data: Dict[str, Any],
+                                      market_data: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        Evaluar una oportunidad de salida desde perspectiva humana.
+        
+        Args:
+            position_data: Datos de la posición actual
+            market_data: Datos actuales del mercado
+            
+        Returns:
+            Tupla (decisión de salir, razón)
+        """
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Obtener decisión de Gabriel
+        exit_decision, reason = await self.gabriel.decide_exit(
+            position_data,
+            market_data
+        )
+        
+        return exit_decision, reason
+    
+    async def adjust_position_size(self, 
+                                 base_size: float, 
+                                 capital: float,
+                                 risk_context: Dict[str, Any]) -> float:
+        """
+        Ajustar tamaño de posición según comportamiento humano.
+        
+        Args:
+            base_size: Tamaño base recomendado por la estrategia
+            capital: Capital total disponible
+            risk_context: Contexto de riesgo (volatilidad, etc.)
+            
+        Returns:
+            Tamaño ajustado de posición
+        """
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Obtener tamaño ajustado de Gabriel
+        adjusted_size = await self.gabriel.size_position(
             base_size,
-            is_buy,
-            {"confidence": confidence}
+            capital,
+            risk_context
         )
         
         return adjusted_size
     
-    async def validate_trade(self, trade_params: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+    async def validate_operation(self, 
+                               operation_type: str, 
+                               details: Dict[str, Any]) -> Tuple[bool, str]:
         """
-        Emula el método existente validate_trade()
-        consultando la validación de Gabriel.
+        Validar una operación según comportamiento humano.
         
         Args:
-            trade_params: Parámetros de la operación
+            operation_type: Tipo de operación ("entry", "exit", "adjust")
+            details: Detalles de la operación
             
         Returns:
-            (válido, razón_rechazo)
+            Tupla (operación válida, razón)
         """
-        # Consultar validación
-        valid, reason, _ = await self.gabriel.validate_operation(trade_params)
+        if not self.is_initialized:
+            await self.initialize()
         
-        return valid, reason
+        # Obtener validación de Gabriel
+        is_valid, reason = await self.gabriel.validate_operation(
+            operation_type,
+            details
+        )
+        
+        return is_valid, reason
     
-    # === MÉTODOS DE ESTADO COMPATIBLES ===
-    
-    def get_current_state(self) -> Dict[str, Any]:
+    def get_state(self) -> Dict[str, Any]:
         """
-        Obtener el estado actual completo del adaptador Gabriel.
+        Obtener el estado actual del comportamiento humano.
         
         Returns:
-            Diccionario con el estado actual en formato compatible
+            Diccionario con estado actual
         """
-        return self._translate_to_legacy_format()
-    
-    @property 
-    def emotional_state(self) -> EmotionalState:
-        """Emula la propiedad emotional_state."""
-        gabriel_state = self.gabriel.get_current_state()
-        mood_name = gabriel_state.get("emotional_state", "SERENE")
+        if not self.is_initialized:
+            return {"status": "not_initialized"}
         
-        return self._get_emotional_state_from_mood(mood_name)
-    
-    @property
-    def risk_tolerance(self) -> RiskTolerance:
-        """Emula la propiedad risk_tolerance."""
+        # Obtener estado actual de Gabriel
         gabriel_state = self.gabriel.get_current_state()
-        courage = gabriel_state.get("courage", "BALANCED")
         
-        if courage == "TIMID":
-            return RiskTolerance.RISK_AVERSE
-        elif courage == "BALANCED":
-            return RiskTolerance.MODERATE
-        elif courage == "DARING":
-            return RiskTolerance.AGGRESSIVE
-        else:
-            return RiskTolerance.MODERATE
-    
-    @property
-    def decision_style(self) -> DecisionStyle:
-        """Emula la propiedad decision_style."""
-        gabriel_state = self.gabriel.get_current_state()
-        resolve = gabriel_state.get("resolve", "THOUGHTFUL")
+        # Añadir métricas
+        state = {
+            "status": "initialized",
+            "mood": gabriel_state.get("mood", "NEUTRAL"),
+            "mood_intensity": gabriel_state.get("mood_intensity", 0.5),
+            "perspective": gabriel_state.get("perspective", "NEUTRAL"),
+            "decision_style": gabriel_state.get("decision_style", "BALANCED"),
+            "risk_preference": gabriel_state.get("risk_preference", 0.5),
+            "archetype": gabriel_state.get("archetype", "COLLECTIVE"),
+            "metrics": self.metrics
+        }
         
-        if resolve == "THOUGHTFUL":
-            return DecisionStyle.ANALYTICAL
-        elif resolve == "INSTINCTIVE":
-            return DecisionStyle.IMPULSIVE
-        elif resolve == "STEADFAST":
-            return DecisionStyle.METHODICAL
-        else:
-            return DecisionStyle.ANALYTICAL
+        return state
     
-    @property
-    def emotional_stability(self) -> float:
-        """Emula la propiedad emotional_stability."""
-        gabriel_state = self.gabriel.get_current_state()
-        return gabriel_state.get("emotional_stability", 0.7)
-    
-    @property
-    def risk_adaptation_rate(self) -> float:
-        """Emula la propiedad risk_adaptation_rate."""
-        if self.gabriel.is_fearful():
-            return 0.9  # Alta adaptación en estado de miedo
-        else:
-            return 0.4  # Valor normal
-    
-    @property
-    def contrarian_tendency(self) -> float:
-        """Emula la propiedad contrarian_tendency."""
-        if self.gabriel.is_fearful():
-            return 0.1  # Baja tendencia contraria en miedo (sigue la manada)
-        else:
-            return 0.4  # Valor normal
-    
-    @property
-    def decision_speed_multiplier(self) -> float:
-        """Emula la propiedad decision_speed_multiplier."""
-        if self.gabriel.is_fearful():
-            return 2.0  # Decisiones más rápidas en miedo
-        else:
-            return 1.0  # Velocidad normal
-    
-    @property
-    def market_perceptions(self) -> Dict[str, float]:
-        """Emula la propiedad market_perceptions."""
-        gabriel_state = self.gabriel.get_current_state()
-        perception = gabriel_state.get("market_perception", {})
+    async def randomize(self) -> None:
+        """Aleatorizar el comportamiento para mayor variabilidad."""
+        if not self.is_initialized:
+            await self.initialize()
         
-        # Traducir a formato compatible
+        await self.gabriel.randomize()
+        logger.info("Comportamiento de Gabriel aleatorizado")
+    
+    def get_risk_profile(self) -> Dict[str, float]:
+        """
+        Obtener el perfil de riesgo actual basado en el estado emocional.
+        
+        Returns:
+            Diccionario con perfil de riesgo
+        """
+        if not self.is_initialized:
+            return {"risk_appetite": 0.5, "risk_tolerance": 0.5}
+        
+        # Obtener estado actual de Gabriel
+        gabriel_state = self.gabriel.get_current_state()
+        
+        # Calcular perfil de riesgo
+        mood = gabriel_state.get("mood", "NEUTRAL")
+        mood_intensity = gabriel_state.get("mood_intensity", 0.5)
+        risk_preference = gabriel_state.get("risk_preference", 0.5)
+        
+        # Modificar apetito según estado emocional
+        risk_appetite = risk_preference
+        if mood == "FEARFUL":
+            risk_appetite *= (1 - mood_intensity * 0.5)
+        elif mood == "HOPEFUL":
+            risk_appetite *= (1 + mood_intensity * 0.3)
+        
+        # Calcular tolerancia al riesgo
+        risk_tolerance = risk_preference * 1.2  # Generalmente mayor que apetito
+        if mood == "FEARFUL":
+            risk_tolerance *= (1 - mood_intensity * 0.4)
+        
         return {
-            "perceived_volatility": perception.get("turbulence", 0.5),
-            "opportunity_bias": perception.get("promise", 0.5),
-            "risk_bias": perception.get("shadow", 0.5),
-            "perceived_trend": self._translate_wind(perception.get("wind", "still")),
-            "market_clarity": perception.get("clarity", 0.5)
+            "risk_appetite": max(0.1, min(risk_appetite, 1.0)),
+            "risk_tolerance": max(0.1, min(risk_tolerance, 1.0))
         }
     
-    # === MÉTODOS AUXILIARES ===
-    
-    def _translate_to_legacy_format(self) -> Dict[str, Any]:
+    async def get_emotional_state(self) -> Dict[str, Any]:
         """
-        Traduce el estado actual de Gabriel al formato esperado por el sistema existente.
+        Obtener estado emocional detallado.
         
         Returns:
-            Estado en formato legacy
+            Diccionario con estado emocional detallado
         """
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Obtener estado de Gabriel
         gabriel_state = self.gabriel.get_current_state()
         
-        # Traducir estado emocional
-        mood_name = gabriel_state.get("emotional_state", "SERENE")
-        emotional_state = self._get_emotional_state_from_mood(mood_name)
+        # Extraer componentes emocionales
+        mood = gabriel_state.get("mood", "NEUTRAL")
+        mood_intensity = gabriel_state.get("mood_intensity", 0.5)
+        emotional_stability = gabriel_state.get("emotional_stability", 0.7)
         
-        # Traducir otros estados
-        courage = gabriel_state.get("courage", "BALANCED")
-        resolve = gabriel_state.get("resolve", "THOUGHTFUL")
-        
-        risk_tolerance = RiskTolerance.RISK_AVERSE if courage == "TIMID" else \
-                         RiskTolerance.AGGRESSIVE if courage == "DARING" else \
-                         RiskTolerance.MODERATE
-                         
-        decision_style = DecisionStyle.ANALYTICAL if resolve == "THOUGHTFUL" else \
-                         DecisionStyle.IMPULSIVE if resolve == "INSTINCTIVE" else \
-                         DecisionStyle.METHODICAL
-        
-        # Formato compatible completo
-        return {
-            "emotional_state": emotional_state.name,
-            "risk_tolerance": risk_tolerance.name,
-            "decision_style": decision_style.name,
-            "emotional_stability": gabriel_state.get("emotional_stability", 0.7),
-            "risk_adaptation_rate": 0.9 if gabriel_state.get("is_fearful", False) else 0.4,
-            "contrarian_tendency": 0.1 if gabriel_state.get("is_fearful", False) else 0.4,
-            "decision_speed": 2.0 if gabriel_state.get("is_fearful", False) else 1.0,
-            "market_perceptions": self._translate_market_perceptions(gabriel_state)
+        # Añadir interpretación humana
+        mood_descriptions = {
+            "SERENE": "Calma y equilibrio mental",
+            "HOPEFUL": "Optimismo y expectativas positivas",
+            "NEUTRAL": "Estado equilibrado sin tendencia marcada",
+            "CAUTIOUS": "Precaución y cierta reserva",
+            "RESTLESS": "Inquietud e impaciencia",
+            "FEARFUL": "Temor ante riesgos percibidos"
         }
-    
-    def _get_emotional_state_from_mood(self, mood_name: str) -> EmotionalState:
-        """
-        Traduce el nombre de un estado de ánimo de Gabriel a EmotionalState.
         
-        Args:
-            mood_name: Nombre del estado de ánimo en Gabriel
-            
-        Returns:
-            EmotionalState correspondiente
-        """
-        emotional_state_name = self._mood_to_emotional_state.get(mood_name, EmotionalState.NEUTRAL)
-        
-        # Si es string, convertir a enum
-        if isinstance(emotional_state_name, str):
-            return getattr(EmotionalState, emotional_state_name)
-            
-        return emotional_state_name
-    
-    def _translate_market_perceptions(self, gabriel_state: Dict[str, Any]) -> Dict[str, float]:
-        """
-        Traduce las percepciones de mercado de Gabriel al formato legacy.
-        
-        Args:
-            gabriel_state: Estado completo de Gabriel
-            
-        Returns:
-            Percepciones en formato legacy
-        """
-        perception = gabriel_state.get("market_perception", {})
+        intensity_description = "moderada"
+        if mood_intensity > 0.8:
+            intensity_description = "muy alta"
+        elif mood_intensity > 0.6:
+            intensity_description = "alta"
+        elif mood_intensity < 0.4:
+            intensity_description = "baja"
+        elif mood_intensity < 0.2:
+            intensity_description = "muy baja"
         
         return {
-            "perceived_volatility": perception.get("turbulence", 0.5),
-            "opportunity_bias": perception.get("promise", 0.5),
-            "risk_bias": perception.get("shadow", 0.5),
-            "perceived_trend": self._translate_wind(perception.get("wind", "still")),
-            "market_clarity": perception.get("clarity", 0.5)
+            "mood": mood,
+            "mood_intensity": mood_intensity,
+            "emotional_stability": emotional_stability,
+            "description": mood_descriptions.get(mood, "Estado desconocido"),
+            "intensity_description": intensity_description,
+            "human_interpretation": f"Gabriel muestra un estado de {mood.lower()} con intensidad {intensity_description}."
         }
-    
-    def _translate_wind(self, wind: str) -> float:
-        """
-        Traduce la dirección del viento (mercado) de Gabriel a un valor numérico.
-        
-        Args:
-            wind: Dirección del viento en Gabriel
-            
-        Returns:
-            Valor numérico para perceived_trend
-        """
-        return {
-            "rising": 0.8,
-            "falling": 0.2,
-            "still": 0.5,
-            "trap": 0.3,
-            "unstable": 0.45,
-            "collapsing": 0.1
-        }.get(wind, 0.5)
-    
-    def _translate_market_context(self, market_context: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Traduce el contexto de mercado del formato legacy al formato que espera Gabriel.
-        
-        Args:
-            market_context: Contexto en formato legacy
-            
-        Returns:
-            Contexto en formato para Gabriel
-        """
-        # Extraer y normalizar datos
-        volatility = market_context.get("volatility", 0.5)
-        trend_value = market_context.get("trend", 0.5)
-        volume_change = market_context.get("volume_change", 0.0)
-        
-        # Convertir trend numérico a categórico
-        trend = "up" if trend_value > 0.6 else "down" if trend_value < 0.4 else "still"
-        
-        # Formato para Gabriel
-        return {
-            "volatility": volatility,
-            "trend_direction": 1 if trend == "up" else -1 if trend == "down" else 0,
-            "volume_change_percent": volume_change * 100,
-            "price_direction": market_context.get("price_change", 0.0),
-            "market_sentiment": market_context.get("sentiment", "neutral"),
-            "risk_level": market_context.get("risk_level", 0.5)
-        }
-
-# Función auxiliar para crear adaptador singleton
-_gabriel_adapter_instance = None
-
-def get_gabriel_adapter() -> GabrielAdapter:
-    """
-    Obtiene la instancia singleton del adaptador de Gabriel.
-    
-    Returns:
-        Instancia del adaptador
-    """
-    global _gabriel_adapter_instance
-    if _gabriel_adapter_instance is None:
-        _gabriel_adapter_instance = GabrielAdapter()
-    return _gabriel_adapter_instance
