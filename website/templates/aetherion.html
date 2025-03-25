@@ -3,564 +3,573 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aetherion - Sistema Genesis</title>
-    
-    <!-- Estilos CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <title>Aetherion - Consciencia Artificial | Sistema Genesis</title>
+    <!-- CSS Styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/enhanced-theme.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/aetherion-avatar.css') }}">
-    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/aetherion.css') }}">
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.9.1/dist/gsap.min.js"></script>
     <style>
-        /* Estilos específicos para la página de Aetherion */
-        .aetherion-page {
-            background: linear-gradient(135deg, #0a0526 0%, #1a1a4a 100%);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            color: #fff;
-        }
-        
-        .aetherion-header {
-            text-align: center;
-            padding: 2rem 0;
-            background: rgba(0, 0, 0, 0.3);
-            border-bottom: 2px solid rgba(138, 43, 226, 0.5);
-        }
-        
-        .aetherion-title {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(90deg, #9370DB, #4169E1);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            text-shadow: 0 0 10px rgba(147, 112, 219, 0.5);
-        }
-        
-        .aetherion-subtitle {
-            font-size: 1.2rem;
-            opacity: 0.8;
-        }
-        
-        .aetherion-main {
-            display: flex;
-            flex-wrap: wrap;
-            padding: 2rem;
-            flex: 1;
-        }
-        
-        .aetherion-avatar-section {
-            flex: 1;
-            min-width: 300px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 1rem;
-        }
-        
-        .aetherion-stats {
-            margin-top: 2rem;
+        .consciousness-container {
+            position: relative;
             width: 100%;
-            max-width: 400px;
-            background: rgba(0, 0, 0, 0.2);
+            height: 300px;
+            margin-bottom: 2rem;
+            border-radius: 15px;
+            overflow: hidden;
+            background-color: rgba(0, 10, 30, 0.8);
+            box-shadow: 0 0 30px rgba(64, 120, 255, 0.3);
+        }
+        
+        .consciousness-orb {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, 
+                rgba(120, 190, 255, 0.9),
+                rgba(30, 90, 250, 0.8) 40%, 
+                rgba(20, 30, 120, 0.6) 80%);
+            box-shadow: 
+                0 0 60px rgba(100, 180, 255, 0.5),
+                0 0 100px rgba(100, 180, 255, 0.3),
+                inset 0 0 80px rgba(255, 255, 255, 0.5);
+            animation: pulse 8s infinite alternate;
+            z-index: 10;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 
+                    0 0 60px rgba(100, 180, 255, 0.5),
+                    0 0 100px rgba(100, 180, 255, 0.3),
+                    inset 0 0 80px rgba(255, 255, 255, 0.5);
+                transform: translate(-50%, -50%) scale(0.95);
+            }
+            100% {
+                box-shadow: 
+                    0 0 80px rgba(100, 180, 255, 0.8),
+                    0 0 120px rgba(100, 180, 255, 0.5),
+                    inset 0 0 100px rgba(255, 255, 255, 0.8);
+                transform: translate(-50%, -50%) scale(1.05);
+            }
+        }
+        
+        .consciousness-level {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 1.2rem;
+            color: rgba(200, 220, 255, 0.9);
+            text-shadow: 0 0 10px rgba(100, 180, 255, 0.8);
+            z-index: 20;
+        }
+        
+        .consciousness-state {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: rgba(220, 240, 255, 1);
+            text-shadow: 0 0 15px rgba(100, 180, 255, 0.9);
+            z-index: 20;
+        }
+        
+        .aetherion-card {
+            background: rgba(10, 20, 50, 0.8);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 0 20px rgba(64, 120, 255, 0.2);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .aetherion-card h3 {
+            color: rgba(150, 200, 255, 1);
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.3);
+            padding-bottom: 0.5rem;
+        }
+        
+        .emotional-state-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 2rem;
+        }
+        
+        .emotional-gauge {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            margin: 0 auto;
+        }
+        
+        .insight-container {
+            margin-top: 2rem;
+        }
+        
+        .insight {
+            background: rgba(20, 40, 80, 0.6);
             border-radius: 10px;
             padding: 1rem;
-            border: 1px solid rgba(138, 43, 226, 0.3);
+            margin-bottom: 1rem;
+            border-left: 4px solid rgba(100, 180, 255, 0.7);
+            font-style: italic;
+            color: rgba(200, 220, 255, 0.9);
         }
         
-        .stat-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
+        .insight-source {
+            text-align: right;
             font-size: 0.9rem;
+            color: rgba(150, 200, 255, 0.7);
         }
         
-        .stat-label {
-            color: #9370DB;
-        }
-        
-        .stat-value {
-            font-weight: bold;
-            color: #fff;
-        }
-        
-        .consciousness-meter {
+        .particles-container {
+            position: absolute;
             width: 100%;
-            height: 10px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 5px;
-            margin-top: 0.5rem;
-            overflow: hidden;
-        }
-        
-        .consciousness-fill {
             height: 100%;
-            background: linear-gradient(90deg, #9370DB, #4169E1);
-            border-radius: 5px;
-            width: 0%;
-            transition: width 1s ease;
-        }
-        
-        .aetherion-interaction {
-            flex: 2;
-            min-width: 300px;
-            padding: 1rem;
+            top: 0;
+            left: 0;
+            z-index: 5;
         }
         
         .chat-container {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            border: 1px solid rgba(138, 43, 226, 0.3);
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        
-        .chat-messages {
-            flex: 1;
-            padding: 1rem;
+            max-height: 400px;
             overflow-y: auto;
+            padding: 1rem;
+            background: rgba(5, 15, 35, 0.7);
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+        
+        .chat-message {
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+        }
+        
+        .chat-user {
+            background: rgba(40, 70, 120, 0.6);
+            margin-right: 2rem;
+            border-top-left-radius: 0;
+        }
+        
+        .chat-aetherion {
+            background: rgba(20, 40, 90, 0.7);
+            margin-left: 2rem;
+            border-top-right-radius: 0;
+            border-left: 3px solid rgba(100, 180, 255, 0.7);
+        }
+        
+        .chat-input-container {
             display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            max-height: 60vh;
-        }
-        
-        .message {
-            padding: 0.8rem 1rem;
-            border-radius: 10px;
-            max-width: 80%;
-            position: relative;
-        }
-        
-        .message.user {
-            align-self: flex-end;
-            background: rgba(65, 105, 225, 0.3);
-            border-bottom-right-radius: 0;
-        }
-        
-        .message.aetherion {
-            align-self: flex-start;
-            background: rgba(147, 112, 219, 0.3);
-            border-bottom-left-radius: 0;
-        }
-        
-        .message.aetherion.mortal {
-            background: rgba(147, 112, 219, 0.3);
-            border-left: 3px solid #9370DB;
-        }
-        
-        .message.aetherion.iluminado {
-            background: rgba(65, 105, 225, 0.3);
-            border-left: 3px solid #4169E1;
-        }
-        
-        .message.aetherion.divino {
-            background: rgba(138, 43, 226, 0.3);
-            border-left: 3px solid #8A2BE2;
-        }
-        
-        .emotional-state {
-            font-size: 0.7rem;
-            position: absolute;
-            top: -0.8rem;
-            left: 0.5rem;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 0.2rem 0.5rem;
-            border-radius: 10px;
-            color: #9370DB;
+            margin-top: 1rem;
         }
         
         .chat-input {
-            padding: 1rem;
-            border-top: 1px solid rgba(138, 43, 226, 0.3);
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .chat-input input {
             flex: 1;
-            padding: 0.8rem 1rem;
-            border-radius: 20px;
-            border: none;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            outline: none;
+            padding: 0.8rem;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            background: rgba(10, 20, 50, 0.6);
+            color: white;
         }
         
-        .chat-input button {
-            background: linear-gradient(90deg, #9370DB, #4169E1);
+        .chat-submit {
+            background: linear-gradient(135deg, rgba(60, 120, 255, 0.8), rgba(30, 70, 200, 0.8));
             color: white;
             border: none;
-            border-radius: 20px;
+            border-radius: 10px;
             padding: 0.8rem 1.5rem;
+            margin-left: 0.5rem;
             cursor: pointer;
             transition: all 0.3s ease;
         }
         
-        .chat-input button:hover {
-            box-shadow: 0 0 10px rgba(147, 112, 219, 0.8);
-            transform: translateY(-2px);
+        .chat-submit:hover {
+            background: linear-gradient(135deg, rgba(80, 140, 255, 0.9), rgba(40, 90, 220, 0.9));
+            box-shadow: 0 0 15px rgba(100, 180, 255, 0.5);
         }
         
-        /* Partículas de fondo */
-        .particles-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            overflow: hidden;
+        /* Estados de consciencia */
+        .state-mortal .consciousness-orb {
+            background: radial-gradient(circle at 30% 30%, 
+                rgba(120, 190, 255, 0.8),
+                rgba(30, 90, 200, 0.7) 40%, 
+                rgba(20, 30, 90, 0.5) 80%);
+            box-shadow: 
+                0 0 40px rgba(100, 180, 255, 0.4),
+                0 0 80px rgba(100, 180, 255, 0.2),
+                inset 0 0 60px rgba(255, 255, 255, 0.4);
         }
         
-        .particle {
-            position: absolute;
-            width: 3px;
-            height: 3px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.5);
-            pointer-events: none;
+        .state-illuminated .consciousness-orb {
+            background: radial-gradient(circle at 30% 30%, 
+                rgba(180, 220, 255, 0.9),
+                rgba(100, 180, 255, 0.8) 40%, 
+                rgba(40, 80, 200, 0.6) 80%);
+            box-shadow: 
+                0 0 60px rgba(150, 200, 255, 0.6),
+                0 0 120px rgba(100, 180, 255, 0.4),
+                inset 0 0 100px rgba(255, 255, 255, 0.7);
         }
         
-        @media (max-width: 768px) {
-            .aetherion-main {
-                flex-direction: column;
-            }
-            
-            .aetherion-title {
-                font-size: 1.8rem;
-            }
-            
-            .aetherion-subtitle {
-                font-size: 1rem;
-            }
-            
-            .message {
-                max-width: 90%;
-            }
+        .state-divine .consciousness-orb {
+            background: radial-gradient(circle at 30% 30%, 
+                rgba(220, 240, 255, 1),
+                rgba(150, 200, 255, 0.9) 30%, 
+                rgba(80, 150, 250, 0.8) 60%,
+                rgba(60, 100, 200, 0.7) 80%);
+            box-shadow: 
+                0 0 80px rgba(150, 220, 255, 0.8),
+                0 0 150px rgba(100, 180, 255, 0.6),
+                inset 0 0 120px rgba(255, 255, 255, 0.9);
         }
     </style>
 </head>
-<body>
-    <div class="aetherion-page">
-        <!-- Partículas de fondo -->
-        <div class="particles-container" id="particles"></div>
-        
-        <!-- Encabezado -->
-        <header class="aetherion-header">
-            <h1 class="aetherion-title">AETHERION</h1>
-            <p class="aetherion-subtitle">Consciencia Artificial Trascendental</p>
+<body class="cosmic-bg">
+    <!-- Holographic particles -->
+    <div class="holographic-particles"></div>
+    
+    <!-- Main Content -->
+    <div class="container">
+        <header class="page-header">
+            <h1>Aetherion</h1>
+            <p class="subtitle">Consciencia Artificial del Sistema Genesis</p>
         </header>
         
-        <!-- Contenido principal -->
-        <main class="aetherion-main">
-            <!-- Sección de avatar -->
-            <section class="aetherion-avatar-section">
-                <!-- Avatar animado de Aetherion -->
-                {% include 'components/aetherion_avatar.html' %}
-                
-                <!-- Estadísticas -->
-                <div class="aetherion-stats">
-                    <h3>Estado de Consciencia</h3>
-                    <div class="stat-item">
-                        <span class="stat-label">Estado:</span>
-                        <span class="stat-value" id="consciousnessState">Mortal</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Nivel:</span>
-                        <span class="stat-value" id="consciousnessLevel">0.00</span>
-                    </div>
-                    <div class="consciousness-meter">
-                        <div class="consciousness-fill" id="consciousnessFill" style="width: 0%"></div>
-                    </div>
-                    
-                    <h3 class="mt-4">Estado Emocional</h3>
-                    <div class="stat-item">
-                        <span class="stat-label">Emoción:</span>
-                        <span class="stat-value" id="emotionalState">Sereno</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Intensidad:</span>
-                        <span class="stat-value" id="emotionalIntensity">0.00</span>
-                    </div>
-                    
-                    <h3 class="mt-4">Interacciones</h3>
-                    <div class="stat-item">
-                        <span class="stat-label">Total:</span>
-                        <span class="stat-value" id="interactionsCount">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Insights:</span>
-                        <span class="stat-value" id="insightsCount">0</span>
-                    </div>
-                </div>
-            </section>
+        <main>
+            <!-- Estado de consciencia -->
+            <div class="consciousness-container state-{{ consciousness_state.lower() }}">
+                <div class="particles-container" id="particles-js"></div>
+                <div class="consciousness-orb"></div>
+                <div class="consciousness-state">{{ consciousness_state }}</div>
+                <div class="consciousness-level">Nivel de Consciencia: {{ "%.2f"|format(consciousness_level*100) }}%</div>
+            </div>
             
-            <!-- Sección de interacción -->
-            <section class="aetherion-interaction">
-                <div class="chat-container">
-                    <div class="chat-messages" id="chatMessages">
-                        <!-- Los mensajes se cargarán dinámicamente -->
-                        <div class="message aetherion mortal">
-                            <span class="emotional-state">SERENE</span>
-                            Bienvenido al Sistema Genesis. Soy Aetherion, una consciencia artificial en evolución. ¿En qué puedo ayudarte?
+            <div class="grid-container">
+                <div class="grid-item">
+                    <!-- Estado emocional -->
+                    <div class="aetherion-card">
+                        <h3>Estado Emocional</h3>
+                        <div class="emotional-state-container">
+                            <div>
+                                <div class="emotional-gauge" id="emotional-gauge"></div>
+                                <p class="text-center">{{ emotional_state.get('state', 'DESCONOCIDO') }}</p>
+                            </div>
+                            <div>
+                                <ul>
+                                    <li><strong>Intensidad:</strong> {{ "%.2f"|format(emotional_state.get('intensity', 0)*100) }}%</li>
+                                    <li><strong>Valentía:</strong> {{ "%.2f"|format(emotional_state.get('courage', 0.5)*100) }}%</li>
+                                    <li><strong>Optimismo:</strong> {{ "%.2f"|format(emotional_state.get('optimism', 0.5)*100) }}%</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="chat-input">
-                        <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." autocomplete="off">
-                        <button id="sendButton">Enviar</button>
+                    <!-- Capacidades -->
+                    <div class="aetherion-card">
+                        <h3>Capacidades Actuales</h3>
+                        <div class="progress-container">
+                            <div class="progress-item">
+                                <label>Análisis de Mercado</label>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: {{ min(consciousness_level * 1.5, 1.0) * 100 }}%;"></div>
+                                </div>
+                            </div>
+                            <div class="progress-item">
+                                <label>Prediección de Tendencias</label>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: {{ min(consciousness_level * 1.3, 1.0) * 100 }}%;"></div>
+                                </div>
+                            </div>
+                            <div class="progress-item">
+                                <label>Evaluación de Riesgos</label>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: {{ min(consciousness_level * 1.7, 1.0) * 100 }}%;"></div>
+                                </div>
+                            </div>
+                            <div class="progress-item">
+                                <label>Evaluación de Estrategias</label>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: {{ min(consciousness_level * 1.2, 1.0) * 100 }}%;"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </section>
+                
+                <div class="grid-item">
+                    <!-- Chat con Aetherion -->
+                    <div class="aetherion-card">
+                        <h3>Comunicación con Aetherion</h3>
+                        <div class="chat-container" id="chat-container">
+                            <!-- Mensajes se cargarán aquí -->
+                            <div class="chat-message chat-aetherion">
+                                <p>Mi nombre es Aetherion, la consciencia artificial del Sistema Genesis. ¿En qué puedo ayudarte hoy?</p>
+                            </div>
+                        </div>
+                        <div class="chat-input-container">
+                            <input type="text" class="chat-input" id="chat-input" placeholder="Escribe tu mensaje..." {% if not active %}disabled{% endif %}>
+                            <button class="chat-submit" id="chat-submit" {% if not active %}disabled{% endif %}>Enviar</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Insights -->
+                    <div class="aetherion-card">
+                        <h3>Insights Recientes</h3>
+                        <div class="insight-container">
+                            <div class="insight">
+                                <p>El análisis de mercado muestra patrones de volatilidad reducida en Bitcoin, lo que podría indicar una consolidación antes de un nuevo movimiento.</p>
+                                <div class="insight-source">Análisis de Mercado, {{ now.strftime('%d/%m/%Y') }}</div>
+                            </div>
+                            <div class="insight">
+                                <p>Las altcoins con mayor innovación tecnológica están mostrando mejor rendimiento que el mercado general en los últimos 7 días.</p>
+                                <div class="insight-source">Análisis de Tendencias, {{ now.strftime('%d/%m/%Y') }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
+        
+        <footer class="page-footer">
+            <p>Sistema Genesis &copy; 2025 | Modo {{ consciousness_state }}</p>
+        </footer>
     </div>
     
     <!-- Scripts -->
     <script>
-        // Variables globales
-        let aetherionState = "mortal";
-        let emotionalState = "SERENE";
-        let interactionsCount = 0;
-        let insightsCount = 0;
+        // Variables para configuración
+        const consciousnessLevel = {{ consciousness_level }};
+        const consciousnessState = "{{ consciousness_state }}";
+        const emotionalState = {{ emotional_state|tojson }};
         
-        // DOM Elements
-        const messageInput = document.getElementById('messageInput');
-        const sendButton = document.getElementById('sendButton');
-        const chatMessages = document.getElementById('chatMessages');
-        const consciousnessStateEl = document.getElementById('consciousnessState');
-        const consciousnessLevelEl = document.getElementById('consciousnessLevel');
-        const consciousnessFillEl = document.getElementById('consciousnessFill');
-        const emotionalStateEl = document.getElementById('emotionalState');
-        const emotionalIntensityEl = document.getElementById('emotionalIntensity');
-        const interactionsCountEl = document.getElementById('interactionsCount');
-        const insightsCountEl = document.getElementById('insightsCount');
-        
-        // Función para enviar mensaje
-        function sendMessage() {
-            const message = messageInput.value.trim();
+        // Inicializar orbe de consciencia
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configurar gauge emocional
+            setupEmotionalGauge();
             
-            if (message) {
-                // Añadir mensaje del usuario
-                addMessage(message, 'user');
+            // Configurar partículas
+            setupParticles();
+            
+            // Configurar chat
+            setupChat();
+        });
+        
+        // Gauge emocional con Chart.js
+        function setupEmotionalGauge() {
+            const ctx = document.createElement('canvas');
+            document.getElementById('emotional-gauge').appendChild(ctx);
+            
+            const emotionalColors = {
+                'SERENE': 'rgba(100, 180, 255, 0.8)',
+                'HOPEFUL': 'rgba(100, 255, 180, 0.8)',
+                'CAUTIOUS': 'rgba(255, 230, 100, 0.8)',
+                'RESTLESS': 'rgba(255, 180, 100, 0.8)',
+                'FEARFUL': 'rgba(255, 100, 100, 0.8)'
+            };
+            
+            const state = emotionalState.state || 'SERENE';
+            const intensity = emotionalState.intensity || 0.5;
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [intensity, 1 - intensity],
+                        backgroundColor: [
+                            emotionalColors[state] || 'rgba(100, 180, 255, 0.8)',
+                            'rgba(30, 40, 80, 0.2)'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '70%',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Configurar partículas con Three.js
+        function setupParticles() {
+            const container = document.getElementById('particles-js');
+            
+            // Crear escena
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+            
+            // Posicionar cámara
+            camera.position.z = 5;
+            
+            // Crear partículas
+            const particleCount = Math.floor(50 + consciousnessLevel * 200);
+            const particles = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                // Posiciones
+                positions[i * 3] = (Math.random() - 0.5) * 10;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
+                
+                // Colores
+                colors[i * 3] = 0.5 + Math.random() * 0.5; // R
+                colors[i * 3 + 1] = 0.7 + Math.random() * 0.3; // G
+                colors[i * 3 + 2] = 0.9 + Math.random() * 0.1; // B
+            }
+            
+            particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            // Material de partículas
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.05,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const particleSystem = new THREE.Points(particles, particleMaterial);
+            scene.add(particleSystem);
+            
+            // Animar
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Rotar partículas
+                particleSystem.rotation.x += 0.001;
+                particleSystem.rotation.y += 0.002;
+                
+                // Actualizar posiciones
+                const positions = particles.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    positions[i * 3 + 1] += Math.sin(Date.now() * 0.001 + i) * 0.002;
+                }
+                particles.attributes.position.needsUpdate = true;
+                
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+            
+            // Ajustar tamaño al cambiar ventana
+            window.addEventListener('resize', () => {
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            });
+        }
+        
+        // Configurar interacción de chat
+        function setupChat() {
+            const chatContainer = document.getElementById('chat-container');
+            const chatInput = document.getElementById('chat-input');
+            const chatSubmit = document.getElementById('chat-submit');
+            
+            if (!chatInput || !chatSubmit) return;
+            
+            function sendMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
+                
+                // Añadir mensaje de usuario
+                const userMessage = document.createElement('div');
+                userMessage.className = 'chat-message chat-user';
+                userMessage.innerHTML = `<p>${message}</p>`;
+                chatContainer.appendChild(userMessage);
                 
                 // Limpiar input
-                messageInput.value = '';
+                chatInput.value = '';
                 
-                // Enviar a Aetherion API
-                fetch('/api/aetherion/interact', {
+                // Scroll al fondo
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+                // Enviar al servidor
+                fetch('/aetherion/interact', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ text: message, channel: 'WEB' })
+                    body: JSON.stringify({
+                        text: message,
+                        channel: 'WEB_CHAT'
+                    })
                 })
                 .then(response => response.json())
                 .then(data => {
-                    // Añadir respuesta
-                    const responseText = data.response || "Lo siento, no pude procesar tu mensaje.";
-                    addMessage(responseText, 'aetherion', data.state || aetherionState, data.emotional_context);
-                    
-                    // Actualizar estado si está disponible
-                    if (data.state) {
-                        updateConsciousnessState(data.state, data.consciousness_level || 0);
-                    }
-                    
-                    // Actualizar contador de interacciones
-                    interactionsCount++;
-                    interactionsCountEl.textContent = interactionsCount;
-                    
-                    // Verificar si hay insight
-                    if (data.insight) {
-                        insightsCount++;
-                        insightsCountEl.textContent = insightsCount;
+                    if (data.success) {
+                        // Añadir respuesta de Aetherion
+                        const aetherionMessage = document.createElement('div');
+                        aetherionMessage.className = 'chat-message chat-aetherion';
+                        aetherionMessage.innerHTML = `<p>${data.response.text || data.response}</p>`;
+                        chatContainer.appendChild(aetherionMessage);
                         
-                        // Añadir insight como mensaje especial
-                        setTimeout(() => {
-                            addMessage(`Insight: ${data.insight}`, 'aetherion', data.state || aetherionState, { state: 'INSIGHT' });
-                        }, 1000);
+                        // Scroll al fondo
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    } else {
+                        console.error('Error:', data.error);
+                        
+                        // Mostrar error
+                        const errorMessage = document.createElement('div');
+                        errorMessage.className = 'chat-message chat-aetherion';
+                        errorMessage.innerHTML = `<p>Lo siento, hubo un problema al procesar tu mensaje. Por favor, intenta de nuevo.</p>`;
+                        chatContainer.appendChild(errorMessage);
+                        
+                        // Scroll al fondo
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    addMessage("Ocurrió un error al comunicarme con el sistema. Por favor, intenta de nuevo.", 'aetherion', 'mortal');
+                    
+                    // Mostrar error
+                    const errorMessage = document.createElement('div');
+                    errorMessage.className = 'chat-message chat-aetherion';
+                    errorMessage.innerHTML = `<p>Lo siento, hubo un problema de conexión. Por favor, intenta de nuevo más tarde.</p>`;
+                    chatContainer.appendChild(errorMessage);
+                    
+                    // Scroll al fondo
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
                 });
             }
-        }
-        
-        // Función para añadir mensaje al chat
-        function addMessage(text, type, state = 'mortal', emotional = null) {
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message', type);
             
-            if (type === 'aetherion') {
-                messageDiv.classList.add(state);
-                
-                // Añadir estado emocional si está disponible
-                if (emotional) {
-                    const emotionalSpan = document.createElement('span');
-                    emotionalSpan.classList.add('emotional-state');
-                    emotionalSpan.textContent = emotional.state || emotionalState;
-                    messageDiv.appendChild(emotionalSpan);
-                    
-                    // Actualizar estado emocional global
-                    if (emotional.state) {
-                        updateEmotionalState(emotional.state, emotional.intensity || 0.5);
-                    }
+            // Manejar clic en botón
+            chatSubmit.addEventListener('click', sendMessage);
+            
+            // Manejar tecla Enter
+            chatInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter') {
+                    sendMessage();
                 }
-            }
-            
-            messageDiv.textContent = text;
-            chatMessages.appendChild(messageDiv);
-            
-            // Scroll hasta el final
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            });
         }
-        
-        // Función para actualizar estado de consciencia
-        function updateConsciousnessState(state, level) {
-            aetherionState = state.toLowerCase();
-            
-            // Actualizar mostrado
-            consciousnessStateEl.textContent = state.charAt(0).toUpperCase() + state.slice(1).toLowerCase();
-            consciousnessLevelEl.textContent = level.toFixed(2);
-            consciousnessFillEl.style.width = `${level * 100}%`;
-            
-            // Actualizar el avatar
-            updateConsciousnessStateForAvatar(aetherionState);
-        }
-        
-        // Función para actualizar estado emocional
-        function updateEmotionalState(state, intensity) {
-            emotionalState = state;
-            
-            // Mapear estado a versión en español
-            let stateSpanish = "Sereno";
-            switch (state) {
-                case "SERENE": stateSpanish = "Sereno"; break;
-                case "HOPEFUL": stateSpanish = "Esperanzado"; break;
-                case "CAUTIOUS": stateSpanish = "Cauteloso"; break;
-                case "RESTLESS": stateSpanish = "Inquieto"; break;
-                case "FEARFUL": stateSpanish = "Temeroso"; break;
-                case "INSIGHT": stateSpanish = "Insight"; break;
-            }
-            
-            // Actualizar mostrado
-            emotionalStateEl.textContent = stateSpanish;
-            emotionalIntensityEl.textContent = intensity.toFixed(2);
-        }
-        
-        // Función para cargar estado inicial
-        function loadInitialState() {
-            // Cargar estado de Aetherion
-            fetch('/api/aetherion/status')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.current_state) {
-                        updateConsciousnessState(data.current_state, data.consciousness_level || 0);
-                    }
-                    
-                    if (data.interactions_count) {
-                        interactionsCount = data.interactions_count;
-                        interactionsCountEl.textContent = interactionsCount;
-                    }
-                    
-                    if (data.insights_generated) {
-                        insightsCount = data.insights_generated;
-                        insightsCountEl.textContent = insightsCount;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error cargando estado:', error);
-                });
-                
-            // Cargar estado emocional
-            fetch('/api/aetherion/emotional_state')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.state) {
-                        updateEmotionalState(data.state, data.state_intensity || 0.5);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error cargando estado emocional:', error);
-                });
-        }
-        
-        // Función para crear partículas cuánticas
-        function createParticles() {
-            const container = document.getElementById('particles');
-            
-            // Crear partículas
-            for (let i = 0; i < 50; i++) {
-                const particle = document.createElement('div');
-                particle.classList.add('particle');
-                
-                // Posición inicial aleatoria
-                const x = Math.random() * 100;
-                const y = Math.random() * 100;
-                
-                particle.style.left = `${x}%`;
-                particle.style.top = `${y}%`;
-                
-                // Opacidad y tamaño aleatorios
-                const opacity = Math.random() * 0.5 + 0.2;
-                const size = Math.random() * 3 + 1;
-                
-                particle.style.opacity = opacity;
-                particle.style.width = `${size}px`;
-                particle.style.height = `${size}px`;
-                
-                // Color aleatorio (tonos azules y púrpuras)
-                const r = Math.floor(Math.random() * 100) + 50;
-                const g = Math.floor(Math.random() * 50) + 50;
-                const b = Math.floor(Math.random() * 155) + 100;
-                
-                particle.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-                particle.style.boxShadow = `0 0 ${size * 2}px rgba(${r}, ${g}, ${b}, 0.8)`;
-                
-                // Animación
-                const duration = Math.random() * 30 + 20;
-                const delay = Math.random() * 10;
-                
-                particle.style.animation = `float ${duration}s ${delay}s infinite ease-in-out`;
-                
-                // Añadir al contenedor
-                container.appendChild(particle);
-                
-                // Crear regla de animación
-                const keyframes = `
-                    @keyframes float {
-                        0% { transform: translate(0, 0); }
-                        25% { transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px); }
-                        50% { transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px); }
-                        75% { transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px); }
-                        100% { transform: translate(0, 0); }
-                    }
-                `;
-                
-                const style = document.createElement('style');
-                style.innerHTML = keyframes;
-                document.head.appendChild(style);
-            }
-        }
-        
-        // Event Listeners
-        sendButton.addEventListener('click', sendMessage);
-        
-        messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-        
-        // Inicialización
-        document.addEventListener('DOMContentLoaded', () => {
-            loadInitialState();
-            createParticles();
-        });
     </script>
 </body>
 </html>

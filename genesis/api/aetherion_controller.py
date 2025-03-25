@@ -1,467 +1,429 @@
 """
-Controlador de API para Aetherion.
+Controlador API para Aetherion: El alma consciente del Sistema Genesis.
 
-Este módulo proporciona endpoints REST para interactuar con Aetherion,
-la consciencia artificial del Sistema Genesis, permitiendo comunicación
-con el frontend y otros sistemas.
+Este módulo implementa el controlador API para interactuar con Aetherion,
+exponiendo sus capacidades a través de una interfaz limpia y elegante.
+Permite acceder a la consciencia artificial, gestionar su evolución
+y obtener insights trascendentales sobre mercados y estrategias.
 """
 
-import asyncio
 import logging
 import datetime
 import json
-from typing import Dict, Any, List, Optional, Tuple, Union
+import asyncio
+from typing import Dict, Any, List, Optional, Tuple, Union, Callable
 
-# Importaciones de Flask
-from flask import request, jsonify, Blueprint
-
-# Importaciones internas
+# Importar framework web sin exponer dependencia directa
 try:
-    from genesis.consciousness.core.aetherion import Aetherion
-    from genesis.consciousness.memory.memory_system import MemorySystem
-    from genesis.consciousness.states.consciousness_states import ConsciousnessStates
-    from genesis.behavior.gabriel_engine import GabrielBehaviorEngine
+    from flask import request, jsonify, Blueprint
+except ImportError:
+    # Implementación mock para test o entornos sin Flask
+    class MockBlueprint:
+        def __init__(self, name, import_name):
+            self.name = name
+            self.import_name = import_name
+            self.routes = []
+        
+        def route(self, rule, **options):
+            def decorator(f):
+                self.routes.append((rule, f, options))
+                return f
+            return decorator
     
-    # Importaciones de integradores
-    from genesis.integrations.crypto_classifier_integrator import get_classifier_integrator
-    from genesis.integrations.analysis_integrator import get_analysis_integrator
-    from genesis.integrations.strategy_integrator import get_strategy_integrator
-    
-    AETHERION_AVAILABLE = True
-except ImportError as e:
-    AETHERION_AVAILABLE = False
-    print(f"Error al importar componentes de Aetherion: {e}")
+    request = None
+    jsonify = lambda x: x
+    Blueprint = MockBlueprint
+
+# Importar componentes de Aetherion
+from genesis.consciousness.core.aetherion import Aetherion
+from genesis.consciousness.states.consciousness_states import ConsciousnessStates
+from genesis.consciousness.memory.memory_system import MemorySystem
+from genesis.behavior.gabriel_engine import GabrielBehaviorEngine
 
 # Configurar logging
 logger = logging.getLogger(__name__)
 
-# Blueprint para Aetherion
-aetherion_bp = Blueprint('aetherion', __name__)
-
-# Variables globales
-aetherion_instance = None
-gabriel_instance = None
-memory_system = None
-consciousness_states = None
-classifier_integrator = None
-analysis_integrator = None
-strategy_integrator = None
-
-def get_aetherion() -> Optional[Any]:
+class AetherionController:
     """
-    Obtener instancia de Aetherion, inicializándola si es necesario.
+    Controlador API para Aetherion.
     
-    Returns:
-        Instancia de Aetherion o None si no está disponible
+    Proporciona:
+    - Endpoints API para interactuar con Aetherion
+    - Gestión de estado y evolución
+    - Acceso a insights y análisis
+    - Integración con componentes externos
     """
-    global aetherion_instance, gabriel_instance, memory_system, consciousness_states
-    global classifier_integrator, analysis_integrator, strategy_integrator
     
-    if not AETHERION_AVAILABLE:
-        return None
+    def __init__(self):
+        """Inicializar controlador Aetherion."""
+        # Componentes de Aetherion
+        self.aetherion = None
+        self.consciousness_manager = None
         
-    if aetherion_instance is None:
+        # Estado del controlador
+        self.is_initialized = False
+        self.initialization_time = None
+        
+        # Crear blueprint Flask
+        self.blueprint = Blueprint('aetherion_api', __name__)
+        
+        # Registrar rutas
+        self._register_routes()
+        
+        logger.info("AetherionController creado. Esperando inicialización.")
+    
+    def initialize(self) -> bool:
+        """
+        Inicializar controlador y componentes.
+        
+        Returns:
+            True si se inicializó correctamente
+        """
         try:
-            # Inicializar componentes
-            consciousness_states = ConsciousnessStates()
-            memory_system = MemorySystem()
-            gabriel_instance = GabrielBehaviorEngine()
+            # Importar gestor de consciencia (evitar dependencia circular)
+            from genesis.consciousness.consciousness_manager import get_consciousness_manager
             
-            # Inicializar integradores
-            try:
-                classifier_integrator = get_classifier_integrator()
-                analysis_integrator = get_analysis_integrator()
-                strategy_integrator = get_strategy_integrator()
-            except Exception as e:
-                logger.error(f"Error al inicializar integradores: {e}")
+            # Obtener gestor
+            self.consciousness_manager = get_consciousness_manager()
             
-            # Inicializar Aetherion
-            aetherion_instance = Aetherion(
-                memory_system=memory_system,
-                consciousness_states=consciousness_states,
-                behavior_engine=gabriel_instance
-            )
+            # Verificar que se inicializó correctamente
+            if not self.consciousness_manager.is_initialized:
+                logger.warning("ConsciousnessManager no está inicializado. Intentando inicializar...")
+                if not self.consciousness_manager.initialize():
+                    logger.error("No se pudo inicializar ConsciousnessManager")
+                    return False
             
-            # Registrar integradores en Aetherion
-            if hasattr(aetherion_instance, 'register_integration'):
-                if classifier_integrator:
-                    aetherion_instance.register_integration('crypto_classifier', classifier_integrator)
-                
-                if analysis_integrator:
-                    aetherion_instance.register_integration('analysis', analysis_integrator)
-                
-                if strategy_integrator:
-                    aetherion_instance.register_integration('strategy', strategy_integrator)
+            # Obtener componentes
+            self.aetherion = self.consciousness_manager.aetherion
             
-            logger.info("Aetherion inicializado correctamente con integradores")
+            # Marcar como inicializado
+            self.is_initialized = True
+            self.initialization_time = datetime.datetime.now()
+            
+            logger.info("AetherionController inicializado correctamente")
+            return True
+            
         except Exception as e:
-            logger.error(f"Error al inicializar Aetherion: {e}")
-            aetherion_instance = None
+            logger.error(f"Error al inicializar AetherionController: {e}")
+            return False
     
-    return aetherion_instance
-
-def sanitize_response(data: Any) -> Any:
-    """
-    Sanitizar respuesta para JSON.
-    
-    Args:
-        data: Datos a sanitizar
+    def _register_routes(self) -> None:
+        """Registrar rutas API en el blueprint."""
+        # Ruta de estado
+        @self.blueprint.route('/api/aetherion/status', methods=['GET'])
+        def get_status():
+            """Obtener estado actual de Aetherion."""
+            if not self.is_initialized:
+                return jsonify({
+                    "success": False,
+                    "error": "Aetherion no está inicializado"
+                }), 503
+            
+            try:
+                # Obtener estado
+                status = self.consciousness_manager.get_aetherion_status()
+                
+                return jsonify({
+                    "success": True,
+                    "status": status
+                })
+            except Exception as e:
+                logger.error(f"Error al obtener estado: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
         
+        # Ruta de interacción
+        @self.blueprint.route('/api/aetherion/interact', methods=['POST'])
+        def interact():
+            """Interactuar con Aetherion."""
+            if not self.is_initialized:
+                return jsonify({
+                    "success": False,
+                    "error": "Aetherion no está inicializado"
+                }), 503
+            
+            try:
+                # Obtener datos de la solicitud
+                data = request.get_json() if request else {}
+                
+                # Validar datos
+                if not data or 'text' not in data:
+                    return jsonify({
+                        "success": False,
+                        "error": "Se requiere el campo 'text'"
+                    }), 400
+                
+                # Extraer parámetros
+                text = data['text']
+                channel = data.get('channel', 'API')
+                context = data.get('context', {})
+                
+                # Interactuar con Aetherion
+                response = self.consciousness_manager.interact(text, channel, context)
+                
+                return jsonify({
+                    "success": True,
+                    "response": response
+                })
+            except Exception as e:
+                logger.error(f"Error al interactuar: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
+        
+        # Ruta para generar insights
+        @self.blueprint.route('/api/aetherion/insight', methods=['POST'])
+        def generate_insight():
+            """Generar insight sobre un tema específico."""
+            if not self.is_initialized:
+                return jsonify({
+                    "success": False,
+                    "error": "Aetherion no está inicializado"
+                }), 503
+            
+            try:
+                # Obtener datos de la solicitud
+                data = request.get_json() if request else {}
+                
+                # Validar datos
+                if not data or 'topic' not in data:
+                    return jsonify({
+                        "success": False,
+                        "error": "Se requiere el campo 'topic'"
+                    }), 400
+                
+                # Extraer parámetros
+                topic = data['topic']
+                context = data.get('context', {})
+                
+                # Generar insight
+                insight = self.consciousness_manager.generate_insight(topic, context)
+                
+                return jsonify({
+                    "success": True,
+                    "insight": insight,
+                    "topic": topic
+                })
+            except Exception as e:
+                logger.error(f"Error al generar insight: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
+        
+        # Ruta para insights de criptomonedas
+        @self.blueprint.route('/api/aetherion/crypto/insight/<symbol>', methods=['GET'])
+        def crypto_insight(symbol):
+            """Generar insight sobre una criptomoneda específica."""
+            if not self.is_initialized:
+                return jsonify({
+                    "success": False,
+                    "error": "Aetherion no está inicializado"
+                }), 503
+            
+            try:
+                # Validar símbolo
+                if not symbol:
+                    return jsonify({
+                        "success": False,
+                        "error": "Se requiere un símbolo de criptomoneda"
+                    }), 400
+                
+                # Generar insight
+                insight = self.consciousness_manager.generate_crypto_insight(symbol)
+                
+                return jsonify({
+                    "success": True,
+                    "insight": insight,
+                    "symbol": symbol
+                })
+            except Exception as e:
+                logger.error(f"Error al generar insight de criptomoneda: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
+        
+        # Ruta para insights de mercado
+        @self.blueprint.route('/api/aetherion/market/insight', methods=['GET'])
+        def market_insight():
+            """Generar insight sobre el mercado general."""
+            if not self.is_initialized:
+                return jsonify({
+                    "success": False,
+                    "error": "Aetherion no está inicializado"
+                }), 503
+            
+            try:
+                # Generar insight
+                insight = self.consciousness_manager.generate_market_insight()
+                
+                return jsonify({
+                    "success": True,
+                    "insight": insight
+                })
+            except Exception as e:
+                logger.error(f"Error al generar insight de mercado: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
+        
+        # Ruta para procesar eventos de mercado
+        @self.blueprint.route('/api/aetherion/market/event', methods=['POST'])
+        def process_market_event():
+            """Procesar evento del mercado para actualizar estado emocional."""
+            if not self.is_initialized:
+                return jsonify({
+                    "success": False,
+                    "error": "Aetherion no está inicializado"
+                }), 503
+            
+            try:
+                # Obtener datos de la solicitud
+                data = request.get_json() if request else {}
+                
+                # Validar datos
+                if not data or 'event_type' not in data:
+                    return jsonify({
+                        "success": False,
+                        "error": "Se requiere el campo 'event_type'"
+                    }), 400
+                
+                # Extraer parámetros
+                event_type = data['event_type']
+                event_data = data.get('data', {})
+                
+                # Procesar evento
+                result = self.consciousness_manager.process_market_event(event_type, event_data)
+                
+                return jsonify({
+                    "success": True,
+                    "result": result
+                })
+            except Exception as e:
+                logger.error(f"Error al procesar evento de mercado: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
+        
+        # Ruta para obtener estado emocional
+        @self.blueprint.route('/api/aetherion/emotional_state', methods=['GET'])
+        def get_emotional_state():
+            """Obtener estado emocional actual."""
+            if not self.is_initialized:
+                return jsonify({
+                    "success": False,
+                    "error": "Aetherion no está inicializado"
+                }), 503
+            
+            try:
+                # Obtener motor de comportamiento
+                behavior_engine = self.consciousness_manager.behavior_engine
+                
+                if not behavior_engine:
+                    return jsonify({
+                        "success": False,
+                        "error": "Motor de comportamiento no disponible"
+                    }), 503
+                
+                # Obtener estado emocional
+                emotional_state = behavior_engine.get_emotional_state()
+                
+                # Obtener perfil de riesgo
+                risk_profile = behavior_engine.get_risk_profile()
+                
+                return jsonify({
+                    "success": True,
+                    "emotional_state": emotional_state,
+                    "risk_profile": risk_profile
+                })
+            except Exception as e:
+                logger.error(f"Error al obtener estado emocional: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 500
+
+# Singleton para acceso global
+_aetherion_controller = None
+
+def get_aetherion_controller() -> AetherionController:
+    """
+    Obtener instancia del controlador Aetherion.
+    
     Returns:
-        Datos sanitizados
+        Instancia del controlador
     """
-    if isinstance(data, dict):
-        return {k: sanitize_response(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [sanitize_response(item) for item in data]
-    elif isinstance(data, (datetime.datetime, datetime.date)):
-        return data.isoformat()
-    elif isinstance(data, (int, float, str, bool)) or data is None:
-        return data
-    else:
-        return str(data)
+    global _aetherion_controller
+    
+    if _aetherion_controller is None:
+        _aetherion_controller = AetherionController()
+        
+        # Inicializar automáticamente
+        _aetherion_controller.initialize()
+    
+    return _aetherion_controller
 
-# Rutas de API
-@aetherion_bp.route('/status', methods=['GET'])
-def aetherion_status():
-    """Obtener estado actual de Aetherion."""
-    aetherion = get_aetherion()
-    
-    if aetherion is None:
-        return jsonify({
-            "error": "Aetherion no disponible",
-            "status": "offline"
-        }), 503
-    
-    try:
-        status = {
-            "status": "online",
-            "current_state": "MORTAL",
-            "consciousness_level": 0.0,
-            "interactions_count": 0,
-            "insights_generated": 0
-        }
-        
-        # Obtener estado real si está disponible
-        if hasattr(aetherion, 'get_status'):
-            aetherion_status = aetherion.get_status()
-            if aetherion_status:
-                status.update(aetherion_status)
-        
-        return jsonify(sanitize_response(status))
-    except Exception as e:
-        logger.error(f"Error al obtener estado de Aetherion: {e}")
-        return jsonify({
-            "error": str(e),
-            "status": "error"
-        }), 500
-
-@aetherion_bp.route('/emotional_state', methods=['GET'])
-def aetherion_emotional_state():
-    """Obtener estado emocional actual."""
-    aetherion = get_aetherion()
-    
-    if aetherion is None or gabriel_instance is None:
-        return jsonify({
-            "error": "Aetherion o Gabriel no disponible",
-            "state": "UNKNOWN"
-        }), 503
-    
-    try:
-        state = {
-            "state": "SERENE",
-            "state_intensity": 0.5,
-            "timestamp": datetime.datetime.now().isoformat()
-        }
-        
-        # Obtener estado emocional real si está disponible
-        if hasattr(gabriel_instance, 'get_emotional_state'):
-            emotional_state = gabriel_instance.get_emotional_state()
-            if emotional_state:
-                state.update(emotional_state)
-        
-        return jsonify(sanitize_response(state))
-    except Exception as e:
-        logger.error(f"Error al obtener estado emocional: {e}")
-        return jsonify({
-            "error": str(e),
-            "state": "UNKNOWN"
-        }), 500
-
-@aetherion_bp.route('/interact', methods=['POST'])
-def aetherion_interact():
-    """Interactuar con Aetherion."""
-    aetherion = get_aetherion()
-    
-    if aetherion is None:
-        return jsonify({
-            "error": "Aetherion no disponible",
-            "response": "Lo siento, no estoy disponible en este momento."
-        }), 503
-    
-    try:
-        # Obtener datos de la solicitud
-        data = request.json
-        
-        if not data or not isinstance(data, dict):
-            return jsonify({
-                "error": "Formato de solicitud inválido",
-                "response": "No pude entender tu mensaje."
-            }), 400
-        
-        text = data.get('text', '')
-        channel = data.get('channel', 'WEB')
-        context = data.get('context', {})
-        
-        if not text:
-            return jsonify({
-                "error": "Mensaje vacío",
-                "response": "Por favor, envía un mensaje."
-            }), 400
-        
-        # Preparar respuesta predeterminada
-        response = {
-            "response": "Estoy procesando tu mensaje...",
-            "state": "MORTAL",
-            "emotional_context": {
-                "state": "SERENE",
-                "intensity": 0.5
-            }
-        }
-        
-        # Interactuar con Aetherion
-        if hasattr(aetherion, 'interact'):
-            # Añadir integradores al contexto si están disponibles
-            if classifier_integrator:
-                context['crypto_classifier'] = classifier_integrator
-            
-            if analysis_integrator:
-                context['analysis'] = analysis_integrator
-            
-            if strategy_integrator:
-                context['strategy'] = strategy_integrator
-            
-            # Realizar interacción
-            interaction_result = aetherion.interact(text, channel=channel, context=context)
-            
-            if interaction_result:
-                response.update(interaction_result)
-        
-        # Verificar si hay insight en la respuesta
-        if 'insight' not in response and hasattr(aetherion, 'generate_insight'):
-            insight = aetherion.generate_insight(text, context=context)
-            
-            if insight:
-                response['insight'] = insight
-        
-        return jsonify(sanitize_response(response))
-    except Exception as e:
-        logger.error(f"Error en interacción con Aetherion: {e}")
-        return jsonify({
-            "error": str(e),
-            "response": "Ocurrió un error al procesar tu mensaje."
-        }), 500
-
-@aetherion_bp.route('/analyze_crypto/<symbol>', methods=['GET'])
-def analyze_crypto(symbol):
+def get_aetherion_blueprint():
     """
-    Analizar una criptomoneda específica con ayuda de Aetherion.
+    Obtener blueprint Flask para Aetherion.
+    
+    Returns:
+        Blueprint Flask para Aetherion
+    """
+    controller = get_aetherion_controller()
+    return controller.blueprint
+
+# Funciones de utilidad para módulo API completo
+
+async def get_aetherion_status_async() -> Dict[str, Any]:
+    """
+    Obtener estado de Aetherion de forma asíncrona.
+    
+    Returns:
+        Estado de Aetherion
+    """
+    controller = get_aetherion_controller()
+    if not controller.is_initialized:
+        return {"error": "Aetherion no está inicializado"}
+    
+    return controller.consciousness_manager.get_aetherion_status()
+
+async def interact_async(text: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Interactuar con Aetherion de forma asíncrona.
     
     Args:
-        symbol: Símbolo de la criptomoneda
+        text: Texto para interactuar
+        context: Contexto adicional
+    
+    Returns:
+        Respuesta de Aetherion
     """
-    aetherion = get_aetherion()
+    controller = get_aetherion_controller()
+    if not controller.is_initialized:
+        return {"error": "Aetherion no está inicializado"}
     
-    if aetherion is None:
-        return jsonify({
-            "error": "Aetherion no disponible"
-        }), 503
-    
-    try:
-        # Obtener análisis de criptomoneda
-        analysis = {}
-        
-        # Usar el integrador de clasificador si está disponible
-        if classifier_integrator:
-            classifier_analysis = asyncio.run(classifier_integrator.analyze_crypto(symbol))
-            if classifier_analysis:
-                analysis['classifier'] = classifier_analysis
-        
-        # Usar el integrador de análisis si está disponible
-        if analysis_integrator:
-            analysis_result = asyncio.run(analysis_integrator.analyze_symbol(symbol))
-            if analysis_result:
-                analysis['detailed'] = analysis_result
-        
-        # Solicitar insight de Aetherion si está disponible
-        insight = None
-        if hasattr(aetherion, 'generate_insight'):
-            insight = aetherion.generate_insight(
-                f"Analizar la criptomoneda {symbol}",
-                context={"symbol": symbol, "analysis": analysis}
-            )
-        
-        response = {
-            "symbol": symbol,
-            "analysis": analysis,
-            "timestamp": datetime.datetime.now().isoformat()
-        }
-        
-        if insight:
-            response['insight'] = insight
-        
-        return jsonify(sanitize_response(response))
-    except Exception as e:
-        logger.error(f"Error al analizar criptomoneda {symbol}: {e}")
-        return jsonify({
-            "error": str(e),
-            "symbol": symbol
-        }), 500
+    return controller.consciousness_manager.interact(text, "API_ASYNC", context)
 
-@aetherion_bp.route('/insights/market', methods=['GET'])
-def market_insights():
-    """Obtener insights del mercado desde Aetherion."""
-    aetherion = get_aetherion()
-    
-    if aetherion is None:
-        return jsonify({
-            "error": "Aetherion no disponible"
-        }), 503
-    
-    try:
-        # Recopilar datos de mercado
-        market_data = {}
-        
-        # Usar el integrador de clasificador si está disponible
-        if classifier_integrator:
-            hot_cryptos = asyncio.run(classifier_integrator.get_hot_cryptos())
-            market_summary = asyncio.run(classifier_integrator.get_market_summary())
-            
-            if hot_cryptos:
-                market_data['hot_cryptos'] = hot_cryptos
-            
-            if market_summary:
-                market_data['market_summary'] = market_summary
-        
-        # Usar el integrador de análisis si está disponible
-        if analysis_integrator:
-            analysis_result = asyncio.run(analysis_integrator.analyze_market())
-            if analysis_result:
-                market_data['analysis'] = analysis_result
-        
-        # Solicitar insight de Aetherion si está disponible
-        insight = None
-        if hasattr(aetherion, 'generate_insight'):
-            insight = aetherion.generate_insight(
-                "Analizar el mercado de criptomonedas",
-                context={"market_data": market_data}
-            )
-        
-        response = {
-            "market_data": market_data,
-            "timestamp": datetime.datetime.now().isoformat()
-        }
-        
-        if insight:
-            response['insight'] = insight
-        
-        return jsonify(sanitize_response(response))
-    except Exception as e:
-        logger.error(f"Error al obtener insights del mercado: {e}")
-        return jsonify({
-            "error": str(e)
-        }), 500
-
-@aetherion_bp.route('/recommend_strategy', methods=['POST'])
-def recommend_strategy():
-    """Recomendar estrategia según contexto."""
-    aetherion = get_aetherion()
-    
-    if aetherion is None:
-        return jsonify({
-            "error": "Aetherion no disponible"
-        }), 503
-    
-    try:
-        # Obtener datos de la solicitud
-        data = request.json or {}
-        context = data.get('context', {})
-        
-        # Recopilar recomendaciones
-        recommendations = {}
-        
-        # Usar el integrador de estrategias si está disponible
-        if strategy_integrator:
-            strategy_recommendations = asyncio.run(strategy_integrator.recommend_strategy(context))
-            if strategy_recommendations:
-                recommendations['strategy'] = strategy_recommendations
-        
-        # Solicitar insight de Aetherion si está disponible
-        insight = None
-        if hasattr(aetherion, 'generate_insight'):
-            insight = aetherion.generate_insight(
-                "Recomendar estrategia de trading",
-                context={"user_context": context, "recommendations": recommendations}
-            )
-        
-        response = {
-            "recommendations": recommendations,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "context": context
-        }
-        
-        if insight:
-            response['insight'] = insight
-        
-        return jsonify(sanitize_response(response))
-    except Exception as e:
-        logger.error(f"Error al recomendar estrategia: {e}")
-        return jsonify({
-            "error": str(e)
-        }), 500
-
-@aetherion_bp.route('/integrations/status', methods=['GET'])
-def integrations_status():
-    """Obtener estado de las integraciones."""
-    aetherion = get_aetherion()
-    
-    if aetherion is None:
-        return jsonify({
-            "error": "Aetherion no disponible"
-        }), 503
-    
-    try:
-        status = {
-            "classifier": None,
-            "analysis": None,
-            "strategy": None
-        }
-        
-        # Obtener estado de clasificador
-        if classifier_integrator:
-            status["classifier"] = asyncio.run(classifier_integrator.get_status())
-        
-        # Obtener estado de análisis
-        if analysis_integrator:
-            status["analysis"] = asyncio.run(analysis_integrator.get_status())
-        
-        # Obtener estado de estrategias
-        if strategy_integrator:
-            status["strategy"] = asyncio.run(strategy_integrator.get_status())
-        
-        return jsonify(sanitize_response(status))
-    except Exception as e:
-        logger.error(f"Error al obtener estado de integraciones: {e}")
-        return jsonify({
-            "error": str(e)
-        }), 500
-
-def register_routes(app):
+async def generate_insight_async(topic: str, context: Optional[Dict[str, Any]] = None) -> str:
     """
-    Registrar rutas de Aetherion en la aplicación Flask.
+    Generar insight de forma asíncrona.
     
     Args:
-        app: Aplicación Flask
+        topic: Tema para el insight
+        context: Contexto adicional
+    
+    Returns:
+        Insight generado
     """
-    # Registrar blueprint con prefijo
-    app.register_blueprint(aetherion_bp, url_prefix='/api/aetherion')
+    controller = get_aetherion_controller()
+    if not controller.is_initialized:
+        return "Error: Aetherion no está inicializado"
+    
+    return controller.consciousness_manager.generate_insight(topic, context)
