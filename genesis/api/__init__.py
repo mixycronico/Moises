@@ -1,20 +1,19 @@
 """
-Módulo de API para el sistema Genesis.
+Módulo de API para el Sistema Genesis.
 
-Este módulo proporciona la interfaz de programación de aplicaciones (API)
-para interactuar con el sistema Genesis desde aplicaciones externas.
+Este módulo proporciona los endpoints de API para el Sistema Genesis,
+incluyendo interfaces para componentes como Aetherion, Buddha y Gabriel.
 """
 
-from genesis.api.endpoints import create_routes
-from genesis.api.init_api import init_api
-from genesis.api.rest import RestAPI
-from genesis.api.server import APIServer
-from genesis.api.swagger import init_swagger
+# Importar controladores
+from genesis.api.aetherion_controller import register_routes as register_aetherion_routes
 
-__all__ = [
-    "create_routes", 
-    "init_api", 
-    "RestAPI", 
-    "APIServer", 
-    "init_swagger"
-]
+def register_all_routes(app):
+    """
+    Registrar todas las rutas de API en la aplicación Flask.
+    
+    Args:
+        app: Aplicación Flask
+    """
+    # Registrar rutas de Aetherion
+    register_aetherion_routes(app)

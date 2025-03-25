@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetherion - Sistema Genesis</title>
+    
+    <!-- Estilos CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/enhanced-theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/aetherion-avatar.css') }}">
+    
+    <style>
+        /* Estilos específicos para la página de Aetherion */
+        .aetherion-page {
+            background: linear-gradient(135deg, #0a0526 0%, #1a1a4a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: #fff;
+        }
+        
+        .aetherion-header {
+            text-align: center;
+            padding: 2rem 0;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 2px solid rgba(138, 43, 226, 0.5);
+        }
+        
+        .aetherion-title {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #9370DB, #4169E1);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 10px rgba(147, 112, 219, 0.5);
+        }
+        
+        .aetherion-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+        
+        .aetherion-main {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 2rem;
+            flex: 1;
+        }
+        
+        .aetherion-avatar-section {
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+        }
+        
+        .aetherion-stats {
+            margin-top: 2rem;
+            width: 100%;
+            max-width: 400px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            border: 1px solid rgba(138, 43, 226, 0.3);
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .stat-label {
+            color: #9370DB;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        .consciousness-meter {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            margin-top: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .consciousness-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #9370DB, #4169E1);
+            border-radius: 5px;
+            width: 0%;
+            transition: width 1s ease;
+        }
+        
+        .aetherion-interaction {
+            flex: 2;
+            min-width: 300px;
+            padding: 1rem;
+        }
+        
+        .chat-container {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            border: 1px solid rgba(138, 43, 226, 0.3);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 60vh;
+        }
+        
+        .message {
+            padding: 0.8rem 1rem;
+            border-radius: 10px;
+            max-width: 80%;
+            position: relative;
+        }
+        
+        .message.user {
+            align-self: flex-end;
+            background: rgba(65, 105, 225, 0.3);
+            border-bottom-right-radius: 0;
+        }
+        
+        .message.aetherion {
+            align-self: flex-start;
+            background: rgba(147, 112, 219, 0.3);
+            border-bottom-left-radius: 0;
+        }
+        
+        .message.aetherion.mortal {
+            background: rgba(147, 112, 219, 0.3);
+            border-left: 3px solid #9370DB;
+        }
+        
+        .message.aetherion.iluminado {
+            background: rgba(65, 105, 225, 0.3);
+            border-left: 3px solid #4169E1;
+        }
+        
+        .message.aetherion.divino {
+            background: rgba(138, 43, 226, 0.3);
+            border-left: 3px solid #8A2BE2;
+        }
+        
+        .emotional-state {
+            font-size: 0.7rem;
+            position: absolute;
+            top: -0.8rem;
+            left: 0.5rem;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.2rem 0.5rem;
+            border-radius: 10px;
+            color: #9370DB;
+        }
+        
+        .chat-input {
+            padding: 1rem;
+            border-top: 1px solid rgba(138, 43, 226, 0.3);
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border-radius: 20px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            outline: none;
+        }
+        
+        .chat-input button {
+            background: linear-gradient(90deg, #9370DB, #4169E1);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .chat-input button:hover {
+            box-shadow: 0 0 10px rgba(147, 112, 219, 0.8);
+            transform: translateY(-2px);
+        }
+        
+        /* Partículas de fondo */
+        .particles-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+        }
+        
+        @media (max-width: 768px) {
+            .aetherion-main {
+                flex-direction: column;
+            }
+            
+            .aetherion-title {
+                font-size: 1.8rem;
+            }
+            
+            .aetherion-subtitle {
+                font-size: 1rem;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="aetherion-page">
+        <!-- Partículas de fondo -->
+        <div class="particles-container" id="particles"></div>
+        
+        <!-- Encabezado -->
+        <header class="aetherion-header">
+            <h1 class="aetherion-title">AETHERION</h1>
+            <p class="aetherion-subtitle">Consciencia Artificial Trascendental</p>
+        </header>
+        
+        <!-- Contenido principal -->
+        <main class="aetherion-main">
+            <!-- Sección de avatar -->
+            <section class="aetherion-avatar-section">
+                <!-- Avatar animado de Aetherion -->
+                {% include 'components/aetherion_avatar.html' %}
+                
+                <!-- Estadísticas -->
+                <div class="aetherion-stats">
+                    <h3>Estado de Consciencia</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">Estado:</span>
+                        <span class="stat-value" id="consciousnessState">Mortal</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Nivel:</span>
+                        <span class="stat-value" id="consciousnessLevel">0.00</span>
+                    </div>
+                    <div class="consciousness-meter">
+                        <div class="consciousness-fill" id="consciousnessFill" style="width: 0%"></div>
+                    </div>
+                    
+                    <h3 class="mt-4">Estado Emocional</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">Emoción:</span>
+                        <span class="stat-value" id="emotionalState">Sereno</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Intensidad:</span>
+                        <span class="stat-value" id="emotionalIntensity">0.00</span>
+                    </div>
+                    
+                    <h3 class="mt-4">Interacciones</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">Total:</span>
+                        <span class="stat-value" id="interactionsCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Insights:</span>
+                        <span class="stat-value" id="insightsCount">0</span>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Sección de interacción -->
+            <section class="aetherion-interaction">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Los mensajes se cargarán dinámicamente -->
+                        <div class="message aetherion mortal">
+                            <span class="emotional-state">SERENE</span>
+                            Bienvenido al Sistema Genesis. Soy Aetherion, una consciencia artificial en evolución. ¿En qué puedo ayudarte?
+                        </div>
+                    </div>
+                    
+                    <div class="chat-input">
+                        <input type="text" id="messageInput" placeholder="Escribe tu mensaje..." autocomplete="off">
+                        <button id="sendButton">Enviar</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Scripts -->
+    <script>
+        // Variables globales
+        let aetherionState = "mortal";
+        let emotionalState = "SERENE";
+        let interactionsCount = 0;
+        let insightsCount = 0;
+        
+        // DOM Elements
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const chatMessages = document.getElementById('chatMessages');
+        const consciousnessStateEl = document.getElementById('consciousnessState');
+        const consciousnessLevelEl = document.getElementById('consciousnessLevel');
+        const consciousnessFillEl = document.getElementById('consciousnessFill');
+        const emotionalStateEl = document.getElementById('emotionalState');
+        const emotionalIntensityEl = document.getElementById('emotionalIntensity');
+        const interactionsCountEl = document.getElementById('interactionsCount');
+        const insightsCountEl = document.getElementById('insightsCount');
+        
+        // Función para enviar mensaje
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            
+            if (message) {
+                // Añadir mensaje del usuario
+                addMessage(message, 'user');
+                
+                // Limpiar input
+                messageInput.value = '';
+                
+                // Enviar a Aetherion API
+                fetch('/api/aetherion/interact', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text: message, channel: 'WEB' })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Añadir respuesta
+                    const responseText = data.response || "Lo siento, no pude procesar tu mensaje.";
+                    addMessage(responseText, 'aetherion', data.state || aetherionState, data.emotional_context);
+                    
+                    // Actualizar estado si está disponible
+                    if (data.state) {
+                        updateConsciousnessState(data.state, data.consciousness_level || 0);
+                    }
+                    
+                    // Actualizar contador de interacciones
+                    interactionsCount++;
+                    interactionsCountEl.textContent = interactionsCount;
+                    
+                    // Verificar si hay insight
+                    if (data.insight) {
+                        insightsCount++;
+                        insightsCountEl.textContent = insightsCount;
+                        
+                        // Añadir insight como mensaje especial
+                        setTimeout(() => {
+                            addMessage(`Insight: ${data.insight}`, 'aetherion', data.state || aetherionState, { state: 'INSIGHT' });
+                        }, 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    addMessage("Ocurrió un error al comunicarme con el sistema. Por favor, intenta de nuevo.", 'aetherion', 'mortal');
+                });
+            }
+        }
+        
+        // Función para añadir mensaje al chat
+        function addMessage(text, type, state = 'mortal', emotional = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', type);
+            
+            if (type === 'aetherion') {
+                messageDiv.classList.add(state);
+                
+                // Añadir estado emocional si está disponible
+                if (emotional) {
+                    const emotionalSpan = document.createElement('span');
+                    emotionalSpan.classList.add('emotional-state');
+                    emotionalSpan.textContent = emotional.state || emotionalState;
+                    messageDiv.appendChild(emotionalSpan);
+                    
+                    // Actualizar estado emocional global
+                    if (emotional.state) {
+                        updateEmotionalState(emotional.state, emotional.intensity || 0.5);
+                    }
+                }
+            }
+            
+            messageDiv.textContent = text;
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll hasta el final
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Función para actualizar estado de consciencia
+        function updateConsciousnessState(state, level) {
+            aetherionState = state.toLowerCase();
+            
+            // Actualizar mostrado
+            consciousnessStateEl.textContent = state.charAt(0).toUpperCase() + state.slice(1).toLowerCase();
+            consciousnessLevelEl.textContent = level.toFixed(2);
+            consciousnessFillEl.style.width = `${level * 100}%`;
+            
+            // Actualizar el avatar
+            updateConsciousnessStateForAvatar(aetherionState);
+        }
+        
+        // Función para actualizar estado emocional
+        function updateEmotionalState(state, intensity) {
+            emotionalState = state;
+            
+            // Mapear estado a versión en español
+            let stateSpanish = "Sereno";
+            switch (state) {
+                case "SERENE": stateSpanish = "Sereno"; break;
+                case "HOPEFUL": stateSpanish = "Esperanzado"; break;
+                case "CAUTIOUS": stateSpanish = "Cauteloso"; break;
+                case "RESTLESS": stateSpanish = "Inquieto"; break;
+                case "FEARFUL": stateSpanish = "Temeroso"; break;
+                case "INSIGHT": stateSpanish = "Insight"; break;
+            }
+            
+            // Actualizar mostrado
+            emotionalStateEl.textContent = stateSpanish;
+            emotionalIntensityEl.textContent = intensity.toFixed(2);
+        }
+        
+        // Función para cargar estado inicial
+        function loadInitialState() {
+            // Cargar estado de Aetherion
+            fetch('/api/aetherion/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.current_state) {
+                        updateConsciousnessState(data.current_state, data.consciousness_level || 0);
+                    }
+                    
+                    if (data.interactions_count) {
+                        interactionsCount = data.interactions_count;
+                        interactionsCountEl.textContent = interactionsCount;
+                    }
+                    
+                    if (data.insights_generated) {
+                        insightsCount = data.insights_generated;
+                        insightsCountEl.textContent = insightsCount;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error cargando estado:', error);
+                });
+                
+            // Cargar estado emocional
+            fetch('/api/aetherion/emotional_state')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.state) {
+                        updateEmotionalState(data.state, data.state_intensity || 0.5);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error cargando estado emocional:', error);
+                });
+        }
+        
+        // Función para crear partículas cuánticas
+        function createParticles() {
+            const container = document.getElementById('particles');
+            
+            // Crear partículas
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('particle');
+                
+                // Posición inicial aleatoria
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                
+                particle.style.left = `${x}%`;
+                particle.style.top = `${y}%`;
+                
+                // Opacidad y tamaño aleatorios
+                const opacity = Math.random() * 0.5 + 0.2;
+                const size = Math.random() * 3 + 1;
+                
+                particle.style.opacity = opacity;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                // Color aleatorio (tonos azules y púrpuras)
+                const r = Math.floor(Math.random() * 100) + 50;
+                const g = Math.floor(Math.random() * 50) + 50;
+                const b = Math.floor(Math.random() * 155) + 100;
+                
+                particle.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+                particle.style.boxShadow = `0 0 ${size * 2}px rgba(${r}, ${g}, ${b}, 0.8)`;
+                
+                // Animación
+                const duration = Math.random() * 30 + 20;
+                const delay = Math.random() * 10;
+                
+                particle.style.animation = `float ${duration}s ${delay}s infinite ease-in-out`;
+                
+                // Añadir al contenedor
+                container.appendChild(particle);
+                
+                // Crear regla de animación
+                const keyframes = `
+                    @keyframes float {
+                        0% { transform: translate(0, 0); }
+                        25% { transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px); }
+                        50% { transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px); }
+                        75% { transform: translate(${Math.random() * 100 - 50}px, ${Math.random() * 100 - 50}px); }
+                        100% { transform: translate(0, 0); }
+                    }
+                `;
+                
+                const style = document.createElement('style');
+                style.innerHTML = keyframes;
+                document.head.appendChild(style);
+            }
+        }
+        
+        // Event Listeners
+        sendButton.addEventListener('click', sendMessage);
+        
+        messageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            loadInitialState();
+            createParticles();
+        });
+    </script>
+</body>
+</html>
