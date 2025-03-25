@@ -1,118 +1,42 @@
-/* Estilos para la página de inicio */
+/* Estilos específicos para la página de inicio */
 
 /* Sección de bienvenida */
 .welcome-section {
-    height: 100vh;
-    min-height: 600px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    padding: 5rem 0;
+    text-align: center;
     position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, rgba(10, 10, 10, 0.9), rgba(18, 18, 18, 0.8));
-}
-
-.welcome-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(circle at 75% 25%, rgba(0, 114, 255, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 25% 75%, rgba(255, 215, 0, 0.1) 0%, transparent 50%);
-    z-index: 0;
 }
 
 .hero {
-    text-align: center;
     max-width: 900px;
-    padding: 2rem;
-    z-index: 1;
+    margin: 0 auto;
     position: relative;
+    z-index: 2;
 }
 
-.hero .floating-logo {
-    width: 150px;
-    height: 150px;
-    margin: 0 auto 2rem;
-}
-
-.hero .subtitle {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 2.5rem;
-    margin-bottom: 2rem;
-    color: #ffffff;
-}
-
-.hero .description {
-    margin-bottom: 3rem;
-    font-size: 1.2rem;
-    color: var(--medium-text);
-    max-width: 800px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.hero .description p {
-    margin-bottom: 1rem;
-}
-
-.cta-buttons {
-    display: flex;
-    gap: 1.5rem;
-    justify-content: center;
-}
-
-.cta-buttons .btn {
-    min-width: 180px;
-}
-
-/* Sección de capacidades */
+/* Grid de capacidades */
 .capabilities-section {
-    padding: 6rem 2rem;
-    background-color: var(--dark-bg);
+    padding: 5rem 1rem;
     position: relative;
-}
-
-.capabilities-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: 
-        linear-gradient(45deg, rgba(0, 114, 255, 0.03) 0%, transparent 70%),
-        linear-gradient(135deg, rgba(255, 215, 0, 0.03) 0%, transparent 70%);
-    z-index: 0;
 }
 
 .capabilities-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 2rem;
     max-width: 1200px;
     margin: 0 auto;
-    position: relative;
-    z-index: 1;
 }
 
 .capability-card {
-    background-color: var(--card-bg);
-    border-radius: 8px;
+    background: var(--holographic-card-bg);
+    border-radius: 12px;
     padding: 2rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+    transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-    border: var(--card-border);
-}
-
-.capability-card:hover {
-    transform: translateY(-10px);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3), 0 0 15px rgba(0, 114, 255, 0.2);
+    border: 1px solid rgba(0, 255, 255, 0.1);
+    box-shadow: var(--cosmic-shadow);
 }
 
 .capability-card::before {
@@ -121,101 +45,130 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: 5px;
-    background: var(--primary-gradient);
+    height: 100%;
+    background: linear-gradient(135deg, 
+        rgba(0, 255, 255, 0.05) 0%,
+        rgba(255, 0, 255, 0.05) 50%,
+        rgba(255, 215, 0, 0.05) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+}
+
+.capability-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+    border-color: rgba(0, 255, 255, 0.3);
+}
+
+.capability-card:hover::before {
+    opacity: 1;
 }
 
 .capability-icon {
     font-size: 2.5rem;
     margin-bottom: 1.5rem;
-    color: var(--primary-color);
     text-align: center;
+}
+
+.capability-card:nth-child(3n+1) .capability-icon {
+    color: var(--cyan-color);
+}
+
+.capability-card:nth-child(3n+2) .capability-icon {
+    color: var(--magenta-color);
+}
+
+.capability-card:nth-child(3n+3) .capability-icon {
+    color: var(--gold-color);
 }
 
 .capability-card h3 {
     font-family: 'Orbitron', sans-serif;
-    font-size: 1.5rem;
     margin-bottom: 1rem;
-    color: #ffffff;
     text-align: center;
+    font-size: 1.3rem;
+    letter-spacing: 1px;
 }
 
 .capability-card p {
-    color: var(--medium-text);
+    font-size: 0.95rem;
+    line-height: 1.6;
     text-align: center;
 }
 
-/* Sección de modos */
+/* Carrusel de modos */
 .modes-section {
-    padding: 6rem 2rem;
-    background-color: var(--darker-bg);
+    padding: 5rem 1rem;
+    text-align: center;
     position: relative;
 }
 
 .modes-carousel {
-    max-width: 1000px;
-    margin: 0 auto 3rem;
-    position: relative;
+    max-width: 800px;
+    margin: 0 auto 2rem;
     height: 300px;
+    position: relative;
+    overflow: hidden;
 }
 
 .mode-card {
+    background: var(--holographic-card-bg);
+    border-radius: 12px;
+    padding: 2rem;
     position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
-    background-color: var(--card-bg);
-    border-radius: 12px;
-    padding: 2.5rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transition: all 0.5s ease;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    opacity: 0;
-    transform: translateX(50px) scale(0.9);
-    transition: all 0.5s ease;
-    border: var(--card-border);
-    z-index: 1;
+    border: 1px solid rgba(0, 255, 255, 0.1);
+    box-shadow: var(--cosmic-shadow);
+    transform: translateX(100%);
 }
 
 .mode-card.active {
     opacity: 1;
-    transform: translateX(0) scale(1);
-    z-index: 2;
+    transform: translateX(0);
 }
 
 .mode-title {
     font-family: 'Orbitron', sans-serif;
     font-size: 2rem;
-    color: #ffffff;
-    text-shadow: var(--glow-blue);
     margin-bottom: 1rem;
-    position: relative;
-    display: inline-block;
+    color: var(--cyan-color);
+    text-shadow: var(--glow-cyan);
 }
 
-.mode-title::after {
-    content: '';
-    position: absolute;
-    bottom: -10px;
-    left: 0;
-    width: 100%;
-    height: 2px;
-    background: var(--primary-gradient);
+.mode-card[data-mode="LUZ"] .mode-title {
+    color: var(--gold-color);
+    text-shadow: var(--glow-gold);
+}
+
+.mode-card[data-mode="MATERIA_OSCURA"] .mode-title {
+    color: var(--magenta-color);
+    text-shadow: var(--glow-magenta);
+}
+
+.mode-card[data-mode="DIVINO"] .mode-title {
+    background: linear-gradient(to right, var(--cyan-color), var(--magenta-color), var(--gold-color));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-fill-color: transparent;
 }
 
 .mode-description {
-    color: var(--medium-text);
     font-size: 1.1rem;
+    line-height: 1.6;
     margin-bottom: 2rem;
-    flex-grow: 1;
 }
 
 .mode-metrics {
     display: flex;
-    gap: 2rem;
-    justify-content: flex-start;
+    justify-content: space-around;
 }
 
 .mode-metric {
@@ -225,15 +178,14 @@
 }
 
 .metric-value {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--accent-color);
-    text-shadow: var(--glow-gold);
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--cyan-color);
 }
 
 .metric-label {
     font-size: 0.9rem;
-    color: var(--medium-text);
+    color: var(--light-text);
     margin-top: 0.5rem;
 }
 
@@ -247,37 +199,36 @@
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 255, 255, 0.3);
     cursor: pointer;
-    transition: all var(--transition-speed);
+    transition: all 0.3s ease;
 }
 
 .mode-indicator.active {
-    background-color: var(--primary-color);
-    transform: scale(1.2);
-    box-shadow: var(--glow-blue);
+    background-color: var(--cyan-color);
+    box-shadow: var(--glow-cyan);
 }
 
 /* Estado del sistema */
 .system-status {
-    padding: 6rem 2rem;
-    background-color: var(--dark-bg);
+    padding: 5rem 1rem;
+    text-align: center;
+    position: relative;
 }
 
 .status-container {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1.5rem;
+    gap: 2rem;
     max-width: 1200px;
     margin: 0 auto;
 }
 
 .status-card {
-    background-color: var(--card-bg);
-    border-radius: 8px;
+    background: rgba(10, 10, 10, 0.7);
+    border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    border: var(--card-border);
+    border: 1px solid rgba(0, 255, 255, 0.1);
 }
 
 .status-header {
@@ -288,20 +239,18 @@
 }
 
 .status-title {
-    color: var(--medium-text);
-    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--light-text);
 }
 
 .status-value {
-    font-size: 1.5rem;
     font-weight: 700;
-    color: #ffffff;
+    font-family: 'Orbitron', sans-serif;
 }
 
 .mode-name {
-    font-family: 'Orbitron', sans-serif;
-    color: var(--primary-color);
-    text-shadow: var(--glow-blue);
+    color: var(--cyan-color);
+    text-shadow: var(--glow-cyan);
 }
 
 .status-meter {
@@ -309,7 +258,6 @@
 }
 
 .meter-track {
-    width: 100%;
     height: 8px;
     background-color: rgba(255, 255, 255, 0.1);
     border-radius: 4px;
@@ -318,56 +266,34 @@
 
 .meter-fill {
     height: 100%;
-    background: var(--primary-gradient);
+    background: linear-gradient(to right, var(--cyan-color), var(--magenta-color));
     border-radius: 4px;
-    transition: width 1s ease-in-out;
+    transition: width 1s ease;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-    .hero .subtitle {
-        font-size: 1.8rem;
+    .capabilities-grid {
+        grid-template-columns: 1fr;
     }
     
-    .hero .description {
-        font-size: 1rem;
+    .status-container {
+        grid-template-columns: 1fr;
     }
     
-    .cta-buttons {
-        flex-direction: column;
-        align-items: center;
+    .metric-value {
+        font-size: 1.5rem;
     }
     
-    .modes-carousel {
-        height: 400px;
+    .welcome-title {
+        font-size: 2.5rem;
     }
-}
-
-/* Animación de partículas */
-.particles-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    z-index: 0;
-}
-
-.particle {
-    position: absolute;
-    border-radius: 50%;
-    opacity: 0.5;
-    animation-name: float-particle;
-    animation-timing-function: linear;
-    animation-iteration-count: infinite;
-}
-
-@keyframes float-particle {
-    0% {
-        transform: translateY(0) rotate(0deg);
+    
+    .subtitle {
+        font-size: 1.2rem;
     }
-    100% {
-        transform: translateY(-100vh) rotate(360deg);
+    
+    .hero {
+        padding: 0 1rem;
     }
 }

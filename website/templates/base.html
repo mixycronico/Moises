@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Genesis - Sistema Trascendental de Trading{% endblock %}</title>
+    <title>{% block title %}Genesis - Sistema Trascendental{% endblock %}</title>
     
     <!-- Fuentes -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,16 +11,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <!-- Estilos base -->
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/genesis-logo.png') }}">
+    
+    <!-- Estilos -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
-    
-    <!-- Estilos adicionales específicos de cada página -->
     {% block additional_styles %}{% endblock %}
+    
+    <!-- Meta -->
+    <meta name="description" content="Sistema Genesis - Plataforma de trading con tecnología trascendental y resiliencia extrema">
+    <meta name="author" content="Genesis Trading System">
 </head>
 <body>
     <div class="page-wrapper">
+        <!-- Cabecera -->
         <header class="main-header">
             <nav class="main-nav">
                 <div class="nav-logo">
@@ -30,91 +36,149 @@
                         </div>
                     </a>
                 </div>
-                
                 <div class="nav-links">
                     <a href="{{ url_for('index') }}" class="nav-item">Inicio</a>
+                    
                     {% if session.get('logged_in') %}
-                        <a href="{{ url_for('dashboard') }}" class="nav-item">Dashboard</a>
-                        <a href="{{ url_for('trading') }}" class="nav-item">Trading</a>
-                        <a href="{{ url_for('portfolio') }}" class="nav-item">Portafolio</a>
-                        <a href="{{ url_for('settings') }}" class="nav-item">Configuración</a>
+                        {% if session.get('role') == 'super_admin' %}
+                            <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
+                            <a href="{{ url_for('system_control') }}" class="nav-item">Control</a>
+                        {% elif session.get('role') == 'admin' %}
+                            <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
+                        {% elif session.get('role') == 'investor' %}
+                            <a href="{{ url_for('investor_home') }}" class="nav-item">Mi Inversión</a>
+                            <a href="{{ url_for('portfolio') }}" class="nav-item">Portafolio</a>
+                        {% endif %}
+                        
+                        <a href="{{ url_for('notifications') }}" class="nav-item">
+                            Notificaciones
+                            {% if session.get('unread_notifications', 0) > 0 %}
+                                <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
+                            {% endif %}
+                        </a>
                         <a href="{{ url_for('logout') }}" class="nav-item">Cerrar Sesión</a>
                     {% else %}
                         <a href="{{ url_for('login') }}" class="nav-item">Ingresar</a>
                     {% endif %}
                 </div>
-                
                 <div class="mobile-menu-toggle">
                     <i class="fas fa-bars"></i>
                 </div>
             </nav>
         </header>
         
+        <!-- Menú móvil -->
+        <div class="mobile-menu">
+            <div class="mobile-menu-close">
+                <i class="fas fa-times"></i>
+            </div>
+            <div class="mobile-menu-links">
+                <a href="{{ url_for('index') }}" class="mobile-nav-item">Inicio</a>
+                
+                {% if session.get('logged_in') %}
+                    {% if session.get('role') == 'super_admin' %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="mobile-nav-item">Admin</a>
+                        <a href="{{ url_for('system_control') }}" class="mobile-nav-item">Control</a>
+                    {% elif session.get('role') == 'admin' %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="mobile-nav-item">Admin</a>
+                    {% elif session.get('role') == 'investor' %}
+                        <a href="{{ url_for('investor_home') }}" class="mobile-nav-item">Mi Inversión</a>
+                        <a href="{{ url_for('portfolio') }}" class="mobile-nav-item">Portafolio</a>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('notifications') }}" class="mobile-nav-item">
+                        Notificaciones
+                        {% if session.get('unread_notifications', 0) > 0 %}
+                            <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="mobile-nav-item">Cerrar Sesión</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="mobile-nav-item">Ingresar</a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Mensajes flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            <span class="alert-message">{{ message }}</span>
+                            <span class="alert-close">&times;</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Contenido principal -->
         <main class="main-content">
             {% block content %}{% endblock %}
         </main>
         
+        <!-- Pie de página -->
         <footer class="main-footer">
             <div class="footer-content">
                 <div class="footer-section">
                     <h3>Genesis</h3>
-                    <p>Un sistema nacido para proteger, no para explotar. Creado con el propósito de ofrecer una alternativa real y efectiva a las estafas en el mundo del trading.</p>
+                    <p>Sistema Trascendental de Trading con tecnología de punta y resiliencia extrema.</p>
                 </div>
-                
                 <div class="footer-section">
-                    <h3>Enlaces Rápidos</h3>
+                    <h3>Enlaces</h3>
                     <ul>
                         <li><a href="{{ url_for('index') }}">Inicio</a></li>
-                        {% if session.get('logged_in') %}
-                            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
-                            <li><a href="{{ url_for('trading') }}">Trading</a></li>
-                        {% else %}
+                        {% if not session.get('logged_in') %}
                             <li><a href="{{ url_for('login') }}">Ingresar</a></li>
                         {% endif %}
                     </ul>
                 </div>
-                
                 <div class="footer-section">
-                    <h3>Modos del Sistema</h3>
-                    <ul>
-                        <li>Singularidad V4</li>
-                        <li>Luz</li>
-                        <li>Materia Oscura</li>
-                        <li>Divino</li>
-                    </ul>
+                    <h3>Contacto</h3>
+                    <p>Email: <a href="mailto:support@genesis-trading.com">support@genesis-trading.com</a></p>
                 </div>
             </div>
-            
             <div class="footer-bottom">
-                <p>&copy; {{ current_year }} Genesis. Todos los derechos reservados.</p>
-                <p class="purpose-statement">Creado con la misión de proteger a las personas de las estafas en el mundo del trading.</p>
+                <p>&copy; {{ now.year }} Genesis Trading System. Todos los derechos reservados.</p>
+                <p class="purpose-statement">Plataforma diseñada para inversionistas.</p>
             </div>
         </footer>
     </div>
     
-    <!-- Mobile menu -->
-    <div class="mobile-menu">
-        <div class="mobile-menu-close">
-            <i class="fas fa-times"></i>
-        </div>
-        <div class="mobile-menu-links">
-            <a href="{{ url_for('index') }}" class="mobile-nav-item">Inicio</a>
-            {% if session.get('logged_in') %}
-                <a href="{{ url_for('dashboard') }}" class="mobile-nav-item">Dashboard</a>
-                <a href="{{ url_for('trading') }}" class="mobile-nav-item">Trading</a>
-                <a href="{{ url_for('portfolio') }}" class="mobile-nav-item">Portafolio</a>
-                <a href="{{ url_for('settings') }}" class="mobile-nav-item">Configuración</a>
-                <a href="{{ url_for('logout') }}" class="mobile-nav-item">Cerrar Sesión</a>
-            {% else %}
-                <a href="{{ url_for('login') }}" class="mobile-nav-item">Ingresar</a>
-            {% endif %}
-        </div>
-    </div>
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Menú móvil
+            const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+            const mobileMenu = document.querySelector('.mobile-menu');
+            const mobileMenuClose = document.querySelector('.mobile-menu-close');
+            
+            if (mobileMenuToggle && mobileMenu && mobileMenuClose) {
+                mobileMenuToggle.addEventListener('click', function() {
+                    mobileMenu.classList.add('active');
+                });
+                
+                mobileMenuClose.addEventListener('click', function() {
+                    mobileMenu.classList.remove('active');
+                });
+            }
+            
+            // Cerrar alertas
+            const alertCloseButtons = document.querySelectorAll('.alert-close');
+            
+            alertCloseButtons.forEach(function(button) {
+                button.addEventListener('click', function() {
+                    const alert = this.parentElement;
+                    alert.style.opacity = '0';
+                    setTimeout(function() {
+                        alert.style.display = 'none';
+                    }, 300);
+                });
+            });
+        });
+    </script>
     
-    <!-- Scripts base -->
-    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
-    
-    <!-- Scripts adicionales específicos de cada página -->
     {% block scripts %}{% endblock %}
 </body>
 </html>

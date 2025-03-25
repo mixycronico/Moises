@@ -1,0 +1,451 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Portafolio - Genesis Trading System{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .portfolio-page {
+        padding: 2rem 0;
+    }
+    
+    .portfolio-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .portfolio-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(to right, var(--magenta-color), var(--gold-color));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-fill-color: transparent;
+    }
+    
+    .portfolio-description {
+        font-size: 1.2rem;
+        color: var(--medium-text);
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .portfolio-overview {
+        margin-bottom: 3rem;
+    }
+    
+    .portfolio-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: var(--holographic-card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 0, 255, 0.1);
+        box-shadow: var(--cosmic-shadow);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(to right, var(--magenta-color), var(--gold-color));
+    }
+    
+    .stat-label {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--medium-text);
+    }
+    
+    .stat-value {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .portfolio-distribution {
+        background: rgba(10, 10, 10, 0.7);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 0, 255, 0.1);
+        margin-bottom: 3rem;
+    }
+    
+    .distribution-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .distribution-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.3rem;
+        color: var(--magenta-color);
+    }
+    
+    .distribution-chart {
+        display: flex;
+        height: 30px;
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    
+    .distribution-segment {
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+    
+    .distribution-segment:hover {
+        transform: scaleY(1.1);
+    }
+    
+    .distribution-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+    }
+    
+    .legend-text {
+        font-size: 0.9rem;
+    }
+    
+    .legend-value {
+        font-weight: 700;
+        margin-left: 0.3rem;
+    }
+    
+    .assets-section {
+        margin-bottom: 3rem;
+    }
+    
+    .assets-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .assets-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.3rem;
+        color: var(--gold-color);
+    }
+    
+    .assets-filters {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .assets-filter {
+        background: none;
+        border: 1px solid rgba(255, 215, 0, 0.2);
+        padding: 0.4rem 0.8rem;
+        color: var(--light-text);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .assets-filter.active {
+        background-color: rgba(255, 215, 0, 0.1);
+        border-color: var(--gold-color);
+    }
+    
+    .assets-container {
+        overflow-x: auto;
+    }
+    
+    .assets-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: rgba(10, 10, 10, 0.7);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .assets-table th, .assets-table td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .assets-table th {
+        background-color: rgba(0, 0, 0, 0.3);
+        font-weight: 500;
+        color: var(--medium-text);
+    }
+    
+    .assets-table tbody tr {
+        transition: all 0.3s ease;
+    }
+    
+    .assets-table tbody tr:hover {
+        background-color: rgba(255, 215, 0, 0.05);
+    }
+    
+    .assets-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .asset-name {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+    
+    .asset-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.3);
+    }
+    
+    .asset-icon img {
+        width: 70%;
+        height: 70%;
+        object-fit: contain;
+    }
+    
+    .asset-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .asset-symbol {
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+    
+    .asset-full-name {
+        font-size: 0.8rem;
+        color: var(--medium-text);
+    }
+    
+    .asset-amount {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 500;
+    }
+    
+    .asset-allocation {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 700;
+    }
+    
+    .asset-value {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 700;
+    }
+    
+    .asset-change {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .change-positive {
+        color: #4caf50;
+    }
+    
+    .change-negative {
+        color: #f44336;
+    }
+    
+    .actions-cell {
+        text-align: right;
+    }
+    
+    .action-btn {
+        background: none;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        color: var(--light-text);
+        padding: 0.4rem 0.8rem;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+    
+    .action-btn:hover {
+        background-color: rgba(0, 255, 255, 0.1);
+        border-color: var(--cyan-color);
+    }
+    
+    .action-btn + .action-btn {
+        margin-left: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-page">
+    <div class="portfolio-header">
+        <h1 class="portfolio-title">Mi Portafolio</h1>
+        <p class="portfolio-description">Vista detallada de tus activos, distribución y rendimiento en el sistema Genesis.</p>
+    </div>
+    
+    <div class="portfolio-overview">
+        <div class="portfolio-stats">
+            <div class="stat-card">
+                <div class="stat-label">Valor Total</div>
+                <div class="stat-value">${{ "%.2f"|format(portfolio.total_value) }}</div>
+                <div class="change-indicator {{ 'change-positive' if portfolio.value_change_pct > 0 else 'change-negative' }}">
+                    <i class="fas fa-arrow-{{ 'up' if portfolio.value_change_pct > 0 else 'down' }}"></i>
+                    {{ "%.2f"|format(portfolio.value_change_pct) }}% en 24h
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">Activos</div>
+                <div class="stat-value">{{ portfolio.assets_count }}</div>
+                <div class="stat-description">{{ portfolio.active_assets_count }} activos activos</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">ROI Promedio</div>
+                <div class="stat-value">{{ "%.2f"|format(portfolio.average_roi) }}%</div>
+                <div class="change-indicator {{ 'change-positive' if portfolio.roi_change > 0 else 'change-negative' }}">
+                    <i class="fas fa-arrow-{{ 'up' if portfolio.roi_change > 0 else 'down' }}"></i>
+                    {{ "%.2f"|format(portfolio.roi_change) }}% desde ayer
+                </div>
+            </div>
+        </div>
+        
+        <div class="portfolio-distribution">
+            <div class="distribution-header">
+                <h2 class="distribution-title">Distribución de Activos</h2>
+            </div>
+            
+            <div class="distribution-chart">
+                {% for asset in portfolio.distribution %}
+                    <div class="distribution-segment" style="width: {{ asset.percentage }}%; background-color: {{ asset.color }};" title="{{ asset.name }}: {{ asset.percentage }}%"></div>
+                {% endfor %}
+            </div>
+            
+            <div class="distribution-legend">
+                {% for asset in portfolio.distribution %}
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: {{ asset.color }};"></div>
+                        <div class="legend-text">{{ asset.name }} <span class="legend-value">{{ asset.percentage }}%</span></div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="assets-section">
+        <div class="assets-header">
+            <h2 class="assets-title">Mis Activos</h2>
+            <div class="assets-filters">
+                <button class="assets-filter active">Todos</button>
+                <button class="assets-filter">Ganando</button>
+                <button class="assets-filter">Perdiendo</button>
+                <button class="assets-filter">Con actividad</button>
+            </div>
+        </div>
+        
+        <div class="assets-container">
+            <table class="assets-table">
+                <thead>
+                    <tr>
+                        <th>Activo</th>
+                        <th>Cantidad</th>
+                        <th>Asignación</th>
+                        <th>Valor Actual</th>
+                        <th>Cambio 24h</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for asset in portfolio.assets %}
+                    <tr>
+                        <td>
+                            <div class="asset-name">
+                                <div class="asset-icon">
+                                    <img src="{{ asset.icon_url }}" alt="{{ asset.symbol }}" />
+                                </div>
+                                <div class="asset-details">
+                                    <div class="asset-symbol">{{ asset.symbol }}</div>
+                                    <div class="asset-full-name">{{ asset.name }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="asset-amount">{{ "%.6f"|format(asset.amount) }}</div>
+                        </td>
+                        <td>
+                            <div class="asset-allocation">{{ "%.2f"|format(asset.allocation) }}%</div>
+                        </td>
+                        <td>
+                            <div class="asset-value">${{ "%.2f"|format(asset.value) }}</div>
+                        </td>
+                        <td>
+                            <div class="asset-change {{ 'change-positive' if asset.change_24h > 0 else 'change-negative' }}">
+                                <i class="fas fa-arrow-{{ 'up' if asset.change_24h > 0 else 'down' }}"></i>
+                                {{ "%.2f"|format(asset.change_24h) }}%
+                            </div>
+                        </td>
+                        <td class="actions-cell">
+                            <button class="action-btn"><i class="fas fa-exchange-alt"></i> Operar</button>
+                            <button class="action-btn"><i class="fas fa-chart-line"></i> Analizar</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Asset filters
+    const assetFilters = document.querySelectorAll('.assets-filter');
+    
+    assetFilters.forEach(filter => {
+        filter.addEventListener('click', function() {
+            // Remove active class from all filters
+            assetFilters.forEach(f => f.classList.remove('active'));
+            
+            // Add active class to clicked filter
+            this.classList.add('active');
+            
+            // Here you would filter the assets based on the selected filter
+            // For now, we'll just log the selected filter
+            console.log('Selected filter:', this.textContent);
+        });
+    });
+});
+</script>
+{% endblock %}

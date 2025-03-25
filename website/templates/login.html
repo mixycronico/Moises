@@ -1,81 +1,293 @@
 {% extends "base.html" %}
 
-{% block title %}Ingresar - Sistema Genesis{% endblock %}
+{% block title %}Ingresar - Genesis Trading System{% endblock %}
 
 {% block additional_styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+<style>
+    .login-container {
+        max-width: 500px;
+        margin: 4rem auto;
+        padding: 2rem;
+        background: var(--holographic-card-bg);
+        border-radius: 15px;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        box-shadow: var(--cosmic-shadow);
+        position: relative;
+        overflow: hidden;
+        z-index: 1;
+    }
+    
+    .login-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+            to bottom right,
+            rgba(0, 255, 255, 0.1),
+            rgba(255, 0, 255, 0.1),
+            rgba(255, 215, 0, 0.1)
+        );
+        transform: rotate(30deg);
+        z-index: -1;
+        animation: holographic-shift 8s linear infinite;
+    }
+    
+    @keyframes holographic-shift {
+        0% {
+            transform: rotate(30deg) translateX(-10%) translateY(0%);
+        }
+        50% {
+            transform: rotate(30deg) translateX(0%) translateY(-10%);
+        }
+        100% {
+            transform: rotate(30deg) translateX(-10%) translateY(0%);
+        }
+    }
+    
+    .login-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .login-title {
+        font-family: 'Orbitron', sans-serif;
+        margin-bottom: 0.5rem;
+        font-size: 2rem;
+        letter-spacing: 2px;
+    }
+    
+    .login-subtitle {
+        color: var(--medium-text);
+        margin-bottom: 2rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+        position: relative;
+    }
+    
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--light-text);
+        font-weight: 500;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        font-size: 1rem;
+        background-color: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 4px;
+        color: var(--light-text);
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--cyan-color);
+        box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.3);
+    }
+    
+    .form-icon {
+        position: absolute;
+        right: 12px;
+        top: 38px;
+        color: var(--medium-text);
+    }
+    
+    .login-footer {
+        text-align: center;
+        margin-top: 1.5rem;
+    }
+    
+    .login-footer a {
+        color: var(--cyan-color);
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .login-footer a:hover {
+        text-shadow: var(--glow-cyan);
+    }
+    
+    .celestial-body {
+        position: absolute;
+        border-radius: 50%;
+        opacity: 0.3;
+        filter: blur(30px);
+        z-index: -1;
+    }
+    
+    .celestial-1 {
+        width: 200px;
+        height: 200px;
+        background-color: var(--cyan-color);
+        top: -100px;
+        left: -100px;
+    }
+    
+    .celestial-2 {
+        width: 300px;
+        height: 300px;
+        background-color: var(--magenta-color);
+        bottom: -150px;
+        right: -150px;
+    }
+    
+    .btn-login {
+        width: 100%;
+        padding: 0.8rem;
+        font-size: 1.1rem;
+        font-family: 'Orbitron', sans-serif;
+        letter-spacing: 1px;
+    }
+    
+    .btn-login:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 7px 14px rgba(0, 0, 0, 0.3), 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+    
+    .role-selector {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .role-option {
+        flex: 1;
+        text-align: center;
+        padding: 1rem;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: rgba(0, 0, 0, 0.2);
+    }
+    
+    .role-option.selected {
+        border-color: var(--cyan-color);
+        background-color: rgba(0, 255, 255, 0.1);
+    }
+    
+    .role-option .role-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .role-option:hover {
+        transform: translateY(-2px);
+        border-color: var(--cyan-color);
+    }
+    
+    .role-option.admin .role-icon {
+        color: var(--magenta-color);
+    }
+    
+    .role-option.investor .role-icon {
+        color: var(--gold-color);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="login-container">
-    <div class="login-card">
+<div class="login-page">
+    <div class="celestial-body celestial-1"></div>
+    <div class="celestial-body celestial-2"></div>
+    
+    <div class="login-container">
         <div class="login-header">
-            <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo" class="login-logo">
-            <h2>Acceso al Sistema</h2>
+            <h1 class="login-title holographic-text">Acceso al Sistema</h1>
+            <p class="login-subtitle">Ingresa tus credenciales para continuar</p>
+            
+            <div class="login-logo">
+                <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo" width="80">
+            </div>
         </div>
         
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="login-messages">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
-        
-        <form method="POST" action="{{ url_for('login') }}" class="login-form">
+        <form method="post" action="{{ url_for('login') }}" class="login-form">
             <div class="form-group">
-                <label for="username">Usuario</label>
-                <div class="input-with-icon">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="username" name="username" required>
-                </div>
+                <label for="email" class="form-label">Email</label>
+                <input type="email" id="email" name="email" class="form-control" required>
+                <span class="form-icon"><i class="fas fa-envelope"></i></span>
             </div>
             
             <div class="form-group">
-                <label for="password">Contraseña</label>
-                <div class="input-with-icon">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="password" name="password" required>
+                <label for="password" class="form-label">Contraseña</label>
+                <input type="password" id="password" name="password" class="form-control" required>
+                <span class="form-icon"><i class="fas fa-lock"></i></span>
+            </div>
+            
+            <div class="role-selector">
+                <div class="role-option investor selected" data-role="investor">
+                    <div class="role-icon"><i class="fas fa-user"></i></div>
+                    <div class="role-name">Inversionista</div>
+                </div>
+                <div class="role-option admin" data-role="admin">
+                    <div class="role-icon"><i class="fas fa-user-shield"></i></div>
+                    <div class="role-name">Administrador</div>
                 </div>
             </div>
             
-            <div class="form-group">
-                <label for="role">Tipo de Usuario</label>
-                <div class="role-selector">
-                    <div class="role-option">
-                        <input type="radio" id="investor" name="role" value="investor" checked>
-                        <label for="investor">
-                            <i class="fas fa-chart-line"></i>
-                            <span>Inversionista</span>
-                        </label>
-                    </div>
-                    <div class="role-option">
-                        <input type="radio" id="admin" name="role" value="admin">
-                        <label for="admin">
-                            <i class="fas fa-user-shield"></i>
-                            <span>Administrador</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
+            <input type="hidden" id="role" name="role" value="investor">
             
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary glow-button">Ingresar</button>
+            <button type="submit" class="btn btn-primary btn-login">
+                <i class="fas fa-sign-in-alt"></i> Ingresar
+            </button>
+            
+            <div class="login-footer">
+                <p>¿Olvidaste tu contraseña? <a href="#">Recuperar acceso</a></p>
             </div>
         </form>
-        
-        <div class="system-status-indicator">
-            <div class="status-light {{ 'online' if system_status and system_status.get('success_rate') == 100 else 'offline' }}"></div>
-            <span>Sistema {{ 'Operativo' if system_status and system_status.get('success_rate') == 100 else 'En Mantenimiento' }}</span>
-        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/login.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Cambiar selección de rol
+    const roleOptions = document.querySelectorAll('.role-option');
+    const roleInput = document.getElementById('role');
+    
+    roleOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            // Quitar selección de todas las opciones
+            roleOptions.forEach(opt => opt.classList.remove('selected'));
+            
+            // Añadir selección a la opción clickeada
+            this.classList.add('selected');
+            
+            // Actualizar valor del input hidden
+            roleInput.value = this.dataset.role;
+        });
+    });
+    
+    // Efecto para los campos de formulario
+    const formControls = document.querySelectorAll('.form-control');
+    
+    formControls.forEach(control => {
+        // Focus efecto
+        control.addEventListener('focus', function() {
+            const icon = this.parentElement.querySelector('.form-icon i');
+            if (icon) {
+                icon.style.color = 'var(--cyan-color)';
+            }
+        });
+        
+        // Blur efecto
+        control.addEventListener('blur', function() {
+            const icon = this.parentElement.querySelector('.form-icon i');
+            if (icon) {
+                icon.style.color = 'var(--medium-text)';
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

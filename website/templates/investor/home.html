@@ -1,0 +1,400 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Inversión - Genesis Trading System{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .investor-dashboard {
+        padding: 2rem 0;
+    }
+    
+    .investor-welcome {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .investor-name {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(to right, var(--cyan-color), var(--gold-color));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-fill-color: transparent;
+    }
+    
+    .welcome-subtitle {
+        font-size: 1.2rem;
+        color: var(--medium-text);
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    
+    .performance-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    .summary-card {
+        background: var(--holographic-card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        box-shadow: var(--cosmic-shadow);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .summary-card:hover {
+        transform: translateY(-5px);
+        border-color: rgba(0, 255, 255, 0.3);
+    }
+    
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 5px;
+        background: linear-gradient(to right, var(--cyan-color), var(--magenta-color));
+    }
+    
+    .summary-label {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--medium-text);
+    }
+    
+    .summary-value {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .summary-change {
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .positive-change {
+        color: #4caf50;
+    }
+    
+    .negative-change {
+        color: #f44336;
+    }
+    
+    .chart-container {
+        background: rgba(10, 10, 10, 0.7);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 3rem;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+    }
+    
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .chart-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.3rem;
+        color: var(--cyan-color);
+    }
+    
+    .chart-filters {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .filter-btn {
+        background: none;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        padding: 0.4rem 0.8rem;
+        color: var(--light-text);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .filter-btn.active {
+        background-color: rgba(0, 255, 255, 0.1);
+        border-color: var(--cyan-color);
+    }
+    
+    .chart-area {
+        height: 300px;
+        position: relative;
+    }
+    
+    .chart-placeholder {
+        height: 100%;
+        background: linear-gradient(
+            180deg,
+            rgba(0, 255, 255, 0.05) 0%,
+            rgba(0, 0, 0, 0) 100%
+        );
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .chart-line {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 70%;
+        background: linear-gradient(
+            180deg,
+            rgba(0, 255, 255, 0.3) 0%,
+            rgba(0, 0, 0, 0) 100%
+        );
+        clip-path: polygon(
+            0% 100%,
+            5% 80%,
+            10% 85%,
+            15% 75%,
+            20% 80%,
+            25% 70%,
+            30% 75%,
+            35% 65%,
+            40% 70%,
+            45% 60%,
+            50% 65%,
+            55% 50%,
+            60% 55%,
+            65% 45%,
+            70% 50%,
+            75% 40%,
+            80% 45%,
+            85% 30%,
+            90% 35%,
+            95% 25%,
+            100% 30%,
+            100% 100%
+        );
+    }
+    
+    .recent-activity {
+        margin-bottom: 3rem;
+    }
+    
+    .activity-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .activity-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.3rem;
+        color: var(--magenta-color);
+    }
+    
+    .view-all {
+        color: var(--cyan-color);
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .view-all:hover {
+        text-shadow: var(--glow-cyan);
+    }
+    
+    .activity-list {
+        background: rgba(10, 10, 10, 0.7);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        overflow: hidden;
+    }
+    
+    .activity-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-item:hover {
+        background-color: rgba(0, 255, 255, 0.05);
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .activity-icon.trade {
+        background-color: rgba(0, 255, 255, 0.1);
+        color: var(--cyan-color);
+    }
+    
+    .activity-icon.deposit {
+        background-color: rgba(76, 175, 80, 0.1);
+        color: #4caf50;
+    }
+    
+    .activity-icon.alert {
+        background-color: rgba(255, 0, 255, 0.1);
+        color: var(--magenta-color);
+    }
+    
+    .activity-content {
+        flex: 1;
+    }
+    
+    .activity-description {
+        margin-bottom: 0.3rem;
+    }
+    
+    .activity-time {
+        font-size: 0.8rem;
+        color: var(--medium-text);
+    }
+    
+    .activity-value {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 700;
+    }
+    
+    .positive-value {
+        color: #4caf50;
+    }
+    
+    .negative-value {
+        color: #f44336;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="investor-dashboard">
+    <div class="investor-welcome">
+        <h1 class="investor-name">{{ investor.name }}</h1>
+        <p class="welcome-subtitle">Bienvenido a tu panel de inversiones en Genesis. Aquí podrás ver el rendimiento de tu inversión y las operaciones recientes.</p>
+    </div>
+    
+    <div class="performance-summary">
+        <div class="summary-card">
+            <div class="summary-label">Saldo Actual</div>
+            <div class="summary-value">${{ "%.2f"|format(investor.balance) }}</div>
+            <div class="summary-change positive-change">
+                <i class="fas fa-arrow-up"></i> {{ "%.2f"|format(investor.balance_change_pct) }}% en los últimos 7 días
+            </div>
+        </div>
+        
+        <div class="summary-card">
+            <div class="summary-label">Rendimiento Total</div>
+            <div class="summary-value">{{ "%.2f"|format(investor.total_return_pct) }}%</div>
+            <div class="summary-change positive-change">
+                <i class="fas fa-arrow-up"></i> ${{ "%.2f"|format(investor.total_return_amount) }}
+            </div>
+        </div>
+        
+        <div class="summary-card">
+            <div class="summary-label">Operaciones</div>
+            <div class="summary-value">{{ investor.operations_count }}</div>
+            <div class="summary-change">
+                <i class="fas fa-check-circle" style="color: var(--cyan-color);"></i> {{ investor.successful_operations_pct }}% exitosas
+            </div>
+        </div>
+    </div>
+    
+    <div class="chart-container">
+        <div class="chart-header">
+            <h2 class="chart-title">Evolución de Capital</h2>
+            <div class="chart-filters">
+                <button class="filter-btn">1D</button>
+                <button class="filter-btn active">1S</button>
+                <button class="filter-btn">1M</button>
+                <button class="filter-btn">3M</button>
+                <button class="filter-btn">1A</button>
+                <button class="filter-btn">Todo</button>
+            </div>
+        </div>
+        <div class="chart-area">
+            <div class="chart-placeholder">
+                <div class="chart-line"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="recent-activity">
+        <div class="activity-header">
+            <h2 class="activity-title">Actividad Reciente</h2>
+            <a href="#" class="view-all">Ver Todo <i class="fas fa-chevron-right"></i></a>
+        </div>
+        
+        <div class="activity-list">
+            {% for activity in activities %}
+            <div class="activity-item">
+                <div class="activity-icon {{ activity.type }}">
+                    {% if activity.type == 'trade' %}
+                        <i class="fas fa-exchange-alt"></i>
+                    {% elif activity.type == 'deposit' %}
+                        <i class="fas fa-money-bill-wave"></i>
+                    {% elif activity.type == 'alert' %}
+                        <i class="fas fa-bell"></i>
+                    {% endif %}
+                </div>
+                <div class="activity-content">
+                    <div class="activity-description">{{ activity.description }}</div>
+                    <div class="activity-time">{{ activity.time }}</div>
+                </div>
+                {% if activity.value %}
+                <div class="activity-value {{ 'positive-value' if activity.is_positive else 'negative-value' }}">
+                    {{ activity.value }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter buttons
+    const filterButtons = document.querySelectorAll('.filter-btn');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            // Here you would update the chart based on the selected time range
+            // For now, we'll just log the selected range
+            console.log('Selected range:', this.textContent);
+        });
+    });
+});
+</script>
+{% endblock %}
