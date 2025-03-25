@@ -18,7 +18,6 @@ from typing import Dict, Any, List, Optional, Tuple, Union
 from datetime import datetime
 
 from genesis.trading.gabriel_adapter import GabrielBehaviorEngine
-from genesis.trading.human_behavior_engine import HumanBehaviorEngine  # Compatibilidad con código existente
 
 logger = logging.getLogger(__name__)
 
@@ -516,7 +515,7 @@ class SeraphimGabrielIntegrator:
         return state
 
 # Compatibilidad con código existente
-def get_human_behavior_engine(archetype: str = "COLLECTIVE") -> HumanBehaviorEngine:
+def get_human_behavior_engine(archetype: str = "COLLECTIVE") -> GabrielBehaviorEngine:
     """
     Obtener instancia del motor de comportamiento humano.
     
@@ -527,9 +526,9 @@ def get_human_behavior_engine(archetype: str = "COLLECTIVE") -> HumanBehaviorEng
         archetype: Arquetipo de comportamiento
         
     Returns:
-        Instancia de HumanBehaviorEngine
+        Instancia de GabrielBehaviorEngine que actúa como HumanBehaviorEngine
     """
-    return HumanBehaviorEngine(archetype=archetype)
+    return GabrielBehaviorEngine(archetype=archetype)
 
 def get_gabriel_adapter(archetype: str = "COLLECTIVE") -> GabrielBehaviorEngine:
     """

@@ -16,7 +16,7 @@ import random
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from genesis.trading.seraphim_integration import get_gabriel_adapter
+from genesis.trading.gabriel_adapter import GabrielBehaviorEngine
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ class HumanBehaviorEngine:
             archetype: Arquetipo de comportamiento
         """
         # Crear instancia de Gabriel
-        self.gabriel = get_gabriel_adapter(archetype)
+        self.gabriel = GabrielBehaviorEngine(archetype=archetype)
         self.is_initialized = False
         self.archetype = archetype
         
