@@ -18,7 +18,9 @@ import sys
 import logging
 import asyncio
 from flask import Flask, jsonify, request
-from app import app as flask_app
+# Cambiar temporalmente a la aplicación web en lugar de la API
+# from app import app as flask_app
+from website.app import app as flask_app
 
 # Configurar logging
 logging.basicConfig(

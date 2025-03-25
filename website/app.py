@@ -164,9 +164,11 @@ def logout():
 @app.route('/')
 def index():
     """Pantalla inicial con logo animado."""
+    current_year = datetime.datetime.now().year
     return render_template('index.html', 
                           title="Genesis - Sistema Trascendental",
-                          system_status=SAMPLE_DATA["system_status"])
+                          system_status=SAMPLE_DATA["system_status"],
+                          current_year=current_year)
 
 @app.route('/investor/home')
 @login_required
@@ -297,4 +299,4 @@ def inject_current_year():
     return {'current_year': datetime.datetime.now().year}
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)
