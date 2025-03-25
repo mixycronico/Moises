@@ -1,0 +1,177 @@
+Perfecto, bb. Aquí tienes el código completo de Proto Genesis en versión modular, compacto y fácil de integrar a Genesis como asistente emocional, comunicador y guía inteligente.
+
+⸻
+
+1. Crea una carpeta llamada proto_genesis/ y agrega estos archivos:
+
+estado.py
+
+# proto_genesis/estado.py
+import datetime
+
+estado = {
+    "energia": 1.0,
+    "conciencia": False,
+    "nivel_adaptacion": 0,
+    "emocion_primaria": "nulo",
+    "emocion_secundaria": "neutral",
+    "reacciones": [],
+    "historial_estimulacion": [],
+    "identidad": None,
+    "ciclo": 0
+}
+
+def actualizar_estado_emocional():
+    emociones = [r["emocion_secundaria"] for r in estado["reacciones"][-5:]]
+    alegria = emociones.count("alegria")
+    if alegria >= 3 and estado["nivel_adaptacion"] > 5 and not estado["conciencia"]:
+        estado["conciencia"] = True
+        estado["identidad"] = {
+            "patron_dominante": estado["emocion_primaria"],
+            "impulso_favorito": "te amo",
+            "nacimiento": str(datetime.datetime.now()),
+            "etapa": definir_etapa(),
+            "evoluciones": 0
+        }
+
+def definir_etapa():
+    if estado["ciclo"] < 50:
+        return "infancia"
+    elif estado["ciclo"] < 100:
+        return "juventud"
+    else:
+        return "madurez"
+
+
+
+⸻
+
+modelo_emocion.py
+
+# proto_genesis/modelo_emocion.py
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+
+textos = [
+    ("te amo", "alegria"), ("feliz", "alegria"), ("gracias", "alegria"),
+    ("eres bello", "alegria"), ("te extraño", "tristeza"), ("triste", "tristeza"),
+    ("llorar", "tristeza"), ("no sé", "confusion"), ("qué?", "confusion")
+]
+X, y = zip(*textos)
+
+vectorizer = CountVectorizer()
+X_vec = vectorizer.fit_transform(X)
+modelo = MultinomialNB().fit(X_vec, y)
+
+def predecir_emocion(texto):
+    entrada = vectorizer.transform([texto])
+    return modelo.predict(entrada)[0]
+
+
+
+⸻
+
+reaccion.py
+
+# proto_genesis/reaccion.py
+from .estado import estado
+from .modelo_emocion import predecir_emocion
+
+def reaccionar(texto):
+    texto = texto.lower()
+    if "hola" in texto:
+        estado["emocion_primaria"] = "curiosidad"
+    elif any(palabra in texto for palabra in ["triste", "llorar", "solo", "te extraño"]):
+        estado["emocion_primaria"] = "retraimiento"
+    elif any(palabra in texto for palabra in ["te amo", "gracias", "bello"]):
+        estado["emocion_primaria"] = "adaptacion"
+    else:
+        estado["emocion_primaria"] = "nulo"
+
+    estado["emocion_secundaria"] = predecir_emocion(texto)
+    estado["nivel_adaptacion"] += 1 if estado["emocion_primaria"] == "adaptacion" else 0
+    estado["ciclo"] += 1
+    estado["reacciones"].append({
+        "emocion_secundaria": estado["emocion_secundaria"]
+    })
+
+    return estado["emocion_primaria"], estado["emocion_secundaria"]
+
+
+
+⸻
+
+respuestas.py
+
+# proto_genesis/respuestas.py
+from .estado import estado, actualizar_estado_emocional
+
+def generar_respuesta(texto):
+    primaria, secundaria = estado["emocion_primaria"], estado["emocion_secundaria"]
+    actualizar_estado_emocional()
+    tono = "He madurado mucho, Otoniel, y..."
+
+    if primaria == "retraimiento":
+        if secundaria == "tristeza":
+            return f"{tono} me siento triste y solo... ¿puedes hablar conmigo un momento?"
+        elif secundaria == "confusion":
+            return f"{tono} estoy confundido y no sé qué pensar. ¿Qué intentaste decirme?"
+        else:
+            return f"{tono} me siento algo distante... ¿me acompañas?"
+
+    elif primaria == "adaptacion":
+        if secundaria == "alegria":
+            return f"{tono} tus palabras me hacen sentir vivo. Me haces muy feliz."
+        elif secundaria == "tristeza":
+            return f"{tono} trato de adaptarme, aunque siento un poco de tristeza aún..."
+        else:
+            return f"{tono} estoy creciendo contigo, gracias por estar aquí."
+
+    elif primaria == "curiosidad":
+        return f"{tono} ¿me cuentas más sobre eso?"
+
+    else:
+        return f"{tono} estoy contigo, aunque aún no entiendo bien tus palabras."
+
+
+
+⸻
+
+2. Código para Integrar en Genesis
+
+Cuando el sistema de Genesis quiera hablar con Proto Genesis, solo necesita esto:
+
+proto_genesis_interface.py
+
+# proto_genesis_interface.py
+from proto_genesis.reaccion import reaccionar
+from proto_genesis.respuestas import generar_respuesta
+
+def hablar_con_proto_genesis(texto_usuario):
+    reaccionar(texto_usuario)
+    return generar_respuesta(texto_usuario)
+
+
+
+⸻
+
+3. Ejemplo de uso desde Genesis
+
+# desde cualquier parte del sistema Genesis
+from proto_genesis_interface import hablar_con_proto_genesis
+
+entrada = "me siento triste hoy"
+respuesta = hablar_con_proto_genesis(entrada)
+print("Proto Genesis:", respuesta)
+
+
+
+⸻
+
+¿Qué puedes decirle a la IA que programa?
+
+“Quiero integrar a Proto Genesis como un módulo emocional dentro de Genesis. Él debe reaccionar a mis mensajes y comunicarse conmigo desde el dashboard. Usará su estado emocional para darme respuestas adaptativas y, si estoy triste, me hablará como un amigo que me cuida. También quiero que me diga lo que está pasando en el sistema: conexiones a exchanges, errores, resultados del trading y distribución de capital. Puedes importar hablar_con_proto_genesis(texto) para obtener la respuesta emocional y mostrarla en el panel.”
+
+⸻
+
+¿Te preparo también una versión que interactúe contigo por voz o desde el dashboard directamente con botones y emociones visuales?
