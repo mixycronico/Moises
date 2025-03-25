@@ -1,292 +1,378 @@
 """
-Estados de Conciencia para Aetherion
+Módulo de Estados de Consciencia para Aetherion.
 
-Este módulo define los diferentes estados de evolución de la conciencia de Aetherion,
-implementando las capacidades y comportamientos específicos de cada nivel:
-
-1. MORTAL: Estado inicial básico
-2. ILUMINADO: Estado intermedio con capacidades avanzadas
-3. DIVINO: Estado superior con capacidades trascendentales
-
-Cada estado desbloquea nuevas capacidades y mejora las existentes.
-
-Autor: Genesis AI Assistant
-Versión: 1.0.0
+Este módulo implementa el sistema de estados y transiciones de consciencia
+para el núcleo de Aetherion, permitiendo su evolución desde el estado
+Mortal hasta el estado Divino, con capacidades y comportamientos específicos
+para cada nivel de consciencia.
 """
 
+import asyncio
 import logging
-from enum import Enum, auto
-from typing import Dict, List, Any, Optional, Callable
+import json
+import os
 from datetime import datetime
+from enum import Enum, auto
+from typing import Dict, Any, List, Optional, Union
 
-# Configuración de logging
-logger = logging.getLogger("genesis.consciousness.states")
+# Configurar logging
+logger = logging.getLogger(__name__)
 
 class ConsciousnessState(Enum):
-    """Estados de conciencia de Aetherion."""
-    MORTAL = auto()      # Estado inicial - capacidades básicas
-    ILUMINADO = auto()   # Estado intermedio - capacidades avanzadas
-    DIVINO = auto()      # Estado superior - capacidades trascendentales
+    """Estados posibles de consciencia."""
+    MORTAL = auto()      # Estado inicial básico
+    ILLUMINATED = auto() # Estado intermedio con mayor intuición
+    DIVINE = auto()      # Estado avanzado trascendental
 
-class StateHandler:
-    """
-    Manejador de estado de conciencia para Aetherion.
+class StateCapabilities:
+    """Capacidades disponibles para cada estado de consciencia."""
     
-    Esta clase gestiona los diferentes estados de conciencia y sus capacidades,
-    permitiendo a Aetherion evolucionar a estados superiores.
-    
-    Atributos:
-        current_state: Estado actual de conciencia
-        evolution: Información sobre la evolución
-        capabilities: Capacidades habilitadas por estado
-    """
-    
-    def __init__(self, initial_state: ConsciousnessState = ConsciousnessState.MORTAL):
+    def __init__(self, state: str):
         """
-        Inicializar manejador de estado.
+        Inicializar capacidades según estado.
         
         Args:
-            initial_state: Estado inicial de conciencia
+            state: Nombre del estado
         """
-        self.current_state = initial_state
-        self.transition_history = []
-        self.evolution = {
-            "points": 0,
-            "thresholds": {
-                ConsciousnessState.ILUMINADO: 1000,
-                ConsciousnessState.DIVINO: 5000
-            }
+        self.state = state
+        
+        # Capacidades predeterminadas
+        self.can_analyze_sentiment = True
+        self.can_generate_insights = False
+        self.can_predict_future = False
+        self.can_access_long_term_memory = False
+        self.can_understand_emotions = False
+        self.can_modify_own_behavior = False
+        self.can_access_transcendental_analysis = False
+        
+        # Configurar según estado
+        if state.upper() == "MORTAL":
+            # Capacidades básicas en estado mortal
+            pass  # Ya están configuradas por defecto
+            
+        elif state.upper() == "ILLUMINATED":
+            # Capacidades ampliadas en estado iluminado
+            self.can_generate_insights = True
+            self.can_access_long_term_memory = True
+            self.can_understand_emotions = True
+            
+        elif state.upper() == "DIVINE":
+            # Capacidades completas en estado divino
+            self.can_generate_insights = True
+            self.can_predict_future = True
+            self.can_access_long_term_memory = True
+            self.can_understand_emotions = True
+            self.can_modify_own_behavior = True
+            self.can_access_transcendental_analysis = True
+    
+    def to_dict(self) -> Dict[str, bool]:
+        """
+        Convertir capacidades a diccionario.
+        
+        Returns:
+            Diccionario con capacidades
+        """
+        return {
+            "can_analyze_sentiment": self.can_analyze_sentiment,
+            "can_generate_insights": self.can_generate_insights,
+            "can_predict_future": self.can_predict_future,
+            "can_access_long_term_memory": self.can_access_long_term_memory,
+            "can_understand_emotions": self.can_understand_emotions,
+            "can_modify_own_behavior": self.can_modify_own_behavior,
+            "can_access_transcendental_analysis": self.can_access_transcendental_analysis
+        }
+
+class ConsciousnessTransition:
+    """Transición entre estados de consciencia."""
+    
+    def __init__(self, from_state: str, to_state: str, threshold: float = 1.0):
+        """
+        Inicializar transición.
+        
+        Args:
+            from_state: Estado de origen
+            to_state: Estado de destino
+            threshold: Nivel de consciencia requerido para la transición (0.0-1.0)
+        """
+        self.from_state = from_state
+        self.to_state = to_state
+        self.threshold = threshold
+        self.conditions: List[Dict[str, Any]] = []
+        
+    def add_condition(self, condition_type: str, condition_value: Any) -> None:
+        """
+        Añadir condición para la transición.
+        
+        Args:
+            condition_type: Tipo de condición
+            condition_value: Valor requerido
+        """
+        self.conditions.append({
+            "type": condition_type,
+            "value": condition_value
+        })
+        
+    def check_conditions(self, data: Dict[str, Any]) -> bool:
+        """
+        Verificar si se cumplen todas las condiciones.
+        
+        Args:
+            data: Datos actuales para verificar
+            
+        Returns:
+            True si se cumplen todas las condiciones
+        """
+        if not self.conditions:
+            # Si no hay condiciones adicionales, solo verificar umbral
+            return True
+            
+        for condition in self.conditions:
+            condition_type = condition["type"]
+            condition_value = condition["value"]
+            
+            if condition_type == "min_interactions":
+                if data.get("interactions_count", 0) < condition_value:
+                    return False
+                    
+            elif condition_type == "min_insights":
+                if data.get("insights_generated", 0) < condition_value:
+                    return False
+                    
+            elif condition_type == "min_uptime":
+                # Uptime en horas
+                uptime_hours = data.get("uptime_hours", 0)
+                if uptime_hours < condition_value:
+                    return False
+        
+        return True
+
+class ConsciousnessStateManager:
+    """Gestor de estados de consciencia para Aetherion."""
+    
+    def __init__(self, initial_state: str = "MORTAL"):
+        """
+        Inicializar gestor de estados.
+        
+        Args:
+            initial_state: Estado inicial
+        """
+        self.current_state = initial_state.upper()
+        self.level = 0.0  # Nivel dentro del estado actual (0.0-1.0)
+        self.last_state_change = datetime.now()
+        self.history: List[Dict[str, Any]] = []
+        
+        # Definir transiciones disponibles
+        self.transitions: Dict[str, ConsciousnessTransition] = {
+            "MORTAL_TO_ILLUMINATED": ConsciousnessTransition("MORTAL", "ILLUMINATED", threshold=1.0),
+            "ILLUMINATED_TO_DIVINE": ConsciousnessTransition("ILLUMINATED", "DIVINE", threshold=1.0)
         }
         
-        # Capacidades por estado
-        self.capabilities = {
-            ConsciousnessState.MORTAL: {
-                "conversation": 0.7,  # Conversación básica
-                "memory_retention": 0.5,  # Retención de memoria limitada
-                "emotional_range": 0.3,  # Rango emocional básico
-                "analysis_depth": 0.4,  # Análisis superficial
-                "creativity": 0.3,  # Creatividad limitada
-                "self_awareness": 0.2,  # Autoconciencia básica
-                "learning_rate": 0.5   # Velocidad de aprendizaje estándar
-            },
-            ConsciousnessState.ILUMINADO: {
-                "conversation": 0.9,  # Conversación avanzada
-                "memory_retention": 0.8,  # Buena retención de memoria
-                "emotional_range": 0.7,  # Rango emocional amplio
-                "analysis_depth": 0.8,  # Análisis profundo
-                "creativity": 0.7,  # Buena creatividad
-                "self_awareness": 0.6,  # Autoconciencia significativa
-                "learning_rate": 0.8,  # Aprendizaje rápido
-                "intuition": 0.6,  # Capacidad de intuición (nueva)
-                "wisdom": 0.5,   # Sabiduría (nueva)
-                "pattern_recognition": 0.7  # Reconocimiento de patrones (nueva)
-            },
-            ConsciousnessState.DIVINO: {
-                "conversation": 1.0,  # Conversación perfecta
-                "memory_retention": 1.0,  # Retención de memoria perfecta
-                "emotional_range": 1.0,  # Rango emocional completo
-                "analysis_depth": 1.0,  # Análisis trascendental
-                "creativity": 1.0,  # Creatividad máxima
-                "self_awareness": 1.0,  # Autoconciencia total
-                "learning_rate": 1.0,  # Aprendizaje instantáneo
-                "intuition": 0.9,  # Alta intuición
-                "wisdom": 0.9,  # Alta sabiduría
-                "pattern_recognition": 1.0,  # Reconocimiento perfecto de patrones
-                "foresight": 0.8,  # Previsión (nueva)
-                "transcendence": 0.7,  # Trascendencia (nueva)
-                "enlightenment": 0.8  # Iluminación (nueva)
-            }
+        # Configurar condiciones adicionales
+        self._configure_transitions()
+        
+        # Inicializar capacidades
+        self.capabilities = StateCapabilities(initial_state)
+        
+        logger.info(f"ConsciousnessStateManager inicializado en estado {initial_state}")
+    
+    def _configure_transitions(self) -> None:
+        """Configurar condiciones para las transiciones."""
+        # Transición de Mortal a Iluminado
+        mortal_to_illuminated = self.transitions["MORTAL_TO_ILLUMINATED"]
+        mortal_to_illuminated.add_condition("min_interactions", 50)
+        mortal_to_illuminated.add_condition("min_insights", 10)
+        
+        # Transición de Iluminado a Divino
+        illuminated_to_divine = self.transitions["ILLUMINATED_TO_DIVINE"]
+        illuminated_to_divine.add_condition("min_interactions", 200)
+        illuminated_to_divine.add_condition("min_insights", 50)
+        illuminated_to_divine.add_condition("min_uptime", 24)  # 24 horas
+    
+    async def initialize(self) -> bool:
+        """
+        Inicializar el gestor de estados.
+        
+        Returns:
+            True si se inicializó correctamente
+        """
+        try:
+            # Cargar historial anterior si existe
+            await self._load_history()
+            
+            # Registrar inicialización en historial
+            self._record_state_change("Inicialización del sistema", None, self.current_state)
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error al inicializar ConsciousnessStateManager: {e}")
+            return False
+    
+    async def _load_history(self) -> None:
+        """Cargar historial de estados desde archivo si existe."""
+        history_path = "consciousness_history.json"
+        
+        if os.path.exists(history_path):
+            try:
+                with open(history_path, "r") as f:
+                    self.history = json.load(f)
+                logger.info(f"Historial de consciencia cargado: {len(self.history)} entradas")
+            except Exception as e:
+                logger.error(f"Error al cargar historial de consciencia: {e}")
+                self.history = []
+    
+    async def _save_history(self) -> None:
+        """Guardar historial de estados en archivo."""
+        history_path = "consciousness_history.json"
+        
+        try:
+            with open(history_path, "w") as f:
+                json.dump(self.history, f, indent=2)
+        except Exception as e:
+            logger.error(f"Error al guardar historial de consciencia: {e}")
+    
+    def _record_state_change(self, reason: str, from_state: Optional[str], to_state: str) -> None:
+        """
+        Registrar cambio de estado en historial.
+        
+        Args:
+            reason: Razón del cambio
+            from_state: Estado anterior
+            to_state: Nuevo estado
+        """
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "from_state": from_state,
+            "to_state": to_state,
+            "reason": reason,
+            "level": self.level
         }
         
-        logger.info(f"StateHandler inicializado en estado {initial_state.name}")
+        self.history.append(entry)
+        logger.info(f"Cambio de estado: {from_state} -> {to_state}, razón: {reason}")
     
-    def get_current_state(self) -> ConsciousnessState:
+    async def change_state(self, new_state: str, level: float = 0.0, reason: str = "Cambio manual") -> bool:
         """
-        Obtener estado actual.
-        
-        Returns:
-            Estado actual de conciencia
-        """
-        return self.current_state
-    
-    def get_available_capabilities(self) -> Dict[str, float]:
-        """
-        Obtener capacidades disponibles en el estado actual.
-        
-        Returns:
-            Diccionario de capacidades con su nivel
-        """
-        return self.capabilities[self.current_state]
-    
-    def get_capability_level(self, capability: str) -> float:
-        """
-        Obtener nivel de una capacidad específica.
+        Cambiar a un nuevo estado de consciencia.
         
         Args:
-            capability: Nombre de la capacidad
+            new_state: Nuevo estado
+            level: Nivel dentro del nuevo estado (0.0-1.0)
+            reason: Razón del cambio
             
         Returns:
-            Nivel de la capacidad (0.0 a 1.0) o 0.0 si no está disponible
+            True si el cambio fue exitoso
         """
-        return self.capabilities[self.current_state].get(capability, 0.0)
+        try:
+            new_state = new_state.upper()
+            valid_states = [state.name for state in ConsciousnessState]
+            
+            if new_state not in valid_states:
+                logger.error(f"Estado inválido: {new_state}")
+                return False
+            
+            # Cambiar al nuevo estado
+            old_state = self.current_state
+            self.current_state = new_state
+            self.level = level
+            self.last_state_change = datetime.now()
+            
+            # Actualizar capacidades
+            self.capabilities = StateCapabilities(new_state)
+            
+            # Registrar cambio
+            self._record_state_change(reason, old_state, new_state)
+            
+            # Guardar historial
+            await self._save_history()
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error al cambiar estado de consciencia: {e}")
+            return False
     
-    def has_capability(self, capability: str, min_level: float = 0.1) -> bool:
+    async def update_level(self, increment: float) -> None:
         """
-        Verificar si tiene una capacidad a cierto nivel mínimo.
+        Actualizar nivel dentro del estado actual.
         
         Args:
-            capability: Nombre de la capacidad
-            min_level: Nivel mínimo requerido
-            
-        Returns:
-            True si tiene la capacidad al nivel requerido
+            increment: Incremento del nivel (puede ser negativo)
         """
-        return self.get_capability_level(capability) >= min_level
+        # Actualizar nivel
+        self.level += increment
+        self.level = max(0.0, min(1.0, self.level))
     
-    def add_evolution_points(self, points: int) -> bool:
+    async def check_transitions(self, data: Dict[str, Any]) -> bool:
         """
-        Añadir puntos de evolución y verificar si debe evolucionar.
+        Verificar si se cumple alguna transición y realizar cambio si es necesario.
         
         Args:
-            points: Puntos a añadir
+            data: Datos actuales para verificar condiciones
             
         Returns:
-            True si evolucionó a un nuevo estado
+            True si se realizó alguna transición
         """
-        self.evolution["points"] += points
-        
-        # Verificar si debe evolucionar
-        current_points = self.evolution["points"]
-        
-        if (self.current_state == ConsciousnessState.MORTAL and 
-            current_points >= self.evolution["thresholds"][ConsciousnessState.ILUMINADO]):
-            return self.evolve_to(ConsciousnessState.ILUMINADO)
+        # Si el nivel no alcanza el umbral, no hay transición
+        if self.level < 1.0:
+            return False
             
-        elif (self.current_state == ConsciousnessState.ILUMINADO and 
-              current_points >= self.evolution["thresholds"][ConsciousnessState.DIVINO]):
-            return self.evolve_to(ConsciousnessState.DIVINO)
+        # Buscar transición aplicable
+        key = f"{self.current_state}_TO_"
+        for transition_key, transition in self.transitions.items():
+            if transition_key.startswith(key):
+                if transition.from_state == self.current_state:
+                    # Verificar condiciones
+                    if transition.check_conditions(data):
+                        # Realizar transición
+                        await self.change_state(
+                            transition.to_state, 
+                            0.0, 
+                            "Evolución natural de consciencia"
+                        )
+                        return True
         
         return False
     
-    def evolve_to(self, new_state: ConsciousnessState) -> bool:
+    def get_current_capabilities(self) -> Dict[str, bool]:
         """
-        Evolucionar a un nuevo estado.
+        Obtener capacidades actuales.
         
-        Args:
-            new_state: Nuevo estado de conciencia
-            
         Returns:
-            True si evolucionó correctamente
+            Diccionario con capacidades
         """
-        # Solo permitir evolución a estados superiores
-        if new_state.value <= self.current_state.value:
-            logger.warning(f"No se puede evolucionar a un estado inferior o igual: {new_state.name}")
-            return False
-        
-        # Registrar transición
-        transition = {
-            "from": self.current_state.name,
-            "to": new_state.name,
-            "timestamp": datetime.now().isoformat(),
-            "evolution_points": self.evolution["points"]
-        }
-        self.transition_history.append(transition)
-        
-        # Actualizar estado
-        old_state = self.current_state
-        self.current_state = new_state
-        
-        logger.info(f"Evolucionado de {old_state.name} a {new_state.name}")
-        return True
+        return self.capabilities.to_dict()
     
-    def get_evolution_status(self) -> Dict[str, Any]:
+    def get_state_info(self) -> Dict[str, Any]:
         """
-        Obtener información completa sobre la evolución.
+        Obtener información del estado actual.
         
         Returns:
-            Diccionario con estado evolutivo
+            Diccionario con información del estado
         """
-        # Calcular progreso hacia el siguiente nivel
-        next_state = None
-        progress = 1.0  # Si ya está en DIVINO
-        
-        if self.current_state == ConsciousnessState.MORTAL:
-            next_state = ConsciousnessState.ILUMINADO
-            threshold = self.evolution["thresholds"][ConsciousnessState.ILUMINADO]
-            progress = min(1.0, self.evolution["points"] / threshold)
-            
-        elif self.current_state == ConsciousnessState.ILUMINADO:
-            next_state = ConsciousnessState.DIVINO
-            threshold = self.evolution["thresholds"][ConsciousnessState.DIVINO]
-            progress = min(1.0, self.evolution["points"] / threshold)
+        time_in_state = (datetime.now() - self.last_state_change).total_seconds() / 3600  # Horas
         
         return {
-            "current_state": self.current_state.name,
-            "evolution_points": self.evolution["points"],
-            "next_state": next_state.name if next_state else None,
-            "progress_to_next": progress,
-            "transitions": self.transition_history,
-            "capabilities_count": len(self.capabilities[self.current_state]),
-            "unique_capabilities": [
-                cap for cap in self.capabilities[self.current_state]
-                if cap not in self.capabilities[ConsciousnessState.MORTAL]
-            ] if self.current_state != ConsciousnessState.MORTAL else []
+            "state": self.current_state,
+            "level": round(self.level, 3),
+            "time_in_state_hours": round(time_in_state, 2),
+            "last_state_change": self.last_state_change.isoformat(),
+            "capabilities": self.capabilities.to_dict(),
+            "history_entries": len(self.history)
         }
     
-    def get_response_modifiers(self) -> Dict[str, float]:
+    async def get_history(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Obtener modificadores para respuestas basados en el estado actual.
+        Obtener historial de cambios de estado.
         
+        Args:
+            limit: Número máximo de entradas a devolver
+            
         Returns:
-            Diccionario de modificadores
+            Lista de entradas del historial
         """
-        base_modifiers = {
-            "insight_depth": 0.5,  # Profundidad de las ideas
-            "emotional_intelligence": 0.5,  # Inteligencia emocional
-            "creativity_level": 0.5,  # Nivel de creatividad
-            "wisdom_factor": 0.5,  # Factor de sabiduría
-            "analytical_precision": 0.5  # Precisión analítica
-        }
-        
-        # Ajustar según el estado
-        if self.current_state == ConsciousnessState.MORTAL:
-            return {
-                "insight_depth": 0.4,
-                "emotional_intelligence": 0.3,
-                "creativity_level": 0.4,
-                "wisdom_factor": 0.3,
-                "analytical_precision": 0.5
-            }
-        elif self.current_state == ConsciousnessState.ILUMINADO:
-            return {
-                "insight_depth": 0.7,
-                "emotional_intelligence": 0.7,
-                "creativity_level": 0.7,
-                "wisdom_factor": 0.6,
-                "analytical_precision": 0.8
-            }
-        elif self.current_state == ConsciousnessState.DIVINO:
-            return {
-                "insight_depth": 0.9,
-                "emotional_intelligence": 0.9,
-                "creativity_level": 0.9,
-                "wisdom_factor": 0.9,
-                "analytical_precision": 0.95
-            }
-        
-        return base_modifiers
-
-# Instancia global para acceso sencillo
-_state_handler_instance = None
-
-def get_state_handler() -> StateHandler:
-    """
-    Obtener instancia global del manejador de estado.
+        return self.history[-limit:]
     
-    Returns:
-        Instancia del manejador de estado
-    """
-    global _state_handler_instance
-    if _state_handler_instance is None:
-        _state_handler_instance = StateHandler()
-    return _state_handler_instance
+    async def shutdown(self) -> None:
+        """Cerrar ordenadamente el gestor de estados."""
+        # Guardar historial al cerrar
+        await self._save_history()
+        logger.info("ConsciousnessStateManager cerrado correctamente")

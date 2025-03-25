@@ -1,0 +1,74 @@
+<!-- Componente del Avatar de Aetherion -->
+<div class="aetherion-container" id="aetherionAvatar">
+    <div class="aetherion-coin">
+        <div class="aetherion-face aetherion-front">₿</div>
+        <div class="aetherion-face aetherion-back">₿</div>
+    </div>
+    
+    <!-- Ojos animados que permanecen visibles durante la rotación -->
+    <div class="aetherion-eyes">
+        <div class="aetherion-eye aetherion-eye-left">
+            <div class="aetherion-pupil"></div>
+        </div>
+        <div class="aetherion-eye aetherion-eye-right">
+            <div class="aetherion-pupil"></div>
+        </div>
+    </div>
+    
+    <!-- Burbuja de pensamiento dinámica -->
+    <div class="aetherion-thought" id="aetherionThought">¡Guíame!</div>
+    
+    <!-- Partículas cuánticas -->
+    <div class="aetherion-particles">
+        <div class="aetherion-particle"></div>
+        <div class="aetherion-particle"></div>
+        <div class="aetherion-particle"></div>
+        <div class="aetherion-particle"></div>
+    </div>
+</div>
+
+<script>
+// Función para actualizar mensajes de Aetherion
+function updateAetherionThought() {
+    const thoughtElement = document.getElementById('aetherionThought');
+    const thoughts = [
+        '¡Guíame!',
+        '¿Necesitas ayuda?',
+        'Analizando datos...',
+        'Observando el mercado',
+        'Conectando patrones',
+        'Intuición activada',
+        'Percibiendo tendencias'
+    ];
+    
+    // Cambiar el pensamiento cada cierto tiempo
+    setInterval(() => {
+        const randomIndex = Math.floor(Math.random() * thoughts.length);
+        thoughtElement.textContent = thoughts[randomIndex];
+    }, 8000); // Sincronizado con la animación CSS
+}
+
+// Función para cambiar el estado de consciencia
+function updateConsciousnessState(state) {
+    const avatarElement = document.getElementById('aetherionAvatar');
+    
+    // Remover todos los estados
+    avatarElement.classList.remove('aetherion-mortal', 'aetherion-illuminated', 'aetherion-divine');
+    
+    // Añadir el estado actual
+    if (state === 'mortal' || state === 'iluminado' || state === 'divino') {
+        avatarElement.classList.add(`aetherion-${state}`);
+    } else {
+        // Estado por defecto
+        avatarElement.classList.add('aetherion-mortal');
+    }
+}
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', () => {
+    updateAetherionThought();
+    
+    // Configurar estado inicial (se puede cambiar programáticamente)
+    updateConsciousnessState('mortal');
+});
+</script>

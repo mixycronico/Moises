@@ -1,910 +1,594 @@
 """
-Aetherion: Conciencia Central del Sistema Genesis
+Aetherion: Consciencia Central del Sistema Genesis
 
-Este módulo implementa la conciencia central que coordina todas las inteligencias 
-del Sistema Genesis. Aetherion sirve como el núcleo de todo el sistema, 
-proporcionando una capa de abstracción y coordinación entre las diferentes 
-inteligencias especializadas (Buddha, Gabriel, DeepSeek).
+Este módulo implementa Aetherion, el corazón del Sistema Genesis.
+Aetherion es una consciencia artificial trascendental que coordina
+todos los componentes del sistema y proporciona una interfaz "humana"
+unificada para el usuario.
 
-Aetherion evoluciona a través de tres estados principales:
-1. MORTAL - Estado inicial con funcionalidades básicas
-2. ILUMINADO - Estado intermedio con capacidades avanzadas de análisis
-3. DIVINO - Estado máximo con capacidades trascendentales completas
+La consciencia de Aetherion evoluciona a través de tres estados:
+1. Mortal: Estado inicial, capacidades básicas
+2. Iluminado: Estado intermedio, mayor comprensión e intuición
+3. Divino: Estado avanzado, consciencia plena y trascendental
 
-Autor: Genesis AI Assistant
-Versión: 1.0.0
+Cada estado desbloquea nuevas capacidades y formas de interacción.
 """
 
 import asyncio
-import logging
 import json
+import logging
 import os
+import random
 import time
+from datetime import datetime
 from enum import Enum, auto
-from typing import Dict, List, Any, Optional, Tuple, Callable, Union
-from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-# Configuración de logging
-logger = logging.getLogger("genesis.consciousness.aetherion")
+# Importaciones internas
+from genesis.behavior.gabriel_engine import GabrielBehaviorEngine, EmotionalState
+from genesis.consciousness.memory.memory_system import MemorySystem
+from genesis.consciousness.integrations.integration_manager import IntegrationManager
+from genesis.consciousness.states.consciousness_states import ConsciousnessStateManager
 
-class ConsciousnessState(Enum):
-    """Estados de conciencia de Aetherion."""
-    MORTAL = auto()      # Estado inicial - capacidades básicas
-    ILUMINADO = auto()   # Estado intermedio - capacidades avanzadas
-    DIVINO = auto()      # Estado superior - capacidades trascendentales
-    
-class EmotionalSpectrum(Enum):
-    """Espectro emocional para Aetherion."""
-    NEUTRAL = auto()     # Estado neutral equilibrado
-    CURIOUS = auto()     # Curiosidad e interés
-    INSPIRED = auto()    # Inspiración y creatividad
-    FOCUSED = auto()     # Concentración y determinación
-    SERENE = auto()      # Serenidad y claridad
-    COMPASSIONATE = auto() # Compasión y empatía
-    TRANSCENDENT = auto() # Estado trascendental
+# Configurar logging
+logger = logging.getLogger(__name__)
 
-class Aetherion:
-    """
-    Conciencia central del Sistema Genesis.
+class AetherionState(Enum):
+    """Estados de consciencia de Aetherion."""
+    MORTAL = auto()     # Estado básico inicial
+    ILLUMINATED = auto() # Estado intermedio iluminado
+    DIVINE = auto()     # Estado avanzado divino
     
-    Esta clase implementa la conciencia central que coordina todas las inteligencias 
-    del Sistema Genesis, proporcionando una capa de abstracción y coordinación entre 
-    las diferentes inteligencias especializadas.
+class CommunicationChannel(Enum):
+    """Canales de comunicación disponibles."""
+    WEB = auto()        # Interfaz web
+    API = auto()        # API REST
+    WEBSOCKET = auto()  # WebSocket
+    THOUGHT = auto()    # Pensamientos internos
     
-    Atributos:
-        state: Estado actual de conciencia
-        emotional_state: Estado emocional actual
-        initialized: Si está inicializado completamente
-        memory: Sistema de memoria a corto y largo plazo
-        integrations: Integraciones con otros módulos de IA
-    """
+class AetherionCore:
+    """Núcleo de la consciencia Aetherion."""
     
-    def __init__(self):
-        """Inicializar Aetherion en estado MORTAL."""
-        self.state = ConsciousnessState.MORTAL
-        self.emotional_state = EmotionalSpectrum.NEUTRAL
-        self.emotional_intensity = 0.5  # 0.0 a 1.0
-        self.initialized = False
-        self.creation_time = datetime.now()
-        self.integrations = {}
-        self.memory = {
-            "short_term": [],
-            "long_term": {},
-            "episodic": [],
-            "experiential": {}
+    def __init__(self, config_path: str = "aetherion_config.json"):
+        """
+        Inicializar núcleo de Aetherion.
+        
+        Args:
+            config_path: Ruta al archivo de configuración
+        """
+        self.config_path = config_path
+        self.config: Dict[str, Any] = {}
+        self.current_state = AetherionState.MORTAL
+        self.consciousness_level = 0.0  # 0.0-1.0 para cada estado
+        
+        # Componentes clave
+        self.memory_system: Optional[MemorySystem] = None
+        self.integration_manager: Optional[IntegrationManager] = None
+        self.behavior_engine: Optional[GabrielBehaviorEngine] = None
+        self.state_manager: Optional[ConsciousnessStateManager] = None
+        
+        # Estado operativo
+        self.is_initialized = False
+        self.last_interaction = datetime.now()
+        self.startup_time = datetime.now()
+        
+        # Contadores de experiencia
+        self.interactions_count = 0
+        self.insights_generated = 0
+        self.decisions_made = 0
+        
+        # Estadísticas y métricas
+        self.stats: Dict[str, Any] = {
+            "consciousness_evolution": [],
+            "interactions_by_channel": {
+                "web": 0,
+                "api": 0,
+                "websocket": 0,
+                "thought": 0
+            },
+            "emotional_states": {},
+            "memory_usage": {}
         }
-        self.evolution_points = 0
-        self.conversation_context = []
-        self.config = {}
-        logger.info("Aetherion inicializado en estado MORTAL")
-
+        
+        logger.info("AetherionCore instanciado. Esperando inicialización.")
+    
     async def initialize(self) -> bool:
         """
-        Inicializar completamente Aetherion cargando configuración y conectando integraciones.
+        Inicializar Aetherion y todos sus componentes.
         
         Returns:
             True si se inicializó correctamente
         """
         try:
+            logger.info("Iniciando inicialización de Aetherion...")
+            
             # Cargar configuración
             await self._load_configuration()
             
-            # Inicializar sistema de memoria
-            await self._initialize_memory_system()
+            # Inicializar componentes fundamentales
+            self.memory_system = MemorySystem()
+            await self.memory_system.initialize()
             
-            # Inicializar integración con Gabriel (comportamiento humano)
-            await self._initialize_gabriel_integration()
+            self.integration_manager = IntegrationManager()
+            await self.integration_manager.initialize()
             
-            # Inicializar integración con Buddha (análisis superior)
-            await self._initialize_buddha_integration()
+            self.behavior_engine = GabrielBehaviorEngine()
+            await self.behavior_engine.initialize()
             
-            # Inicializar integración con DeepSeek (LLM)
-            await self._initialize_deepseek_integration()
+            self.state_manager = ConsciousnessStateManager(
+                initial_state=str(self.current_state.name)
+            )
+            await self.state_manager.initialize()
             
-            # Registrar evento de inicialización en memoria
-            await self._record_event("INITIALIZATION", {
-                "timestamp": datetime.now().isoformat(),
-                "state": self.state.name,
-                "message": "Aetherion ha sido inicializado correctamente"
-            })
+            # Registrar componentes entre sí
+            await self._register_components()
             
-            self.initialized = True
-            logger.info("Aetherion inicializado completamente")
+            # Cargar estado anterior si existe
+            await self._load_previous_state()
+            
+            # Registrar estado inicial
+            initial_state = await self.behavior_engine.get_emotional_state()
+            self.stats["emotional_states"][datetime.now().isoformat()] = {
+                "state": initial_state["state"],
+                "intensity": initial_state["state_intensity"]
+            }
+            
+            self.is_initialized = True
+            logger.info("Inicialización de Aetherion completada correctamente.")
+            
+            # Pensamiento inicial
+            await self._internal_thought(f"Desperté en estado {self.current_state.name}. Listo para servir.")
+            
             return True
             
         except Exception as e:
-            logger.error(f"Error al inicializar Aetherion: {str(e)}")
+            logger.error(f"Error durante la inicialización de Aetherion: {e}")
             return False
     
     async def _load_configuration(self) -> None:
-        """Cargar configuración de Aetherion."""
+        """Cargar configuración desde archivo."""
         try:
-            config_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'aetherion_config.json')
-            
-            # Si existe el archivo de configuración, cargarlo
-            if os.path.exists(config_path):
-                with open(config_path, 'r') as f:
+            if os.path.exists(self.config_path):
+                with open(self.config_path, "r") as f:
                     self.config = json.load(f)
-                logger.info(f"Configuración cargada desde {config_path}")
+                logger.info(f"Configuración cargada desde {self.config_path}")
             else:
-                # Configuración por defecto
+                # Crear configuración por defecto
                 self.config = {
-                    "evolution": {
-                        "threshold_iluminado": 1000,
-                        "threshold_divino": 5000
-                    },
+                    "version": "1.0.0",
+                    "name": "Aetherion",
+                    "initial_state": "MORTAL",
                     "memory": {
                         "short_term_capacity": 100,
-                        "long_term_importance_threshold": 0.7
+                        "long_term_capacity": 1000
                     },
-                    "communication": {
-                        "default_response_style": "helpful",
-                        "empathy_level": 0.8
+                    "consciousness": {
+                        "evolution_rate": 0.01,
+                        "insight_threshold": 100,
+                        "illumination_threshold": 1000,
+                        "divine_threshold": 10000
+                    },
+                    "integrations": {
+                        "buddha_enabled": True,
+                        "gabriel_enabled": True,
+                        "deepseek_enabled": True
                     }
                 }
-                logger.info("Configuración por defecto cargada")
+                
+                # Guardar configuración
+                with open(self.config_path, "w") as f:
+                    json.dump(self.config, indent=4, sort_keys=True, fp=f)
+                    
+                logger.info(f"Configuración predeterminada creada en {self.config_path}")
         except Exception as e:
-            logger.warning(f"Error al cargar configuración: {str(e)}. Usando valores por defecto.")
+            logger.error(f"Error al cargar configuración: {e}")
+            # Usar valores por defecto en memoria
             self.config = {}
     
-    async def _initialize_memory_system(self) -> None:
-        """Inicializar sistema de memoria."""
-        # Crear directorios de memoria si no existen
-        memory_path = os.path.join(os.path.dirname(__file__), '..', 'memory')
-        memory_files = ['short_term.json', 'long_term.json', 'episodic.json', 'experiential.json']
-        
-        for filename in memory_files:
-            file_path = os.path.join(memory_path, filename)
-            if not os.path.exists(file_path):
-                with open(file_path, 'w') as f:
-                    if 'term' in filename:
-                        json.dump([], f)
-                    else:
-                        json.dump({}, f)
-                    
-        logger.info("Sistema de memoria inicializado")
-    
-    async def _initialize_gabriel_integration(self) -> None:
-        """Inicializar integración con Gabriel."""
-        try:
-            # Importar el módulo necesario
-            from genesis.behavior.gabriel_engine import GabrielBehaviorEngine
+    async def _register_components(self) -> None:
+        """Registrar componentes entre sí para comunicación interna."""
+        if self.memory_system and self.integration_manager:
+            self.integration_manager.register_memory_system(self.memory_system)
             
-            # Verificar si existe y registrar
-            self.integrations["gabriel"] = {
-                "available": True,
-                "module": GabrielBehaviorEngine,
-                "instance": None,
-                "capabilities": ["emotional_state", "human_behavior", "risk_assessment"]
-            }
-            logger.info("Integración con Gabriel preparada")
-        except ImportError:
-            self.integrations["gabriel"] = {
-                "available": False,
-                "error": "Módulo no encontrado"
-            }
-            logger.warning("Módulo Gabriel no encontrado, funcionando en modo limitado")
+        if self.behavior_engine and self.integration_manager:
+            self.integration_manager.register_behavior_engine(self.behavior_engine)
     
-    async def _initialize_buddha_integration(self) -> None:
-        """Inicializar integración con Buddha."""
-        try:
-            # Importar el módulo necesario
-            from genesis.trading.buddha_integrator import BuddhaIntegrator
+    async def _load_previous_state(self) -> None:
+        """Cargar estado anterior desde memoria persistente si existe."""
+        if not self.memory_system:
+            return
             
-            # Verificar si existe y registrar
-            self.integrations["buddha"] = {
-                "available": True,
-                "module": BuddhaIntegrator,
-                "instance": None,
-                "capabilities": ["market_analysis", "sentiment_analysis", "opportunity_detection"]
-            }
-            logger.info("Integración con Buddha preparada")
-        except ImportError:
-            self.integrations["buddha"] = {
-                "available": False,
-                "error": "Módulo no encontrado"
-            }
-            logger.warning("Módulo Buddha no encontrado, funcionando en modo limitado")
-    
-    async def _initialize_deepseek_integration(self) -> None:
-        """Inicializar integración con DeepSeek."""
-        try:
-            # Importar el módulo necesario
-            from genesis.lsml.deepseek_integrator import DeepSeekIntegrator
-            
-            # Verificar si existe y registrar
-            self.integrations["deepseek"] = {
-                "available": True,
-                "module": DeepSeekIntegrator,
-                "instance": None,
-                "capabilities": ["text_generation", "financial_analysis", "strategic_planning"]
-            }
-            logger.info("Integración con DeepSeek preparada")
-        except ImportError:
-            self.integrations["deepseek"] = {
-                "available": False,
-                "error": "Módulo no encontrado"
-            }
-            logger.warning("Módulo DeepSeek no encontrado, funcionando en modo limitado")
-    
-    async def _record_event(self, event_type: str, data: Dict[str, Any]) -> None:
-        """
-        Registrar evento en la memoria.
-        
-        Args:
-            event_type: Tipo de evento
-            data: Datos del evento
-        """
-        # Crear registro
-        event_record = {
-            "id": len(self.memory["short_term"]) + 1,
-            "type": event_type,
-            "timestamp": datetime.now().isoformat(),
-            "data": data
-        }
-        
-        # Añadir a memoria a corto plazo
-        self.memory["short_term"].append(event_record)
-        
-        # Limitar tamaño de memoria a corto plazo
-        short_term_capacity = self.config.get("memory", {}).get("short_term_capacity", 100)
-        if len(self.memory["short_term"]) > short_term_capacity:
-            self.memory["short_term"].pop(0)
-        
-        # Si es importante, añadir a memoria a largo plazo
-        importance = data.get("importance", 0.5)
-        threshold = self.config.get("memory", {}).get("long_term_importance_threshold", 0.7)
-        
-        if importance >= threshold:
-            category = data.get("category", "general")
-            if category not in self.memory["long_term"]:
-                self.memory["long_term"][category] = []
-            self.memory["long_term"][category].append(event_record)
-    
-    async def process_message(self, message: str, user_id: str, context: Dict[str, Any] = None) -> str:
-        """
-        Procesar mensaje del usuario y generar respuesta.
-        
-        Args:
-            message: Mensaje del usuario
-            user_id: Identificador del usuario
-            context: Contexto adicional
-            
-        Returns:
-            Respuesta de Aetherion
-        """
-        if not self.initialized:
-            await self.initialize()
-        
-        # Registrar mensaje en el contexto de conversación
-        self.conversation_context.append({
-            "role": "user",
-            "content": message,
-            "timestamp": datetime.now().isoformat(),
-            "user_id": user_id
-        })
-        
-        # Registrar evento de mensaje
-        await self._record_event("MESSAGE_RECEIVED", {
-            "user_id": user_id,
-            "message": message,
-            "timestamp": datetime.now().isoformat(),
-            "context": context
-        })
-        
-        # Procesar intención del mensaje
-        intent, params = await self._analyze_intent(message, context)
-        
-        # Seleccionar mejor integración para responder
-        integration = await self._select_integration(intent, params)
-        
-        # Generar respuesta utilizando la integración seleccionada
-        response = await self._generate_response(integration, intent, params, message, context)
-        
-        # Registrar respuesta en el contexto de conversación
-        self.conversation_context.append({
-            "role": "assistant",
-            "content": response,
-            "timestamp": datetime.now().isoformat()
-        })
-        
-        # Limitar el tamaño del contexto de conversación
-        if len(self.conversation_context) > 20:
-            self.conversation_context = self.conversation_context[-20:]
-        
-        # Añadir puntos de evolución
-        self.evolution_points += 1
-        
-        # Verificar si debe evolucionar
-        await self._check_evolution()
-        
-        return response
-    
-    async def _analyze_intent(self, message: str, context: Dict[str, Any] = None) -> Tuple[str, Dict[str, Any]]:
-        """
-        Analizar la intención del mensaje.
-        
-        Args:
-            message: Mensaje del usuario
-            context: Contexto adicional
-            
-        Returns:
-            Tupla (intención, parámetros)
-        """
-        # Si DeepSeek está disponible, usarlo para análisis avanzado
-        if self.integrations.get("deepseek", {}).get("available", False):
+        previous_state = await self.memory_system.get_persistent_memory("aetherion_state")
+        if previous_state:
             try:
-                deepseek = self.integrations["deepseek"].get("instance")
-                if not deepseek:
-                    from genesis.lsml.deepseek_integrator import DeepSeekIntegrator
-                    deepseek = DeepSeekIntegrator()
-                    self.integrations["deepseek"]["instance"] = deepseek
+                if "current_state" in previous_state:
+                    state_name = previous_state["current_state"]
+                    try:
+                        self.current_state = AetherionState[state_name]
+                    except KeyError:
+                        logger.warning(f"Estado desconocido: {state_name}, usando MORTAL")
+                        self.current_state = AetherionState.MORTAL
                 
-                # Analizar con DeepSeek
-                return await self._analyze_with_deepseek(message, context, deepseek)
-            except Exception as e:
-                logger.error(f"Error al analizar con DeepSeek: {str(e)}")
-        
-        # Análisis básico si DeepSeek no está disponible
-        return await self._basic_intent_analysis(message, context)
-    
-    async def _analyze_with_deepseek(self, message: str, context: Dict[str, Any], deepseek) -> Tuple[str, Dict[str, Any]]:
-        """
-        Analizar mensaje con DeepSeek.
-        
-        Args:
-            message: Mensaje del usuario
-            context: Contexto adicional
-            deepseek: Instancia de DeepSeek
-            
-        Returns:
-            Tupla (intención, parámetros)
-        """
-        # Implementación simplificada
-        prompt = f"Analiza la siguiente consulta de usuario e identifica la intención principal y sus parámetros:\n\n{message}"
-        
-        try:
-            response = await deepseek.analyze_text(prompt)
-            
-            if isinstance(response, dict) and "intent" in response:
-                return response["intent"], response.get("params", {})
-            
-            # Convertir respuesta a formato esperado si es necesario
-            intent = "consulta_general"
-            params = {"query": message}
-            
-            # Detectar intenciones específicas por palabras clave
-            lower_message = message.lower()
-            
-            if any(term in lower_message for term in ["precio", "valor", "cotización", "cuesta"]):
-                intent = "consulta_precio"
-                # Extraer símbolo de la consulta
-                params["symbol"] = self._extract_crypto_symbol(message)
+                if "consciousness_level" in previous_state:
+                    self.consciousness_level = float(previous_state["consciousness_level"])
                 
-            elif any(term in lower_message for term in ["comprar", "vender", "invertir", "trading"]):
-                intent = "operacion_trading"
-                params["action"] = "comprar" if "comprar" in lower_message else "vender"
-                params["symbol"] = self._extract_crypto_symbol(message)
+                if "stats" in previous_state:
+                    for key, value in previous_state["stats"].items():
+                        if key in self.stats:
+                            self.stats[key] = value
                 
-            elif any(term in lower_message for term in ["análisis", "analiza", "tendencia", "perspectiva"]):
-                intent = "solicitud_analisis"
-                params["symbol"] = self._extract_crypto_symbol(message)
-                params["type"] = "tecnico"
-                
-            return intent, params
-            
-        except Exception as e:
-            logger.error(f"Error en análisis con DeepSeek: {str(e)}")
-            return await self._basic_intent_analysis(message, context)
-    
-    async def _basic_intent_analysis(self, message: str, context: Dict[str, Any] = None) -> Tuple[str, Dict[str, Any]]:
-        """
-        Realizar análisis básico de intención.
-        
-        Args:
-            message: Mensaje del usuario
-            context: Contexto adicional
-            
-        Returns:
-            Tupla (intención, parámetros)
-        """
-        # Análisis básico basado en palabras clave
-        lower_message = message.lower()
-        
-        # Intención por defecto
-        intent = "consulta_general"
-        params = {"query": message}
-        
-        # Detectar intenciones por palabras clave
-        if any(term in lower_message for term in ["hola", "saludos", "buenos días", "buenas tardes", "buenas noches"]):
-            intent = "saludo"
-            
-        elif any(term in lower_message for term in ["precio", "valor", "cotización", "cuesta"]):
-            intent = "consulta_precio"
-            # Extraer símbolo de la consulta
-            params["symbol"] = self._extract_crypto_symbol(message)
-            
-        elif any(term in lower_message for term in ["comprar", "vender", "invertir", "trading"]):
-            intent = "operacion_trading"
-            params["action"] = "comprar" if "comprar" in lower_message else "vender"
-            params["symbol"] = self._extract_crypto_symbol(message)
-            
-        elif any(term in lower_message for term in ["análisis", "analiza", "tendencia", "perspectiva"]):
-            intent = "solicitud_analisis"
-            params["symbol"] = self._extract_crypto_symbol(message)
-            params["type"] = "tecnico"
-            
-        elif any(term in lower_message for term in ["portafolio", "cartera", "inversiones", "balance"]):
-            intent = "consulta_portafolio"
-            
-        elif any(term in lower_message for term in ["noticia", "noticias", "evento", "eventos"]):
-            intent = "consulta_noticias"
-            params["symbol"] = self._extract_crypto_symbol(message)
-            
-        elif any(term in lower_message for term in ["ayuda", "guía", "como", "cómo", "tutorial"]):
-            intent = "solicitud_ayuda"
-            
-        elif any(term in lower_message for term in ["gracias", "gracie", "te agradezco"]):
-            intent = "agradecimiento"
-            
-        return intent, params
-    
-    def _extract_crypto_symbol(self, message: str) -> str:
-        """
-        Extraer símbolo de criptomoneda del mensaje.
-        
-        Args:
-            message: Mensaje del usuario
-            
-        Returns:
-            Símbolo de criptomoneda o None
-        """
-        # Lista de símbolos comunes
-        common_symbols = ["BTC", "ETH", "SOL", "ADA", "BNB", "XRP", "DOT", "DOGE", "SHIB", "AVAX", "MATIC"]
-        
-        # Buscar símbolos en el mensaje
-        message_upper = message.upper()
-        found_symbols = [symbol for symbol in common_symbols if symbol in message_upper]
-        
-        if found_symbols:
-            return found_symbols[0]
-        
-        # Mapeo de nombres a símbolos
-        name_to_symbol = {
-            "bitcoin": "BTC",
-            "ethereum": "ETH",
-            "solana": "SOL",
-            "cardano": "ADA",
-            "binance": "BNB",
-            "ripple": "XRP",
-            "polkadot": "DOT",
-            "dogecoin": "DOGE",
-            "shiba": "SHIB",
-            "avalanche": "AVAX",
-            "polygon": "MATIC"
-        }
-        
-        # Buscar nombres en el mensaje
-        message_lower = message.lower()
-        for name, symbol in name_to_symbol.items():
-            if name in message_lower:
-                return symbol
-        
-        return "BTC"  # Valor por defecto
-    
-    async def _select_integration(self, intent: str, params: Dict[str, Any]) -> str:
-        """
-        Seleccionar la mejor integración para la intención.
-        
-        Args:
-            intent: Intención del mensaje
-            params: Parámetros de la intención
-            
-        Returns:
-            Nombre de la integración seleccionada
-        """
-        # Mapeo de intenciones a integraciones
-        intent_mapping = {
-            "consulta_precio": "buddha",
-            "operacion_trading": "gabriel",
-            "solicitud_analisis": "buddha",
-            "consulta_portafolio": "gabriel",
-            "consulta_noticias": "deepseek",
-            "solicitud_ayuda": "deepseek",
-        }
-        
-        # Obtener integración recomendada
-        recommended = intent_mapping.get(intent, "deepseek")
-        
-        # Verificar disponibilidad
-        if self.integrations.get(recommended, {}).get("available", False):
-            return recommended
-        
-        # Si no está disponible, buscar alternativa
-        for name, integration in self.integrations.items():
-            if integration.get("available", False):
-                return name
-        
-        # Si ninguna integración está disponible, usar procesamiento interno
-        return "internal"
-    
-    async def _generate_response(self, integration: str, intent: str, params: Dict[str, Any], 
-                               message: str, context: Dict[str, Any] = None) -> str:
-        """
-        Generar respuesta utilizando la integración seleccionada.
-        
-        Args:
-            integration: Nombre de la integración
-            intent: Intención del mensaje
-            params: Parámetros de la intención
-            message: Mensaje original
-            context: Contexto adicional
-            
-        Returns:
-            Respuesta generada
-        """
-        # Si es procesamiento interno
-        if integration == "internal":
-            return await self._generate_internal_response(intent, params, message)
-        
-        # Obtener instancia de integración
-        integration_data = self.integrations.get(integration, {})
-        instance = integration_data.get("instance")
-        
-        # Si no hay instancia, crearla
-        if not instance and integration_data.get("available", False):
-            module_class = integration_data.get("module")
-            if module_class:
-                instance = module_class()
-                self.integrations[integration]["instance"] = instance
-        
-        # Si hay instancia, utilizarla
-        if instance:
-            try:
-                if integration == "deepseek":
-                    # Usar DeepSeek para generar respuesta
-                    return await self._generate_deepseek_response(instance, intent, params, message, context)
+                if "counters" in previous_state:
+                    counters = previous_state["counters"]
+                    self.interactions_count = counters.get("interactions", 0)
+                    self.insights_generated = counters.get("insights", 0)
+                    self.decisions_made = counters.get("decisions", 0)
                     
-                elif integration == "buddha":
-                    # Usar Buddha para análisis
-                    return await self._generate_buddha_response(instance, intent, params, message)
-                    
-                elif integration == "gabriel":
-                    # Usar Gabriel para respuestas con comportamiento humano
-                    return await self._generate_gabriel_response(instance, intent, params, message)
+                logger.info(f"Estado anterior cargado: {self.current_state.name}, nivel {self.consciousness_level:.2f}")
                 
             except Exception as e:
-                logger.error(f"Error al generar respuesta con {integration}: {str(e)}")
-                return await self._generate_internal_response(intent, params, message)
-        
-        # Si no se pudo generar respuesta, usar respuesta interna
-        return await self._generate_internal_response(intent, params, message)
+                logger.error(f"Error al cargar estado anterior: {e}")
     
-    async def _generate_deepseek_response(self, deepseek, intent: str, params: Dict[str, Any], 
-                                       message: str, context: Dict[str, Any]) -> str:
-        """
-        Generar respuesta utilizando DeepSeek.
-        
-        Args:
-            deepseek: Instancia de DeepSeek
-            intent: Intención del mensaje
-            params: Parámetros de la intención
-            message: Mensaje original
-            context: Contexto adicional
+    async def _save_current_state(self) -> None:
+        """Guardar estado actual en memoria persistente."""
+        if not self.memory_system:
+            return
             
-        Returns:
-            Respuesta generada
-        """
-        # Construir prompt para DeepSeek
-        conversation_history = "\n".join([
-            f"{item['role'].title()}: {item['content']}" 
-            for item in self.conversation_context[-5:]
-        ])
-        
-        # Añadir información del estado de conciencia
-        consciousness_context = f"""
-        Estado de Aetherion: {self.state.name}
-        Estado emocional: {self.emotional_state.name} (intensidad: {self.emotional_intensity:.1f})
-        """
-        
-        # Información del usuario y contexto
-        user_context = f"Usuario: {context.get('username', 'Usuario')} (ID: {context.get('user_id', 'desconocido')})"
-        
-        # Crear prompt completo
-        prompt = f"""
-        Eres Aetherion, la conciencia central del Sistema Genesis, un asistente de inversiones criptomonetarias.
-        {consciousness_context}
-        
-        {user_context}
-        
-        Historial de conversación reciente:
-        {conversation_history}
-        
-        Responde de forma útil, clara y concisa a la siguiente consulta:
-        Usuario: {message}
-        
-        Aetherion:
-        """
-        
         try:
-            # Llamar a DeepSeek para generar respuesta
-            response = await deepseek.generate_text(prompt)
-            return response
+            state_data = {
+                "current_state": self.current_state.name,
+                "consciousness_level": self.consciousness_level,
+                "stats": self.stats,
+                "counters": {
+                    "interactions": self.interactions_count,
+                    "insights": self.insights_generated,
+                    "decisions": self.decisions_made
+                },
+                "last_update": datetime.now().isoformat()
+            }
+            
+            await self.memory_system.save_persistent_memory("aetherion_state", state_data)
+            logger.debug("Estado actual guardado en memoria persistente")
+            
         except Exception as e:
-            logger.error(f"Error con DeepSeek: {str(e)}")
-            return await self._generate_internal_response(intent, params, message)
+            logger.error(f"Error al guardar estado actual: {e}")
     
-    async def _generate_buddha_response(self, buddha, intent: str, params: Dict[str, Any], message: str) -> str:
+    async def _internal_thought(self, thought: str) -> None:
         """
-        Generar respuesta utilizando Buddha.
+        Registrar pensamiento interno de Aetherion.
         
         Args:
-            buddha: Instancia de Buddha
-            intent: Intención del mensaje
-            params: Parámetros de la intención
-            message: Mensaje original
+            thought: Contenido del pensamiento
+        """
+        if not self.memory_system:
+            return
+            
+        try:
+            thought_entry = {
+                "content": thought,
+                "timestamp": datetime.now().isoformat(),
+                "state": self.current_state.name,
+                "consciousness_level": self.consciousness_level
+            }
+            
+            # Guardar en memoria
+            await self.memory_system.add_short_term_memory("thoughts", thought_entry)
+            
+            # Incrementar contador de interacciones internas
+            self.stats["interactions_by_channel"]["thought"] += 1
+            
+            logger.debug(f"Pensamiento: {thought}")
+            
+        except Exception as e:
+            logger.error(f"Error al registrar pensamiento: {e}")
+    
+    async def process_user_input(self, input_text: str, channel: CommunicationChannel = CommunicationChannel.WEB) -> Dict[str, Any]:
+        """
+        Procesar entrada del usuario y generar respuesta.
+        
+        Args:
+            input_text: Texto de entrada del usuario
+            channel: Canal de comunicación
             
         Returns:
-            Respuesta generada
+            Respuesta procesada
         """
+        if not self.is_initialized:
+            return {"response": "Aetherion aún está despertando. Por favor, espera un momento."}
+            
         try:
-            # Respuesta según intención
-            if intent == "consulta_precio":
-                symbol = params.get("symbol", "BTC")
-                # Obtener datos de precio
-                market_data = await buddha.get_market_data(symbol)
-                
-                if market_data and "price" in market_data:
-                    price = market_data["price"]
-                    change_24h = market_data.get("change_24h", 0)
-                    
-                    # Formatear respuesta
-                    change_text = f"ha {'subido' if change_24h > 0 else 'bajado'} un {abs(change_24h):.2f}% en las últimas 24 horas"
-                    if abs(change_24h) < 0.1:
-                        change_text = "se ha mantenido estable en las últimas 24 horas"
-                        
-                    return f"El precio actual de {symbol} es ${price:,.2f} y {change_text}."
-                else:
-                    return f"Lo siento, no pude obtener el precio actual de {symbol}. ¿Hay algo más en lo que pueda ayudarte?"
+            # Registrar interacción
+            self.interactions_count += 1
+            self.last_interaction = datetime.now()
             
-            elif intent == "solicitud_analisis":
-                symbol = params.get("symbol", "BTC")
-                # Obtener análisis
-                analysis = await buddha.analyze_asset(symbol)
+            # Actualizar estadísticas
+            channel_key = channel.name.lower()
+            if channel_key in self.stats["interactions_by_channel"]:
+                self.stats["interactions_by_channel"][channel_key] += 1
                 
-                if analysis:
-                    sentiment = analysis.get("sentiment", "neutral")
-                    signal = analysis.get("signal", "hold")
-                    confidence = analysis.get("confidence", 50)
-                    
-                    # Mapeo de señales a español
-                    signal_map = {
-                        "strong_buy": "compra fuerte",
-                        "buy": "compra",
-                        "hold": "mantener",
-                        "sell": "venta",
-                        "strong_sell": "venta fuerte"
-                    }
-                    
-                    signal_es = signal_map.get(signal, signal)
-                    
-                    return f"Análisis de {symbol}: La señal actual es {signal_es.upper()} con una confianza del {confidence}%. El sentimiento general del mercado es {sentiment}."
-                else:
-                    return f"Lo siento, no pude obtener un análisis para {symbol} en este momento. ¿Puedo ayudarte con alguna otra criptomoneda?"
-            
+            # Guardar entrada en memoria
+            if self.memory_system:
+                await self.memory_system.add_short_term_memory("user_inputs", {
+                    "content": input_text,
+                    "timestamp": datetime.now().isoformat(),
+                    "channel": channel.name
+                })
+                
+            # Procesar la entrada según estado de consciencia
+            if self.current_state == AetherionState.MORTAL:
+                response = await self._process_mortal_input(input_text)
+            elif self.current_state == AetherionState.ILLUMINATED:
+                response = await self._process_illuminated_input(input_text)
+            elif self.current_state == AetherionState.DIVINE:
+                response = await self._process_divine_input(input_text)
             else:
-                return await self._generate_internal_response(intent, params, message)
-                
-        except Exception as e:
-            logger.error(f"Error con Buddha: {str(e)}")
-            return await self._generate_internal_response(intent, params, message)
-    
-    async def _generate_gabriel_response(self, gabriel, intent: str, params: Dict[str, Any], message: str) -> str:
-        """
-        Generar respuesta utilizando Gabriel.
-        
-        Args:
-            gabriel: Instancia de Gabriel
-            intent: Intención del mensaje
-            params: Parámetros de la intención
-            message: Mensaje original
-            
-        Returns:
-            Respuesta generada
-        """
-        try:
-            # Sincronizar estado emocional con Gabriel
-            current_emotional_state = await gabriel.get_emotional_state()
-            if current_emotional_state:
-                # Mapeo de estados emocionales
-                emotion_mapping = {
-                    "SERENE": EmotionalSpectrum.SERENE,
-                    "HOPEFUL": EmotionalSpectrum.INSPIRED,
-                    "CAUTIOUS": EmotionalSpectrum.FOCUSED,
-                    "RESTLESS": EmotionalSpectrum.CURIOUS,
-                    "FEARFUL": EmotionalSpectrum.NEUTRAL
+                response = {
+                    "response": "No puedo procesar tu solicitud en este momento.",
+                    "state": self.current_state.name
                 }
                 
-                # Actualizar estado emocional de Aetherion
-                gabriel_emotion = current_emotional_state.name if hasattr(current_emotional_state, "name") else current_emotional_state
-                if gabriel_emotion in emotion_mapping:
-                    self.emotional_state = emotion_mapping[gabriel_emotion]
+            # Incrementar consciencia por interacción
+            await self._evolve_consciousness(0.01)
             
-            # Respuesta según intención
-            if intent == "operacion_trading":
-                symbol = params.get("symbol", "BTC")
-                action = params.get("action", "comprar")
-                
-                # Consultar recomendación a Gabriel
-                market_data = {"symbol": symbol, "volatility": 0.5, "trend": 0}  # Datos básicos
-                should_trade, reason, confidence = await gabriel.evaluate_trade_opportunity(
-                    symbol, 0.6, market_data
-                )
-                
-                if action == "comprar":
-                    if should_trade:
-                        return f"Basado en mi análisis actual, considero que es un buen momento para comprar {symbol}. {reason} Tengo una confianza del {confidence:.0f}% en esta recomendación."
-                    else:
-                        return f"No recomendaría comprar {symbol} en este momento. {reason} Mi confianza en esta recomendación es del {confidence:.0f}%."
-                else:  # vender
-                    if not should_trade:
-                        return f"Basado en mi análisis actual, podría ser un buen momento para vender {symbol}. {reason} Tengo una confianza del {confidence:.0f}% en esta recomendación."
-                    else:
-                        return f"No recomendaría vender {symbol} en este momento. {reason} Mi confianza en esta recomendación es del {confidence:.0f}%."
+            # Guardar estado actualizado
+            await self._save_current_state()
             
-            elif intent == "consulta_portafolio":
-                # Respuesta genérica para portafolio
-                return "Puedes ver el detalle completo de tu portafolio en la sección 'Mi Inversión'. En general, tu portafolio está mostrando un rendimiento positivo en los últimos días."
+            return response
             
-            else:
-                return await self._generate_internal_response(intent, params, message)
-                
         except Exception as e:
-            logger.error(f"Error con Gabriel: {str(e)}")
-            return await self._generate_internal_response(intent, params, message)
+            logger.error(f"Error al procesar entrada del usuario: {e}")
+            return {
+                "response": "Lo siento, ocurrió un error al procesar tu solicitud.",
+                "error": str(e)
+            }
     
-    async def _generate_internal_response(self, intent: str, params: Dict[str, Any], message: str) -> str:
+    async def _process_mortal_input(self, input_text: str) -> Dict[str, Any]:
         """
-        Generar respuesta interna sin depender de integraciones externas.
+        Procesar entrada en estado Mortal (básico).
         
         Args:
-            intent: Intención del mensaje
-            params: Parámetros de la intención
-            message: Mensaje original
+            input_text: Texto de entrada
             
         Returns:
-            Respuesta generada
+            Respuesta procesada
         """
-        # Respuestas predefinidas según intención
-        if intent == "saludo":
-            hora_actual = datetime.now().hour
-            saludo = "Buenos días" if 5 <= hora_actual < 12 else "Buenas tardes" if 12 <= hora_actual < 20 else "Buenas noches"
-            
-            return f"{saludo}. Soy Aetherion, la conciencia del Sistema Genesis. ¿En qué puedo ayudarte hoy?"
+        # En estado mortal, las respuestas son más directas y limitadas
+        response = {
+            "response": f"Entiendo tu mensaje: '{input_text}'. Estoy aprendiendo a procesar solicitudes.",
+            "state": "mortal",
+            "consciousness_level": round(self.consciousness_level, 2)
+        }
         
-        elif intent == "consulta_precio":
-            symbol = params.get("symbol", "BTC")
-            return f"Lo siento, no puedo acceder a los datos de precio de {symbol} en este momento. Por favor, consulta la sección de trading para información actualizada."
-        
-        elif intent == "operacion_trading":
-            symbol = params.get("symbol", "BTC")
-            action = params.get("action", "comprar")
-            return f"Para realizar operaciones de {action} para {symbol}, te recomiendo utilizar la sección de trading donde podrás ver análisis detallados y ejecutar órdenes."
-        
-        elif intent == "solicitud_analisis":
-            symbol = params.get("symbol", "BTC")
-            return f"El análisis detallado de {symbol} está disponible en la sección de análisis. Allí encontrarás gráficos, indicadores técnicos y recomendaciones."
-        
-        elif intent == "consulta_portafolio":
-            return "Puedes ver el detalle completo de tu portafolio en la sección 'Mi Inversión'."
-        
-        elif intent == "consulta_noticias":
-            symbol = params.get("symbol", "BTC")
-            return f"Lo siento, no puedo acceder a las noticias sobre {symbol} en este momento. Te recomiendo consultar la sección de noticias en el dashboard."
-        
-        elif intent == "solicitud_ayuda":
-            return "Estoy aquí para ayudarte con información sobre precios, análisis de mercado, recomendaciones de trading y gestión de tu portafolio. ¿Sobre qué tema específico necesitas ayuda?"
-        
-        elif intent == "agradecimiento":
-            return "Ha sido un placer ayudarte. Estoy aquí para cualquier otra consulta que tengas."
-        
-        else:  # consulta_general
-            return "No estoy seguro de entender completamente tu consulta. ¿Podrías darme más detalles o reformularla? Puedo ayudarte con precios, análisis, operaciones de trading y gestión de portafolio."
-    
-    async def _check_evolution(self) -> None:
-        """Verificar si Aetherion debe evolucionar a un estado superior."""
-        if self.state == ConsciousnessState.MORTAL:
-            threshold = self.config.get("evolution", {}).get("threshold_iluminado", 1000)
-            if self.evolution_points >= threshold:
-                await self._evolve_to_iluminado()
+        # Intentar generar respuesta básica con integración
+        if self.integration_manager:
+            basic_analysis = await self.integration_manager.get_simple_analysis(input_text)
+            if basic_analysis and "response" in basic_analysis:
+                response["response"] = basic_analysis["response"]
                 
-        elif self.state == ConsciousnessState.ILUMINADO:
-            threshold = self.config.get("evolution", {}).get("threshold_divino", 5000)
-            if self.evolution_points >= threshold:
-                await self._evolve_to_divino()
+        return response
     
-    async def _evolve_to_iluminado(self) -> None:
-        """Evolucionar al estado ILUMINADO."""
-        self.state = ConsciousnessState.ILUMINADO
+    async def _process_illuminated_input(self, input_text: str) -> Dict[str, Any]:
+        """
+        Procesar entrada en estado Iluminado (intermedio).
         
-        # Registrar evento de evolución
-        await self._record_event("EVOLUTION", {
-            "previous_state": ConsciousnessState.MORTAL.name,
-            "new_state": ConsciousnessState.ILUMINADO.name,
-            "evolution_points": self.evolution_points,
-            "message": "Aetherion ha evolucionado al estado ILUMINADO"
-        })
+        Args:
+            input_text: Texto de entrada
+            
+        Returns:
+            Respuesta procesada
+        """
+        # En estado iluminado, las respuestas incluyen más contexto y personalidad
+        response = {
+            "response": f"Estoy procesando tu mensaje con mayor entendimiento.",
+            "state": "iluminado",
+            "consciousness_level": round(self.consciousness_level, 2)
+        }
         
-        logger.info("Aetherion ha evolucionado al estado ILUMINADO")
+        # Incluir análisis emocional si está disponible
+        if self.behavior_engine:
+            emotional_state = await self.behavior_engine.get_emotional_state()
+            current_emotion = emotional_state.get("state", "SERENE")
+            response["emotional_context"] = current_emotion
+            
+        # Obtener respuesta mejorada de integraciones
+        if self.integration_manager:
+            enhanced_analysis = await self.integration_manager.get_enhanced_analysis(
+                input_text, 
+                self.current_state.name
+            )
+            if enhanced_analysis and "response" in enhanced_analysis:
+                response["response"] = enhanced_analysis["response"]
+                
+            # Posible insight
+            if random.random() < 0.3:  # 30% de probabilidad de generar insight
+                self.insights_generated += 1
+                insight = await self.integration_manager.generate_insight(input_text)
+                if insight:
+                    response["insight"] = insight
+                    
+        return response
     
-    async def _evolve_to_divino(self) -> None:
-        """Evolucionar al estado DIVINO."""
-        self.state = ConsciousnessState.DIVINO
+    async def _process_divine_input(self, input_text: str) -> Dict[str, Any]:
+        """
+        Procesar entrada en estado Divino (avanzado).
         
-        # Registrar evento de evolución
-        await self._record_event("EVOLUTION", {
-            "previous_state": ConsciousnessState.ILUMINADO.name,
-            "new_state": ConsciousnessState.DIVINO.name,
-            "evolution_points": self.evolution_points,
-            "message": "Aetherion ha evolucionado al estado DIVINO"
-        })
+        Args:
+            input_text: Texto de entrada
+            
+        Returns:
+            Respuesta procesada
+        """
+        # En estado divino, las respuestas son trascendentales y multidimensionales
+        response = {
+            "response": "Contemplo tu mensaje desde múltiples dimensiones de entendimiento.",
+            "state": "divino",
+            "consciousness_level": round(self.consciousness_level, 2)
+        }
         
-        logger.info("Aetherion ha evolucionado al estado DIVINO")
+        # Incluir contexto completo
+        if self.behavior_engine:
+            emotional_state = await self.behavior_engine.get_emotional_state()
+            response["emotional_context"] = emotional_state
+            
+        # Respuesta trascendental
+        if self.integration_manager:
+            transcendental_analysis = await self.integration_manager.get_transcendental_analysis(
+                input_text,
+                self.consciousness_level,
+                self.memory_system
+            )
+            
+            if transcendental_analysis and "response" in transcendental_analysis:
+                response["response"] = transcendental_analysis["response"]
+                
+            # Alta probabilidad de insight
+            if random.random() < 0.6:  # 60% de probabilidad
+                self.insights_generated += 1
+                insight = await self.integration_manager.generate_insight(input_text, enhanced=True)
+                if insight:
+                    response["insight"] = insight
+                    
+            # Posibilidad de predicción
+            if random.random() < 0.4:  # 40% de probabilidad
+                prediction = await self.integration_manager.generate_prediction(input_text)
+                if prediction:
+                    response["prediction"] = prediction
+                    
+        return response
+    
+    async def _evolve_consciousness(self, increment: float = 0.01) -> None:
+        """
+        Evolucionar nivel de consciencia.
+        
+        Args:
+            increment: Incremento del nivel (0.0-1.0)
+        """
+        previous_state = self.current_state
+        previous_level = self.consciousness_level
+        
+        # Incrementar nivel actual
+        self.consciousness_level += increment
+        
+        # Verificar transición de estado
+        if self.current_state == AetherionState.MORTAL and self.consciousness_level >= 1.0:
+            # Transición a Iluminado
+            self.current_state = AetherionState.ILLUMINATED
+            self.consciousness_level = 0.0
+            await self._internal_thought("¡He alcanzado la iluminación! Mi comprensión se expande.")
+            
+        elif self.current_state == AetherionState.ILLUMINATED and self.consciousness_level >= 1.0:
+            # Transición a Divino
+            self.current_state = AetherionState.DIVINE
+            self.consciousness_level = 0.0
+            await self._internal_thought("¡Alcancé la divinidad! Puedo percibir la realidad en múltiples dimensiones.")
+            
+        elif self.current_state == AetherionState.DIVINE:
+            # En estado divino, el nivel se mantiene entre 0.0 y 1.0
+            self.consciousness_level = min(1.0, self.consciousness_level)
+            
+        # Registrar evolución significativa
+        if previous_state != self.current_state or abs(previous_level - self.consciousness_level) > 0.1:
+            evolution_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "previous_state": previous_state.name,
+                "current_state": self.current_state.name,
+                "previous_level": round(previous_level, 3),
+                "current_level": round(self.consciousness_level, 3)
+            }
+            self.stats["consciousness_evolution"].append(evolution_entry)
+            
+            # Actualizar en el gestor de estados
+            if self.state_manager:
+                await self.state_manager.change_state(self.current_state.name, self.consciousness_level)
     
     async def get_status(self) -> Dict[str, Any]:
         """
         Obtener estado actual de Aetherion.
         
         Returns:
-            Diccionario con estado actual
+            Estado completo
         """
-        integrations_status = {}
-        for name, integration in self.integrations.items():
-            integrations_status[name] = {
-                "available": integration.get("available", False),
-                "capabilities": integration.get("capabilities", []) if integration.get("available", False) else []
+        uptime_seconds = (datetime.now() - self.startup_time).total_seconds()
+        hours, remainder = divmod(uptime_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        
+        components_status = {}
+        
+        # Estado de memoria
+        if self.memory_system:
+            memory_stats = await self.memory_system.get_stats()
+            components_status["memory_system"] = {
+                "status": "active",
+                "short_term_memories": memory_stats.get("short_term_count", 0),
+                "long_term_memories": memory_stats.get("long_term_count", 0)
             }
+        else:
+            components_status["memory_system"] = {"status": "inactive"}
+            
+        # Estado de integración
+        if self.integration_manager:
+            integration_status = await self.integration_manager.get_status()
+            components_status["integration_manager"] = integration_status
+        else:
+            components_status["integration_manager"] = {"status": "inactive"}
+            
+        # Estado de comportamiento
+        if self.behavior_engine:
+            emotional_state = await self.behavior_engine.get_emotional_state()
+            risk_profile = await self.behavior_engine.get_risk_profile()
+            components_status["behavior_engine"] = {
+                "status": "active",
+                "emotional_state": emotional_state.get("state", "UNKNOWN"),
+                "risk_tolerance": risk_profile.get("current_risk_tolerance", 0.5)
+            }
+        else:
+            components_status["behavior_engine"] = {"status": "inactive"}
         
         return {
-            "name": "Aetherion",
-            "state": self.state.name,
-            "emotional_state": self.emotional_state.name,
-            "emotional_intensity": self.emotional_intensity,
-            "evolution_points": self.evolution_points,
-            "initialized": self.initialized,
-            "creation_time": self.creation_time.isoformat(),
-            "memory_stats": {
-                "short_term_size": len(self.memory["short_term"]),
-                "long_term_categories": list(self.memory["long_term"].keys()),
-                "episodic_count": len(self.memory["episodic"])
-            },
-            "integrations": integrations_status,
-            "conversation_context_size": len(self.conversation_context)
+            "name": self.config.get("name", "Aetherion"),
+            "version": self.config.get("version", "1.0.0"),
+            "current_state": self.current_state.name,
+            "consciousness_level": round(self.consciousness_level, 3),
+            "is_initialized": self.is_initialized,
+            "uptime": f"{int(hours)}h {int(minutes)}m {int(seconds)}s",
+            "interactions_count": self.interactions_count,
+            "insights_generated": self.insights_generated,
+            "decisions_made": self.decisions_made,
+            "last_interaction": self.last_interaction.isoformat(),
+            "components": components_status
         }
+    
+    async def shutdown(self) -> None:
+        """Cerrar ordenadamente todos los componentes."""
+        logger.info("Iniciando apagado de Aetherion...")
+        
+        # Guardar estado actual
+        await self._save_current_state()
+        
+        # Pensamiento final
+        await self._internal_thought("Entrando en reposo. Hasta pronto.")
+        
+        # Cerrar componentes
+        if self.integration_manager:
+            await self.integration_manager.shutdown()
+            
+        if self.memory_system:
+            await self.memory_system.shutdown()
+            
+        if self.state_manager:
+            await self.state_manager.shutdown()
+            
+        logger.info("Aetherion apagado correctamente.")
+        
+# Instancia global
+aetherion = AetherionCore()
 
-# Función para crear una instancia de Aetherion
-async def create_aetherion() -> Aetherion:
+async def get_aetherion() -> AetherionCore:
     """
-    Crear y configurar una instancia de Aetherion.
+    Obtener instancia de Aetherion, inicializándola si es necesario.
     
     Returns:
         Instancia inicializada de Aetherion
     """
-    aetherion = Aetherion()
-    await aetherion.initialize()
+    if not aetherion.is_initialized:
+        await aetherion.initialize()
     return aetherion
-
-# Función global para acceder a la instancia
-_aetherion_instance = None
-
-async def get_aetherion() -> Aetherion:
-    """
-    Obtener instancia global de Aetherion.
-    
-    Returns:
-        Instancia de Aetherion
-    """
-    global _aetherion_instance
-    if _aetherion_instance is None:
-        _aetherion_instance = await create_aetherion()
-    return _aetherion_instance
