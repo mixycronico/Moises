@@ -47,6 +47,19 @@ class TransactionType:
     LOAN_PAYMENT = "loan_payment"     # Pago de préstamo
     COMMISSION = "commission"         # Comisión para administrador
     FEE = "fee"                       # Comisión del sistema
+    MAINTENANCE_COLLECTION = "maintenance_collection"  # Recolección para fondo de mantenimiento
+    MAINTENANCE_USAGE = "maintenance_usage"           # Uso de fondos de mantenimiento
+    ANNUAL_DISTRIBUTION = "annual_distribution"       # Distribución anual del excedente
+
+# Tipos de auditoría
+class AuditActionType:
+    """Tipos de acciones para auditoría."""
+    MAINTENANCE_FUND_COLLECTION = "maintenance_collection"  # Recolección para fondo de mantenimiento
+    MAINTENANCE_FUND_USAGE = "maintenance_usage"            # Uso de fondos de mantenimiento
+    ANNUAL_DISTRIBUTION = "annual_distribution"             # Distribución anual del excedente
+    SYSTEM_CONFIG_CHANGE = "system_config_change"           # Cambio en configuración del sistema
+    INVESTOR_STATUS_CHANGE = "investor_status_change"       # Cambio en estado de inversionista
+    ADMIN_ACTION = "admin_action"                          # Acción administrativa general
 
 class InvestorManager:
     """
@@ -103,6 +116,12 @@ class InvestorManager:
                 
             # Inicializar estadísticas diarias
             await self._initialize_daily_stats()
+            
+            # Verificar y ejecutar recolección semanal para fondo de mantenimiento si es necesario
+            await self._check_maintenance_fund_collection()
+            
+            # Verificar y ejecutar distribución anual si es necesario
+            await self._check_annual_distribution()
                 
             self.initialized = True
             self.logger.info(f"InvestorManager inicializado con {len(self.investors)} inversionistas")
@@ -152,6 +171,14 @@ class InvestorManager:
                 for key, value in bonus_data.items():
                     bonus_id = key.split(":", 1)[1]
                     self.performance_bonuses[bonus_id] = json.loads(value)
+            
+            # Cargar información del fondo de mantenimiento
+            maintenance_data = await self.db.get("system:maintenance_fund")
+            if maintenance_data:
+                maintenance_info = json.loads(maintenance_data)
+                self.maintenance_fund = Decimal(str(maintenance_info.get("balance", 0)))
+                self.last_maintenance_collection = maintenance_info.get("last_collection")
+                self.annual_distribution_date = maintenance_info.get("annual_distribution_date")
                 
             # Calcular capital total
             self.total_capital = Decimal('0')
@@ -371,6 +398,7 @@ class InvestorManager:
                 "active_investors": sum(1 for i in investors_list if i["status"] == InvestorStatus.ACTIVE),
                 "total_capital": float(self.total_capital),
                 "total_profit_distributed": sum(float(i["total_profit"]) for i in investors_list),
+                "maintenance_fund": float(self.maintenance_fund),
                 "daily_stats": self.daily_stats
             }
             
