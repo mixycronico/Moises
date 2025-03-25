@@ -124,28 +124,41 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        role = request.form.get('role')
         
         # Simulación de login - En producción usar autenticación real
         if username and password:
-            # Aquí podríamos consultar la base de datos
+            # Determinar rol basado en el nombre de usuario
+            role = 'investor'  # Por defecto es inversionista
+            
+            # Buscar en la lista de inversionistas
+            super_admin_names = ["moises", "moises alvarenga", "jeremias", "jeremias lazo", "stephany", "stephany sandoval"]
+            admin_names = ["admin", "administrador"]
+            
+            # Convertir el nombre de usuario a minúsculas para comparación no sensible a mayúsculas
+            username_lower = username.lower()
+            
+            # Verificar si es superadmin de forma exacta
+            if username_lower == "moises alvarenga" or username_lower == "moises" or username_lower in super_admin_names:
+                role = 'super_admin'
+            # Verificar si es admin regular
+            elif any(admin_name in username_lower for admin_name in admin_names):
+                role = 'admin'
+            
+            # Guardar en sesión
             session['logged_in'] = True
             session['username'] = username
             session['role'] = role
             
-            # Simulación de super admin para los usuarios específicos
-            if username.lower() in ["moises", "moises alvarenga", "jeremias", "jeremias lazo", "stephany", "stephany sandoval"]:
-                session['role'] = 'super_admin'
+            # Mostrar mensaje y redireccionar según rol
+            if role == 'super_admin':
                 flash(f'Bienvenido/a Super Administrador {username}!', 'success')
                 return redirect(url_for('dashboard'))
-            
-            # Redirección basada en rol
-            if role == 'investor':
-                flash(f'Bienvenido/a Inversionista {username}!', 'success')
-                return redirect(url_for('investor_home'))
-            else:
+            elif role == 'admin':
                 flash(f'Bienvenido/a Administrador {username}!', 'success')
                 return redirect(url_for('dashboard'))
+            else:
+                flash(f'Bienvenido/a Inversionista {username}!', 'success')
+                return redirect(url_for('investor_home'))
         else:
             flash('Por favor, ingresa usuario y contraseña', 'error')
     

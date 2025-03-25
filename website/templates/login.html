@@ -212,29 +212,23 @@
         
         <form method="post" action="{{ url_for('login') }}" class="login-form">
             <div class="form-group">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" id="email" name="email" class="form-control" required>
-                <span class="form-icon"><i class="fas fa-envelope"></i></span>
+                <label for="username" class="form-label">Usuario</label>
+                <input type="text" id="username" name="username" class="form-control" required>
+                <span class="form-icon"><i class="fas fa-user"></i></span>
             </div>
             
             <div class="form-group">
                 <label for="password" class="form-label">Contraseña</label>
-                <input type="password" id="password" name="password" class="form-control" required>
-                <span class="form-icon"><i class="fas fa-lock"></i></span>
-            </div>
-            
-            <div class="role-selector">
-                <div class="role-option investor selected" data-role="investor">
-                    <div class="role-icon"><i class="fas fa-user"></i></div>
-                    <div class="role-name">Inversionista</div>
-                </div>
-                <div class="role-option admin" data-role="admin">
-                    <div class="role-icon"><i class="fas fa-user-shield"></i></div>
-                    <div class="role-name">Administrador</div>
+                <div style="position: relative;">
+                    <input type="password" id="password" name="password" class="form-control" required>
+                    <span class="form-icon" style="cursor: pointer;" id="togglePassword">
+                        <i class="fas fa-eye-slash"></i>
+                    </span>
                 </div>
             </div>
             
-            <input type="hidden" id="role" name="role" value="investor">
+            <!-- Quitamos la selección de rol ya que se determinará automáticamente -->
+            <input type="hidden" id="role" name="role" value="auto">
             
             <button type="submit" class="btn btn-primary btn-login">
                 <i class="fas fa-sign-in-alt"></i> Ingresar
@@ -251,23 +245,6 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Cambiar selección de rol
-    const roleOptions = document.querySelectorAll('.role-option');
-    const roleInput = document.getElementById('role');
-    
-    roleOptions.forEach(option => {
-        option.addEventListener('click', function() {
-            // Quitar selección de todas las opciones
-            roleOptions.forEach(opt => opt.classList.remove('selected'));
-            
-            // Añadir selección a la opción clickeada
-            this.classList.add('selected');
-            
-            // Actualizar valor del input hidden
-            roleInput.value = this.dataset.role;
-        });
-    });
-    
     // Efecto para los campos de formulario
     const formControls = document.querySelectorAll('.form-control');
     
@@ -288,6 +265,31 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // Toggle para mostrar/ocultar contraseña
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', function() {
+            // Cambiar el tipo de input
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Cambiar el icono
+            const icon = this.querySelector('i');
+            if (type === 'password') {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+            
+            // Efecto visual
+            this.style.color = type === 'password' ? 'var(--medium-text)' : 'var(--cyan-color)';
+        });
+    }
 });
 </script>
 {% endblock %}
