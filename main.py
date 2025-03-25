@@ -5,6 +5,12 @@ Este módulo inicializa y arranca el sistema, configurando todos los componentes
 y proporcionando el punto de entrada principal para la operación.
 También expone la aplicación Flask para Gunicorn, incluyendo la API REST
 para integración con componentes cloud externos.
+
+El sistema incluye:
+- Orquestador Seraphim con motor de comportamiento humano Gabriel
+- Sistema de escalabilidad de capital adaptativo
+- Principio "todos ganamos o todos perdemos" en todas las operaciones
+- Integración con APIs externas
 """
 
 import os
@@ -64,17 +70,73 @@ async def init_cloud_components():
         logger.exception(f"Error al inicializar componentes cloud: {e}")
         return False
 
+# Intentar importar componentes Seraphim
+try:
+    from genesis.init.seraphim_initializer import (
+        initialize_seraphim_strategy,
+        get_seraphim_strategy,
+        integrate_with_genesis
+    )
+    HAS_SERAPHIM = True
+except ImportError:
+    logger.warning("Componentes Seraphim no disponibles")
+    HAS_SERAPHIM = False
+
+# Función para inicializar Seraphim
+async def init_seraphim_components():
+    """Inicializar componentes Seraphim."""
+    if not HAS_SERAPHIM:
+        return False
+    
+    try:
+        logger.info("Inicializando estrategia Seraphim...")
+        
+        # Importar componentes necesarios
+        from genesis.accounting.capital_scaling import CapitalScalingManager
+        
+        # Obtener gestor de capital si está disponible
+        capital_manager = None
+        try:
+            from genesis.init.scaling_initializer import get_scaling_manager
+            capital_manager = get_scaling_manager()
+        except ImportError:
+            logger.warning("Gestor de capital no disponible, se creará uno nuevo")
+        
+        # Integrar con Genesis
+        success = await integrate_with_genesis(
+            scaling_manager=capital_manager,
+            capital_base=10000.0,
+            symbols=["BTC/USDT", "ETH/USDT", "XRP/USDT", "ADA/USDT", "SOL/USDT"]
+        )
+        
+        if success:
+            logger.info("Estrategia Seraphim integrada correctamente")
+        else:
+            logger.error("No se pudo integrar la estrategia Seraphim")
+        
+        return success
+        
+    except Exception as e:
+        logger.exception(f"Error al inicializar componentes Seraphim: {e}")
+        return False
+
 # Función sincrónica para inicialización
 def init_components():
     """Inicializar todos los componentes."""
-    # Inicializar componentes cloud de forma asincrónica
-    if HAS_CLOUD_COMPONENTS:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
+    # Inicializar componentes de forma asincrónica
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        # Inicializar componentes cloud si están disponibles
+        if HAS_CLOUD_COMPONENTS:
             loop.run_until_complete(init_cloud_components())
-        finally:
-            loop.close()
+        
+        # Inicializar componentes Seraphim si están disponibles
+        if HAS_SERAPHIM:
+            loop.run_until_complete(init_seraphim_components())
+    finally:
+        loop.close()
 
 # Ejecutar inicialización
 init_components()
@@ -109,6 +171,96 @@ def cloud_status():
         return jsonify({
             "available": True,
             "components": components
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "available": True,
+            "error": str(e)
+        })
+
+# Crear endpoint para estado de Seraphim
+@flask_app.route("/api/seraphim-status")
+def seraphim_status():
+    """Verificar estado de la estrategia Seraphim."""
+    if not HAS_SERAPHIM:
+        return jsonify({
+            "available": False,
+            "message": "Estrategia Seraphim no disponible"
+        })
+    
+    try:
+        # Obtener estrategia
+        from genesis.init.seraphim_initializer import get_seraphim_strategy
+        strategy = get_seraphim_strategy()
+        
+        if not strategy:
+            return jsonify({
+                "available": True,
+                "initialized": False,
+                "message": "Estrategia Seraphim no inicializada"
+            })
+        
+        # Obtener estado asíncrono
+        def get_status():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(strategy.get_system_status())
+            finally:
+                loop.close()
+        
+        status = get_status()
+        
+        return jsonify({
+            "available": True,
+            "initialized": True,
+            "status": status
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "available": True,
+            "error": str(e)
+        })
+
+# Crear endpoint para capital de Seraphim
+@flask_app.route("/api/seraphim-portfolio")
+def seraphim_portfolio():
+    """Obtener estado del portafolio de Seraphim."""
+    if not HAS_SERAPHIM:
+        return jsonify({
+            "available": False,
+            "message": "Estrategia Seraphim no disponible"
+        })
+    
+    try:
+        # Obtener estrategia
+        from genesis.init.seraphim_initializer import get_seraphim_strategy
+        strategy = get_seraphim_strategy()
+        
+        if not strategy:
+            return jsonify({
+                "available": True,
+                "initialized": False,
+                "message": "Estrategia Seraphim no inicializada"
+            })
+        
+        # Obtener portafolio asíncrono
+        def get_portfolio():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(strategy.get_portfolio_status())
+            finally:
+                loop.close()
+        
+        portfolio = get_portfolio()
+        
+        return jsonify({
+            "available": True,
+            "initialized": True,
+            "portfolio": portfolio
         })
         
     except Exception as e:
