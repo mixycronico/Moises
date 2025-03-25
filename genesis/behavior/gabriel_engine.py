@@ -1,472 +1,585 @@
 """
 Motor de Comportamiento Gabriel para Aetherion.
 
-Este módulo implementa el motor de comportamiento humano Gabriel, que simula
-estados emocionales y personalidad para humanizar las respuestas de Aetherion
-y añadir un componente emocional a las decisiones de trading.
+Este módulo implementa el motor de comportamiento Gabriel, que permite a Aetherion
+simular estados emocionales y comportamiento humano, proporcionando un enfoque
+más natural y humano a sus interacciones y decisiones.
 """
 
 import logging
-import datetime
 import random
-from typing import Dict, Any, List, Optional, Tuple
+import datetime
+import json
+import os
+from enum import Enum, auto
+from typing import Dict, Any, List, Optional, Tuple, Union, Callable
 
 # Configurar logging
 logger = logging.getLogger(__name__)
 
+# Directorio para almacenamiento persistente
+ENGINE_DIR = os.path.join("data", "aetherion", "gabriel")
+os.makedirs(ENGINE_DIR, exist_ok=True)
+
+class EmotionalState(Enum):
+    """Estados emocionales básicos para Gabriel."""
+    SERENE = auto()     # Calma - máxima capacidad de evaluación objetiva
+    HOPEFUL = auto()    # Esperanzado - ligero optimismo
+    CAUTIOUS = auto()   # Cauteloso - evaluación más conservadora
+    RESTLESS = auto()   # Inquieto - cierta ansiedad e impaciencia
+    FEARFUL = auto()    # Temeroso - predomina el miedo, muy defensivo
+    
+    def __str__(self) -> str:
+        """Obtener nombre legible del estado."""
+        return self.name
+
+class MarketEvent(Enum):
+    """Tipos de eventos de mercado que pueden afectar el estado emocional."""
+    PRICE_SURGE = auto()          # Subida brusca de precio
+    PRICE_DROP = auto()           # Caída brusca de precio
+    VOLATILITY_INCREASE = auto()  # Aumento de volatilidad
+    VOLATILITY_DECREASE = auto()  # Disminución de volatilidad
+    POSITIVE_NEWS = auto()        # Noticias positivas
+    NEGATIVE_NEWS = auto()        # Noticias negativas
+    TREND_REVERSAL = auto()       # Cambio de tendencia
+    PATTERN_RECOGNITION = auto()  # Reconocimiento de patrón
+    
+    def __str__(self) -> str:
+        """Obtener nombre legible del evento."""
+        return self.name
+
+class RiskProfile(Enum):
+    """Perfiles de riesgo para decisiones de trading."""
+    CONSERVATIVE = auto()   # Muy bajo riesgo
+    MODERATE = auto()       # Riesgo moderado
+    AGGRESSIVE = auto()     # Alto riesgo
+    ADAPTIVE = auto()       # Adaptativo según condiciones
+    
+    def __str__(self) -> str:
+        """Obtener nombre legible del perfil."""
+        return self.name
+
 class GabrielBehaviorEngine:
     """
-    Motor de comportamiento humano para simular estados emocionales.
+    Motor de comportamiento Gabriel para Aetherion.
     
-    Gabriel simula comportamientos humanos como:
-    - Estados emocionales (sereno, esperanzado, cauteloso, inquieto, temeroso)
-    - Toma de decisiones influenciada por emociones
-    - Cambios de humor basados en eventos del mercado
-    - Personalidad adaptativa
+    Esta clase implementa el motor de comportamiento Gabriel, que permite
+    a Aetherion simular estados emocionales y comportamiento humano, proporcionando
+    un enfoque más natural y humano a sus interacciones y decisiones.
     """
     
-    # Estados emocionales posibles
-    SERENE = "SERENE"       # Calma - máxima capacidad de evaluación objetiva
-    HOPEFUL = "HOPEFUL"     # Esperanzado - ligero optimismo
-    CAUTIOUS = "CAUTIOUS"   # Cauteloso - evaluación más conservadora
-    RESTLESS = "RESTLESS"   # Inquieto - cierta ansiedad e impaciencia
-    FEARFUL = "FEARFUL"     # Temeroso - predomina el miedo, muy defensivo
-    
-    # Características de personalidad
-    PERSONALITY_TRAITS = [
-        "risk_tolerance",       # Tolerancia al riesgo (0.0 a 1.0)
-        "patience",             # Paciencia (0.0 a 1.0)
-        "adaptability",         # Adaptabilidad (0.0 a 1.0)
-        "emotional_stability",  # Estabilidad emocional (0.0 a 1.0)
-        "optimism"              # Optimismo (0.0 a 1.0)
-    ]
-    
-    def __init__(self, personality_seed: Optional[int] = None):
-        """
-        Inicializar motor de comportamiento.
-        
-        Args:
-            personality_seed: Semilla para generar personalidad
-        """
+    def __init__(self):
+        """Inicializar motor de comportamiento Gabriel."""
         # Estado emocional actual
-        self.emotional_state = {
-            "state": self.SERENE,  # Estado inicial: sereno
-            "intensity": 0.5,      # Intensidad media
-            "last_change": datetime.datetime.now(),
-            "duration": 0          # Duración en segundos
+        self._emotional_state = EmotionalState.SERENE
+        
+        # Intensidad del estado (0.0 - 1.0)
+        self._intensity = 0.5
+        
+        # Características emocionales
+        self._traits = {
+            "optimism": 0.6,       # Optimismo (0.0 - 1.0)
+            "courage": 0.6,        # Valentía (0.0 - 1.0)
+            "patience": 0.7,       # Paciencia (0.0 - 1.0)
+            "adaptability": 0.8,   # Adaptabilidad (0.0 - 1.0)
+            "risk_tolerance": 0.5  # Tolerancia al riesgo (0.0 - 1.0)
         }
         
-        # Historial de cambios emocionales
-        self.emotional_history = []
-        self.emotional_history.append({
-            "state": self.emotional_state["state"],
-            "intensity": self.emotional_state["intensity"],
-            "timestamp": datetime.datetime.now(),
-            "reason": "Inicialización"
-        })
+        # Perfil de riesgo
+        self._risk_profile = RiskProfile.ADAPTIVE
         
-        # Generar personalidad
-        if personality_seed is None:
-            personality_seed = random.randint(1, 100000)
+        # Historial de estados
+        self._state_history = []
         
-        self.personality_seed = personality_seed
-        self.personality = self._generate_personality(personality_seed)
+        # Parámetros de evolución
+        self._stability = 0.7      # Estabilidad emocional (0.0 - 1.0)
+        self._reactivity = 0.6     # Reactividad a eventos (0.0 - 1.0)
+        self._recovery_rate = 0.3  # Tasa de recuperación (0.0 - 1.0)
         
-        # Contadores e indicadores
-        self.emotional_changes = 0
-        self.decisions_made = 0
-        self.market_events_processed = 0
+        # Cargar estado persistente
+        self._load_state()
         
-        logger.info(f"GabrielBehaviorEngine inicializado con personalidad {personality_seed}")
+        logger.info(f"GabrielBehaviorEngine inicializado con estado {self._emotional_state}")
     
-    def _generate_personality(self, seed: int) -> Dict[str, float]:
-        """
-        Generar rasgos de personalidad basados en semilla.
-        
-        Args:
-            seed: Semilla para generación
+    def _load_state(self) -> None:
+        """Cargar estado desde almacenamiento persistente."""
+        try:
+            state_file = os.path.join(ENGINE_DIR, "gabriel_state.json")
             
-        Returns:
-            Diccionario con rasgos de personalidad
-        """
-        # Usar semilla para reproducibilidad
-        random.seed(seed)
-        
-        # Generar rasgos
-        personality = {}
-        for trait in self.PERSONALITY_TRAITS:
-            personality[trait] = round(random.uniform(0.2, 0.8), 2)
-        
-        # Restaurar aleatoriedad
-        random.seed()
-        
-        return personality
+            if os.path.exists(state_file):
+                with open(state_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                    # Cargar estado emocional
+                    if "emotional_state" in data:
+                        self._emotional_state = EmotionalState[data["emotional_state"]]
+                    
+                    # Cargar intensidad
+                    if "intensity" in data:
+                        self._intensity = data["intensity"]
+                    
+                    # Cargar características
+                    if "traits" in data:
+                        self._traits.update(data["traits"])
+                    
+                    # Cargar perfil de riesgo
+                    if "risk_profile" in data:
+                        self._risk_profile = RiskProfile[data["risk_profile"]]
+                    
+                    # Cargar historial
+                    if "state_history" in data:
+                        self._state_history = data["state_history"]
+                    
+                    logger.info(f"Estado Gabriel cargado: {self._emotional_state}")
+        except Exception as e:
+            logger.error(f"Error al cargar estado Gabriel: {e}")
+    
+    def _save_state(self) -> None:
+        """Guardar estado a almacenamiento persistente."""
+        try:
+            state_file = os.path.join(ENGINE_DIR, "gabriel_state.json")
+            
+            # Preparar datos
+            data = {
+                "emotional_state": self._emotional_state.name,
+                "intensity": self._intensity,
+                "traits": self._traits,
+                "risk_profile": self._risk_profile.name,
+                "state_history": self._state_history[-50:],  # Guardar solo los últimos 50 estados
+                "last_updated": datetime.datetime.now().isoformat()
+            }
+            
+            # Guardar a archivo
+            with open(state_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2)
+            
+            logger.debug("Estado Gabriel guardado")
+        except Exception as e:
+            logger.error(f"Error al guardar estado Gabriel: {e}")
     
     def get_emotional_state(self) -> Dict[str, Any]:
         """
         Obtener estado emocional actual.
         
         Returns:
-            Estado emocional actual
+            Diccionario con información del estado emocional
         """
-        # Actualizar duración
-        now = datetime.datetime.now()
-        duration = (now - self.emotional_state["last_change"]).total_seconds()
-        self.emotional_state["duration"] = duration
-        
-        return self.emotional_state
-    
-    def change_emotional_state(self, new_state: str, intensity: float = 0.5, 
-                             reason: str = "Cambio manual") -> bool:
-        """
-        Cambiar estado emocional.
-        
-        Args:
-            new_state: Nuevo estado (SERENE, HOPEFUL, CAUTIOUS, RESTLESS, FEARFUL)
-            intensity: Intensidad del estado (0.0 a 1.0)
-            reason: Razón del cambio
-            
-        Returns:
-            True si el cambio fue exitoso
-        """
-        # Validar estado
-        valid_states = [self.SERENE, self.HOPEFUL, self.CAUTIOUS, self.RESTLESS, self.FEARFUL]
-        if new_state not in valid_states:
-            return False
-        
-        # Validar intensidad
-        intensity = max(0.0, min(1.0, intensity))
-        
-        # Actualizar estado
-        old_state = self.emotional_state["state"]
-        old_intensity = self.emotional_state["intensity"]
-        
-        self.emotional_state["state"] = new_state
-        self.emotional_state["intensity"] = intensity
-        self.emotional_state["last_change"] = datetime.datetime.now()
-        self.emotional_state["duration"] = 0
-        
-        # Registrar cambio
-        self.emotional_history.append({
-            "state": new_state,
-            "intensity": intensity,
-            "timestamp": datetime.datetime.now(),
-            "reason": reason,
-            "previous_state": old_state,
-            "previous_intensity": old_intensity
-        })
-        
-        # Actualizar contador
-        self.emotional_changes += 1
-        
-        logger.info(f"Estado emocional cambiado de {old_state} a {new_state} (intensidad: {intensity:.2f})")
-        return True
-    
-    def process_market_event(self, event_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Procesar evento del mercado y actualizar estado emocional.
-        
-        Args:
-            event_type: Tipo de evento (price_change, news, trend_change, etc.)
-            data: Datos del evento
-            
-        Returns:
-            Estado emocional actualizado
-        """
-        # Actualizar contador
-        self.market_events_processed += 1
-        
-        # Determinar impacto emocional según tipo de evento
-        emotional_impact = self._calculate_emotional_impact(event_type, data)
-        
-        # Aplicar cambio emocional si hay suficiente impacto
-        if abs(emotional_impact["magnitude"]) >= 0.2:
-            self.change_emotional_state(
-                emotional_impact["state"],
-                emotional_impact["intensity"],
-                f"Evento de mercado: {event_type}"
-            )
-        
-        return self.get_emotional_state()
-    
-    def _calculate_emotional_impact(self, event_type: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Calcular impacto emocional de un evento.
-        
-        Args:
-            event_type: Tipo de evento
-            data: Datos del evento
-            
-        Returns:
-            Impacto emocional
-        """
-        # Valores por defecto
-        impact = {
-            "magnitude": 0.0,       # Magnitud del impacto (-1.0 a 1.0)
-            "state": self.SERENE,   # Estado emocional resultante
-            "intensity": 0.5        # Intensidad emocional resultante
+        return {
+            "state": str(self._emotional_state),
+            "intensity": self._intensity,
+            "optimism": self._traits["optimism"],
+            "courage": self._traits["courage"],
+            "patience": self._traits["patience"]
         }
-        
-        # Calcular impacto según tipo de evento
-        if event_type == "price_change":
-            # Cambio porcentual del precio
-            if "percent_change" in data:
-                percent_change = data["percent_change"]
-                
-                # Escalar según tolerancia al riesgo y estabilidad emocional
-                risk_factor = self.personality["risk_tolerance"]
-                stability_factor = self.personality["emotional_stability"]
-                
-                # Calcular magnitud (normalizada entre -1 y 1)
-                magnitude = percent_change / 10.0  # 10% cambio = magnitud 1.0
-                magnitude *= (2.0 - risk_factor - stability_factor) / 2.0  # Ajustar por personalidad
-                
-                impact["magnitude"] = max(-1.0, min(1.0, magnitude))
-                
-                # Determinar estado resultante
-                if magnitude >= 0.5:
-                    impact["state"] = self.HOPEFUL
-                    impact["intensity"] = 0.5 + (magnitude - 0.5)
-                elif magnitude >= 0.2:
-                    impact["state"] = self.SERENE
-                    impact["intensity"] = 0.5 + (magnitude - 0.2) * 2
-                elif magnitude <= -0.5:
-                    impact["state"] = self.FEARFUL
-                    impact["intensity"] = 0.5 + (-magnitude - 0.5)
-                elif magnitude <= -0.2:
-                    impact["state"] = self.CAUTIOUS
-                    impact["intensity"] = 0.5 + (-magnitude - 0.2) * 2
-                else:
-                    # Cambio pequeño, mantener estado actual pero ajustar intensidad
-                    impact["state"] = self.emotional_state["state"]
-                    impact["intensity"] = self.emotional_state["intensity"] + magnitude / 4
-        
-        elif event_type == "market_trend":
-            if "trend" in data:
-                trend = data["trend"]  # "bullish", "bearish", "neutral", "volatile"
-                
-                # Ajustar según optimismo
-                optimism_factor = self.personality["optimism"]
-                
-                if trend == "bullish":
-                    impact["magnitude"] = 0.3 + (optimism_factor * 0.4)
-                    impact["state"] = self.HOPEFUL
-                elif trend == "bearish":
-                    impact["magnitude"] = -0.3 - ((1 - optimism_factor) * 0.4)
-                    impact["state"] = self.CAUTIOUS if optimism_factor > 0.5 else self.FEARFUL
-                elif trend == "volatile":
-                    impact["magnitude"] = -0.2 - ((1 - self.personality["stability"]) * 0.3)
-                    impact["state"] = self.RESTLESS
-                
-                # Ajustar intensidad
-                impact["intensity"] = 0.5 + (abs(impact["magnitude"]) * 0.5)
-        
-        # Limitar intensidad
-        impact["intensity"] = max(0.1, min(1.0, impact["intensity"]))
-        
-        return impact
     
     def get_risk_profile(self) -> Dict[str, Any]:
         """
-        Obtener perfil de riesgo actual basado en personalidad y estado emocional.
+        Obtener perfil de riesgo actual.
         
         Returns:
-            Perfil de riesgo
+            Diccionario con información del perfil de riesgo
         """
-        # Factores base de personalidad
-        base_risk_tolerance = self.personality["risk_tolerance"]
-        base_patience = self.personality["patience"]
-        
-        # Ajustar según estado emocional
-        emotional_factor = self._calculate_emotional_factor()
-        
-        # Calcular perfil de riesgo
-        risk_tolerance = base_risk_tolerance * emotional_factor["risk_multiplier"]
-        patience = base_patience * emotional_factor["patience_multiplier"]
-        
-        # Determinar perfil general
-        if risk_tolerance >= 0.7:
-            risk_profile = "aggressive"
-        elif risk_tolerance >= 0.4:
-            risk_profile = "moderate"
-        else:
-            risk_profile = "conservative"
-        
         return {
-            "profile": risk_profile,
-            "risk_tolerance": risk_tolerance,
-            "patience": patience,
-            "emotional_state": self.emotional_state["state"],
-            "emotional_intensity": self.emotional_state["intensity"]
+            "profile": str(self._risk_profile),
+            "risk_tolerance": self._traits["risk_tolerance"],
+            "adaptability": self._traits["adaptability"]
         }
     
-    def _calculate_emotional_factor(self) -> Dict[str, float]:
+    def set_emotional_state(self, state: EmotionalState, intensity: float, reason: str = "") -> None:
         """
-        Calcular factores de ajuste basados en estado emocional.
+        Establecer estado emocional.
+        
+        Args:
+            state: Nuevo estado emocional
+            intensity: Intensidad del estado (0.0 - 1.0)
+            reason: Razón del cambio
+        """
+        # Guardar estado anterior
+        old_state = {
+            "state": str(self._emotional_state),
+            "intensity": self._intensity,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "reason": reason
+        }
+        self._state_history.append(old_state)
+        
+        # Actualizar estado
+        self._emotional_state = state
+        self._intensity = max(0.0, min(intensity, 1.0))  # Limitar a [0, 1]
+        
+        # Actualizar perfil de riesgo basado en estado
+        self._update_risk_profile()
+        
+        # Guardar cambios
+        self._save_state()
+        
+        logger.info(f"Estado emocional cambiado a {state} (intensidad: {self._intensity:.2f}): {reason}")
+    
+    def _update_risk_profile(self) -> None:
+        """Actualizar perfil de riesgo basado en estado emocional."""
+        # Mapeo de estados a perfiles de riesgo predeterminados
+        state_profile_map = {
+            EmotionalState.SERENE: RiskProfile.MODERATE,
+            EmotionalState.HOPEFUL: RiskProfile.AGGRESSIVE,
+            EmotionalState.CAUTIOUS: RiskProfile.MODERATE,
+            EmotionalState.RESTLESS: RiskProfile.CONSERVATIVE,
+            EmotionalState.FEARFUL: RiskProfile.CONSERVATIVE
+        }
+        
+        # Si estamos en modo adaptativo, ajustar según el estado
+        if self._risk_profile == RiskProfile.ADAPTIVE:
+            new_profile = state_profile_map.get(self._emotional_state, RiskProfile.MODERATE)
+            
+            # Aplicar componente aleatorio basado en traits
+            if random.random() < self._traits["adaptability"] * 0.2:
+                # Pequeña probabilidad de cambiar
+                profiles = list(RiskProfile)
+                profiles.remove(RiskProfile.ADAPTIVE)  # Excluir adaptativo para evitar recursión
+                new_profile = random.choice(profiles)
+            
+            logger.debug(f"Perfil de riesgo adaptado a {new_profile}")
+    
+    def randomize_state(self) -> None:
+        """Randomizar estado emocional con componente aleatorio."""
+        # Elegir estado aleatorio
+        states = list(EmotionalState)
+        state = random.choice(states)
+        
+        # Generar intensidad con distribución normal
+        intensity = random.normalvariate(0.5, 0.2)
+        intensity = max(0.1, min(intensity, 0.9))  # Limitar a [0.1, 0.9]
+        
+        # Establecer nuevo estado
+        self.set_emotional_state(state, intensity, "Randomización programada")
+    
+    def process_market_event(self, event_type: MarketEvent, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Procesar evento de mercado y actualizar estado emocional.
+        
+        Args:
+            event_type: Tipo de evento
+            data: Datos adicionales del evento
         
         Returns:
-            Factores de ajuste
+            Resultado del procesamiento
         """
-        state = self.emotional_state["state"]
-        intensity = self.emotional_state["intensity"]
+        # Extraer magnitud del evento (0.0 - 1.0)
+        magnitude = data.get("magnitude", 0.5)
         
-        # Valores por defecto
-        factors = {
-            "risk_multiplier": 1.0,
-            "patience_multiplier": 1.0,
-            "decision_speed_multiplier": 1.0
+        # Extraer dirección del evento (-1.0 - 1.0)
+        direction = data.get("direction", 0.0)
+        
+        # Calcular impacto basado en reactividad
+        impact = magnitude * self._reactivity
+        
+        # Determinar cambio de estado e intensidad
+        new_state = self._emotional_state
+        new_intensity = self._intensity
+        
+        # Mapa de transiciones por tipo de evento
+        if event_type == MarketEvent.PRICE_SURGE:
+            if direction > 0:  # Bueno para nosotros
+                if random.random() < self._traits["optimism"]:
+                    new_state = EmotionalState.HOPEFUL
+                else:
+                    new_state = EmotionalState.SERENE
+            else:  # Malo para nosotros
+                if random.random() < 0.7:
+                    new_state = EmotionalState.CAUTIOUS
+                else:
+                    new_state = EmotionalState.RESTLESS
+        
+        elif event_type == MarketEvent.PRICE_DROP:
+            if direction < 0:  # Bueno para nosotros (si tenemos posición short)
+                if random.random() < self._traits["optimism"]:
+                    new_state = EmotionalState.HOPEFUL
+                else:
+                    new_state = EmotionalState.SERENE
+            else:  # Malo para nosotros
+                if random.random() < self._traits["courage"]:
+                    new_state = EmotionalState.CAUTIOUS
+                else:
+                    new_state = EmotionalState.FEARFUL
+        
+        elif event_type == MarketEvent.VOLATILITY_INCREASE:
+            if random.random() < self._traits["risk_tolerance"]:
+                new_state = EmotionalState.HOPEFUL
+            else:
+                new_state = EmotionalState.RESTLESS
+        
+        elif event_type == MarketEvent.VOLATILITY_DECREASE:
+            if random.random() < self._traits["patience"]:
+                new_state = EmotionalState.SERENE
+            else:
+                new_state = EmotionalState.CAUTIOUS
+        
+        elif event_type == MarketEvent.POSITIVE_NEWS:
+            if random.random() < self._traits["optimism"]:
+                new_state = EmotionalState.HOPEFUL
+            else:
+                new_state = EmotionalState.SERENE
+        
+        elif event_type == MarketEvent.NEGATIVE_NEWS:
+            if random.random() < self._traits["courage"]:
+                new_state = EmotionalState.CAUTIOUS
+            else:
+                new_state = EmotionalState.FEARFUL
+        
+        elif event_type == MarketEvent.TREND_REVERSAL:
+            if random.random() < self._traits["adaptability"]:
+                new_state = EmotionalState.CAUTIOUS
+            else:
+                new_state = EmotionalState.RESTLESS
+        
+        elif event_type == MarketEvent.PATTERN_RECOGNITION:
+            if random.random() < self._traits["optimism"]:
+                new_state = EmotionalState.HOPEFUL
+            else:
+                new_state = EmotionalState.SERENE
+        
+        # Ajustar intensidad basada en el impacto
+        new_intensity = min(1.0, max(0.1, self._intensity + impact * direction))
+        
+        # Aplicar cambio
+        event_desc = f"Evento {event_type}, magnitud {magnitude:.2f}, dirección {direction:.2f}"
+        self.set_emotional_state(new_state, new_intensity, event_desc)
+        
+        # Registrar para evolución de consciencia
+        from genesis.consciousness.states.consciousness_states import get_consciousness_states
+        states = get_consciousness_states()
+        states.record_activity("emotional_responses")
+        
+        # Resultado
+        return {
+            "old_state": self._state_history[-1]["state"] if self._state_history else "UNKNOWN",
+            "new_state": str(new_state),
+            "old_intensity": self._state_history[-1]["intensity"] if self._state_history else 0.0,
+            "new_intensity": new_intensity,
+            "impact": impact,
+            "event": str(event_type)
         }
-        
-        # Ajustar según estado
-        if state == self.SERENE:
-            # Estado sereno - comportamiento más equilibrado
-            factors["risk_multiplier"] = 1.0
-            factors["patience_multiplier"] = 1.0 + (intensity * 0.2)
-            factors["decision_speed_multiplier"] = 1.0
-        
-        elif state == self.HOPEFUL:
-            # Estado esperanzado - más riesgo, menos paciencia
-            factors["risk_multiplier"] = 1.0 + (intensity * 0.3)
-            factors["patience_multiplier"] = 1.0 - (intensity * 0.1)
-            factors["decision_speed_multiplier"] = 1.0 + (intensity * 0.2)
-        
-        elif state == self.CAUTIOUS:
-            # Estado cauteloso - menos riesgo, más paciencia
-            factors["risk_multiplier"] = 1.0 - (intensity * 0.3)
-            factors["patience_multiplier"] = 1.0 + (intensity * 0.2)
-            factors["decision_speed_multiplier"] = 1.0 - (intensity * 0.2)
-        
-        elif state == self.RESTLESS:
-            # Estado inquieto - más riesgo, menos paciencia
-            factors["risk_multiplier"] = 1.0 + (intensity * 0.2)
-            factors["patience_multiplier"] = 1.0 - (intensity * 0.3)
-            factors["decision_speed_multiplier"] = 1.0 + (intensity * 0.3)
-        
-        elif state == self.FEARFUL:
-            # Estado temeroso - mucho menos riesgo, variable en paciencia
-            factors["risk_multiplier"] = 1.0 - (intensity * 0.5)
-            factors["patience_multiplier"] = 1.0 - (intensity * 0.3)  # Menos paciencia por ansiedad
-            factors["decision_speed_multiplier"] = 0.8  # Más lento en decisiones
-        
-        return factors
     
-    def evaluate_trade_opportunity(self, asset: str, signal_type: str, 
-                                 confidence: float, context: Dict[str, Any] = None) -> Dict[str, Any]:
+    def evaluate_trade_opportunity(self, 
+                                 asset: str, 
+                                 signal_type: str, 
+                                 confidence: float,
+                                 **kwargs) -> Dict[str, Any]:
         """
-        Evaluar oportunidad de trading con factor emocional.
+        Evaluar oportunidad de trading con componente emocional.
         
         Args:
             asset: Activo a operar
-            signal_type: Tipo de señal (buy, sell, hold)
-            confidence: Confianza en la señal (0.0 a 1.0)
-            context: Contexto adicional
-            
+            signal_type: Tipo de señal (BUY, SELL)
+            confidence: Confianza en la señal (0.0 - 1.0)
+            **kwargs: Argumentos adicionales
+        
         Returns:
-            Decisión con factor emocional
+            Resultado de la evaluación
         """
-        if context is None:
-            context = {}
+        # Factores adicionales
+        signal_strength = kwargs.get("signal_strength", 0.5)
+        risk_reward_ratio = kwargs.get("risk_reward_ratio", 1.0)
+        available_capital = kwargs.get("available_capital", 1000.0)
         
-        # Actualizar contador
-        self.decisions_made += 1
+        # Base inicial (puramente racional)
+        base_score = confidence * signal_strength * min(2.0, risk_reward_ratio)
         
-        # Obtener perfil de riesgo actual
-        risk_profile = self.get_risk_profile()
-        
-        # Calcular factor emocional
-        emotional_factors = self._calculate_emotional_factor()
-        
-        # Ajustar confianza según estado emocional
-        adjusted_confidence = confidence
-        
-        if self.emotional_state["state"] == self.HOPEFUL:
-            # Más optimista - aumenta confianza en señales de compra
-            if signal_type == "buy":
-                adjusted_confidence *= (1.0 + (self.emotional_state["intensity"] * 0.2))
-            elif signal_type == "sell":
-                adjusted_confidence *= (1.0 - (self.emotional_state["intensity"] * 0.1))
-        
-        elif self.emotional_state["state"] == self.FEARFUL:
-            # Más temeroso - aumenta confianza en señales de venta
-            if signal_type == "sell":
-                adjusted_confidence *= (1.0 + (self.emotional_state["intensity"] * 0.2))
-            elif signal_type == "buy":
-                adjusted_confidence *= (1.0 - (self.emotional_state["intensity"] * 0.3))
-        
-        elif self.emotional_state["state"] == self.CAUTIOUS:
-            # Más cauteloso - reduce confianza en general
-            adjusted_confidence *= (1.0 - (self.emotional_state["intensity"] * 0.15))
-        
-        # Limitar confianza
-        adjusted_confidence = max(0.1, min(1.0, adjusted_confidence))
-        
-        # Determinar decisión final
-        decision = {
-            "original_signal": signal_type,
-            "original_confidence": confidence,
-            "adjusted_confidence": adjusted_confidence,
-            "emotional_state": self.emotional_state["state"],
-            "emotional_intensity": self.emotional_state["intensity"],
-            "risk_profile": risk_profile["profile"]
+        # Factores emocionales
+        emotional_factors = {
+            EmotionalState.SERENE: 1.0,       # Evaluación objetiva
+            EmotionalState.HOPEFUL: 1.2,      # Optimista, más propenso a tomar el trade
+            EmotionalState.CAUTIOUS: 0.8,     # Cauteloso, menos propenso
+            EmotionalState.RESTLESS: 0.9,     # Ligeramente defensivo
+            EmotionalState.FEARFUL: 0.5       # Muy defensivo, mucho menos propenso
         }
         
-        # Modificar decisión según estado emocional
-        threshold = 0.5 - ((risk_profile["risk_tolerance"] - 0.5) * 0.3)  # Umbral ajustado por tolerancia
+        # Ajustar por estado emocional
+        emotional_factor = emotional_factors.get(self._emotional_state, 1.0)
+        emotional_factor = 1.0 + (emotional_factor - 1.0) * self._intensity
         
-        if adjusted_confidence >= threshold:
-            decision["decision"] = signal_type
-            decision["execution_speed"] = "normal"
+        # Ajustar por perfil de riesgo
+        risk_factors = {
+            RiskProfile.CONSERVATIVE: 0.7,
+            RiskProfile.MODERATE: 1.0,
+            RiskProfile.AGGRESSIVE: 1.3,
+            RiskProfile.ADAPTIVE: 1.0  # Ya ajustado por estado emocional
+        }
+        risk_factor = risk_factors.get(self._risk_profile, 1.0)
+        
+        # Calcular score final
+        final_score = base_score * emotional_factor * risk_factor
+        
+        # Determinar decisión
+        threshold = 0.5  # Umbral mínimo para aceptar
+        decision = "ACCEPT" if final_score >= threshold else "REJECT"
+        
+        # Si es acceptable, calcular tamaño de posición
+        position_size = 0.0
+        if decision == "ACCEPT":
+            # Base racional: % basado en confianza y riesgo
+            base_size = min(0.2, confidence * 0.1 * risk_reward_ratio)
             
-            if self.emotional_state["state"] == self.RESTLESS:
-                decision["execution_speed"] = "fast"
-            elif self.emotional_state["state"] == self.CAUTIOUS:
-                decision["execution_speed"] = "slow"
-                
-            decision["position_size"] = min(1.0, adjusted_confidence * risk_profile["risk_tolerance"] * 1.5)
-        else:
-            decision["decision"] = "hold"
-            decision["execution_speed"] = "n/a"
-            decision["position_size"] = 0.0
-            decision["reason"] = "Confianza insuficiente dados factores emocionales"
+            # Ajuste emocional
+            position_size = base_size * emotional_factor * available_capital
         
-        return decision
+        # Registrar para evolución de consciencia
+        from genesis.consciousness.states.consciousness_states import get_consciousness_states
+        states = get_consciousness_states()
+        states.record_activity("strategy_evaluations")
+        
+        # Resultado
+        return {
+            "asset": asset,
+            "signal_type": signal_type,
+            "base_score": base_score,
+            "emotional_factor": emotional_factor,
+            "risk_factor": risk_factor,
+            "final_score": final_score,
+            "decision": decision,
+            "position_size": position_size,
+            "emotional_state": str(self._emotional_state),
+            "explanation": self._generate_explanation(decision, final_score, emotional_factor)
+        }
     
-    def get_emotional_history(self, limit: int = 10) -> List[Dict[str, Any]]:
+    def _generate_explanation(self, decision: str, score: float, emotional_factor: float) -> str:
         """
-        Obtener historial de cambios emocionales.
+        Generar explicación textual de la decisión.
         
         Args:
-            limit: Número máximo de cambios a devolver
+            decision: Decisión tomada
+            score: Puntuación final
+            emotional_factor: Factor emocional aplicado
+        
+        Returns:
+            Explicación textual
+        """
+        if decision == "ACCEPT":
+            if self._emotional_state == EmotionalState.SERENE:
+                return f"Análisis sereno indica oportunidad favorable (score: {score:.2f})"
+            elif self._emotional_state == EmotionalState.HOPEFUL:
+                return f"Optimismo respaldado por señales positivas (score: {score:.2f})"
+            elif self._emotional_state == EmotionalState.CAUTIOUS:
+                return f"A pesar de la cautela, los indicadores son suficientemente sólidos (score: {score:.2f})"
+            elif self._emotional_state == EmotionalState.RESTLESS:
+                return f"Señales lo bastante fuertes para superar la inquietud (score: {score:.2f})"
+            elif self._emotional_state == EmotionalState.FEARFUL:
+                return f"A pesar del miedo, esta oportunidad es demasiado buena para ignorarla (score: {score:.2f})"
+        else:
+            if self._emotional_state == EmotionalState.SERENE:
+                return f"Análisis objetivo muestra que no cumple los requisitos (score: {score:.2f})"
+            elif self._emotional_state == EmotionalState.HOPEFUL:
+                return f"Aunque hay optimismo, los indicadores no son suficientemente fuertes (score: {score:.2f})"
+            elif self._emotional_state == EmotionalState.CAUTIOUS:
+                return f"La cautela aconseja esperar mejor oportunidad (score: {score:.2f})"
+            elif self._emotional_state == EmotionalState.RESTLESS:
+                return f"La inquietud amplifica los riesgos percibidos (score: {score:.2f})"
+            elif self._emotional_state == EmotionalState.FEARFUL:
+                return f"El miedo predomina, mejor esperar confirmación más clara (score: {score:.2f})"
+        
+        # Default
+        return f"Decisión basada en análisis objetivo y estado emocional (score: {score:.2f})"
+    
+    def recover_emotional_stability(self) -> Dict[str, Any]:
+        """
+        Recuperar estabilidad emocional gradualmente.
+        
+        Returns:
+            Resultado de la recuperación
+        """
+        # Solo aplica a estados no serenos
+        if self._emotional_state == EmotionalState.SERENE:
+            return {
+                "changed": False,
+                "reason": "Ya en estado sereno"
+            }
+        
+        # Probabilidad de recuperación basada en factores
+        recovery_chance = self._recovery_rate * self._stability
+        
+        # Mayor probabilidad si la intensidad es baja
+        if self._intensity < 0.3:
+            recovery_chance *= 1.5
+        
+        # Intentar recuperación
+        if random.random() < recovery_chance:
+            old_state = self._emotional_state
+            old_intensity = self._intensity
             
-        Returns:
-            Historial de cambios emocionales
-        """
-        # Limitar cantidad
-        limit = min(limit, len(self.emotional_history))
+            # Transicionar a estado más sereno
+            if self._emotional_state == EmotionalState.FEARFUL:
+                new_state = EmotionalState.CAUTIOUS
+            elif self._emotional_state == EmotionalState.RESTLESS:
+                new_state = EmotionalState.CAUTIOUS
+            elif self._emotional_state == EmotionalState.CAUTIOUS:
+                new_state = EmotionalState.SERENE
+            elif self._emotional_state == EmotionalState.HOPEFUL:
+                new_state = EmotionalState.SERENE
+            else:
+                new_state = EmotionalState.SERENE
+            
+            # Reducir intensidad
+            new_intensity = max(0.1, self._intensity - 0.2)
+            
+            # Aplicar cambio
+            self.set_emotional_state(new_state, new_intensity, "Recuperación natural")
+            
+            return {
+                "changed": True,
+                "old_state": str(old_state),
+                "new_state": str(new_state),
+                "old_intensity": old_intensity,
+                "new_intensity": new_intensity,
+                "reason": "Recuperación natural"
+            }
         
-        # Devolver los más recientes
-        return self.emotional_history[-limit:]
+        return {
+            "changed": False,
+            "reason": "No se alcanzó umbral de recuperación"
+        }
     
-    def get_personality_traits(self) -> Dict[str, float]:
+    def get_state_history(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
-        Obtener rasgos de personalidad.
+        Obtener historial de estados emocionales.
+        
+        Args:
+            limit: Número máximo de estados a retornar
         
         Returns:
-            Rasgos de personalidad
+            Lista de estados históricos
         """
-        return self.personality
+        return self._state_history[-limit:]
     
-    def get_stats(self) -> Dict[str, Any]:
+    def get_state_stats(self) -> Dict[str, Any]:
         """
-        Obtener estadísticas del motor.
+        Obtener estadísticas del motor de comportamiento.
         
         Returns:
-            Estadísticas
+            Diccionario con estadísticas
         """
         return {
-            "emotional_changes": self.emotional_changes,
-            "decisions_made": self.decisions_made,
-            "market_events_processed": self.market_events_processed,
-            "current_state": self.emotional_state["state"],
-            "personality_seed": self.personality_seed
+            "emotional_state": str(self._emotional_state),
+            "intensity": self._intensity,
+            "traits": self._traits.copy(),
+            "risk_profile": str(self._risk_profile),
+            "stability": self._stability,
+            "reactivity": self._reactivity,
+            "recovery_rate": self._recovery_rate,
+            "state_history_length": len(self._state_history)
         }
+
+# Instancia global para acceso conveniente
+_behavior_engine = None
+
+def get_behavior_engine() -> GabrielBehaviorEngine:
+    """
+    Obtener instancia global del motor de comportamiento Gabriel.
+    
+    Returns:
+        Instancia del motor de comportamiento
+    """
+    global _behavior_engine
+    
+    if _behavior_engine is None:
+        _behavior_engine = GabrielBehaviorEngine()
+    
+    return _behavior_engine

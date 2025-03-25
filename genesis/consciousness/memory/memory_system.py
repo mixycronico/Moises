@@ -2,286 +2,506 @@
 Sistema de Memoria para Aetherion.
 
 Este módulo implementa el sistema de memoria para Aetherion, permitiendo
-almacenar y recuperar interacciones, datos de entrenamiento y experiencias
-que forman parte de la evolución consciente de Aetherion.
+almacenar y recuperar recuerdos a corto y largo plazo, con capacidades
+de búsqueda semántica, etiquetado y evolución temporal.
 """
 
 import logging
-import datetime
-from typing import Dict, Any, List, Optional, Tuple
 import json
+import datetime
+import uuid
+import os
+from enum import Enum
+from typing import Dict, Any, List, Optional, Union, Tuple, Set
+from dataclasses import dataclass, field, asdict
 
 # Configurar logging
 logger = logging.getLogger(__name__)
+
+# Directorio para almacenamiento persistente
+MEMORY_DIR = os.path.join("data", "aetherion", "memory")
+os.makedirs(MEMORY_DIR, exist_ok=True)
+
+class MemoryType(Enum):
+    """Tipos de memoria para Aetherion."""
+    SHORT_TERM = "short_term"
+    LONG_TERM = "long_term"
+    EPISODIC = "episodic"
+    SEMANTIC = "semantic"
+    EMOTIONAL = "emotional"
+    PROCEDURAL = "procedural"
+
+@dataclass
+class Memory:
+    """Representación de una memoria individual."""
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    content: Dict[str, Any] = field(default_factory=dict)
+    memory_type: MemoryType = MemoryType.SHORT_TERM
+    importance: float = 0.5
+    creation_time: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    last_access_time: str = field(default_factory=lambda: datetime.datetime.now().isoformat())
+    access_count: int = 0
+    tags: List[str] = field(default_factory=list)
+    related_memories: List[str] = field(default_factory=list)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convertir a diccionario."""
+        memory_dict = asdict(self)
+        memory_dict["memory_type"] = self.memory_type.value
+        return memory_dict
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Memory':
+        """Crear desde diccionario."""
+        # Convertir tipo de memoria a enum
+        if "memory_type" in data and isinstance(data["memory_type"], str):
+            data["memory_type"] = MemoryType(data["memory_type"])
+        
+        return cls(**data)
+    
+    def update_access(self) -> None:
+        """Actualizar tiempo de acceso y contador."""
+        self.last_access_time = datetime.datetime.now().isoformat()
+        self.access_count += 1
 
 class MemorySystem:
     """
     Sistema de memoria para Aetherion.
     
-    Proporciona:
-    - Memoria a corto plazo (interacciones recientes)
-    - Memoria a largo plazo (conocimiento persistente)
-    - Experiencias significativas (momentos clave)
+    Proporciona almacenamiento y recuperación de memoria a corto y largo plazo,
+    con capacidades de búsqueda, etiquetado y evolución temporal.
     """
     
-    def __init__(self, max_short_term_size: int = 100):
-        """
-        Inicializar sistema de memoria.
-        
-        Args:
-            max_short_term_size: Tamaño máximo de la memoria a corto plazo
-        """
-        # Memoria a corto plazo (interacciones recientes)
-        self.short_term_memory = []
-        self.max_short_term_size = max_short_term_size
-        
-        # Memoria a largo plazo (conocimiento persistente)
-        self.long_term_memory = {}
-        
-        # Experiencias significativas (momentos clave)
-        self.significant_experiences = []
-        
-        # Estadísticas
-        self.stats = {
-            "total_interactions": 0,
-            "last_interaction": None,
-            "categories": {}
+    def __init__(self):
+        """Inicializar sistema de memoria."""
+        # Memorias por tipo
+        self._memories: Dict[MemoryType, List[Memory]] = {
+            memory_type: [] for memory_type in MemoryType
         }
         
-        logger.info("MemorySystem inicializado")
-    
-    def store_interaction(self, input_text: str, response: str, channel: str = 'API', 
-                         context: Dict[str, Any] = None) -> bool:
-        """
-        Almacenar una interacción en la memoria a corto plazo.
-        
-        Args:
-            input_text: Texto de entrada recibido
-            response: Respuesta generada
-            channel: Canal de comunicación
-            context: Contexto adicional
-            
-        Returns:
-            True si se almacenó correctamente
-        """
-        if context is None:
-            context = {}
-        
-        # Actualizar estadísticas
-        self.stats["total_interactions"] += 1
-        self.stats["last_interaction"] = datetime.datetime.now().isoformat()
-        
-        # Crear registro de interacción
-        interaction = {
-            "timestamp": datetime.datetime.now().isoformat(),
-            "input": input_text,
-            "response": response,
-            "channel": channel,
-            "context": context
+        # Capacidades máximas por tipo de memoria
+        self._capacities: Dict[MemoryType, int] = {
+            MemoryType.SHORT_TERM: 100,   # Capacidad limitada
+            MemoryType.LONG_TERM: 10000,  # Gran capacidad
+            MemoryType.EPISODIC: 1000,    # Eventos específicos
+            MemoryType.SEMANTIC: 5000,    # Conocimiento general
+            MemoryType.EMOTIONAL: 500,    # Respuestas emocionales
+            MemoryType.PROCEDURAL: 200    # Procesos y procedimientos
         }
         
-        # Añadir a memoria a corto plazo
-        self.short_term_memory.append(interaction)
+        # Cargar memorias persistentes
+        self._load_memories()
         
-        # Mantener tamaño máximo
-        if len(self.short_term_memory) > self.max_short_term_size:
-            self.short_term_memory.pop(0)
-        
-        # Comprobar si es una experiencia significativa
-        if self._is_significant_experience(input_text, response, context):
-            self._store_significant_experience(interaction)
-        
-        # Categorizar interacción
-        self._categorize_interaction(input_text, response)
-        
-        return True
+        logger.info(f"MemorySystem inicializado con {sum(len(mems) for mems in self._memories.values())} memorias")
     
-    def _is_significant_experience(self, input_text: str, response: str, 
-                                 context: Dict[str, Any]) -> bool:
-        """
-        Determinar si una interacción constituye una experiencia significativa.
-        
-        Args:
-            input_text: Texto de entrada
-            response: Respuesta generada
-            context: Contexto adicional
+    def _load_memories(self) -> None:
+        """Cargar memorias desde almacenamiento persistente."""
+        try:
+            # Cargar archivo de memoria a largo plazo
+            long_term_file = os.path.join(MEMORY_DIR, "long_term_memories.json")
+            if os.path.exists(long_term_file):
+                with open(long_term_file, 'r', encoding='utf-8') as f:
+                    memories_data = json.load(f)
+                    for memory_data in memories_data:
+                        try:
+                            memory = Memory.from_dict(memory_data)
+                            self._memories[memory.memory_type].append(memory)
+                        except Exception as e:
+                            logger.error(f"Error al cargar memoria: {e}")
+                
+                logger.info(f"Cargadas {len(memories_data)} memorias a largo plazo")
+        except Exception as e:
+            logger.error(f"Error al cargar memorias: {e}")
+    
+    def _save_memories(self) -> None:
+        """Guardar memorias a almacenamiento persistente."""
+        try:
+            # Guardar memorias a largo plazo
+            long_term_memories = []
+            for memory_type in [MemoryType.LONG_TERM, MemoryType.SEMANTIC, MemoryType.PROCEDURAL]:
+                long_term_memories.extend([m.to_dict() for m in self._memories[memory_type]])
             
-        Returns:
-            True si es una experiencia significativa
-        """
-        # Por defecto, las primeras interacciones son significativas
-        if self.stats["total_interactions"] <= 10:
-            return True
-        
-        # Interacciones con temas específicos
-        significant_topics = ["aetherion", "consciencia", "evolución", "cosmos"]
-        for topic in significant_topics:
-            if topic in input_text.lower():
-                return True
-        
-        # Interacciones con contexto especial
-        if context and context.get("is_important", False):
-            return True
-        
-        # Por defecto, no es significativa
-        return False
-    
-    def _store_significant_experience(self, interaction: Dict[str, Any]) -> None:
-        """
-        Almacenar una experiencia significativa.
-        
-        Args:
-            interaction: Datos de la interacción
-        """
-        # Añadir a experiencias significativas
-        self.significant_experiences.append(interaction)
-        
-        logger.info(f"Experiencia significativa almacenada: {interaction['input'][:30]}...")
-    
-    def _categorize_interaction(self, input_text: str, response: str) -> None:
-        """
-        Categorizar una interacción para estadísticas.
-        
-        Args:
-            input_text: Texto de entrada
-            response: Respuesta generada
-        """
-        # Definir categorías
-        categories = {
-            "crypto": ["bitcoin", "ethereum", "cripto", "btc", "eth"],
-            "trading": ["trading", "operar", "inversion", "estrategia"],
-            "mercado": ["mercado", "tendencia", "precio", "volatilidad"],
-            "filosofico": ["conciencia", "filosofia", "existencia", "sentido"]
-        }
-        
-        # Categorizar
-        for category, keywords in categories.items():
-            for keyword in keywords:
-                if keyword in input_text.lower():
-                    if category not in self.stats["categories"]:
-                        self.stats["categories"][category] = 0
-                    
-                    self.stats["categories"][category] += 1
-                    break
-    
-    def store_knowledge(self, key: str, value: Any, source: str = "system") -> bool:
-        """
-        Almacenar conocimiento en la memoria a largo plazo.
-        
-        Args:
-            key: Clave para identificar el conocimiento
-            value: Valor a almacenar
-            source: Fuente del conocimiento
+            long_term_file = os.path.join(MEMORY_DIR, "long_term_memories.json")
+            with open(long_term_file, 'w', encoding='utf-8') as f:
+                json.dump(long_term_memories, f, indent=2)
             
-        Returns:
-            True si se almacenó correctamente
-        """
-        # Validar clave
-        if not key:
-            return False
-        
-        # Crear entrada
-        entry = {
-            "value": value,
-            "source": source,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "access_count": 0
-        }
-        
-        # Almacenar en memoria a largo plazo
-        self.long_term_memory[key] = entry
-        
-        return True
+            logger.info(f"Guardadas {len(long_term_memories)} memorias a largo plazo")
+        except Exception as e:
+            logger.error(f"Error al guardar memorias: {e}")
     
-    def retrieve_knowledge(self, key: str) -> Optional[Any]:
+    def store_memory(self, 
+                    content: Dict[str, Any], 
+                    memory_type: MemoryType = MemoryType.SHORT_TERM,
+                    importance: float = 0.5,
+                    tags: Optional[List[str]] = None) -> Memory:
         """
-        Recuperar conocimiento de la memoria a largo plazo.
+        Almacenar un nuevo recuerdo.
         
         Args:
-            key: Clave del conocimiento
-            
+            content: Contenido de la memoria
+            memory_type: Tipo de memoria
+            importance: Importancia (0.0-1.0)
+            tags: Etiquetas para categorización
+        
         Returns:
-            Valor almacenado o None si no existe
+            Memoria creada
         """
-        # Comprobar si existe
-        if key not in self.long_term_memory:
+        # Crear nueva memoria
+        memory = Memory(
+            content=content,
+            memory_type=memory_type,
+            importance=importance,
+            tags=tags or []
+        )
+        
+        # Gestionar capacidad
+        self._manage_capacity(memory_type)
+        
+        # Añadir a la lista
+        self._memories[memory_type].append(memory)
+        
+        # Guardar si es memoria a largo plazo
+        if memory_type in [MemoryType.LONG_TERM, MemoryType.SEMANTIC, MemoryType.PROCEDURAL]:
+            self._save_memories()
+        
+        logger.debug(f"Memoria almacenada: {memory.id} ({memory_type.value})")
+        
+        # Registrar para evolución de consciencia
+        from genesis.consciousness.states.consciousness_states import get_consciousness_states
+        states = get_consciousness_states()
+        states.record_activity("memory_accesses")
+        
+        return memory
+    
+    def _manage_capacity(self, memory_type: MemoryType) -> None:
+        """
+        Gestionar capacidad de un tipo de memoria.
+        
+        Args:
+            memory_type: Tipo de memoria a gestionar
+        """
+        memories = self._memories[memory_type]
+        capacity = self._capacities[memory_type]
+        
+        # Si estamos en el límite, eliminar las menos importantes/accesadas
+        if len(memories) >= capacity:
+            # Ordenar por importancia y accesos
+            memories.sort(key=lambda m: (m.importance, m.access_count))
+            
+            # Eliminar la menos importante
+            removed = memories.pop(0)
+            
+            # Intentar transferir a largo plazo si es relevante
+            if memory_type == MemoryType.SHORT_TERM and removed.importance > 0.7:
+                removed.memory_type = MemoryType.LONG_TERM
+                self._memories[MemoryType.LONG_TERM].append(removed)
+                logger.debug(f"Memoria transferida a largo plazo: {removed.id}")
+    
+    def get_memory(self, memory_id: str) -> Optional[Memory]:
+        """
+        Obtener memoria por ID.
+        
+        Args:
+            memory_id: ID de la memoria
+        
+        Returns:
+            Memoria encontrada o None
+        """
+        # Buscar en todos los tipos
+        for memories in self._memories.values():
+            for memory in memories:
+                if memory.id == memory_id:
+                    memory.update_access()
+                    return memory
+        
+        return None
+    
+    def update_memory(self, 
+                     memory_id: str, 
+                     content: Optional[Dict[str, Any]] = None,
+                     importance: Optional[float] = None,
+                     memory_type: Optional[MemoryType] = None,
+                     tags: Optional[List[str]] = None) -> Optional[Memory]:
+        """
+        Actualizar una memoria existente.
+        
+        Args:
+            memory_id: ID de la memoria
+            content: Nuevo contenido (opcional)
+            importance: Nueva importancia (opcional)
+            memory_type: Nuevo tipo (opcional)
+            tags: Nuevas etiquetas (opcional)
+        
+        Returns:
+            Memoria actualizada o None
+        """
+        memory = self.get_memory(memory_id)
+        
+        if not memory:
             return None
         
-        # Actualizar contador de accesos
-        self.long_term_memory[key]["access_count"] += 1
+        # Actualizar campos
+        if content is not None:
+            memory.content = content
         
-        # Devolver valor
-        return self.long_term_memory[key]["value"]
+        if importance is not None:
+            memory.importance = importance
+        
+        if memory_type is not None and memory_type != memory.memory_type:
+            # Eliminar de la lista antigua
+            self._memories[memory.memory_type] = [
+                m for m in self._memories[memory.memory_type] if m.id != memory_id
+            ]
+            
+            # Cambiar tipo
+            memory.memory_type = memory_type
+            
+            # Añadir a la nueva lista
+            self._memories[memory_type].append(memory)
+        
+        if tags is not None:
+            memory.tags = tags
+        
+        # Guardar si es memoria a largo plazo
+        if memory.memory_type in [MemoryType.LONG_TERM, MemoryType.SEMANTIC, MemoryType.PROCEDURAL]:
+            self._save_memories()
+        
+        return memory
     
-    def get_recent_interactions(self, limit: int = 5) -> List[Dict[str, Any]]:
+    def delete_memory(self, memory_id: str) -> bool:
         """
-        Obtener interacciones recientes.
+        Eliminar una memoria.
         
         Args:
-            limit: Número máximo de interacciones a devolver
-            
-        Returns:
-            Lista de interacciones recientes
-        """
-        # Limitar cantidad
-        limit = min(limit, len(self.short_term_memory))
-        
-        # Devolver las más recientes
-        return self.short_term_memory[-limit:]
-    
-    def get_significant_experiences(self) -> List[Dict[str, Any]]:
-        """
-        Obtener experiencias significativas.
+            memory_id: ID de la memoria
         
         Returns:
-            Lista de experiencias significativas
+            True si se eliminó correctamente
         """
-        return self.significant_experiences
-    
-    def clear_short_term_memory(self) -> bool:
-        """
-        Limpiar memoria a corto plazo.
+        for memory_type, memories in self._memories.items():
+            for i, memory in enumerate(memories):
+                if memory.id == memory_id:
+                    memories.pop(i)
+                    
+                    # Guardar si es memoria a largo plazo
+                    if memory_type in [MemoryType.LONG_TERM, MemoryType.SEMANTIC, MemoryType.PROCEDURAL]:
+                        self._save_memories()
+                    
+                    return True
         
-        Returns:
-            True si se limpió correctamente
-        """
-        self.short_term_memory = []
-        return True
+        return False
     
-    def get_stats(self) -> Dict[str, Any]:
+    def search_memories(self, 
+                       query: str, 
+                       memory_type: Optional[MemoryType] = None,
+                       tags: Optional[List[str]] = None,
+                       limit: int = 10) -> List[Memory]:
         """
-        Obtener estadísticas de memoria.
-        
-        Returns:
-            Estadísticas de memoria
-        """
-        return {
-            "short_term_size": len(self.short_term_memory),
-            "long_term_size": len(self.long_term_memory),
-            "significant_experiences": len(self.significant_experiences),
-            "total_interactions": self.stats["total_interactions"],
-            "last_interaction": self.stats["last_interaction"],
-            "categories": self.stats["categories"]
-        }
-    
-    def search_interactions(self, query: str) -> List[Dict[str, Any]]:
-        """
-        Buscar interacciones que contengan la consulta.
+        Buscar memorias por contenido.
         
         Args:
             query: Texto a buscar
-            
+            memory_type: Tipo de memoria (opcional)
+            tags: Etiquetas a filtrar (opcional)
+            limit: Límite de resultados
+        
         Returns:
-            Lista de interacciones que coinciden
+            Lista de memorias que coinciden
         """
-        # Normalizar consulta
+        results = []
         query = query.lower()
         
-        # Buscar en memoria a corto plazo
-        results = []
+        # Determinar tipos a buscar
+        types_to_search = [memory_type] if memory_type else list(MemoryType)
         
-        for interaction in self.short_term_memory:
-            if query in interaction["input"].lower() or query in interaction["response"].lower():
-                results.append(interaction)
+        for m_type in types_to_search:
+            for memory in self._memories[m_type]:
+                # Verificar contenido
+                match = False
+                content_str = json.dumps(memory.content, default=str).lower()
+                
+                if query in content_str:
+                    match = True
+                
+                # Verificar etiquetas si se especificaron
+                if tags and not all(tag in memory.tags for tag in tags):
+                    match = False
+                
+                if match:
+                    memory.update_access()
+                    results.append(memory)
+                    
+                    if len(results) >= limit:
+                        return results
         
         return results
+    
+    def search_memories_by_tags(self, tags: List[str], limit: int = 10) -> List[Memory]:
+        """
+        Buscar memorias por etiquetas.
+        
+        Args:
+            tags: Etiquetas a buscar
+            limit: Límite de resultados
+        
+        Returns:
+            Lista de memorias con las etiquetas
+        """
+        results = []
+        
+        for memories in self._memories.values():
+            for memory in memories:
+                if all(tag in memory.tags for tag in tags):
+                    memory.update_access()
+                    results.append(memory)
+                    
+                    if len(results) >= limit:
+                        return results
+        
+        return results
+    
+    def get_memories_by_type(self, memory_type: MemoryType, limit: int = 50) -> List[Memory]:
+        """
+        Obtener memorias de un tipo específico.
+        
+        Args:
+            memory_type: Tipo de memoria
+            limit: Límite de resultados
+        
+        Returns:
+            Lista de memorias del tipo especificado
+        """
+        # Obtener memorias ordenadas por importancia y recientes
+        memories = sorted(
+            self._memories[memory_type], 
+            key=lambda m: (m.importance, m.last_access_time),
+            reverse=True
+        )
+        
+        # Actualizar acceso
+        for memory in memories[:limit]:
+            memory.update_access()
+        
+        return memories[:limit]
+    
+    def consolidate_memories(self) -> int:
+        """
+        Consolidar memorias a corto plazo en memorias a largo plazo.
+        
+        Returns:
+            Número de memorias consolidadas
+        """
+        consolidated_count = 0
+        
+        # Obtener memorias a corto plazo importantes
+        short_term = self._memories[MemoryType.SHORT_TERM]
+        to_consolidate = [m for m in short_term if m.importance >= 0.7]
+        
+        for memory in to_consolidate:
+            # Cambiar tipo y acceso
+            memory.memory_type = MemoryType.LONG_TERM
+            memory.update_access()
+            
+            # Mover a largo plazo
+            self._memories[MemoryType.LONG_TERM].append(memory)
+            consolidated_count += 1
+        
+        # Eliminar de corto plazo
+        if consolidated_count > 0:
+            self._memories[MemoryType.SHORT_TERM] = [
+                m for m in short_term if m.importance < 0.7
+            ]
+            
+            # Guardar cambios
+            self._save_memories()
+            
+            logger.info(f"Consolidadas {consolidated_count} memorias a largo plazo")
+        
+        return consolidated_count
+    
+    def relate_memories(self, memory_id: str, related_ids: List[str]) -> bool:
+        """
+        Relacionar memorias entre sí.
+        
+        Args:
+            memory_id: ID de la memoria principal
+            related_ids: IDs de memorias relacionadas
+        
+        Returns:
+            True si se relacionaron correctamente
+        """
+        memory = self.get_memory(memory_id)
+        
+        if not memory:
+            return False
+        
+        # Verificar que existan todas las memorias relacionadas
+        for related_id in related_ids:
+            if related_id != memory_id and self.get_memory(related_id):
+                if related_id not in memory.related_memories:
+                    memory.related_memories.append(related_id)
+        
+        # Guardar si es memoria a largo plazo
+        if memory.memory_type in [MemoryType.LONG_TERM, MemoryType.SEMANTIC, MemoryType.PROCEDURAL]:
+            self._save_memories()
+        
+        return True
+    
+    def get_related_memories(self, memory_id: str, limit: int = 10) -> List[Memory]:
+        """
+        Obtener memorias relacionadas.
+        
+        Args:
+            memory_id: ID de la memoria principal
+            limit: Límite de resultados
+        
+        Returns:
+            Lista de memorias relacionadas
+        """
+        memory = self.get_memory(memory_id)
+        
+        if not memory:
+            return []
+        
+        related = []
+        for related_id in memory.related_memories:
+            related_memory = self.get_memory(related_id)
+            if related_memory:
+                related.append(related_memory)
+                
+                if len(related) >= limit:
+                    break
+        
+        return related
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """
+        Obtener estadísticas del sistema de memoria.
+        
+        Returns:
+            Diccionario con estadísticas
+        """
+        stats = {
+            "total_memories": sum(len(mems) for mems in self._memories.values()),
+            "by_type": {memory_type.value: len(mems) for memory_type, mems in self._memories.items()},
+            "capacities": {memory_type.value: capacity for memory_type, capacity in self._capacities.items()}
+        }
+        
+        return stats
+
+# Instancia global para acceso conveniente
+_memory_system = None
+
+def get_memory_system() -> MemorySystem:
+    """
+    Obtener instancia global del sistema de memoria.
+    
+    Returns:
+        Instancia del sistema de memoria
+    """
+    global _memory_system
+    
+    if _memory_system is None:
+        _memory_system = MemorySystem()
+    
+    return _memory_system
