@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class UserRole:
     """Roles de usuario en el sistema."""
     ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"  # Nuevo rol de super administrador
     INVESTOR = "investor"
     VIEWER = "viewer"
     ANALYST = "analyst"
@@ -430,6 +431,15 @@ class AdminManager:
         if not self._verify_password(password, user.password_hash):
             return None
             
+        # Verificar si es Jeremias Lazo o Stephany Sandoval para asignar rol super admin
+        full_name = user.get_full_name().lower()
+        if "jeremias lazo" in full_name or "stephany sandoval" in full_name:
+            if not user.has_role(UserRole.SUPER_ADMIN):
+                self.logger.info(f"Asignando rol de SUPER_ADMIN a {user.get_full_name()}")
+                user.add_role(UserRole.SUPER_ADMIN)
+                user.add_role(UserRole.ADMIN)  # Asegurar que también tenga rol admin
+                await self._save_users()
+        
         # Actualizar último inicio de sesión
         user.update_last_login()
         await self._save_users()

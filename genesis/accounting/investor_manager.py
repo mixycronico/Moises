@@ -1514,6 +1514,315 @@ class InvestorManager:
         except Exception as e:
             self.logger.error(f"Error al aplicar bonos de rendimiento: {str(e)}")
     
+    async def _check_maintenance_fund_collection(self) -> None:
+        """
+        Verificar y ejecutar recolección semanal del 5% para fondo de mantenimiento si es necesario.
+        Esta función verifica si ha pasado una semana desde la última recolección y, en ese caso,
+        recauda el 5% del capital total para el fondo de mantenimiento.
+        """
+        try:
+            now = datetime.now()
+            
+            # Determinar si es necesario hacer recolección (cada 7 días)
+            should_collect = False
+            
+            if not self.last_maintenance_collection:
+                # Primera recolección
+                should_collect = True
+            else:
+                last_date = datetime.fromisoformat(self.last_maintenance_collection)
+                days_passed = (now - last_date).days
+                
+                if days_passed >= 7:
+                    should_collect = True
+            
+            if should_collect:
+                # Calcular 5% del capital total
+                collection_amount = self.total_capital * Decimal('0.05')
+                
+                if collection_amount > Decimal('0'):
+                    # Actualizar fondo de mantenimiento
+                    self.maintenance_fund += collection_amount
+                    
+                    # Registrar colección en base de datos
+                    collection_data = {
+                        "timestamp": now.isoformat(),
+                        "amount": float(collection_amount),
+                        "capital_base": float(self.total_capital),
+                        "percentage": 5.0,
+                        "maintenance_fund_before": float(self.maintenance_fund - collection_amount),
+                        "maintenance_fund_after": float(self.maintenance_fund)
+                    }
+                    
+                    # Actualizar fecha de última recolección
+                    self.last_maintenance_collection = now.isoformat()
+                    
+                    # Guardar en la base de datos
+                    await self._save_maintenance_fund_state()
+                    
+                    # Registrar transacción
+                    transaction_id = await self._register_transaction(
+                        investor_id="system",
+                        transaction_type=TransactionType.MAINTENANCE_COLLECTION,
+                        amount=float(collection_amount),
+                        description=f"Recolección semanal del 5% para fondo de mantenimiento",
+                        related_id=None,
+                        admin_id=None,
+                        metadata=collection_data
+                    )
+                    
+                    # Registrar en audit log
+                    await self._register_audit_action(
+                        action_type=AuditActionType.MAINTENANCE_FUND_COLLECTION,
+                        data=collection_data,
+                        description=f"Recolección automática del 5% para fondo de mantenimiento: ${float(collection_amount):.2f}",
+                        admin_id=None
+                    )
+                    
+                    self.logger.info(f"Recolección para fondo de mantenimiento: ${float(collection_amount):.2f} (5% del capital total)")
+        except Exception as e:
+            self.logger.error(f"Error en recolección de fondo de mantenimiento: {str(e)}")
+            # No propagar el error para evitar que afecte la inicialización
+    
+    async def _check_annual_distribution(self) -> None:
+        """
+        Verificar y ejecutar distribución anual del excedente si es necesario.
+        Esta función verifica si ha pasado un año desde la última distribución y, en ese caso,
+        distribuye el excedente del fondo de mantenimiento entre todos los inversionistas activos.
+        """
+        try:
+            now = datetime.now()
+            
+            # Determinar si es necesario hacer distribución (cada año)
+            should_distribute = False
+            
+            if not self.annual_distribution_date:
+                # Primera distribución (verificar si ha pasado un año desde la primera transacción)
+                first_transaction = None
+                for transaction in self.transactions.values():
+                    if not first_transaction or transaction["timestamp"] < first_transaction["timestamp"]:
+                        first_transaction = transaction
+                
+                if first_transaction:
+                    first_date = datetime.fromisoformat(first_transaction["timestamp"])
+                    days_passed = (now - first_date).days
+                    
+                    if days_passed >= 365:
+                        should_distribute = True
+                        
+            else:
+                last_date = datetime.fromisoformat(self.annual_distribution_date)
+                days_passed = (now - last_date).days
+                
+                if days_passed >= 365:
+                    should_distribute = True
+            
+            if should_distribute:
+                # Mantener un 20% del fondo para emergencias y distribuir el 80% restante
+                reserved_amount = self.maintenance_fund * Decimal('0.20')
+                amount_to_distribute = self.maintenance_fund - reserved_amount
+                
+                if amount_to_distribute > Decimal('0'):
+                    # Contar inversionistas activos
+                    active_investors = [
+                        investor_id for investor_id, investor in self.investors.items()
+                        if investor["status"] == InvestorStatus.ACTIVE
+                    ]
+                    
+                    if active_investors:
+                        # Dividir equitativamente
+                        amount_per_investor = amount_to_distribute / Decimal(len(active_investors))
+                        
+                        # Distribuir
+                        distribution_data = {
+                            "timestamp": now.isoformat(),
+                            "total_amount": float(amount_to_distribute),
+                            "investor_count": len(active_investors),
+                            "amount_per_investor": float(amount_per_investor),
+                            "maintenance_fund_before": float(self.maintenance_fund),
+                            "maintenance_fund_after": float(reserved_amount)
+                        }
+                        
+                        # Actualizar fondo de mantenimiento
+                        self.maintenance_fund = reserved_amount
+                        
+                        # Actualizar fecha de distribución
+                        self.annual_distribution_date = now.isoformat()
+                        
+                        # Guardar en la base de datos
+                        await self._save_maintenance_fund_state()
+                        
+                        # Distribuir a cada inversionista activo
+                        for investor_id in active_investors:
+                            investor = self.investors[investor_id]
+                            
+                            # Actualizar saldo
+                            investor["balance"] += amount_per_investor
+                            investor["total_profit"] += amount_per_investor
+                            investor["updated_at"] = now.isoformat()
+                            
+                            # Registrar transacción
+                            await self._register_transaction(
+                                investor_id=investor_id,
+                                transaction_type=TransactionType.ANNUAL_DISTRIBUTION,
+                                amount=float(amount_per_investor),
+                                description=f"Distribución anual del excedente del fondo de mantenimiento",
+                                related_id=None,
+                                admin_id=None,
+                                metadata={"distribution_id": now.strftime("%Y%m%d")}
+                            )
+                            
+                            # Guardar en base de datos
+                            if self.db:
+                                await self.db.set(f"investor:{investor_id}", json.dumps(investor))
+                        
+                        # Registrar en audit log
+                        await self._register_audit_action(
+                            action_type=AuditActionType.ANNUAL_DISTRIBUTION,
+                            data=distribution_data,
+                            description=f"Distribución anual del excedente: ${float(amount_to_distribute):.2f} entre {len(active_investors)} inversionistas",
+                            admin_id=None
+                        )
+                        
+                        self.logger.info(f"Distribución anual realizada: ${float(amount_to_distribute):.2f} entre {len(active_investors)} inversionistas")
+        except Exception as e:
+            self.logger.error(f"Error en distribución anual: {str(e)}")
+            # No propagar el error para evitar que afecte la inicialización
+    
+    async def _save_maintenance_fund_state(self) -> None:
+        """Guardar estado del fondo de mantenimiento en la base de datos."""
+        try:
+            if self.db:
+                maintenance_info = {
+                    "balance": float(self.maintenance_fund),
+                    "last_collection": self.last_maintenance_collection,
+                    "annual_distribution_date": self.annual_distribution_date,
+                    "expenses": {k: float(v) for k, v in self.maintenance_expenses.items()}
+                }
+                await self.db.set("system:maintenance_fund", json.dumps(maintenance_info))
+        except Exception as e:
+            self.logger.error(f"Error al guardar estado del fondo de mantenimiento: {str(e)}")
+    
+    async def register_api_expense(self, 
+                                  api_name: str, 
+                                  amount: float, 
+                                  description: str, 
+                                  admin_id: str) -> Dict[str, Any]:
+        """
+        Registrar gasto de API (DeepSeek, Alpha Vantage, etc.) en el fondo de mantenimiento.
+        
+        Args:
+            api_name: Nombre de la API (ej: 'DeepSeek', 'AlphaVantage')
+            amount: Cantidad gastada
+            description: Descripción del gasto
+            admin_id: ID del administrador que registra el gasto
+            
+        Returns:
+            Resultado de la operación
+        """
+        try:
+            # Verificar que hay fondos suficientes
+            amount_decimal = Decimal(str(amount))
+            
+            if amount_decimal <= Decimal('0'):
+                return {"success": False, "error": "El monto debe ser mayor a cero"}
+                
+            if amount_decimal > self.maintenance_fund:
+                return {"success": False, "error": "Fondos insuficientes en la cuenta de mantenimiento"}
+            
+            # Verificar que el admin tenga permisos
+            # TODO: Verificar permisos de super administrador
+            
+            # Actualizar fondo de mantenimiento
+            self.maintenance_fund -= amount_decimal
+            
+            # Actualizar categoría de gastos
+            self.maintenance_expenses[MaintenanceExpenseCategory.API_SERVICES] += amount_decimal
+            
+            # Datos del gasto
+            expense_data = {
+                "api_name": api_name,
+                "amount": float(amount_decimal),
+                "timestamp": datetime.now().isoformat(),
+                "admin_id": admin_id,
+                "maintenance_fund_before": float(self.maintenance_fund + amount_decimal),
+                "maintenance_fund_after": float(self.maintenance_fund)
+            }
+            
+            # Registrar transacción
+            transaction = await self._register_transaction(
+                investor_id="system",
+                transaction_type=TransactionType.MAINTENANCE_USAGE,
+                amount=-float(amount_decimal),  # Negativo porque es gasto
+                description=f"Pago de API {api_name}: {description}",
+                related_id=None,
+                admin_id=admin_id,
+                metadata=expense_data
+            )
+            
+            # Registrar en audit log
+            await self._register_audit_action(
+                action_type=AuditActionType.MAINTENANCE_FUND_USAGE,
+                data=expense_data,
+                description=f"Gasto en API {api_name}: ${float(amount_decimal):.2f} - {description}",
+                admin_id=admin_id
+            )
+            
+            # Guardar en la base de datos
+            await self._save_maintenance_fund_state()
+            
+            self.logger.info(f"Gasto registrado en API {api_name}: ${float(amount_decimal):.2f}")
+            
+            return {
+                "success": True,
+                "transaction_id": transaction.get("id"),
+                "maintenance_fund_remaining": float(self.maintenance_fund)
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error al registrar gasto de API: {str(e)}")
+            return {"success": False, "error": str(e)}
+    
+    async def _register_audit_action(self,
+                                    action_type: str,
+                                    data: Dict[str, Any],
+                                    description: str,
+                                    admin_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Registrar acción de auditoría.
+        
+        Args:
+            action_type: Tipo de acción
+            data: Datos relacionados
+            description: Descripción
+            admin_id: ID del administrador (opcional)
+            
+        Returns:
+            Registro de auditoría
+        """
+        try:
+            audit_id = generate_id()
+            timestamp = datetime.now().isoformat()
+            
+            audit_entry = {
+                "id": audit_id,
+                "type": action_type,
+                "description": description,
+                "timestamp": timestamp,
+                "admin_id": admin_id,
+                "data": data
+            }
+            
+            # Guardar en base de datos
+            if self.db:
+                await self.db.set(f"audit:{audit_id}", json.dumps(audit_entry))
+                
+            return audit_entry
+            
+        except Exception as e:
+            self.logger.error(f"Error al registrar acción de auditoría: {str(e)}")
+            return {}
+    
     async def _register_transaction(self,
                                    investor_id: str,
                                    transaction_type: str,
