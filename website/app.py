@@ -193,7 +193,7 @@ def investor_home():
     investor = next((inv for inv in SAMPLE_DATA["investors"] if inv["id"] == investor_id), 
                    SAMPLE_DATA["investors"][3])  # Inversionista por defecto
     
-    return render_template('investor_home.html', 
+    return render_template('investor/home.html', 
                           title="Mi Inversión - Genesis",
                           investor=investor,
                           system_status=SAMPLE_DATA["system_status"],
@@ -212,7 +212,7 @@ def portfolio():
 @login_required
 def dashboard():
     """Dashboard interactivo."""
-    return render_template('dashboard.html', 
+    return render_template('admin/dashboard.html', 
                          title="Dashboard - Genesis", 
                          metrics=SAMPLE_DATA["performance"],
                          system_status=SAMPLE_DATA["system_status"],
@@ -266,7 +266,7 @@ def preferences():
 @super_admin_required
 def admin_system():
     """Panel exclusivo para super administradores."""
-    return render_template('admin_system.html', 
+    return render_template('admin/system_control.html', 
                          title="Control del Sistema - Genesis",
                          system_status=SAMPLE_DATA["system_status"])
 
