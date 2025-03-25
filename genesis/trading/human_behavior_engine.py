@@ -1,1343 +1,244 @@
 """
-Motor de Comportamiento Humano (Human Behavior Engine) - Gabriel
+Motor de comportamiento humano para trading
 
-Este módulo celestial implementa el corazón del sistema de simulación 
-de comportamiento humano para la estrategia Seraphim Pool, permitiendo
-que el Sistema Genesis opere con patrones humanos realistas y evite
-la detección algorítmica.
+Este módulo proporciona una simulación de comportamiento humano para estrategias de trading,
+permitiendo que las decisiones tengan un componente emocional que refleje patrones humanos.
 
-Proporciona:
-- Patrones de comportamiento humano para decisiones de trading
-- Simulación de pausas estratégicas y contemplación
-- Introducción de variabilidad subjetiva en decisiones
-- Protección contra patrones algorítmicos detectables
+Esta clase es un wrapper alrededor de Gabriel, para mantener compatibilidad con código existente.
 
 Autor: Genesis AI Assistant
 Versión: 1.0.0 (Divina)
 """
 
-import asyncio
 import logging
+import asyncio
 import random
-import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple, Any, Union
-from enum import Enum, auto
-import uuid
-import numpy as np
-from collections import deque
+from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime
 
-# Configuración de logging
+from genesis.trading.seraphim_integration import get_gabriel_adapter
+
 logger = logging.getLogger(__name__)
 
-class EmotionalState(Enum):
-    """Estados emocionales simulados para decisiones humanas."""
-    NEUTRAL = auto()       # Estado equilibrado, decisiones racionales
-    OPTIMISTIC = auto()    # Tendencia a ver oportunidades, más riesgo
-    CAUTIOUS = auto()      # Tendencia a evitar pérdidas, menos riesgo
-    IMPATIENT = auto()     # Tendencia a decisiones rápidas, menos análisis
-    CONFIDENT = auto()     # Tendencia a posiciones más grandes
-    ANXIOUS = auto()       # Tendencia a cerrar posiciones pronto
-    FEARFUL = auto()       # Miedo extremo, tendencia a reducir posiciones significativamente
-    CONTEMPLATIVE = auto() # Tendencia a analizar más tiempo
-
-class RiskTolerance(Enum):
-    """Niveles de tolerancia al riesgo para simulación humana."""
-    RISK_AVERSE = auto()      # Evita riesgos agresivamente
-    CONSERVATIVE = auto()     # Prefiere seguridad pero acepta algo de riesgo
-    MODERATE = auto()         # Balance entre riesgo y seguridad
-    GROWTH_ORIENTED = auto()  # Acepta más riesgo por más rendimiento
-    AGGRESSIVE = auto()       # Busca alto rendimiento, acepta alto riesgo
-
-class DecisionStyle(Enum):
-    """Estilos de toma de decisiones para simulación humana."""
-    ANALYTICAL = auto()      # Basado en análisis detallado
-    INTUITIVE = auto()       # Basado en "sensaciones" e intuición
-    METHODICAL = auto()      # Basado en procesos y reglas
-    IMPULSIVE = auto()       # Decisiones rápidas con poca contemplación
-    CONSULTATIVE = auto()    # Busca múltiples opiniones
-
-class GabrielBehaviorEngine:
+class HumanBehaviorEngine:
     """
-    Motor de Comportamiento Humano Gabriel.
+    Motor de comportamiento humano para trading.
     
-    Esta clase implementa el sistema de simulación de comportamiento humano
-    para la estrategia Seraphim Pool, integrando patrones naturales en
-    el proceso de trading automatizado.
+    Esta clase proporciona simulación de comportamiento humano para decisiones
+    de trading, incluyendo aspectos emocionales y sesgos.
+    
+    Actúa como un wrapper alrededor de Gabriel, manteniendo compatibilidad
+    con código existente que podría estar usando esta clase.
     """
     
-    def __init__(self):
-        """Inicializar motor de comportamiento humano Gabriel."""
-        # Usamos el adaptador para el nuevo sistema Gabriel
-        from genesis.trading.gabriel_adapter import get_gabriel_adapter
-        self._gabriel_adapter = get_gabriel_adapter()
-        
-        # Estado emocional actual y características de comportamiento
-        self.emotional_state = EmotionalState.NEUTRAL
-        self.risk_tolerance = RiskTolerance.MODERATE
-        self.decision_style = DecisionStyle.ANALYTICAL
-        
-        # Evolución de estado
-        self.emotional_stability = 0.7  # 0-1, qué tan estable es el estado emocional
-        self.risk_adaptation_rate = 0.3  # 0-1, qué tan rápido se adapta la tolerancia al riesgo
-        self.last_state_change = datetime.now()
-        
-        # Historial para simulación de patrones más realistas
-        self.recent_decisions = deque(maxlen=10)
-        self.market_perceptions = {
-            "perceived_volatility": 0.5,  # 0-1
-            "perceived_opportunity": 0.5,  # 0-1
-            "perceived_risk": 0.5,  # 0-1
-            "market_sentiment": "neutral"  # bullish, bearish, neutral
-        }
-        
-        # Parámetros de simulación
-        self.decision_speed_multiplier = 1.0  # Afecta tiempos de pausa
-        self.randomness_factor = 0.2  # Nivel de aleatorización en decisiones
-        self.contrarian_tendency = 0.1  # Tendencia a ir contra la corriente
-        
-        # ID y configuración
-        self.instance_id = str(uuid.uuid4())
-        self.configuration = self._create_default_configuration()
-        
-        # Actualizar estado desde Gabriel
-        self._sync_state_from_adapter()
-        
-        logger.info("Motor de Comportamiento Humano Gabriel inicializado")
-        
-    def _sync_state_from_adapter(self):
+    def __init__(self, archetype: str = "BALANCED"):
         """
-        Sincroniza el estado del motor con el adaptador Gabriel.
+        Inicializar motor de comportamiento.
         
-        Este método actualiza las propiedades del motor de comportamiento
-        basándose en el estado actual del adaptador Gabriel.
+        Args:
+            archetype: Arquetipo de comportamiento
         """
-        try:
-            if not self._gabriel_adapter:
-                logger.warning("Adaptador Gabriel no inicializado")
-                return
-                
-            # Obtener estado actual del adaptador
-            adapter_state = self._gabriel_adapter.get_current_state()
-            if not adapter_state:
-                logger.warning("No se pudo obtener estado del adaptador Gabriel")
-                return
-                
-            # Actualizar estado emocional si está disponible
-            if 'emotional_state' in adapter_state:
-                state_name = adapter_state['emotional_state'].upper()
-                try:
-                    self.emotional_state = EmotionalState[state_name]
-                    logger.debug(f"Estado emocional actualizado a {self.emotional_state.name}")
-                except (KeyError, ValueError):
-                    logger.warning(f"Estado emocional no reconocido: {state_name}")
-            
-            # Actualizar tolerancia al riesgo si está disponible
-            if 'risk_tolerance' in adapter_state:
-                risk_name = adapter_state['risk_tolerance'].upper()
-                try:
-                    self.risk_tolerance = RiskTolerance[risk_name]
-                    logger.debug(f"Tolerancia al riesgo actualizada a {self.risk_tolerance.name}")
-                except (KeyError, ValueError):
-                    logger.warning(f"Tolerancia al riesgo no reconocida: {risk_name}")
-                    
-            # Actualizar percepciones de mercado si están disponibles
-            if 'market_perceptions' in adapter_state and isinstance(adapter_state['market_perceptions'], dict):
-                for key, value in adapter_state['market_perceptions'].items():
-                    if key in self.market_perceptions:
-                        self.market_perceptions[key] = value
-                        
-            logger.debug("Estado sincronizado desde adaptador Gabriel")
-                
-        except Exception as e:
-            logger.error(f"Error al sincronizar estado desde adaptador Gabriel: {str(e)}")
+        # Crear instancia de Gabriel
+        self.gabriel = get_gabriel_adapter(archetype)
+        self.is_initialized = False
+        self.archetype = archetype
+        
+        logger.info(f"HumanBehaviorEngine inicializado con arquetipo {archetype}")
     
-    async def initialize(self):
+    async def initialize(self) -> bool:
         """
-        Inicialización asíncrona del motor de comportamiento Gabriel.
-        
-        Esta función es necesaria para mantener la consistencia con la interfaz
-        del orquestador Seraphim y otros componentes del sistema.
+        Inicializar motor de comportamiento.
         
         Returns:
             True si la inicialización fue exitosa
         """
-        logger.info("Motor de comportamiento Gabriel inicializando de forma asíncrona...")
+        if self.is_initialized:
+            return True
         
-        # Inicializar adaptador Gabriel si existe
-        if hasattr(self, '_gabriel_adapter') and self._gabriel_adapter:
-            try:
-                await self._gabriel_adapter.initialize()
-                # Actualizar estado desde Gabriel después de inicialización
-                self._sync_state_from_adapter()
-            except Exception as e:
-                logger.error(f"Error al inicializar adaptador Gabriel: {str(e)}")
-        
-        await asyncio.sleep(0.1)  # Pausa mínima para simular procesamiento
-        logger.info("Motor de comportamiento Gabriel inicializado correctamente")
-        return True
-        
-    async def get_emotional_state(self) -> EmotionalState:
-        """
-        Obtener estado emocional actual del motor Gabriel.
-        
-        Returns:
-            Estado emocional actual
-        """
-        # Simular pequeña variación aleatoria (indecisión humana)
-        if random.random() < 0.05:  # 5% de probabilidad de fluctuación momentánea
-            emotional_states = list(EmotionalState)
-            current_index = emotional_states.index(self.emotional_state)
-            max_shift = 1  # Máximo cambio de 1 estado
-            
-            # Limitar a estados adyacentes
-            min_index = max(0, current_index - max_shift)
-            max_index = min(len(emotional_states) - 1, current_index + max_shift)
-            
-            # Seleccionar estado aleatorio cercano (fluctuación momentánea)
-            temporary_state = emotional_states[random.randint(min_index, max_index)]
-            logger.debug(f"Fluctuación emocional momentánea: {self.emotional_state.name} → {temporary_state.name}")
-            return temporary_state
-        
-        return self.emotional_state
-        
-    async def get_risk_tolerance(self) -> RiskTolerance:
-        """
-        Obtener tolerancia al riesgo actual del motor Gabriel.
-        
-        Returns:
-            Tolerancia al riesgo actual
-        """
-        # El estado emocional puede afectar temporalmente la tolerancia al riesgo
-        if self.emotional_state == EmotionalState.FEARFUL:
-            # El miedo reduce dramáticamente la tolerancia al riesgo
-            risk_levels = list(RiskTolerance)
-            current_index = risk_levels.index(self.risk_tolerance)
-            
-            # Moverse hacia tolerancia más baja (mayor aversión al riesgo)
-            adjusted_index = max(0, current_index - 2)  # Reducir hasta 2 niveles
-            temporary_tolerance = risk_levels[adjusted_index]
-            
-            logger.debug(f"Tolerancia al riesgo reducida por miedo: {self.risk_tolerance.name} → {temporary_tolerance.name}")
-            return temporary_tolerance
-        elif self.emotional_state == EmotionalState.OPTIMISTIC:
-            # El optimismo aumenta la tolerancia al riesgo
-            risk_levels = list(RiskTolerance)
-            current_index = risk_levels.index(self.risk_tolerance)
-            
-            # Moverse hacia tolerancia más alta
-            adjusted_index = min(len(risk_levels) - 1, current_index + 1)
-            temporary_tolerance = risk_levels[adjusted_index]
-            
-            logger.debug(f"Tolerancia al riesgo aumentada por optimismo: {self.risk_tolerance.name} → {temporary_tolerance.name}")
-            return temporary_tolerance
-        
-        return self.risk_tolerance
-        
-    async def get_market_outlook(self) -> Dict[str, Any]:
-        """
-        Obtener perspectiva actual del mercado según la percepción humana.
-        
-        Returns:
-            Diccionario con información sobre percepción del mercado
-        """
-        # Crear percepción del mercado basada en estado emocional y percepciones
-        outlook = {
-            "sentiment": self.market_perceptions["market_sentiment"],
-            "perceived_volatility": self.market_perceptions["perceived_volatility"],
-            "perceived_risk": self.market_perceptions["perceived_risk"],
-            "perceived_opportunity": self.market_perceptions["perceived_opportunity"],
-            "emotional_bias": self.emotional_state.name,
-            "confidence_level": 0.7,  # Base de confianza en evaluación
-            "is_fearful": self.emotional_state == EmotionalState.FEARFUL,
-            "expected_trend": "neutral"  # Por defecto
-        }
-        
-        # Ajustar confianza según estado emocional
-        if self.emotional_state == EmotionalState.CONFIDENT:
-            outlook["confidence_level"] = 0.9
-        elif self.emotional_state == EmotionalState.ANXIOUS:
-            outlook["confidence_level"] = 0.5
-        elif self.emotional_state == EmotionalState.FEARFUL:
-            outlook["confidence_level"] = 0.3
-            
-        # Determinar tendencia esperada basada en sentimiento
-        if self.market_perceptions["market_sentiment"] == "bullish":
-            if self.emotional_state == EmotionalState.FEARFUL:
-                # Cuando hay miedo, incluso en mercado alcista hay desconfianza
-                outlook["expected_trend"] = "neutral" if random.random() < 0.7 else "bullish"
-            else:
-                outlook["expected_trend"] = "bullish"
-        elif self.market_perceptions["market_sentiment"] == "bearish":
-            outlook["expected_trend"] = "bearish"
-            
-        # Tendencia contra-corriente (contrarian)
-        if random.random() < self.contrarian_tendency:
-            if outlook["expected_trend"] == "bullish":
-                outlook["expected_trend"] = "bearish"
-                outlook["is_contrarian"] = True
-            elif outlook["expected_trend"] == "bearish":
-                outlook["expected_trend"] = "bullish"
-                outlook["is_contrarian"] = True
-                
-        # Ajustar percepción de oportunidad según tendencia y miedo
-        if outlook["expected_trend"] == "bullish" and self.emotional_state != EmotionalState.FEARFUL:
-            outlook["perceived_opportunity"] = min(1.0, outlook["perceived_opportunity"] * 1.2)
-        elif outlook["expected_trend"] == "bearish" or self.emotional_state == EmotionalState.FEARFUL:
-            outlook["perceived_opportunity"] = max(0.1, outlook["perceived_opportunity"] * 0.8)
-            
-        return outlook
-        
-    async def validate_trade(self, trade_data: Dict[str, Any]) -> Tuple[bool, str]:
-        """
-        Validar una operación de trading desde una perspectiva humana.
-        
-        Este método simula la validación "subjetiva" que un humano haría antes
-        de confirmar una operación, incluyendo factores emocionales, experiencia
-        previa, y sesgos perceptuales.
-        
-        Args:
-            trade_data: Datos de la operación propuesta
-                {
-                    'symbol': str,           # Símbolo del activo
-                    'side': str,             # 'buy' o 'sell'
-                    'amount': float,         # Cantidad a operar
-                    'price': float,          # Precio propuesto
-                    'reason': str,           # Razón de la señal
-                    'confidence': float,     # Confianza en la señal (0-1)
-                    'market_data': dict,     # Datos de mercado actuales
-                    'historical_performance': dict  # Rendimiento histórico
-                }
-                
-        Returns:
-            Tupla (aprobado, razón)
-        """
         try:
-            # Extraer datos relevantes
-            symbol = trade_data.get('symbol', 'desconocido')
-            side = trade_data.get('side', 'buy')
-            confidence = trade_data.get('confidence', 0.5)
-            market_data = trade_data.get('market_data', {})
-            reason = trade_data.get('reason', 'señal_técnica')
-            
-            # Factores para la decisión humana
-            decision_factors = {}
-            
-            # Factor 1: Estado emocional actual
-            emotional_approval = True
-            decision_factors['emotional_state'] = self.emotional_state.name
-            
-            # Si hay miedo extremo, rechazar compras salvo señales perfectas (100%)
-            if self.emotional_state == EmotionalState.FEARFUL:
-                if side == 'buy' and confidence < 1.0:
-                    emotional_approval = False
-                    decision_factors['fearful_rejection'] = True
-                    
-            # Si hay ansiedad, aumentar umbral para compras
-            elif self.emotional_state == EmotionalState.ANXIOUS:
-                if side == 'buy' and confidence < 0.65:
-                    emotional_approval = False
-                    decision_factors['anxious_rejection'] = True
-                    
-            # Si hay optimismo, disminuir umbral para compras
-            elif self.emotional_state == EmotionalState.OPTIMISTIC:
-                if side == 'buy' and confidence < 0.45:  # Más permisivo
-                    emotional_approval = False
-                    
-            # Factor 2: Comportamiento contrario (contrarian)
-            contrarian_factor = False
-            if random.random() < self.contrarian_tendency:
-                if side == 'buy' and self.market_perceptions["market_sentiment"] == "bearish":
-                    # Compra contra-tendencia (más difícil de aprobar)
-                    contrarian_factor = True
-                    if confidence < 0.7:  # Mayor exigencia para operaciones contrarian
-                        decision_factors['contrarian_rejection'] = True
-                        emotional_approval = False
-                elif side == 'sell' and self.market_perceptions["market_sentiment"] == "bullish":
-                    # Venta contra-tendencia
-                    contrarian_factor = True
-            
-            decision_factors['contrarian'] = contrarian_factor
-            
-            # Factor 3: Percepción de volatilidad y riesgo
-            risk_perception = self.market_perceptions["perceived_risk"]
-            volatility_perception = self.market_perceptions["perceived_volatility"]
-            
-            # Con alta percepción de riesgo, ser más exigente
-            if risk_perception > 0.7:
-                if confidence < (0.5 + risk_perception * 0.3):  # Umbral adaptativo
-                    emotional_approval = False
-                    decision_factors['high_risk_rejection'] = True
-            
-            # Con alta volatilidad, adaptarse según estado emocional
-            if volatility_perception > 0.7:
-                if self.emotional_state in [EmotionalState.ANXIOUS, EmotionalState.FEARFUL]:
-                    if confidence < (0.6 + volatility_perception * 0.2):
-                        emotional_approval = False
-                        decision_factors['high_volatility_rejection'] = True
-            
-            # Añadir elemento aleatorio (inconsistencia humana)
-            random_rejection = random.random() < 0.05  # 5% de rechazo aleatorio
-            if random_rejection:
-                emotional_approval = False
-                decision_factors['random_rejection'] = True
-                
-            # Generar razón de la decisión
-            if emotional_approval:
-                # Simular dudas incluso en caso de aprobación
-                approval_confidence = random.uniform(0.7, 1.0)
-                decision_factors['approval_confidence'] = approval_confidence
-                reason_message = "Aprobado por evaluación humana"
-                
-                # Añadir detalles según estado emocional
-                if self.emotional_state == EmotionalState.OPTIMISTIC:
-                    reason_message += " - Perspectiva optimista favorable"
-                elif self.emotional_state == EmotionalState.CONFIDENT:
-                    reason_message += " - Alta confianza en la decisión"
-            else:
-                # Diferentes razones de rechazo
-                if 'fearful_rejection' in decision_factors:
-                    reason_message = "Rechazado por miedo extremo en el mercado"
-                elif 'anxious_rejection' in decision_factors:
-                    reason_message = "Rechazado por ansiedad ante condiciones del mercado"
-                elif 'high_risk_rejection' in decision_factors:
-                    reason_message = "Rechazado por percepción de alto riesgo"
-                elif 'high_volatility_rejection' in decision_factors:
-                    reason_message = "Rechazado por excesiva volatilidad percibida"
-                elif 'random_rejection' in decision_factors:
-                    reason_message = "Rechazado por intuición negativa"
-                elif 'contrarian_rejection' in decision_factors:
-                    reason_message = "Rechazado por operación contra-tendencia sin suficiente señal"
-                else:
-                    reason_message = "Rechazado por evaluación subjetiva"
-            
-            # Log detallado de la decisión
-            logger.debug(f"Validación humana para {symbol} ({side}): {emotional_approval} - {reason_message}")
-            logger.debug(f"Factores de decisión: {decision_factors}")
-            
-            return emotional_approval, reason_message
-            
+            # Inicializar Gabriel
+            result = await self.gabriel.initialize()
+            self.is_initialized = result
+            return result
         except Exception as e:
-            logger.error(f"Error en validación humana: {str(e)}")
-            return False, f"Error en validación: {str(e)}"
+            logger.error(f"Error al inicializar HumanBehaviorEngine: {str(e)}")
+            return False
     
-    async def adjust_order_size(self, order_data: Dict[str, Any]) -> Dict[str, Any]:
+    async def process_market_state(self, market_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Ajustar tamaño de orden basado en comportamiento humano.
-        
-        Los humanos a menudo redondean los tamaños de las órdenes, utilizan números
-        "bonitos" o ajustan tamaños según su confianza y estado emocional.
+        Procesar estado del mercado con perspectiva humana.
         
         Args:
-            order_data: Datos de la orden
-                {
-                    'symbol': str,           # Símbolo del activo
-                    'side': str,             # 'buy' o 'sell'
-                    'amount': float,         # Cantidad original a operar
-                    'price': float,          # Precio propuesto
-                    'total_value': float,    # Valor total de la operación
-                    'confidence': float,     # Confianza en la señal (0-1)
-                    'available_capital': float  # Capital disponible
-                }
-                
-        Returns:
-            Orden con cantidad ajustada humanamente
-        """
-        # Extraer datos relevantes
-        side = order_data.get('side', 'buy')
-        original_amount = order_data.get('amount', 0.0)
-        price = order_data.get('price', 0.0)
-        confidence = order_data.get('confidence', 0.5)
-        symbol = order_data.get('symbol', 'desconocido')
-        available_capital = order_data.get('available_capital', 0.0)
-        
-        # Ajuste base según estado emocional
-        emotional_factor = 1.0  # Sin ajuste por defecto
-        
-        # Caso especial: FEARFUL - reducción drástica de cantidad en compras
-        if self.emotional_state == EmotionalState.FEARFUL:
-            if side == 'buy':
-                emotional_factor = 0.5  # 50% de la cantidad original
-                logger.debug(f"Miedo extremo: Reduciendo cantidad de compra al 50% para {symbol}")
-            else:
-                # En ventas, el miedo puede llevar a aumentar cantidad (salir más rápido)
-                emotional_factor = 1.2
-                logger.debug(f"Miedo extremo: Aumentando cantidad de venta al 120% para {symbol}")
-                
-        # Ansioso - reducción moderada en compras
-        elif self.emotional_state == EmotionalState.ANXIOUS:
-            if side == 'buy':
-                emotional_factor = 0.7
+            market_data: Datos del mercado
             
-        # Optimista/Confiado - posible aumento en compras
-        elif self.emotional_state in [EmotionalState.OPTIMISTIC, EmotionalState.CONFIDENT]:
-            if side == 'buy':
-                emotional_factor = 1.2
-                
-        # Ajuste por confianza en la señal
-        confidence_factor = 0.7 + (confidence * 0.6)  # 0.7-1.3 basado en confianza
-        
-        # Combinar factores
-        combined_factor = emotional_factor * confidence_factor
-        
-        # Aplicar factor combinado
-        adjusted_amount = original_amount * combined_factor
-        
-        # Humanos tienden a redondear a números "bonitos"
-        # Determinar magnitud para decidir precisión del redondeo
-        magnitude = abs(adjusted_amount)
-        
-        if magnitude >= 1000:
-            # Redondear a decenas/centenas para cantidades grandes
-            rounded_amount = round(adjusted_amount / 100) * 100
-        elif magnitude >= 100:
-            # Redondear a decenas para cantidades medianas
-            rounded_amount = round(adjusted_amount / 10) * 10
-        elif magnitude >= 10:
-            # Redondear a unidades para cantidades pequeñas
-            rounded_amount = round(adjusted_amount)
-        elif magnitude >= 1:
-            # Redondear a decimales para cantidades muy pequeñas
-            rounded_amount = round(adjusted_amount, 1)
-        elif magnitude >= 0.1:
-            # Más precisión para cantidades minúsculas
-            rounded_amount = round(adjusted_amount, 2)
-        else:
-            # Máxima precisión para cantidades ínfimas
-            rounded_amount = round(adjusted_amount, 4)
-            
-        # Verificar que no exceda el capital disponible (para compras)
-        if side == 'buy' and price > 0 and available_capital > 0:
-            max_possible = available_capital / price
-            if rounded_amount > max_possible:
-                rounded_amount = max_possible * 0.98  # 98% del máximo posible (margen de seguridad)
-                logger.debug(f"Ajustada cantidad para no exceder capital disponible: {rounded_amount}")
-                
-        # Resultado final
-        result = order_data.copy()
-        result['amount'] = rounded_amount
-        result['original_amount'] = original_amount
-        result['adjustment_factors'] = {
-            'emotional': emotional_factor,
-            'confidence': confidence_factor,
-            'combined': combined_factor
-        }
-        
-        logger.debug(f"Cantidad ajustada para {symbol} ({side}): {original_amount} → {rounded_amount}")
-        
-        return result
-    
-    def _create_default_configuration(self) -> Dict[str, Any]:
-        """
-        Crear configuración predeterminada.
-        
         Returns:
-            Configuración predeterminada
+            Percepción humana del mercado
         """
-        return {
-            "emotional_state_shifts": {
-                "on_profit": 0.2,  # Hacia optimista
-                "on_loss": -0.3,   # Hacia ansioso
-                "on_market_upturn": 0.1,  # Hacia optimista
-                "on_market_downturn": -0.2,  # Hacia cauteloso
-                "on_trade_success": 0.15,  # Hacia confiado
-                "on_trade_failure": -0.25,  # Hacia ansioso
-                "natural_decay": 0.05  # Hacia neutral
-            },
-            "contemplation_times": {
-                EmotionalState.NEUTRAL.name: (10, 20),  # (min, max) segundos
-                EmotionalState.OPTIMISTIC.name: (5, 15),
-                EmotionalState.CAUTIOUS.name: (15, 30),
-                EmotionalState.IMPATIENT.name: (3, 8),
-                EmotionalState.CONFIDENT.name: (7, 12),
-                EmotionalState.ANXIOUS.name: (12, 25),
-                EmotionalState.FEARFUL.name: (18, 35),  # Tendencia a demorar decisiones por miedo
-                EmotionalState.CONTEMPLATIVE.name: (20, 40)
-            },
-            "decision_thresholds": {
-                RiskTolerance.RISK_AVERSE.name: 0.8,  # Umbral para entrar
-                RiskTolerance.CONSERVATIVE.name: 0.7,
-                RiskTolerance.MODERATE.name: 0.6,
-                RiskTolerance.GROWTH_ORIENTED.name: 0.5,
-                RiskTolerance.AGGRESSIVE.name: 0.4
-            },
-            "subjective_rejection_chance": {
-                DecisionStyle.ANALYTICAL.name: 0.05,  # Probabilidad de rechazo subjetivo
-                DecisionStyle.INTUITIVE.name: 0.3,
-                DecisionStyle.METHODICAL.name: 0.1,
-                DecisionStyle.IMPULSIVE.name: 0.2,
-                DecisionStyle.CONSULTATIVE.name: 0.15
-            }
-        }
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Utilizar Gabriel para obtener percepción
+        perception = await self.gabriel.process_market_data(market_data)
+        return perception
     
-    async def update_emotional_state(self, trigger: str, magnitude: float = 1.0) -> EmotionalState:
+    async def evaluate_signal(self, 
+                           signal_strength: float, 
+                           market_data: Dict[str, Any]) -> Tuple[bool, str, float]:
         """
-        Actualizar estado emocional basado en un evento desencadenante.
+        Evaluar señal de trading con comportamiento humano.
         
         Args:
-            trigger: Tipo de evento ("profit", "loss", "market_upturn", "market_crash", etc.)
-            magnitude: Magnitud del cambio (multiplicador)
+            signal_strength: Fuerza de la señal (0-1)
+            market_data: Datos del mercado
             
         Returns:
-            Nuevo estado emocional
+            Tupla (decisión, razón, confianza)
         """
-        old_state = self.emotional_state
+        if not self.is_initialized:
+            await self.initialize()
         
-        # Eventos que provocan estados específicos (transiciones directas)
-        # Estos eventos siempre causan el mismo estado emocional, independientemente del estado actual
-        direct_transitions = {
-            "market_crash": EmotionalState.FEARFUL,          # Crash de mercado -> FEARFUL
-            "significant_losses": EmotionalState.FEARFUL,    # Pérdidas significativas -> FEARFUL
-            "consecutive_losses": EmotionalState.FEARFUL,    # Pérdidas consecutivas -> FEARFUL
-            "news_catastrophic": EmotionalState.FEARFUL,     # Noticias catastróficas -> FEARFUL
-            "liquidity_crisis": EmotionalState.FEARFUL,      # Crisis de liquidez -> FEARFUL
-            "high_opportunity": EmotionalState.OPTIMISTIC,   # Gran oportunidad -> OPTIMISTIC
-            "profit_target_exceeded": EmotionalState.CONFIDENT,  # Superar objetivo de ganancia -> CONFIDENT
-        }
+        # Extraer símbolo
+        symbol = market_data.get("symbol", "UNKNOWN")
         
-        # Verificar si el trigger corresponde a una transición directa
-        if trigger in direct_transitions and (magnitude >= 1.0 or random.random() < magnitude):
-            self.emotional_state = direct_transitions[trigger]
-            self.last_state_change = datetime.now()
-            logger.debug(f"Transición directa: {old_state.name} -> {self.emotional_state.name} (trigger: {trigger})")
-            return self.emotional_state
-        
-        # Para otros triggers, usar el enfoque basado en índice
-        # Mapear trigger a shift
-        shift_key = f"on_{trigger}" if f"on_{trigger}" in self.configuration["emotional_state_shifts"] else "natural_decay"
-        shift = self.configuration["emotional_state_shifts"][shift_key] * magnitude
-        
-        # Aplicar estabilidad emocional como amortiguador
-        shift *= (1 - self.emotional_stability)
-        
-        # Aplicar cambio
-        current_states = list(EmotionalState)
-        current_index = current_states.index(self.emotional_state)
-        
-        # Si shift es positivo, moverse hacia emociones positivas
-        # Si es negativo, hacia emociones negativas
-        if shift > 0:
-            new_index = min(current_index + 1, len(current_states) - 1)
-        elif shift < 0:
-            new_index = max(current_index - 1, 0)
-        else:
-            new_index = current_index
-        
-        # Elementos aleatorios: a veces los humanos cambian emocionalmente sin razón clara
-        if random.random() < self.randomness_factor:
-            random_shift = random.choice([-1, 1])
-            new_index = max(0, min(len(current_states) - 1, new_index + random_shift))
-        
-        # Actualizar estado
-        self.emotional_state = current_states[new_index]
-        self.last_state_change = datetime.now()
-        
-        logger.debug(f"Estado emocional cambió: {old_state.name} -> {self.emotional_state.name} (trigger: {trigger})")
-        
-        return self.emotional_state
-    
-    async def get_contemplation_time(self, operation_type: str = "general") -> float:
-        """
-        Obtener tiempo de contemplación basado en estado emocional actual.
-        
-        Args:
-            operation_type: Tipo de operación ("entry", "exit", "general", etc.)
-            
-        Returns:
-            Tiempo de contemplación en segundos
-        """
-        # Obtener rango para estado actual
-        time_range = self.configuration["contemplation_times"].get(
-            self.emotional_state.name, 
-            (10, 20)  # Default
+        # Utilizar Gabriel para evaluación
+        decision, reason, confidence = await self.gabriel.evaluate_trade_opportunity(
+            symbol, signal_strength, market_data
         )
         
-        # Aplicar modificadores
-        base_time = random.uniform(time_range[0], time_range[1])
-        
-        # Modificador específico para FEARFUL (estado de miedo)
-        if self.emotional_state == EmotionalState.FEARFUL:
-            if operation_type == "entry":
-                # Mucho más tiempo para decidir entrar (miedo a tomar riesgos)
-                base_time *= 2.5
-            elif operation_type == "exit":
-                # Mucho menos tiempo para decidir salir (reacción de pánico)
-                base_time *= 0.3
-            else:
-                # Para otras operaciones, tiempo moderadamente alto (cautela)
-                base_time *= 1.5
-        
-        # Modificador por estilo de decisión
-        if self.decision_style == DecisionStyle.ANALYTICAL:
-            base_time *= 1.3
-        elif self.decision_style == DecisionStyle.IMPULSIVE:
-            base_time *= 0.6
-        elif self.decision_style == DecisionStyle.METHODICAL:
-            base_time *= 1.2
-        
-        # Aplicar multiplicador de velocidad general
-        base_time *= self.decision_speed_multiplier
-        
-        logger.debug(f"Tiempo de contemplación calculado: {base_time:.2f}s para estado {self.emotional_state.name} en operación {operation_type}")
-        
-        return base_time
+        return decision, reason, confidence
     
-    async def simulate_human_delay(self, operation_type: str) -> None:
+    async def adjust_risk(self, 
+                        base_risk: float, 
+                        context: Dict[str, Any]) -> float:
         """
-        Simular retraso humano para una operación.
+        Ajustar nivel de riesgo según estado emocional.
         
         Args:
-            operation_type: Tipo de operación ("analysis", "trade_entry", "trade_exit", etc.)
+            base_risk: Nivel de riesgo base (0-1)
+            context: Contexto para ajuste
+            
+        Returns:
+            Nivel de riesgo ajustado
         """
-        # Mapear tipo de operación a nuestros tipos de contemplación
-        contemplation_type = "general"
-        if operation_type in ["trade_entry", "entry_analysis"]:
-            contemplation_type = "entry"
-        elif operation_type in ["trade_exit", "exit_analysis", "emergency_exit"]:
-            contemplation_type = "exit"
+        if not self.is_initialized:
+            await self.initialize()
         
-        # Calcular tiempo de retraso utilizando el tipo específico
-        contemplation_time = await self.get_contemplation_time(contemplation_type)
+        # Obtener perfil de riesgo de Gabriel
+        risk_profile = self.gabriel.get_risk_profile()
         
-        # Ajustes adicionales según la operación específica
-        if operation_type == "quick_decision":
-            contemplation_time *= 0.5
-        elif operation_type == "emergency_exit":
-            contemplation_time *= 0.3
-        elif operation_type == "complex_analysis":
-            contemplation_time *= 1.5
+        # Aplicar ajuste basado en apetito y tolerancia
+        appetite = risk_profile["risk_appetite"]
+        tolerance = risk_profile["risk_tolerance"]
         
-        logger.debug(f"Simulando retraso humano de {contemplation_time:.2f}s para {operation_type}")
+        # Fórmula de ajuste
+        adjustment_factor = (appetite * 0.7) + (tolerance * 0.3)
+        adjusted_risk = base_risk * adjustment_factor
         
-        # En entorno de producción, podríamos desactivar retrasos reales
-        # await asyncio.sleep(contemplation_time)
+        # Limitar a rango razonable
+        adjusted_risk = max(0.1, min(adjusted_risk, 1.0))
         
-        # Registrar decisión para patrones
-        self.recent_decisions.append({
-            "operation": operation_type,
-            "delay": contemplation_time,
-            "timestamp": datetime.now().isoformat()
-        })
+        return adjusted_risk
     
-    async def should_enter_trade(self, opportunity_score: float, asset_data: Dict[str, Any]) -> Tuple[bool, str]:
+    async def adjust_size(self, 
+                        base_size: float, 
+                        max_size: float, 
+                        context: Dict[str, Any]) -> float:
         """
-        Decidir si entrar en una operación con comportamiento humano.
+        Ajustar tamaño de posición según comportamiento humano.
         
         Args:
-            opportunity_score: Puntuación de oportunidad (0-1)
-            asset_data: Datos del activo
+            base_size: Tamaño base calculado
+            max_size: Tamaño máximo permitido
+            context: Contexto para ajuste
+            
+        Returns:
+            Tamaño ajustado
+        """
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Extraer información relevante
+        volatility = context.get("volatility", 0.5)
+        capital = context.get("capital", max_size * 10)
+        
+        # Llamar a Gabriel para ajustar tamaño
+        risk_context = {
+            "volatility": volatility,
+            "max_risk": 0.05
+        }
+        
+        adjusted_size = await self.gabriel.adjust_position_size(
+            base_size, capital, risk_context
+        )
+        
+        # Asegurar que no excede el máximo
+        adjusted_size = min(adjusted_size, max_size)
+        
+        return adjusted_size
+    
+    async def evaluate_exit(self, 
+                          position_data: Dict[str, Any],
+                          market_data: Dict[str, Any]) -> Tuple[bool, str]:
+        """
+        Evaluar salida de posición con comportamiento humano.
+        
+        Args:
+            position_data: Datos de la posición actual
+            market_data: Datos del mercado
             
         Returns:
             Tupla (decisión, razón)
         """
-        # Rechazo directo basado en estado FEARFUL
-        if self.emotional_state == EmotionalState.FEARFUL:
-            # En estado de miedo, hay alta probabilidad de rechazo directo
-            # Más miedo = menos propensión a entrar al mercado
-            fear_rejection_chance = 0.8  # 80% de probabilidad de rechazo
-            
-            if random.random() < fear_rejection_chance:
-                logger.debug(f"Rechazo por miedo aplicado para {asset_data.get('symbol', 'desconocido')}")
-                return False, "fear_rejection"
+        if not self.is_initialized:
+            await self.initialize()
         
-        # Obtener umbral basado en tolerancia al riesgo
-        threshold = self.configuration["decision_thresholds"].get(
-            self.risk_tolerance.name, 
-            0.6  # Default
+        # Utilizar Gabriel para evaluar salida
+        exit_decision, reason = await self.gabriel.evaluate_exit_opportunity(
+            position_data, market_data
         )
         
-        # Aplicar modificadores de estado emocional
-        if self.emotional_state == EmotionalState.OPTIMISTIC:
-            threshold *= 0.8  # Más propenso a entrar
-        elif self.emotional_state == EmotionalState.CAUTIOUS:
-            threshold *= 1.2  # Menos propenso a entrar
-        elif self.emotional_state == EmotionalState.CONFIDENT:
-            threshold *= 0.85
-        elif self.emotional_state == EmotionalState.ANXIOUS:
-            threshold *= 1.3
-        elif self.emotional_state == EmotionalState.FEARFUL:
-            threshold *= 1.8  # Extremadamente menos propenso a entrar
-        
-        # Percepción del mercado
-        if self.market_perceptions["market_sentiment"] == "bullish":
-            # En estado FEARFUL, el sentimiento bullish tiene menos efecto
-            if self.emotional_state == EmotionalState.FEARFUL:
-                threshold *= 0.97  # Efecto de sentimiento bullish reducido
-            else:
-                threshold *= 0.9
-        elif self.market_perceptions["market_sentiment"] == "bearish":
-            # En estado FEARFUL, el sentimiento bearish tiene más efecto
-            if self.emotional_state == EmotionalState.FEARFUL:
-                threshold *= 1.2  # Efecto de sentimiento bearish amplificado
-            else:
-                threshold *= 1.1
-        
-        # Factor contrario (a veces los humanos van contra la corriente)
-        # En estado FEARFUL, menor tendencia contraria
-        contrarian_factor = self.contrarian_tendency
-        if self.emotional_state == EmotionalState.FEARFUL:
-            contrarian_factor *= 0.3  # 70% menos de comportamiento contrario cuando hay miedo
-            
-        if random.random() < contrarian_factor:
-            logger.debug("Aplicando tendencia contraria")
-            threshold = 1.0 - threshold
-        
-        # Rechazo subjetivo
-        subjective_rejection_chance = self.configuration["subjective_rejection_chance"].get(
-            self.decision_style.name, 
-            0.1  # Default
-        )
-        
-        # En estado FEARFUL, más probabilidad de rechazo subjetivo
-        if self.emotional_state == EmotionalState.FEARFUL:
-            subjective_rejection_chance *= 1.5
-            
-        if random.random() < subjective_rejection_chance:
-            logger.debug(f"Rechazo subjetivo aplicado para {asset_data.get('symbol', 'desconocido')}")
-            return False, "subjective_rejection"
-        
-        # Tomar decisión
-        should_enter = opportunity_score >= threshold
-        
-        reason = (
-            "opportunity_exceeds_threshold" if should_enter 
-            else "opportunity_below_threshold"
-        )
-        
-        logger.debug(f"Decisión de entrada: {should_enter} para {asset_data.get('symbol', 'desconocido')} "
-                   f"(score: {opportunity_score:.2f}, threshold: {threshold:.2f})")
-        
-        return should_enter, reason
+        return exit_decision, reason
     
-    async def should_exit_trade(
-        self, 
-        unrealized_pnl_pct: float, 
-        asset_data: Dict[str, Any],
-        entry_time: datetime,
-        price_change_rate: float
-    ) -> Tuple[bool, str]:
+    async def receive_news(self, news: Dict[str, Any]) -> None:
         """
-        Decidir si salir de una operación con comportamiento humano.
+        Procesar noticias que pueden afectar estado emocional.
         
         Args:
-            unrealized_pnl_pct: Ganancia/pérdida no realizada en porcentaje
-            asset_data: Datos del activo
-            entry_time: Tiempo de entrada
-            price_change_rate: Tasa de cambio de precio reciente
-            
-        Returns:
-            Tupla (decisión, razón)
+            news: Información de noticias
         """
-        # Umbrales base según tolerancia al riesgo
-        take_profit_thresholds = {
-            RiskTolerance.RISK_AVERSE.name: 5.0,      # %
-            RiskTolerance.CONSERVATIVE.name: 7.0,
-            RiskTolerance.MODERATE.name: 10.0,
-            RiskTolerance.GROWTH_ORIENTED.name: 15.0,
-            RiskTolerance.AGGRESSIVE.name: 20.0
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Enviar noticia a Gabriel
+        await self.gabriel.process_news(news)
+    
+    async def randomize_state(self) -> None:
+        """Aleatorizar estado emocional para mayor variedad."""
+        if not self.is_initialized:
+            await self.initialize()
+        
+        await self.gabriel.randomize()
+    
+    async def get_state(self) -> Dict[str, Any]:
+        """
+        Obtener estado actual del motor.
+        
+        Returns:
+            Diccionario con estado actual
+        """
+        if not self.is_initialized:
+            await self.initialize()
+        
+        # Combinar estado de Gabriel con configuración propia
+        gabriel_state = self.gabriel.get_state()
+        
+        state = {
+            "mood": gabriel_state.get("mood", "NEUTRAL"),
+            "mood_intensity": gabriel_state.get("mood_intensity", 0.5),
+            "perspective": gabriel_state.get("perspective", "NEUTRAL"),
+            "risk_level": gabriel_state.get("risk_preference", 0.5),
+            "archetype": self.archetype,
+            "metrics": gabriel_state.get("metrics", {})
         }
         
-        stop_loss_thresholds = {
-            RiskTolerance.RISK_AVERSE.name: -3.0,     # %
-            RiskTolerance.CONSERVATIVE.name: -5.0,
-            RiskTolerance.MODERATE.name: -8.0,
-            RiskTolerance.GROWTH_ORIENTED.name: -12.0,
-            RiskTolerance.AGGRESSIVE.name: -15.0
-        }
-        
-        # Obtener umbrales para tolerancia actual
-        take_profit = take_profit_thresholds.get(self.risk_tolerance.name, 10.0)
-        stop_loss = stop_loss_thresholds.get(self.risk_tolerance.name, -8.0)
-        
-        # Aplicar modificadores de estado emocional
-        if self.emotional_state == EmotionalState.OPTIMISTIC:
-            take_profit *= 1.2  # Espera más ganancia
-            stop_loss *= 1.1    # Tolera más pérdida
-        elif self.emotional_state == EmotionalState.CAUTIOUS:
-            take_profit *= 0.8  # Acepta menos ganancia
-            stop_loss *= 0.9    # Tolera menos pérdida
-        elif self.emotional_state == EmotionalState.IMPATIENT:
-            take_profit *= 0.7  # Acepta menos ganancia
-            stop_loss *= 0.8    # Tolera menos pérdida
-        elif self.emotional_state == EmotionalState.CONFIDENT:
-            take_profit *= 1.3  # Espera más ganancia
-            stop_loss *= 1.2    # Tolera más pérdida
-        elif self.emotional_state == EmotionalState.ANXIOUS:
-            take_profit *= 0.6  # Acepta menos ganancia
-            stop_loss *= 0.7    # Tolera menos pérdida
-        elif self.emotional_state == EmotionalState.FEARFUL:
-            take_profit *= 0.5  # Sale rápidamente con cualquier ganancia
-            stop_loss *= 0.5    # No tolera casi ninguna pérdida
-        
-        # Factor de tiempo transcurrido: los humanos se impacientan con el tiempo
-        time_held = datetime.now() - entry_time
-        hours_held = time_held.total_seconds() / 3600
-        
-        # Impaciencia creciente con el tiempo
-        if hours_held > 12:
-            take_profit *= 0.9
-            stop_loss *= 0.9
-        if hours_held > 24:
-            take_profit *= 0.8
-            stop_loss *= 0.8
-        
-        # Factor de dirección de precio reciente
-        if price_change_rate < -0.01:  # Caída reciente
-            take_profit *= 0.9
-            stop_loss *= 0.95
-        elif price_change_rate > 0.01:  # Subida reciente
-            take_profit *= 1.05
-            stop_loss *= 1.05
-        
-        # Rechazo subjetivo (a veces mantienen contra toda lógica)
-        subjective_retention = random.random() < 0.1
-        if subjective_retention and unrealized_pnl_pct > stop_loss and unrealized_pnl_pct < take_profit:
-            logger.debug(f"Retención subjetiva aplicada para {asset_data.get('symbol', 'desconocido')}")
-            return False, "subjective_retention"
-        
-        # Tomar decisión
-        if unrealized_pnl_pct >= take_profit:
-            return True, "take_profit_triggered"
-        elif unrealized_pnl_pct <= stop_loss:
-            return True, "stop_loss_triggered"
-        
-        # Decisiones especiales
-        if self.emotional_state == EmotionalState.IMPATIENT and hours_held > 6:
-            # Impaciencia lleva a salir "porque sí"
-            return True, "impatience_exit"
-        
-        if self.emotional_state == EmotionalState.ANXIOUS and price_change_rate < -0.005:
-            # Ansiedad lleva a salir ante pequeñas caídas
-            return True, "anxiety_exit"
-            
-        if self.emotional_state == EmotionalState.FEARFUL:
-            # Estado temeroso - reacciones extremas ante cualquier señal negativa
-            logger.debug(f"Evaluando salida con estado FEARFUL - Cambio reciente: {price_change_rate:.4f}, PnL: {unrealized_pnl_pct:.2f}%, Horas: {hours_held:.1f}")
-            
-            # Comportamiento extremadamente sensible a cambios recientes de precio
-            if price_change_rate < -0.001:  # Aún más sensible: -0.1% ya provoca salida
-                # Movimiento negativo mínimo provoca pánico y salida
-                logger.debug(f"FEARFUL detectó movimiento negativo mínimo: {price_change_rate:.4f}")
-                return True, "fear_driven_exit_price_drop"
-                
-            # Operación en pérdida = salida inmediata
-            if unrealized_pnl_pct < 0:
-                logger.debug(f"FEARFUL detectó operación en pérdida: {unrealized_pnl_pct:.2f}%")
-                return True, "fear_driven_exit_loss"
-                
-            # Comportamiento más sensible al pasar del tiempo (aún menos paciencia)
-            elif hours_held > 2:  # 2 horas es el límite para el estado temeroso
-                # Salida por tiempo si la posición se mantiene "demasiado tiempo"
-                logger.debug(f"FEARFUL detectó tiempo excesivo: {hours_held:.1f} horas")
-                return True, "fear_extended_holding_exit"
-            
-            # Retroceso desde máximos: si hubo ganancia mayor y ahora disminuye, sale
-            elif unrealized_pnl_pct > 0 and price_change_rate < 0:
-                # Cualquier retroceso en una posición ganadora provoca salida
-                logger.debug(f"FEARFUL detectó retroceso desde ganancia: {price_change_rate:.4f}")
-                return True, "fear_pullback_exit"
-                
-            # Caso especial: incluso con ganancias pequeñas, alta probabilidad de asegurarlas
-            elif unrealized_pnl_pct > 0.5 and random.random() < 0.7:  # Umbral bajado a 0.5% y probabilidad subida a 70%
-                # 70% de probabilidad de salir con ganancia mínima (+0.5%)
-                logger.debug(f"FEARFUL asegurando ganancia pequeña: {unrealized_pnl_pct:.2f}%")
-                return True, "fear_secure_small_profit"
-                
-            # Caso especial: volatilidad reciente (aunque sea positiva) provoca salida
-            elif abs(price_change_rate) > 0.01 and random.random() < 0.6:  # Umbral bajado a 1% y probabilidad subida a 60%
-                # Volatilidad moderada (1% en cualquier dirección) provoca miedo
-                logger.debug(f"FEARFUL detectó volatilidad: {abs(price_change_rate):.4f}")
-                return True, "fear_volatility_exit"
-                
-            # Incluso en ganancias estables, ocasionalmente sale por miedo irracional
-            elif unrealized_pnl_pct > 0 and random.random() < 0.15:  # Probabilidad aumentada a 15%
-                # 15% de probabilidad de salida irracional estando en ganancia
-                logger.debug(f"FEARFUL salida irracional con ganancia: {unrealized_pnl_pct:.2f}%")
-                return True, "fear_irrational_exit"
-        
-        # Mantener posición
-        return False, "holding_position"
-    
-    async def adjust_asset_allocation(
-        self, 
-        base_allocations: Dict[str, float],
-        total_capital: float
-    ) -> Dict[str, float]:
-        """
-        Ajustar asignación de capital con comportamiento humano.
-        
-        Args:
-            base_allocations: Asignaciones base
-            total_capital: Capital total disponible
-            
-        Returns:
-            Asignaciones ajustadas
-        """
-        adjusted = {}
-        remaining_capital = total_capital
-        
-        # Ordenar activos (los humanos tienen preferencias)
-        sorted_assets = sorted(
-            base_allocations.items(),
-            key=lambda x: random.random()  # Ordernar con algo de aleatoriedad
-        )
-        
-        for symbol, allocation in sorted_assets:
-            # Ajustar según estado emocional
-            if self.emotional_state == EmotionalState.CONFIDENT:
-                adjustment = random.uniform(1.1, 1.3)  # Posiciones más grandes
-            elif self.emotional_state == EmotionalState.ANXIOUS:
-                adjustment = random.uniform(0.7, 0.9)  # Posiciones más pequeñas
-            elif self.emotional_state == EmotionalState.FEARFUL:
-                adjustment = random.uniform(0.4, 0.6)  # Posiciones muy pequeñas por miedo
-            elif self.emotional_state == EmotionalState.OPTIMISTIC:
-                adjustment = random.uniform(1.05, 1.2)  # Ligeramente más grandes
-            elif self.emotional_state == EmotionalState.CAUTIOUS:
-                adjustment = random.uniform(0.8, 0.95)  # Ligeramente más pequeñas
-            else:
-                adjustment = random.uniform(0.9, 1.1)  # Variación ligera
-            
-            # Aplicar ajuste
-            adjusted_allocation = allocation * adjustment
-            
-            # Asegurar que no exceda el capital restante
-            adjusted_allocation = min(adjusted_allocation, remaining_capital)
-            
-            # Aplicar redondeo humano (a menudo redondean a valores "bonitos")
-            if adjusted_allocation > 100:
-                adjusted_allocation = round(adjusted_allocation / 10) * 10
-            elif adjusted_allocation > 10:
-                adjusted_allocation = round(adjusted_allocation)
-            
-            adjusted[symbol] = adjusted_allocation
-            remaining_capital -= adjusted_allocation
-        
-        # Los humanos a veces dejan algo sin invertir intencionalmente
-        if self.emotional_state == EmotionalState.FEARFUL:
-            # En estado de miedo extremo, mantienen gran parte sin invertir (hasta un 50%)
-            fearful_reserve = max(remaining_capital, total_capital * 0.5)
-            logger.debug(f"Manteniendo gran reserva por miedo: ${fearful_reserve:.2f}")
-            # Si hemos asignado demasiado, reducir proporcionalmente
-            if fearful_reserve > remaining_capital:
-                reduction_needed = fearful_reserve - remaining_capital
-                total_allocated = sum(adjusted.values())
-                if total_allocated > 0:
-                    for symbol in adjusted:
-                        reduction_ratio = adjusted[symbol] / total_allocated
-                        adjusted[symbol] -= reduction_needed * reduction_ratio
-                    remaining_capital = fearful_reserve
-        elif self.emotional_state == EmotionalState.CAUTIOUS:
-            logger.debug(f"Manteniendo reserva cautelosa: ${remaining_capital:.2f}")
-        elif self.risk_tolerance in [RiskTolerance.RISK_AVERSE, RiskTolerance.CONSERVATIVE]:
-            logger.debug(f"Manteniendo reserva conservadora: ${remaining_capital:.2f}")
-        elif remaining_capital > 0 and remaining_capital < total_capital * 0.1:
-            # Si queda poco, a veces los humanos lo distribuyen
-            for symbol in adjusted:
-                adjusted[symbol] += remaining_capital / len(adjusted)
-                remaining_capital = 0
-        
-        logger.debug(f"Asignaciones ajustadas con comportamiento humano, capital sin asignar: ${remaining_capital:.2f}")
-        
-        return adjusted
-    
-    async def update_market_perception(self, market_data: Dict[str, Any]) -> None:
-        """
-        Actualizar percepción del mercado según los datos recibidos.
-        
-        Args:
-            market_data: Datos recientes del mercado
-        """
-        # Extraer datos relevantes
-        volatility = market_data.get("volatility", 0.5)
-        trend = market_data.get("trend", "neutral")
-        volume = market_data.get("volume_change", 0.0)
-        price_change = market_data.get("price_change", 0.0)
-        
-        # Actualizar percepción con sesgo humano
-        # Los humanos tienden a sobre-reaccionar a eventos recientes
-        current_perception = self.market_perceptions["perceived_volatility"]
-        
-        # Adaptación del sesgo de recencia según estado emocional
-        recency_bias = 0.7  # Base: 70% peso a datos recientes vs previos
-        
-        # En estado FEARFUL, el sesgo de recencia es más fuerte (sobre-reacción a datos recientes)
-        if self.emotional_state == EmotionalState.FEARFUL:
-            recency_bias = 0.9  # 90% peso a datos recientes
-            
-            # Además, en estado FEARFUL, perciben mayor volatilidad de la que hay realmente
-            volatility = min(1.0, volatility * 1.5)
-        
-        self.market_perceptions["perceived_volatility"] = (
-            current_perception * (1 - recency_bias) + 
-            volatility * recency_bias
-        )
-        
-        # Actualizar sentimiento
-        if trend == "up" and volume > 0.1:
-            # En estado FEARFUL, más resistencia a ver mercados como alcistas (solo si son muy claros)
-            if self.emotional_state == EmotionalState.FEARFUL and price_change < 0.05:
-                # Si el cambio de precio no es significativo, dudan que sea alcista a pesar de la tendencia
-                if random.random() < 0.7:
-                    self.market_perceptions["market_sentiment"] = "neutral"
-                else:
-                    self.market_perceptions["market_sentiment"] = "bullish"
-            else:
-                self.market_perceptions["market_sentiment"] = "bullish"
-        elif trend == "down" and volume > 0.1:
-            # En estado FEARFUL, más propensos a ver mercados como bajistas rápidamente
-            self.market_perceptions["market_sentiment"] = "bearish"
-            
-            # Posible actualización a estado emocional si hay tendencia bajista fuerte
-            if self.emotional_state != EmotionalState.FEARFUL and price_change < -0.03:
-                # Trigger de transición emocional a FEARFUL por tendencia bajista fuerte
-                await self.update_emotional_state("market_downturn", magnitude=abs(price_change)*10)
-        else:
-            # Mantener sentimiento con ligero sesgo a neutral
-            current_sentiment = self.market_perceptions["market_sentiment"]
-            
-            # Si está en estado FEARFUL, mucho más resistente a normalizar hacia sentimiento neutral
-            normalization_chance = 0.2  # 20% de probabilidad de normalización (base)
-            if self.emotional_state == EmotionalState.FEARFUL:
-                normalization_chance = 0.05  # Solo 5% de probabilidad en estado FEARFUL
-                
-            if random.random() < normalization_chance:
-                self.market_perceptions["market_sentiment"] = "neutral"
-        
-        # Percepción de oportunidad y riesgo
-        opportunity_adjustment = 0.1  # Ajuste base para percepción de oportunidad
-        risk_adjustment = 0.1  # Ajuste base para percepción de riesgo
-        
-        # En estado FEARFUL, percepción distorsionada del mercado
-        if self.emotional_state == EmotionalState.FEARFUL:
-            opportunity_adjustment = 0.05  # Percepciones de oportunidad cambian lentamente
-            risk_adjustment = 0.2  # Percepciones de riesgo cambian rápidamente
-        
-        if trend == "up":
-            # En tendencia alcista los humanos ven más oportunidad, menos riesgo
-            self.market_perceptions["perceived_opportunity"] = min(
-                1.0, self.market_perceptions["perceived_opportunity"] + opportunity_adjustment
-            )
-            self.market_perceptions["perceived_risk"] = max(
-                0.1, self.market_perceptions["perceived_risk"] - (risk_adjustment * 0.5)
-            )
-        elif trend == "down":
-            # En tendencia bajista los humanos ven menos oportunidad, más riesgo
-            self.market_perceptions["perceived_opportunity"] = max(
-                0.1, self.market_perceptions["perceived_opportunity"] - opportunity_adjustment
-            )
-            self.market_perceptions["perceived_risk"] = min(
-                1.0, self.market_perceptions["perceived_risk"] + risk_adjustment
-            )
-        
-        # En estado FEARFUL, hay un piso mínimo para la percepción de riesgo
-        if self.emotional_state == EmotionalState.FEARFUL:
-            self.market_perceptions["perceived_risk"] = max(
-                0.6, self.market_perceptions["perceived_risk"]
-            )
-        
-        logger.debug(f"Percepción de mercado actualizada: {self.market_perceptions}, estado emocional: {self.emotional_state.name}")
-    
-    def randomize_human_characteristics(self) -> Dict[str, Any]:
-        """
-        Aleatorizar características humanas para simular diferentes personalidades.
-        
-        Returns:
-            Características actualizadas
-        """
-        # Aleatorizar estado emocional
-        self.emotional_state = random.choice(list(EmotionalState))
-        
-        # Aleatorizar tolerancia al riesgo
-        self.risk_tolerance = random.choice(list(RiskTolerance))
-        
-        # Aleatorizar estilo de decisión
-        self.decision_style = random.choice(list(DecisionStyle))
-        
-        # Aleatorizar estabilidad emocional (0.4-0.9)
-        self.emotional_stability = random.uniform(0.4, 0.9)
-        
-        # Aleatorizar adaptabilidad al riesgo (0.2-0.7)
-        self.risk_adaptation_rate = random.uniform(0.2, 0.7)
-        
-        # Aleatorizar tendencia contraria (0.05-0.3)
-        self.contrarian_tendency = random.uniform(0.05, 0.3)
-        
-        # Aleatorizar multiplicador de velocidad (0.8-1.5)
-        self.decision_speed_multiplier = random.uniform(0.8, 1.5)
-        
-        logger.info(f"Características humanas aleatorizadas: "
-                  f"Estado emocional={self.emotional_state.name}, "
-                  f"Tolerancia al riesgo={self.risk_tolerance.name}, "
-                  f"Estilo de decisión={self.decision_style.name}")
-        
-        return self.get_current_characteristics()
-    
-    # Alias para mantener compatibilidad con la integración del orquestador
-    def randomize(self) -> Dict[str, Any]:
-        """
-        Alias para randomize_human_characteristics para compatibilidad con el orquestador.
-        
-        Returns:
-            Características actualizadas
-        """
-        return self.randomize_human_characteristics()
-        
-    def set_emotional_state(self, state: EmotionalState, reason: str = "manual_override") -> None:
-        """
-        Establecer estado emocional directamente.
-        
-        Args:
-            state: Estado emocional a establecer
-            reason: Motivo del cambio
-        """
-        old_state = self.emotional_state
-        self.emotional_state = state
-        self.last_state_change = datetime.now()
-        
-        logger.info(f"Estado emocional forzado manualmente: {old_state.name} -> {state.name} (razón: {reason})")
-        
-    def set_fearful_state(self, reason: str = "manual_override") -> None:
-        """
-        Establecer estado emocional a FEARFUL (miedo) directamente.
-        Ayuda para pruebas específicas del comportamiento temeroso.
-        
-        Args:
-            reason: Motivo del cambio
-        """
-        self.set_emotional_state(EmotionalState.FEARFUL, reason)
-    
-    def get_current_characteristics(self) -> Dict[str, Any]:
-        """
-        Obtener características humanas actuales.
-        
-        Returns:
-            Características actuales
-        """
-        return {
-            "emotional_state": self.emotional_state.name,
-            "risk_tolerance": self.risk_tolerance.name,
-            "decision_style": self.decision_style.name,
-            "emotional_stability": self.emotional_stability,
-            "risk_adaptation_rate": self.risk_adaptation_rate,
-            "contrarian_tendency": self.contrarian_tendency,
-            "decision_speed": self.decision_speed_multiplier,
-            "market_perceptions": self.market_perceptions
-        }
-    
-    # Propiedades alias para compatibilidad con el orquestador
-    @property
-    def mood(self) -> str:
-        """Alias del estado emocional para compatibilidad."""
-        return self.emotional_state.name
-    
-    @property
-    def risk_profile(self) -> str:
-        """Alias de tolerancia al riesgo para compatibilidad."""
-        return self.risk_tolerance.name
-    
-    @property
-    def experience_level(self) -> str:
-        """Nivel de experiencia simulado (derivado del estilo de decisión)."""
-        if self.decision_style == DecisionStyle.ANALYTICAL:
-            return "advanced"
-        elif self.decision_style == DecisionStyle.METHODICAL:
-            return "intermediate"
-        elif self.decision_style == DecisionStyle.IMPULSIVE:
-            return "beginner"
-        else:
-            return "intermediate"
-    
-    def get_current_state(self) -> Dict[str, Any]:
-        """Devolver estado actual para compatibilidad con orquestador."""
-        return self.get_current_characteristics()
-    
-    async def get_human_trading_preferences(self) -> Dict[str, Any]:
-        """
-        Obtener preferencias de trading basadas en características actuales.
-        
-        Returns:
-            Preferencias de trading
-        """
-        # Obtener tiempos de operación preferidos
-        if self.decision_style == DecisionStyle.METHODICAL:
-            # Preferencia por operaciones más estructuradas, en horarios específicos
-            preferred_times = ["morning", "evening"]
-        elif self.decision_style == DecisionStyle.IMPULSIVE:
-            # Puede operar en cualquier momento
-            preferred_times = ["any"]
-        else:
-            # Preferencia moderada
-            preferred_times = ["morning", "afternoon", "evening"]
-        
-        # Duración preferida de operaciones
-        if self.risk_tolerance in [RiskTolerance.AGGRESSIVE, RiskTolerance.GROWTH_ORIENTED]:
-            # Preferencia por operaciones más cortas
-            preferred_duration = "short"
-        elif self.risk_tolerance in [RiskTolerance.RISK_AVERSE, RiskTolerance.CONSERVATIVE]:
-            # Preferencia por operaciones más largas
-            preferred_duration = "long"
-        else:
-            # Duración moderada
-            preferred_duration = "medium"
-        
-        # Enfoque de entrada/salida
-        if self.emotional_state == EmotionalState.FEARFUL:
-            # Entradas muy calculadas, salidas extremadamente rápidas
-            entry_exit_style = "panic_prone"
-        elif self.emotional_state in [EmotionalState.ANXIOUS, EmotionalState.IMPATIENT]:
-            # Entradas/salidas más rápidas
-            entry_exit_style = "quick"
-        elif self.emotional_state in [EmotionalState.CONTEMPLATIVE, EmotionalState.CAUTIOUS]:
-            # Entradas/salidas más calculadas
-            entry_exit_style = "calculated"
-        else:
-            # Estilo moderado
-            entry_exit_style = "balanced"
-        
-        return {
-            "preferred_times": preferred_times,
-            "preferred_duration": preferred_duration,
-            "entry_exit_style": entry_exit_style,
-            "position_sizing": self._get_position_sizing_preference(),
-            "diversification_preference": self._get_diversification_preference()
-        }
-    
-    def _get_position_sizing_preference(self) -> str:
-        """
-        Obtener preferencia de tamaño de posición basada en características actuales.
-        
-        Returns:
-            Preferencia de tamaño de posición
-        """
-        if self.emotional_state == EmotionalState.CONFIDENT:
-            return "large"
-        elif self.emotional_state == EmotionalState.ANXIOUS:
-            return "small"
-        elif self.emotional_state == EmotionalState.FEARFUL:
-            return "very_small"  # Posiciones extremadamente pequeñas cuando hay miedo
-        elif self.risk_tolerance == RiskTolerance.AGGRESSIVE:
-            return "large"
-        elif self.risk_tolerance == RiskTolerance.RISK_AVERSE:
-            return "small"
-        else:
-            return "medium"
-    
-    def _get_diversification_preference(self) -> str:
-        """
-        Obtener preferencia de diversificación basada en características actuales.
-        
-        Returns:
-            Preferencia de diversificación
-        """
-        if self.emotional_state == EmotionalState.FEARFUL:
-            return "very_high"  # Máxima diversificación en estado temeroso
-        elif self.risk_tolerance in [RiskTolerance.RISK_AVERSE, RiskTolerance.CONSERVATIVE]:
-            return "high"  # Alta diversificación
-        elif self.risk_tolerance == RiskTolerance.AGGRESSIVE:
-            return "low"   # Baja diversificación
-        elif self.decision_style == DecisionStyle.METHODICAL:
-            return "high"  # Alta diversificación
-        elif self.decision_style == DecisionStyle.IMPULSIVE:
-            return "low"   # Baja diversificación
-        else:
-            return "medium"  # Diversificación moderada
+        return state
