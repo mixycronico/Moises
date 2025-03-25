@@ -53,11 +53,71 @@ SAMPLE_DATA = {
         "intensity": 1000.0
     },
     "investors": [
-        {"id": 1, "name": "Moises Alvarenga", "role": "super_admin", "capital": 5000, "profits": 420.50},
-        {"id": 2, "name": "Jeremias Lazo", "role": "super_admin", "capital": 4500, "profits": 380.25},
-        {"id": 3, "name": "Stephany Sandoval", "role": "super_admin", "capital": 4000, "profits": 340.75},
-        {"id": 4, "name": "Inversionista 1", "role": "investor", "capital": 1000, "profits": 85.30},
-        {"id": 5, "name": "Inversionista 2", "role": "investor", "capital": 2000, "profits": 170.60}
+        {
+            "id": 1, 
+            "name": "Moises Alvarenga", 
+            "role": "super_admin", 
+            "capital": 5000, 
+            "profits": 420.50,
+            "balance": 5420.50,
+            "balance_change_pct": 8.41,
+            "total_return_pct": 12.5,
+            "total_return_amount": 420.50,
+            "operations_count": 32,
+            "successful_operations_pct": 92
+        },
+        {
+            "id": 2, 
+            "name": "Jeremias Lazo", 
+            "role": "super_admin", 
+            "capital": 4500, 
+            "profits": 380.25,
+            "balance": 4880.25,
+            "balance_change_pct": 8.45,
+            "total_return_pct": 11.8,
+            "total_return_amount": 380.25,
+            "operations_count": 28,
+            "successful_operations_pct": 91
+        },
+        {
+            "id": 3, 
+            "name": "Stephany Sandoval", 
+            "role": "super_admin", 
+            "capital": 4000, 
+            "profits": 340.75,
+            "balance": 4340.75,
+            "balance_change_pct": 8.52,
+            "total_return_pct": 10.9,
+            "total_return_amount": 340.75,
+            "operations_count": 25,
+            "successful_operations_pct": 90
+        },
+        {
+            "id": 4, 
+            "name": "Inversionista 1", 
+            "role": "investor", 
+            "capital": 1000, 
+            "profits": 85.30,
+            "balance": 1085.30,
+            "balance_change_pct": 8.53,
+            "total_return_pct": 8.53,
+            "total_return_amount": 85.30,
+            "operations_count": 15,
+            "successful_operations_pct": 88
+        },
+        {
+            "id": 5, 
+            "name": "Inversionista 2", 
+            "role": "investor", 
+            "capital": 2000, 
+            "profits": 170.60,
+            "balance": 2170.60,
+            "balance_change_pct": 8.53,
+            "total_return_pct": 8.53,
+            "total_return_amount": 170.60,
+            "operations_count": 20,
+            "successful_operations_pct": 89
+        }
     ],
     "notifications": [
         {"id": 1, "type": "info", "message": "Actualización del sistema completada", "timestamp": "2025-03-24T15:30:00"},
