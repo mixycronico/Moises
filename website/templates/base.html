@@ -18,6 +18,7 @@
     
     <!-- Estilos -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/enhanced-theme.css') }}">
     {% block additional_styles %}{% endblock %}
     
     <!-- Meta -->
@@ -25,6 +26,9 @@
     <meta name="author" content="Genesis Trading System">
 </head>
 <body>
+    <!-- Partículas cuánticas para efecto de fondo -->
+    <div class="quantum-particles" id="quantumParticles"></div>
+    
     <div class="page-wrapper">
         <!-- Cabecera -->
         <header class="main-header">
@@ -176,6 +180,41 @@
                     }, 300);
                 });
             });
+            
+            // Crear partículas cuánticas
+            function createQuantumParticles() {
+                const container = document.getElementById('quantumParticles');
+                const numParticles = 25;
+                
+                for (let i = 0; i < numParticles; i++) {
+                    const particle = document.createElement('div');
+                    particle.classList.add('quantum-particle');
+                    
+                    // Propiedades aleatorias
+                    const size = Math.random() * 10 + 2; // 2-12px
+                    const posX = Math.random() * 100; // 0-100%
+                    const posY = Math.random() * 100; // 0-100%
+                    const delay = Math.random() * 5; // 0-5s
+                    const duration = Math.random() * 5 + 5; // 5-10s
+                    
+                    // Aplicar estilos
+                    particle.style.width = `${size}px`;
+                    particle.style.height = `${size}px`;
+                    particle.style.left = `${posX}%`;
+                    particle.style.top = `${posY}%`;
+                    particle.style.animationDelay = `${delay}s`;
+                    particle.style.animationDuration = `${duration}s`;
+                    
+                    // Color aleatorio entre azul y cian
+                    const hue = Math.random() * 60 + 180; // 180-240 (azul a cian)
+                    particle.style.background = `radial-gradient(circle, hsla(${hue}, 100%, 70%, 0.8) 0%, hsla(${hue}, 100%, 70%, 0) 70%)`;
+                    
+                    container.appendChild(particle);
+                }
+            }
+            
+            // Iniciar partículas
+            createQuantumParticles();
         });
     </script>
     

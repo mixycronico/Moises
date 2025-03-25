@@ -1,0 +1,211 @@
+/* 
+ * Enhanced Theme para Sistema Genesis
+ * Basado en el estilo cosmic pero con más brillo y efectos
+ */
+
+:root {
+    /* Colores con más brillo */
+    --bright-cyan: #00ffff;
+    --bright-magenta: #ff00ff;
+    --bright-gold: #ffd700;
+    --bright-blue: #0088ff;
+    
+    /* Sombras con más intensidad */
+    --glow-bright-cyan: 0 0 15px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.5);
+    --glow-bright-magenta: 0 0 15px rgba(255, 0, 255, 0.8), 0 0 30px rgba(255, 0, 255, 0.5);
+    --glow-bright-gold: 0 0 15px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.5);
+    
+    /* Nuevos valores para fondos */
+    --enhanced-card-bg: rgba(0, 10, 25, 0.7);
+    --enhanced-holographic-card-bg: linear-gradient(135deg, 
+                                rgba(10, 20, 40, 0.8),
+                                rgba(30, 70, 100, 0.8));
+}
+
+/* Fondo principal para toda la aplicación */
+body {
+    background: linear-gradient(135deg, #001428 0%, #003366 50%, #001428 100%);
+    background-attachment: fixed;
+    color: white;
+}
+
+/* Efecto de brillo para textos importantes */
+.enhanced-glow-text {
+    text-shadow: var(--glow-bright-cyan);
+    color: white;
+}
+
+/* Efecto holográfico mejorado para tarjetas */
+.enhanced-card {
+    background: var(--enhanced-holographic-card-bg);
+    border: 1px solid rgba(0, 255, 255, 0.5);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 255, 255, 0.3);
+    border-radius: 10px;
+    backdrop-filter: blur(5px);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.enhanced-card:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(0, 255, 255, 0.5);
+    transform: translateY(-5px);
+}
+
+/* Efecto holográfico interno para tarjetas */
+.enhanced-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        rgba(0, 255, 255, 0.1),
+        rgba(255, 0, 255, 0.1),
+        rgba(255, 215, 0, 0.1)
+    );
+    transform: rotate(30deg);
+    z-index: -1;
+    animation: enhanced-holographic-shift 10s linear infinite;
+}
+
+@keyframes enhanced-holographic-shift {
+    0% {
+        transform: rotate(30deg) translateX(-10%) translateY(0%);
+    }
+    50% {
+        transform: rotate(30deg) translateX(0%) translateY(-10%);
+    }
+    100% {
+        transform: rotate(30deg) translateX(-10%) translateY(0%);
+    }
+}
+
+/* Logo mejorado para que resalte más */
+.enhanced-logo {
+    animation: enhanced-floating 12s ease-in-out infinite, enhanced-glow 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.7));
+}
+
+@keyframes enhanced-floating {
+    0% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+@keyframes enhanced-glow {
+    0% {
+        filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
+    }
+    50% {
+        filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.8));
+    }
+    100% {
+        filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
+    }
+}
+
+/* Datos brillantes */
+.enhanced-value {
+    color: var(--bright-cyan);
+    font-weight: bold;
+    text-shadow: var(--glow-bright-cyan);
+}
+
+.enhanced-positive-value {
+    color: #00ff88;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.7);
+}
+
+.enhanced-negative-value {
+    color: #ff4488;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(255, 68, 136, 0.7);
+}
+
+/* Botones con más brillo */
+.btn-enhanced {
+    background: linear-gradient(135deg, #005577 0%, #0088aa 50%, #005577 100%);
+    border: 1px solid var(--bright-cyan);
+    color: white;
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3), 0 0 15px rgba(0, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.btn-enhanced:hover {
+    background: linear-gradient(135deg, #006688 0%, #00aacc 50%, #006688 100%);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 255, 255, 0.5);
+    transform: translateY(-3px);
+}
+
+/* Tablas con datos mejorados */
+.enhanced-table {
+    background: rgba(0, 15, 30, 0.7);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+}
+
+.enhanced-table th {
+    background: rgba(0, 30, 60, 0.8);
+    color: var(--bright-cyan);
+    text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+    border-bottom: 2px solid var(--bright-cyan);
+}
+
+.enhanced-table td {
+    border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+/* Iconos brillantes */
+.enhanced-icon {
+    color: var(--bright-cyan);
+    filter: drop-shadow(0 0 3px rgba(0, 255, 255, 0.7));
+}
+
+/* Efecto de partículas cuánticas para fondos */
+.quantum-particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.quantum-particle {
+    position: absolute;
+    background: radial-gradient(circle, rgba(0, 255, 255, 0.8) 0%, rgba(0, 255, 255, 0) 70%);
+    border-radius: 50%;
+    opacity: 0;
+    animation: particle-float 8s infinite;
+}
+
+@keyframes particle-float {
+    0% {
+        opacity: 0;
+        transform: translateY(0) translateX(0);
+    }
+    20% {
+        opacity: 0.8;
+    }
+    80% {
+        opacity: 0.8;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-100px) translateX(50px);
+    }
+}
