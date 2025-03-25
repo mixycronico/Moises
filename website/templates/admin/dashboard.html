@@ -1,0 +1,737 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de Administración - Genesis Trading System{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .admin-dashboard {
+        padding: 2rem 0;
+    }
+    
+    .admin-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .admin-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(to right, var(--magenta-color), var(--cyan-color));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-fill-color: transparent;
+        text-shadow: 0 0 5px rgba(255, 0, 255, 0.3);
+    }
+    
+    .admin-subtitle {
+        font-size: 1.2rem;
+        color: var(--medium-text);
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .admin-quick-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+    
+    @media (max-width: 1200px) {
+        .admin-quick-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .admin-quick-stats {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .quick-stat {
+        background: var(--holographic-card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 0, 255, 0.1);
+        box-shadow: var(--cosmic-shadow);
+        display: flex;
+        flex-direction: column;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .quick-stat:hover {
+        transform: translateY(-5px);
+        border-color: rgba(255, 0, 255, 0.3);
+    }
+    
+    .quick-stat::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--magenta-color), var(--cyan-color));
+    }
+    
+    .stat-label {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--medium-text);
+        display: flex;
+        align-items: center;
+    }
+    
+    .stat-icon {
+        margin-right: 0.5rem;
+        color: var(--magenta-color);
+        font-size: 1.1rem;
+    }
+    
+    .stat-value {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-trend {
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    
+    .trend-up {
+        color: #4caf50;
+    }
+    
+    .trend-down {
+        color: #f44336;
+    }
+    
+    .admin-sections {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+    
+    .admin-section {
+        background: rgba(10, 10, 10, 0.7);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255, 0, 255, 0.1);
+    }
+    
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .section-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.3rem;
+        color: var(--magenta-color);
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-title i {
+        margin-right: 0.5rem;
+    }
+    
+    .section-action {
+        color: var(--cyan-color);
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    
+    .section-action:hover {
+        text-shadow: var(--glow-cyan);
+    }
+    
+    .user-list {
+        margin-bottom: 1rem;
+    }
+    
+    .user-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .user-item:last-child {
+        border-bottom: none;
+    }
+    
+    .user-item:hover {
+        background-color: rgba(255, 0, 255, 0.05);
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        border-radius: 4px;
+    }
+    
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: rgba(255, 0, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        color: var(--magenta-color);
+    }
+    
+    .user-details {
+        flex: 1;
+    }
+    
+    .user-name {
+        font-weight: 500;
+        margin-bottom: 0.2rem;
+    }
+    
+    .user-role {
+        font-size: 0.8rem;
+        color: var(--medium-text);
+    }
+    
+    .user-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .user-action-btn {
+        background: none;
+        border: none;
+        color: var(--medium-text);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .user-action-btn:hover {
+        color: var(--cyan-color);
+    }
+    
+    .system-health {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .health-indicator {
+        background: rgba(10, 10, 10, 0.5);
+        border-radius: 8px;
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .health-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .health-status {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+    
+    .status-healthy {
+        background-color: #4caf50;
+        box-shadow: 0 0 5px #4caf50;
+    }
+    
+    .status-warning {
+        background-color: #ff9800;
+        box-shadow: 0 0 5px #ff9800;
+    }
+    
+    .status-error {
+        background-color: #f44336;
+        box-shadow: 0 0 5px #f44336;
+    }
+    
+    .health-value {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 500;
+    }
+    
+    .log-entries {
+        height: 250px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        padding: 1rem;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+    
+    .log-entry {
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+        display: flex;
+    }
+    
+    .log-time {
+        color: var(--medium-text);
+        margin-right: 0.5rem;
+        flex-shrink: 0;
+    }
+    
+    .log-level {
+        margin-right: 0.5rem;
+        padding: 0 0.3rem;
+        border-radius: 3px;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+    
+    .log-info {
+        background-color: rgba(33, 150, 243, 0.2);
+        color: #42a5f5;
+    }
+    
+    .log-warning {
+        background-color: rgba(255, 152, 0, 0.2);
+        color: #ffa726;
+    }
+    
+    .log-error {
+        background-color: rgba(244, 67, 54, 0.2);
+        color: #ef5350;
+    }
+    
+    .log-message {
+        flex: 1;
+        word-break: break-all;
+    }
+    
+    .recent-alerts {
+        height: 250px;
+        overflow-y: auto;
+    }
+    
+    .alert-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .alert-item:last-child {
+        border-bottom: none;
+    }
+    
+    .alert-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .alert-icon.important {
+        background-color: rgba(244, 67, 54, 0.1);
+        color: #ef5350;
+    }
+    
+    .alert-icon.warning {
+        background-color: rgba(255, 152, 0, 0.1);
+        color: #ffa726;
+    }
+    
+    .alert-icon.info {
+        background-color: rgba(33, 150, 243, 0.1);
+        color: #42a5f5;
+    }
+    
+    .alert-content {
+        flex: 1;
+    }
+    
+    .alert-title {
+        font-weight: 500;
+        margin-bottom: 0.2rem;
+    }
+    
+    .alert-text {
+        font-size: 0.9rem;
+        color: var(--medium-text);
+        margin-bottom: 0.3rem;
+    }
+    
+    .alert-time {
+        font-size: 0.8rem;
+        color: var(--medium-text);
+    }
+    
+    .operation-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .operation-stat {
+        background: rgba(10, 10, 10, 0.5);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .operation-label {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        color: var(--medium-text);
+    }
+    
+    .operation-value {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+    
+    .operation-list {
+        height: 180px;
+        overflow-y: auto;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        padding: 0.5rem;
+    }
+    
+    .operation-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.8rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .operation-item:last-child {
+        border-bottom: none;
+    }
+    
+    .operation-info {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+    
+    .operation-icon {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background-color: rgba(0, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        color: var(--cyan-color);
+    }
+    
+    .operation-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .operation-type {
+        font-weight: 500;
+        margin-bottom: 0.2rem;
+    }
+    
+    .operation-time {
+        font-size: 0.8rem;
+        color: var(--medium-text);
+    }
+    
+    .operation-amount {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <div class="admin-header">
+        <h1 class="admin-title">Panel de Administración</h1>
+        <p class="admin-subtitle">Monitoreo y gestión del Sistema Genesis Trascendental</p>
+    </div>
+    
+    <div class="admin-quick-stats">
+        <div class="quick-stat">
+            <div class="stat-label">
+                <span class="stat-icon"><i class="fas fa-users"></i></span>
+                Inversionistas Activos
+            </div>
+            <div class="stat-value">{{ stats.active_investors }}</div>
+            <div class="stat-trend trend-up">
+                <i class="fas fa-arrow-up"></i> {{ stats.new_investors_percent }}% desde la semana pasada
+            </div>
+        </div>
+        
+        <div class="quick-stat">
+            <div class="stat-label">
+                <span class="stat-icon"><i class="fas fa-coins"></i></span>
+                Capital Total
+            </div>
+            <div class="stat-value">${{ "%.2f"|format(stats.total_capital) }}</div>
+            <div class="stat-trend trend-up">
+                <i class="fas fa-arrow-up"></i> {{ "%.2f"|format(stats.capital_growth_percent) }}% desde ayer
+            </div>
+        </div>
+        
+        <div class="quick-stat">
+            <div class="stat-label">
+                <span class="stat-icon"><i class="fas fa-chart-line"></i></span>
+                Operaciones Hoy
+            </div>
+            <div class="stat-value">{{ stats.operations_today }}</div>
+            <div class="stat-trend trend-up">
+                <i class="fas fa-arrow-up"></i> {{ "%.2f"|format(stats.operations_growth_percent) }}% vs. ayer
+            </div>
+        </div>
+        
+        <div class="quick-stat">
+            <div class="stat-label">
+                <span class="stat-icon"><i class="fas fa-tachometer-alt"></i></span>
+                Rendimiento Sistema
+            </div>
+            <div class="stat-value">{{ "%.2f"|format(stats.system_performance) }}%</div>
+            <div class="stat-trend trend-up">
+                <i class="fas fa-arrow-up"></i> {{ "%.2f"|format(stats.performance_growth) }}% vs. ayer
+            </div>
+        </div>
+    </div>
+    
+    <div class="admin-sections">
+        <div class="admin-section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-users"></i> Inversionistas Recientes</h2>
+                <a href="#" class="section-action">Ver Todos</a>
+            </div>
+            
+            <div class="user-list">
+                {% for user in recent_users %}
+                <div class="user-item">
+                    <div class="user-avatar">
+                        {% if user.avatar_url %}
+                            <img src="{{ user.avatar_url }}" alt="{{ user.name }}">
+                        {% else %}
+                            <i class="fas fa-user"></i>
+                        {% endif %}
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">{{ user.name }}</div>
+                        <div class="user-role">{{ user.email }} | {{ user.role }}</div>
+                    </div>
+                    <div class="user-actions">
+                        <button class="user-action-btn" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button class="user-action-btn" title="Ver detalles"><i class="fas fa-eye"></i></button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="admin-section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-heartbeat"></i> Estado del Sistema</h2>
+                <a href="#" class="section-action">Ver Detalles</a>
+            </div>
+            
+            <div class="system-health">
+                <div class="health-indicator">
+                    <div class="health-label">
+                        <div class="health-status status-healthy"></div>
+                        <span>Base de Datos</span>
+                    </div>
+                    <div class="health-value">{{ system_health.database }}ms</div>
+                </div>
+                
+                <div class="health-indicator">
+                    <div class="health-label">
+                        <div class="health-status status-healthy"></div>
+                        <span>API</span>
+                    </div>
+                    <div class="health-value">{{ system_health.api }}ms</div>
+                </div>
+                
+                <div class="health-indicator">
+                    <div class="health-label">
+                        <div class="health-status status-healthy"></div>
+                        <span>WebSocket</span>
+                    </div>
+                    <div class="health-value">{{ system_health.websocket }}ms</div>
+                </div>
+                
+                <div class="health-indicator">
+                    <div class="health-label">
+                        <div class="health-status status-healthy"></div>
+                        <span>CPU</span>
+                    </div>
+                    <div class="health-value">{{ system_health.cpu }}%</div>
+                </div>
+                
+                <div class="health-indicator">
+                    <div class="health-label">
+                        <div class="health-status status-healthy"></div>
+                        <span>Memoria</span>
+                    </div>
+                    <div class="health-value">{{ system_health.memory }}%</div>
+                </div>
+                
+                <div class="health-indicator">
+                    <div class="health-label">
+                        <div class="health-status status-warning"></div>
+                        <span>Disco</span>
+                    </div>
+                    <div class="health-value">{{ system_health.disk }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="admin-sections">
+        <div class="admin-section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-exchange-alt"></i> Operaciones Recientes</h2>
+                <a href="#" class="section-action">Ver Todas</a>
+            </div>
+            
+            <div class="operation-summary">
+                <div class="operation-stat">
+                    <div class="operation-label">Compras</div>
+                    <div class="operation-value">{{ operations_summary.buys }}</div>
+                </div>
+                
+                <div class="operation-stat">
+                    <div class="operation-label">Ventas</div>
+                    <div class="operation-value">{{ operations_summary.sells }}</div>
+                </div>
+                
+                <div class="operation-stat">
+                    <div class="operation-label">Volumen</div>
+                    <div class="operation-value">${{ "%.1f"|format(operations_summary.volume / 1000) }}K</div>
+                </div>
+            </div>
+            
+            <div class="operation-list">
+                {% for operation in recent_operations %}
+                <div class="operation-item">
+                    <div class="operation-info">
+                        <div class="operation-icon">
+                            {% if operation.type == 'buy' %}
+                                <i class="fas fa-arrow-down"></i>
+                            {% else %}
+                                <i class="fas fa-arrow-up"></i>
+                            {% endif %}
+                        </div>
+                        <div class="operation-details">
+                            <div class="operation-type">{{ operation.symbol }} {{ operation.type|capitalize }}</div>
+                            <div class="operation-time">{{ operation.time }}</div>
+                        </div>
+                    </div>
+                    <div class="operation-amount">${{ "%.2f"|format(operation.amount) }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="admin-section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-file-alt"></i> Logs del Sistema</h2>
+                <a href="#" class="section-action">Ver Completos</a>
+            </div>
+            
+            <div class="log-entries">
+                {% for log in system_logs %}
+                <div class="log-entry">
+                    <span class="log-time">{{ log.time }}</span>
+                    <span class="log-level log-{{ log.level }}">{{ log.level|upper }}</span>
+                    <span class="log-message">{{ log.message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="admin-sections">
+        <div class="admin-section">
+            <div class="section-header">
+                <h2 class="section-title"><i class="fas fa-bell"></i> Alertas Recientes</h2>
+                <a href="#" class="section-action">Ver Todas</a>
+            </div>
+            
+            <div class="recent-alerts">
+                {% for alert in recent_alerts %}
+                <div class="alert-item">
+                    <div class="alert-icon {{ alert.priority }}">
+                        {% if alert.priority == 'important' %}
+                            <i class="fas fa-exclamation-circle"></i>
+                        {% elif alert.priority == 'warning' %}
+                            <i class="fas fa-exclamation-triangle"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle"></i>
+                        {% endif %}
+                    </div>
+                    <div class="alert-content">
+                        <div class="alert-title">{{ alert.title }}</div>
+                        <div class="alert-text">{{ alert.message }}</div>
+                        <div class="alert-time">{{ alert.time }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Simular actualización de datos en tiempo real
+    setInterval(function() {
+        const healthValues = document.querySelectorAll('.health-value');
+        
+        healthValues.forEach(value => {
+            // Añadir pequeñas variaciones aleatorias para simular actualizaciones
+            const currentValue = parseFloat(value.textContent);
+            if (!isNaN(currentValue)) {
+                const newValue = (currentValue + (Math.random() * 2 - 1) * 0.5).toFixed(1);
+                if (value.textContent.includes('ms')) {
+                    value.textContent = newValue + 'ms';
+                } else if (value.textContent.includes('%')) {
+                    value.textContent = newValue + '%';
+                } else {
+                    value.textContent = newValue;
+                }
+            }
+        });
+    }, 5000);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,964 @@
+{% extends "base.html" %}
+
+{% block title %}Control del Sistema - Genesis Trading System{% endblock %}
+
+{% block additional_styles %}
+<style>
+    .system-control-page {
+        padding: 2rem 0;
+    }
+    
+    .control-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .control-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(to right, var(--cyan-color), var(--gold-color));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-fill-color: transparent;
+        text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+    }
+    
+    .control-subtitle {
+        font-size: 1.2rem;
+        color: var(--medium-text);
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .access-restricted {
+        background: rgba(244, 67, 54, 0.1);
+        border-left: 4px solid #f44336;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .restricted-icon {
+        font-size: 1.5rem;
+        color: #f44336;
+    }
+    
+    .restricted-message {
+        font-weight: 500;
+    }
+    
+    .control-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+    
+    @media (max-width: 992px) {
+        .control-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .control-panel {
+        background: var(--holographic-card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        box-shadow: var(--cosmic-shadow);
+    }
+    
+    .control-section {
+        margin-bottom: 2rem;
+    }
+    
+    .control-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .section-header {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.3rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: var(--cyan-color);
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-header i {
+        margin-right: 0.5rem;
+    }
+    
+    .control-buttons {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1rem;
+    }
+    
+    .control-button {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 8px;
+        padding: 1rem;
+        color: var(--light-text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        gap: 0.5rem;
+    }
+    
+    .control-button:hover {
+        background: rgba(0, 255, 255, 0.05);
+        border-color: var(--cyan-color);
+        transform: translateY(-2px);
+    }
+    
+    .button-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        color: var(--cyan-color);
+    }
+    
+    .button-label {
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    
+    .button-status {
+        font-size: 0.8rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 3px;
+        margin-top: 0.5rem;
+    }
+    
+    .status-active {
+        background-color: rgba(76, 175, 80, 0.1);
+        color: #4caf50;
+    }
+    
+    .status-inactive {
+        background-color: rgba(244, 67, 54, 0.1);
+        color: #f44336;
+    }
+    
+    .control-slider {
+        margin-bottom: 1.5rem;
+    }
+    
+    .slider-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .slider-label {
+        font-weight: 500;
+    }
+    
+    .slider-value {
+        font-family: 'Orbitron', sans-serif;
+        padding: 0.2rem 0.5rem;
+        background: rgba(0, 255, 255, 0.1);
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+    
+    .slider-container {
+        position: relative;
+    }
+    
+    .control-slider input {
+        width: 100%;
+        -webkit-appearance: none;
+        appearance: none;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        outline: none;
+    }
+    
+    .control-slider input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--cyan-color);
+        cursor: pointer;
+        box-shadow: 0 0 5px var(--cyan-color);
+    }
+    
+    .control-slider input::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--cyan-color);
+        cursor: pointer;
+        box-shadow: 0 0 5px var(--cyan-color);
+        border: none;
+    }
+    
+    .slider-track {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 6px;
+        background: linear-gradient(to right, var(--cyan-color), var(--magenta-color));
+        border-radius: 3px;
+        z-index: -1;
+    }
+    
+    .system-monitor {
+        background: rgba(10, 10, 10, 0.7);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+    }
+    
+    .monitor-header {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.3rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: var(--cyan-color);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .header-icon {
+        margin-right: 0.5rem;
+    }
+    
+    .monitor-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .monitor-button {
+        background: none;
+        border: 1px solid rgba(0, 255, 255, 0.2);
+        border-radius: 4px;
+        padding: 0.3rem 0.6rem;
+        color: var(--light-text);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .monitor-button:hover {
+        background: rgba(0, 255, 255, 0.1);
+        border-color: var(--cyan-color);
+    }
+    
+    .monitor-button.active {
+        background: rgba(0, 255, 255, 0.1);
+        border-color: var(--cyan-color);
+    }
+    
+    .monitor-content {
+        height: 400px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 0.9rem;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .monitor-line {
+        margin-bottom: 0.2rem;
+        line-height: 1.5;
+    }
+    
+    .monitor-timestamp {
+        color: var(--gold-color);
+        margin-right: 0.5rem;
+    }
+    
+    .monitor-component {
+        color: var(--magenta-color);
+        margin-right: 0.5rem;
+    }
+    
+    .monitor-command-line {
+        display: flex;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 4px;
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+    
+    .command-prompt {
+        color: var(--cyan-color);
+        font-weight: 700;
+    }
+    
+    .command-input {
+        flex: 1;
+        background: none;
+        border: none;
+        color: var(--light-text);
+        font-family: monospace;
+        font-size: 0.9rem;
+        outline: none;
+    }
+    
+    .control-card {
+        background: rgba(10, 10, 10, 0.5);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .control-card:hover {
+        border-color: rgba(0, 255, 255, 0.3);
+        background: rgba(10, 10, 10, 0.7);
+    }
+    
+    .control-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .card-title {
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .card-title i {
+        color: var(--cyan-color);
+    }
+    
+    .card-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 40px;
+        height: 24px;
+    }
+    
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(255, 255, 255, 0.1);
+        transition: .4s;
+        border-radius: 24px;
+    }
+    
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    
+    input:checked + .slider {
+        background-color: var(--cyan-color);
+    }
+    
+    input:focus + .slider {
+        box-shadow: 0 0 1px var(--cyan-color);
+    }
+    
+    input:checked + .slider:before {
+        transform: translateX(16px);
+    }
+    
+    .card-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+    
+    .card-stat {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--medium-text);
+        margin-bottom: 0.3rem;
+    }
+    
+    .stat-value {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.2rem;
+    }
+    
+    .sub-section {
+        margin-top: 2rem;
+    }
+    
+    .sub-heading {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        color: var(--gold-color);
+    }
+    
+    .mode-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .mode-card {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(0, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .mode-card.active {
+        border-color: var(--cyan-color);
+        background: rgba(0, 255, 255, 0.05);
+    }
+    
+    .mode-card:hover {
+        transform: translateY(-3px);
+    }
+    
+    .mode-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(to bottom, var(--cyan-color), var(--magenta-color));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .mode-card.active::before {
+        opacity: 1;
+    }
+    
+    .mode-name {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        color: var(--cyan-color);
+    }
+    
+    .mode-card.active .mode-name {
+        color: var(--gold-color);
+    }
+    
+    .mode-description {
+        font-size: 0.9rem;
+        color: var(--medium-text);
+        margin-bottom: 0.5rem;
+    }
+    
+    .mode-performance {
+        font-size: 0.8rem;
+    }
+    
+    .performance-value {
+        font-weight: 700;
+        color: #4caf50;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="system-control-page">
+    <div class="control-header">
+        <h1 class="control-title">Control del Sistema Genesis</h1>
+        <p class="control-subtitle">Panel de control avanzado para configuración y monitoreo del Sistema Genesis Trascendental</p>
+    </div>
+    
+    {% if user_role != 'super_admin' %}
+    <div class="access-restricted">
+        <div class="restricted-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="restricted-message">
+            Acceso restringido. Solo administradores con privilegios máximos pueden acceder a este panel.
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="control-grid">
+        <div class="control-panel">
+            <div class="control-section">
+                <h2 class="section-header"><i class="fas fa-cogs"></i> Modos del Sistema</h2>
+                
+                <div class="control-buttons">
+                    <div class="control-button">
+                        <div class="button-icon"><i class="fas fa-atom"></i></div>
+                        <div class="button-label">Singularidad V4</div>
+                        <div class="button-status status-active">Activo</div>
+                    </div>
+                    
+                    <div class="control-button">
+                        <div class="button-icon"><i class="fas fa-lightbulb"></i></div>
+                        <div class="button-label">Modo Luz</div>
+                        <div class="button-status status-inactive">Inactivo</div>
+                    </div>
+                    
+                    <div class="control-button">
+                        <div class="button-icon"><i class="fas fa-moon"></i></div>
+                        <div class="button-label">Materia Oscura</div>
+                        <div class="button-status status-inactive">Inactivo</div>
+                    </div>
+                    
+                    <div class="control-button">
+                        <div class="button-icon"><i class="fas fa-sun"></i></div>
+                        <div class="button-label">Modo Divino</div>
+                        <div class="button-status status-inactive">Inactivo</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h2 class="section-header"><i class="fas fa-sliders-h"></i> Ajustes de Rendimiento</h2>
+                
+                <div class="control-slider">
+                    <div class="slider-header">
+                        <div class="slider-label">Intensidad de Resiliencia</div>
+                        <div class="slider-value">100.0</div>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="1000" value="100" class="slider-input">
+                        <div class="slider-track" style="width: 10%;"></div>
+                    </div>
+                </div>
+                
+                <div class="control-slider">
+                    <div class="slider-header">
+                        <div class="slider-label">Umbral de Circuit Breaker</div>
+                        <div class="slider-value">75%</div>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="100" value="75" class="slider-input">
+                        <div class="slider-track" style="width: 75%;"></div>
+                    </div>
+                </div>
+                
+                <div class="control-slider">
+                    <div class="slider-header">
+                        <div class="slider-label">Frecuencia de Checkpoints</div>
+                        <div class="slider-value">60s</div>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" min="5" max="300" value="60" class="slider-input">
+                        <div class="slider-track" style="width: 20%;"></div>
+                    </div>
+                </div>
+                
+                <div class="control-slider">
+                    <div class="slider-header">
+                        <div class="slider-label">Concurrencia Máxima</div>
+                        <div class="slider-value">500</div>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" min="10" max="1000" value="500" class="slider-input">
+                        <div class="slider-track" style="width: 50%;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h2 class="section-header"><i class="fas fa-flask"></i> Prueba ARMAGEDÓN</h2>
+                
+                <div class="sub-section">
+                    <h3 class="sub-heading">Seleccionar modo</h3>
+                    
+                    <div class="mode-selector">
+                        <div class="mode-card">
+                            <div class="mode-name">Normal</div>
+                            <div class="mode-description">Prueba estándar con intensidad base</div>
+                            <div class="mode-performance">Intensidad: <span class="performance-value">1.0</span></div>
+                        </div>
+                        
+                        <div class="mode-card active">
+                            <div class="mode-name">Divino</div>
+                            <div class="mode-description">Prueba avanzada con alta intensidad</div>
+                            <div class="mode-performance">Intensidad: <span class="performance-value">10.0</span></div>
+                        </div>
+                        
+                        <div class="mode-card">
+                            <div class="mode-name">Ultra Divino</div>
+                            <div class="mode-description">Prueba extrema con intensidad superior</div>
+                            <div class="mode-performance">Intensidad: <span class="performance-value">100.0</span></div>
+                        </div>
+                        
+                        <div class="mode-card">
+                            <div class="mode-name">Cósmico</div>
+                            <div class="mode-description">Prueba máxima para sistemas resilientes</div>
+                            <div class="mode-performance">Intensidad: <span class="performance-value">1000.0</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-buttons">
+                        <div class="control-button">
+                            <div class="button-icon"><i class="fas fa-play"></i></div>
+                            <div class="button-label">Iniciar Prueba</div>
+                        </div>
+                        
+                        <div class="control-button">
+                            <div class="button-icon"><i class="fas fa-stop"></i></div>
+                            <div class="button-label">Detener Prueba</div>
+                        </div>
+                        
+                        <div class="control-button">
+                            <div class="button-icon"><i class="fas fa-file-alt"></i></div>
+                            <div class="button-label">Ver Resultados</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="system-monitor">
+            <div class="monitor-header">
+                <div>
+                    <i class="fas fa-terminal header-icon"></i>
+                    Monitor del Sistema
+                </div>
+                <div class="monitor-controls">
+                    <button class="monitor-button active">Tiempo real</button>
+                    <button class="monitor-button">Errores</button>
+                    <button class="monitor-button">Rendimiento</button>
+                    <button class="monitor-button">Base de datos</button>
+                </div>
+            </div>
+            
+            <div class="monitor-content">
+                {% for line in monitor_logs %}
+                <div class="monitor-line">
+                    <span class="monitor-timestamp">{{ line.timestamp }}</span>
+                    <span class="monitor-component">[{{ line.component }}]</span>
+                    <span class="monitor-message">{{ line.message }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="monitor-command-line">
+                <span class="command-prompt">genesis@trascendental:~$</span>
+                <input type="text" class="command-input" placeholder="Escribe un comando...">
+            </div>
+            
+            <div class="component-cards">
+                <div class="control-card">
+                    <div class="control-card-header">
+                        <div class="card-title">
+                            <i class="fas fa-database"></i>
+                            TranscendentalDatabase
+                        </div>
+                        <div class="card-controls">
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-details">
+                        <div class="card-stat">
+                            <div class="stat-label">Estado</div>
+                            <div class="stat-value">Operativo</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Conexiones</div>
+                            <div class="stat-value">42</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Tiempo de respuesta</div>
+                            <div class="stat-value">2.3ms</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Transacciones/s</div>
+                            <div class="stat-value">587</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-card">
+                    <div class="control-card-header">
+                        <div class="card-title">
+                            <i class="fas fa-project-diagram"></i>
+                            WebSocketTrascendental
+                        </div>
+                        <div class="card-controls">
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-details">
+                        <div class="card-stat">
+                            <div class="stat-label">Estado</div>
+                            <div class="stat-value">Operativo</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Clientes</div>
+                            <div class="stat-value">78</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Mensajes/s</div>
+                            <div class="stat-value">325</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Latencia</div>
+                            <div class="stat-value">4.1ms</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-card">
+                    <div class="control-card-header">
+                        <div class="card-title">
+                            <i class="fas fa-shield-alt"></i>
+                            CloudCircuitBreaker
+                        </div>
+                        <div class="card-controls">
+                            <label class="toggle-switch">
+                                <input type="checkbox" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-details">
+                        <div class="card-stat">
+                            <div class="stat-label">Estado</div>
+                            <div class="stat-value">Operativo</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Fallos evitados</div>
+                            <div class="stat-value">17</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Precisión</div>
+                            <div class="stat-value">99.7%</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="stat-label">Tiempo de respuesta</div>
+                            <div class="stat-value">0.8ms</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Controles para los sliders
+    const sliderInputs = document.querySelectorAll('.slider-input');
+    
+    sliderInputs.forEach(input => {
+        const sliderValueEl = input.parentElement.previousElementSibling.querySelector('.slider-value');
+        const track = input.nextElementSibling;
+        
+        // Actualizar valor y posición del track al mover el slider
+        input.addEventListener('input', function() {
+            let value = this.value;
+            let max = this.max;
+            let unit = '';
+            
+            // Determinar la unidad basada en el texto actual
+            if (sliderValueEl.textContent.includes('%')) {
+                unit = '%';
+            } else if (sliderValueEl.textContent.includes('s')) {
+                unit = 's';
+            }
+            
+            // Actualizar texto y track
+            sliderValueEl.textContent = value + unit;
+            track.style.width = (value / max * 100) + '%';
+        });
+    });
+    
+    // Selector de modo para ARMAGEDÓN
+    const modeCards = document.querySelectorAll('.mode-card');
+    
+    modeCards.forEach(card => {
+        card.addEventListener('click', function() {
+            // Remover clase activa de todas las tarjetas
+            modeCards.forEach(c => c.classList.remove('active'));
+            
+            // Añadir clase activa a la tarjeta clickeada
+            this.classList.add('active');
+        });
+    });
+    
+    // Cambiar entre tabs del monitor
+    const monitorButtons = document.querySelectorAll('.monitor-button');
+    
+    monitorButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Remover clase activa de todos los botones
+            monitorButtons.forEach(b => b.classList.remove('active'));
+            
+            // Añadir clase activa al botón clickeado
+            this.classList.add('active');
+            
+            // Aquí se cambiaría el contenido del monitor según el botón clickeado
+            // Por ahora es solo un ejemplo visual
+        });
+    });
+    
+    // Command line en el monitor
+    const commandInput = document.querySelector('.command-input');
+    
+    commandInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && this.value) {
+            const command = this.value;
+            const content = document.querySelector('.monitor-content');
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+            
+            // Añadir comando a la consola
+            const commandLine = document.createElement('div');
+            commandLine.classList.add('monitor-line');
+            commandLine.innerHTML = `<span class="monitor-timestamp">${timestamp}</span> <span class="command-prompt">genesis@trascendental:~$</span> <span>${command}</span>`;
+            content.appendChild(commandLine);
+            
+            // Simular respuesta (esto sería reemplazado por una respuesta real del servidor)
+            const responseLine = document.createElement('div');
+            responseLine.classList.add('monitor-line');
+            
+            // Respuestas simuladas para algunos comandos comunes
+            let response = '';
+            if (command === 'help') {
+                response = 'Comandos disponibles: status, version, metrics, armageddon, benchmark';
+            } else if (command === 'status') {
+                response = 'Sistema Genesis: OPERATIVO - Todos los componentes funcionando correctamente';
+            } else if (command === 'version') {
+                response = 'Genesis Trascendental v4.4.2 (Singularidad)';
+            } else if (command === 'metrics') {
+                response = 'Recogiendo métricas del sistema...';
+            } else {
+                response = `Comando '${command}' ejecutado (simulación)`;
+            }
+            
+            responseLine.innerHTML = `<span class="monitor-timestamp">${timestamp}</span> <span class="monitor-component">[SYSTEM]</span> <span class="monitor-message">${response}</span>`;
+            content.appendChild(responseLine);
+            
+            // Limpiar input y hacer scroll hasta abajo
+            this.value = '';
+            content.scrollTop = content.scrollHeight;
+        }
+    });
+    
+    // Simulación de actualizaciones para monitoreo en tiempo real
+    setInterval(function() {
+        const content = document.querySelector('.monitor-content');
+        const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+        
+        // Componentes simulados
+        const components = ['DB', 'API', 'WS', 'CB', 'RL', 'CP'];
+        const randomComponent = components[Math.floor(Math.random() * components.length)];
+        
+        // Mensajes simulados
+        const messages = [
+            'Procesando transacción',
+            'Conexión establecida',
+            'Verificando estado',
+            'Actualizando caché',
+            'Optimizando consulta',
+            'Checkpoint completado'
+        ];
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        
+        // Añadir nueva línea aleatoria de log (sólo si tab de tiempo real está activo)
+        if (document.querySelector('.monitor-button.active').textContent === 'Tiempo real') {
+            const newLine = document.createElement('div');
+            newLine.classList.add('monitor-line');
+            newLine.innerHTML = `<span class="monitor-timestamp">${timestamp}</span> <span class="monitor-component">[${randomComponent}]</span> <span class="monitor-message">${randomMessage}</span>`;
+            content.appendChild(newLine);
+            
+            // Mantener scroll abajo
+            content.scrollTop = content.scrollHeight;
+            
+            // Limitar número de líneas (mantener las últimas 100)
+            const lines = content.querySelectorAll('.monitor-line');
+            if (lines.length > 100) {
+                lines[0].remove();
+            }
+        }
+        
+        // Actualizar estadísticas de componentes
+        const statValues = document.querySelectorAll('.stat-value');
+        statValues.forEach(value => {
+            // Excluir valores que no son numéricos
+            if (value.textContent === 'Operativo') return;
+            
+            // Añadir variación aleatoria para simular cambios en tiempo real
+            if (Math.random() > 0.7) {  // Solo cambiar algunos valores cada vez
+                const currentText = value.textContent;
+                if (currentText.match(/^\d+(\.\d+)?(%|ms)?$/)) {
+                    const numericPart = parseFloat(currentText);
+                    const suffix = currentText.replace(/[\d.]/g, '');
+                    
+                    // Calcular nueva variación (±3%)
+                    const variation = numericPart * 0.03 * (Math.random() > 0.5 ? 1 : -1);
+                    let newValue = numericPart + variation;
+                    
+                    // Formatear nuevo valor basado en unidad
+                    if (suffix.includes('ms')) {
+                        newValue = newValue.toFixed(1);
+                    } else if (suffix.includes('%')) {
+                        newValue = Math.min(100, Math.max(0, newValue)).toFixed(1);
+                    } else {
+                        newValue = Math.round(newValue);
+                    }
+                    
+                    value.textContent = newValue + suffix;
+                }
+            }
+        });
+    }, 2000);
+});
+</script>
+{% endblock %}
