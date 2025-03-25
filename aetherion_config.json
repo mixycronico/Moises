@@ -1,0 +1,40 @@
+{
+  "state": {
+    "initial": "MORTAL",
+    "evolution": {
+      "threshold_iluminado": 1000,
+      "threshold_divino": 5000
+    }
+  },
+  "memory": {
+    "short_term_capacity": 100,
+    "long_term_importance_threshold": 0.7,
+    "episodic_capacity": 500,
+    "auto_persist": true
+  },
+  "integrations": {
+    "gabriel": {
+      "enabled": true,
+      "sync_emotional_state": true
+    },
+    "buddha": {
+      "enabled": true,
+      "analysis_weight": 0.8
+    },
+    "deepseek": {
+      "enabled": true,
+      "default_temperature": 0.7
+    }
+  },
+  "communication": {
+    "default_response_style": "helpful",
+    "empathy_level": 0.8,
+    "complexity_level": 0.7
+  },
+  "ui": {
+    "chat_bubble_color": "#6a4bc4",
+    "avatar_path": "/static/img/aetherion_avatar.png",
+    "animation_enabled": true,
+    "typing_animation_speed": 0.7
+  }
+}
