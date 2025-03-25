@@ -270,6 +270,22 @@ def admin_system():
                          title="Control del Sistema - Genesis",
                          system_status=SAMPLE_DATA["system_status"])
 
+@app.route('/system/control')
+@super_admin_required
+def system_control():
+    """Control del sistema (alias)."""
+    return redirect(url_for('admin_system'))
+
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    """Dashboard para administradores."""
+    return render_template('admin/dashboard.html', 
+                         title="Panel de Administración - Genesis",
+                         investors=SAMPLE_DATA["investors"],
+                         system_status=SAMPLE_DATA["system_status"],
+                         notifications=SAMPLE_DATA["notifications"])
+
 # API endpoints
 @app.route('/api/metrics')
 @login_required
@@ -299,6 +315,15 @@ def get_investors():
 def get_notifications():
     """API para obtener notificaciones."""
     return jsonify(SAMPLE_DATA["notifications"])
+
+@app.route('/notifications')
+@login_required
+def notifications():
+    """Ver notificaciones."""
+    return render_template('notifications.html', 
+                        title="Notificaciones - Genesis",
+                        notifications=SAMPLE_DATA["notifications"],
+                        system_status=SAMPLE_DATA["system_status"])
 
 @app.route('/api/alerts')
 @login_required
