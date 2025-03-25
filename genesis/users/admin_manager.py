@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 class UserRole:
     """Roles de usuario en el sistema."""
     ADMIN = "admin"
-    SUPER_ADMIN = "super_admin"  # Nuevo rol de super administrador
+    SUPER_ADMIN = "super_admin"         # Super administrador
+    FOUNDER_ADMIN = "founder_admin"     # Fundador con máximos privilegios (Moisés)
     INVESTOR = "investor"
     VIEWER = "viewer"
     ANALYST = "analyst"
@@ -218,10 +219,15 @@ class AdminManager:
                     user = User.from_dict(data)
                     self._add_user_to_memory(user)
                     
-            # Si no hay usuarios, crear el administrador por defecto
+            # Si no hay usuarios, crear el administrador fundador por defecto
             if not self.users:
-                self.logger.warning("No se encontraron usuarios. Creando administrador por defecto...")
-                await self.create_admin("Moisés Alvarenga", "mixycronico", "Jesus@2@7", "mixycronico@aol.com")
+                self.logger.warning("No se encontraron usuarios. Creando administrador fundador por defecto...")
+                user = await self.create_admin("Moisés Alvarenga", "mixycronico", "Jesus@2@7", "mixycronico@aol.com")
+                if user:
+                    user.add_role(UserRole.FOUNDER_ADMIN)
+                    user.add_role(UserRole.SUPER_ADMIN)
+                    await self._save_users()
+                    self.logger.info("Configurado Moisés Alvarenga como FOUNDER_ADMIN")
                 
         except Exception as e:
             self.logger.error(f"Error cargando usuarios: {e}")
@@ -431,9 +437,21 @@ class AdminManager:
         if not self._verify_password(password, user.password_hash):
             return None
             
-        # Verificar si es Jeremias Lazo o Stephany Sandoval para asignar rol super admin
+        # Verificar roles especiales basados en el nombre o usuario
         full_name = user.get_full_name().lower()
-        if "jeremias lazo" in full_name or "stephany sandoval" in full_name:
+        username = user.username.lower()
+        
+        # Moisés es siempre FOUNDER_ADMIN (máximo nivel)
+        if "moises" in full_name or "alvarenga" in full_name or "mixycronico" in username:
+            if not user.has_role(UserRole.FOUNDER_ADMIN):
+                self.logger.info(f"Asignando rol de FOUNDER_ADMIN a {user.get_full_name()}")
+                user.add_role(UserRole.FOUNDER_ADMIN)
+                user.add_role(UserRole.SUPER_ADMIN)  # Los FOUNDER también son SUPER
+                user.add_role(UserRole.ADMIN)  # Y también son ADMIN
+                await self._save_users()
+        
+        # Jeremias Lazo y Stephany Sandoval son SUPER_ADMIN 
+        elif "jeremias lazo" in full_name or "stephany sandoval" in full_name:
             if not user.has_role(UserRole.SUPER_ADMIN):
                 self.logger.info(f"Asignando rol de SUPER_ADMIN a {user.get_full_name()}")
                 user.add_role(UserRole.SUPER_ADMIN)
@@ -613,6 +631,41 @@ class AdminManager:
         await self._save_users()
         
         return True
+        
+    async def promote_to_super_admin(self, promoter_id: str, target_user_id: str) -> Tuple[bool, str]:
+        """
+        Promover a un usuario a SUPER_ADMIN (solo puede hacerlo un FOUNDER_ADMIN).
+        
+        Args:
+            promoter_id: ID del usuario que promueve (debe ser FOUNDER_ADMIN)
+            target_user_id: ID del usuario a promover
+            
+        Returns:
+            Tupla (éxito, mensaje)
+        """
+        # Verificar que el promotor existe y es FOUNDER_ADMIN
+        if promoter_id not in self.users:
+            return False, "Promotor no encontrado"
+            
+        promoter = self.users[promoter_id]
+        if not promoter.has_role(UserRole.FOUNDER_ADMIN):
+            return False, "No tienes permiso para promover a SUPER_ADMIN"
+            
+        # Verificar que el objetivo existe
+        if target_user_id not in self.users:
+            return False, "Usuario objetivo no encontrado"
+            
+        # Promover al usuario
+        target_user = self.users[target_user_id]
+        target_user.add_role(UserRole.SUPER_ADMIN)
+        target_user.add_role(UserRole.ADMIN)  # Los SUPER_ADMIN también son ADMIN
+        
+        # Guardar cambios
+        await self._save_users()
+        
+        self.logger.info(f"Usuario {target_user.get_full_name()} promovido a SUPER_ADMIN por {promoter.get_full_name()}")
+        
+        return True, f"{target_user.get_full_name()} ahora es SUPER_ADMIN"
 
 # Instancia global
 admin_manager: Optional[AdminManager] = None
