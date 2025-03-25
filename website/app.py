@@ -3,13 +3,16 @@ Aplicación web para el Sistema Genesis.
 
 Este módulo proporciona la interfaz web para el sistema de trading Genesis,
 permitiendo la visualización de datos, configuración y monitoreo.
+Implementación basada en la Guía de Arquitectura Frontend del Proyecto Genesis.
 """
 
 import os
 import json
 import logging
+import datetime
 from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash
 from flask_cors import CORS
+from functools import wraps
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, 
@@ -48,42 +51,219 @@ SAMPLE_DATA = {
         "last_error": None,
         "mode": "SINGULARIDAD_V4",
         "intensity": 1000.0
-    }
+    },
+    "investors": [
+        {"id": 1, "name": "Moises Alvarenga", "role": "super_admin", "capital": 5000, "profits": 420.50},
+        {"id": 2, "name": "Jeremias Lazo", "role": "super_admin", "capital": 4500, "profits": 380.25},
+        {"id": 3, "name": "Stephany Sandoval", "role": "super_admin", "capital": 4000, "profits": 340.75},
+        {"id": 4, "name": "Inversionista 1", "role": "investor", "capital": 1000, "profits": 85.30},
+        {"id": 5, "name": "Inversionista 2", "role": "investor", "capital": 2000, "profits": 170.60}
+    ],
+    "notifications": [
+        {"id": 1, "type": "info", "message": "Actualización del sistema completada", "timestamp": "2025-03-24T15:30:00"},
+        {"id": 2, "type": "success", "message": "Trading automático activado", "timestamp": "2025-03-24T16:45:00"},
+        {"id": 3, "type": "warning", "message": "Alta volatilidad detectada en BTC", "timestamp": "2025-03-24T18:20:00"},
+    ],
+    "alerts": [
+        {"tipo": "volatilidad", "mensaje": "BTC experimentando volatilidad extrema", "activo": "BTC", "creadoEn": "2025-03-24T18:15:00"},
+        {"tipo": "ruptura", "mensaje": "ETH rompió resistencia clave", "activo": "ETH", "creadoEn": "2025-03-24T17:30:00"},
+        {"tipo": "ganancia", "mensaje": "SOL superó objetivo de ganancia 5%", "activo": "SOL", "creadoEn": "2025-03-24T16:10:00"}
+    ]
 }
 
-# Rutas de la aplicación web
+# Funciones de utilidad
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in', False):
+            flash('Debes iniciar sesión para acceder a esta página', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in', False):
+            flash('Debes iniciar sesión para acceder a esta página', 'error')
+            return redirect(url_for('login'))
+        
+        if session.get('role') != 'admin' and session.get('role') != 'super_admin':
+            flash('Necesitas permisos de administrador para acceder a esta página', 'error')
+            return redirect(url_for('investor_home'))
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+def super_admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in', False):
+            flash('Debes iniciar sesión para acceder a esta página', 'error')
+            return redirect(url_for('login'))
+        
+        if session.get('role') != 'super_admin':
+            flash('Necesitas permisos de super administrador para acceder a esta página', 'error')
+            return redirect(url_for('dashboard'))
+            
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Rutas de autenticación
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Página de login."""
+    # Si ya está logueado, redirigir según rol
+    if session.get('logged_in', False):
+        if session.get('role') == 'investor':
+            return redirect(url_for('investor_home'))
+        else:
+            return redirect(url_for('dashboard'))
+    
+    # Procesar formulario de login
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        role = request.form.get('role')
+        
+        # Simulación de login - En producción usar autenticación real
+        if username and password:
+            # Aquí podríamos consultar la base de datos
+            session['logged_in'] = True
+            session['username'] = username
+            session['role'] = role
+            
+            # Simulación de super admin para los usuarios específicos
+            if username.lower() in ["moises", "moises alvarenga", "jeremias", "jeremias lazo", "stephany", "stephany sandoval"]:
+                session['role'] = 'super_admin'
+                flash(f'Bienvenido/a Super Administrador {username}!', 'success')
+                return redirect(url_for('dashboard'))
+            
+            # Redirección basada en rol
+            if role == 'investor':
+                flash(f'Bienvenido/a Inversionista {username}!', 'success')
+                return redirect(url_for('investor_home'))
+            else:
+                flash(f'Bienvenido/a Administrador {username}!', 'success')
+                return redirect(url_for('dashboard'))
+        else:
+            flash('Por favor, ingresa usuario y contraseña', 'error')
+    
+    return render_template('login.html', 
+                          title="Ingresar - Sistema Genesis", 
+                          system_status=SAMPLE_DATA["system_status"])
+
+@app.route('/logout')
+def logout():
+    """Cerrar sesión."""
+    session.clear()
+    flash('Has cerrado sesión exitosamente', 'success')
+    return redirect(url_for('index'))
+
+# Rutas principales basadas en la guía de arquitectura
 @app.route('/')
 def index():
-    """Página principal."""
-    return render_template('index.html', title="Genesis - Sistema Trascendental")
+    """Pantalla inicial con logo animado."""
+    return render_template('index.html', 
+                          title="Genesis - Sistema Trascendental",
+                          system_status=SAMPLE_DATA["system_status"])
+
+@app.route('/investor/home')
+@login_required
+def investor_home():
+    """Vista personalizada del inversionista."""
+    investor_id = session.get('investor_id', 4)  # Valor por defecto para ejemplo
+    
+    # Buscar datos del inversionista (en producción sería de BD)
+    investor = next((inv for inv in SAMPLE_DATA["investors"] if inv["id"] == investor_id), 
+                   SAMPLE_DATA["investors"][3])  # Inversionista por defecto
+    
+    return render_template('investor_home.html', 
+                          title="Mi Inversión - Genesis",
+                          investor=investor,
+                          system_status=SAMPLE_DATA["system_status"],
+                          notifications=SAMPLE_DATA["notifications"])
+
+@app.route('/portfolio')
+@login_required
+def portfolio():
+    """Portfolio global."""
+    return render_template('portfolio.html', 
+                          title="Portfolio Global - Genesis",
+                          investors=SAMPLE_DATA["investors"],
+                          system_status=SAMPLE_DATA["system_status"])
 
 @app.route('/dashboard')
+@login_required
 def dashboard():
-    """Dashboard principal del sistema."""
+    """Dashboard interactivo."""
     return render_template('dashboard.html', 
                          title="Dashboard - Genesis", 
                          metrics=SAMPLE_DATA["performance"],
-                         system_status=SAMPLE_DATA["system_status"])
+                         system_status=SAMPLE_DATA["system_status"],
+                         notifications=SAMPLE_DATA["notifications"])
 
 @app.route('/trading')
-def trading_process():
-    """Página de proceso de trading."""
+@login_required
+def trading():
+    """Dashboard de trading."""
     return render_template('trading.html', 
-                         title="Proceso de Trading - Genesis")
+                         title="Trading - Genesis",
+                         hot_cryptos=SAMPLE_DATA["hot_cryptos"],
+                         system_status=SAMPLE_DATA["system_status"],
+                         alerts=SAMPLE_DATA["alerts"])
 
-@app.route('/cryptos')
-def cryptos():
-    """Página de criptomonedas hot."""
-    return render_template('cryptos.html', 
-                         title="Criptomonedas Hot - Genesis",
-                         hot_cryptos=SAMPLE_DATA["hot_cryptos"])
+@app.route('/analytics')
+@login_required
+def analytics():
+    """Dashboard de análisis."""
+    return render_template('analytics.html', 
+                         title="Análisis - Genesis",
+                         metrics=SAMPLE_DATA["performance"],
+                         system_status=SAMPLE_DATA["system_status"])
 
+@app.route('/misc')
+@login_required
+def misc():
+    """Funciones adicionales."""
+    return render_template('misc.html', 
+                         title="General - Genesis",
+                         system_status=SAMPLE_DATA["system_status"])
+
+@app.route('/investors/config')
+@admin_required
+def investors_config():
+    """Gestión de inversionistas (admin)."""
+    return render_template('investors_config.html', 
+                         title="Gestión de Inversionistas - Genesis",
+                         investors=SAMPLE_DATA["investors"],
+                         system_status=SAMPLE_DATA["system_status"])
+
+@app.route('/preferences')
+@login_required
+def preferences():
+    """Configuración visual y preferencias."""
+    return render_template('preferences.html', 
+                         title="Preferencias - Genesis",
+                         system_status=SAMPLE_DATA["system_status"])
+
+@app.route('/admin/system')
+@super_admin_required
+def admin_system():
+    """Panel exclusivo para super administradores."""
+    return render_template('admin_system.html', 
+                         title="Control del Sistema - Genesis",
+                         system_status=SAMPLE_DATA["system_status"])
+
+# API endpoints
 @app.route('/api/metrics')
+@login_required
 def get_metrics():
     """API para obtener métricas de rendimiento."""
     return jsonify(SAMPLE_DATA["performance"])
 
 @app.route('/api/hot-cryptos')
+@login_required
 def get_hot_cryptos():
     """API para obtener criptomonedas hot."""
     return jsonify(SAMPLE_DATA["hot_cryptos"])
@@ -92,6 +272,29 @@ def get_hot_cryptos():
 def get_system_status():
     """API para obtener estado del sistema."""
     return jsonify(SAMPLE_DATA["system_status"])
+
+@app.route('/api/investors')
+@admin_required
+def get_investors():
+    """API para obtener lista de inversionistas."""
+    return jsonify(SAMPLE_DATA["investors"])
+
+@app.route('/api/notifications')
+@login_required
+def get_notifications():
+    """API para obtener notificaciones."""
+    return jsonify(SAMPLE_DATA["notifications"])
+
+@app.route('/api/alerts')
+@login_required
+def get_alerts():
+    """API para obtener alertas de trading."""
+    return jsonify(SAMPLE_DATA["alerts"])
+
+# Context processors para variables disponibles en todos los templates
+@app.context_processor
+def inject_current_year():
+    return {'current_year': datetime.datetime.now().year}
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
