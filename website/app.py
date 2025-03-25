@@ -209,6 +209,14 @@ def login():
             session['username'] = username
             session['role'] = role
             
+            # Asignar un investor_id por defecto para propósitos de demostración
+            if role == 'super_admin':
+                session['investor_id'] = 1  # Moises Alvarenga
+            elif role == 'admin':
+                session['investor_id'] = 2  # Jeremias Lazo
+            else:
+                session['investor_id'] = 4  # Inversionista 1
+            
             # Mostrar mensaje y redireccionar según rol
             if role == 'super_admin':
                 flash(f'Bienvenido/a Super Administrador {username}!', 'success')
@@ -253,9 +261,40 @@ def investor_home():
     investor = next((inv for inv in SAMPLE_DATA["investors"] if inv["id"] == investor_id), 
                    SAMPLE_DATA["investors"][3])  # Inversionista por defecto
     
+    # Actividades recientes (simuladas)
+    activities = [
+        {
+            "type": "trade", 
+            "description": "Compra de BTC completada", 
+            "time": "Hace 2 horas",
+            "value": "+0.01 BTC",
+            "is_positive": True
+        },
+        {
+            "type": "deposit", 
+            "description": "Depósito procesado", 
+            "time": "Hace 5 horas",
+            "value": "+$500.00",
+            "is_positive": True
+        },
+        {
+            "type": "trade", 
+            "description": "Venta de ETH completada", 
+            "time": "Hace 1 día",
+            "value": "-0.5 ETH",
+            "is_positive": False
+        },
+        {
+            "type": "alert", 
+            "description": "Señal de compra en SOL", 
+            "time": "Hace 2 días"
+        }
+    ]
+    
     return render_template('investor/home.html', 
                           title="Mi Inversión - Genesis",
                           investor=investor,
+                          activities=activities,
                           system_status=SAMPLE_DATA["system_status"],
                           notifications=SAMPLE_DATA["notifications"])
 
