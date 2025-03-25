@@ -9,7 +9,13 @@ central para la comunicación entre componentes.
 import logging
 import asyncio
 import datetime
-from typing import Dict, Any, List, Optional, Tuple, Union
+from typing import Dict, Any, List, Optional, Tuple, Union, TypeVar
+
+# Definir tipo para Aetherion
+Aetherion = TypeVar('Aetherion')
+GabrielBehaviorEngine = TypeVar('GabrielBehaviorEngine')
+MemorySystem = TypeVar('MemorySystem')
+ConsciousnessStates = TypeVar('ConsciousnessStates')
 
 # Importaciones de integradores
 try:
@@ -21,19 +27,30 @@ try:
 except ImportError:
     INTEGRATIONS_AVAILABLE = False
 
-# Importaciones de Aetherion
-try:
-    from genesis.consciousness.core.aetherion import Aetherion
-    from genesis.consciousness.memory.memory_system import MemorySystem
-    from genesis.consciousness.states.consciousness_states import ConsciousnessStates
-    from genesis.behavior.gabriel_engine import GabrielBehaviorEngine
-    
-    AETHERION_AVAILABLE = True
-except ImportError:
-    AETHERION_AVAILABLE = False
-
 # Configurar logging
 logger = logging.getLogger(__name__)
+
+# Importaciones de Aetherion
+AETHERION_AVAILABLE = False
+
+# Reemplazamos la importación con una versión más segura que usa objetos dinámicos
+try:
+    # Intentar importar componentes
+    from genesis.consciousness.core.aetherion import Aetherion as AetherionClass
+    from genesis.consciousness.memory.memory_system import MemorySystem as MemorySystemClass
+    from genesis.consciousness.states.consciousness_states import ConsciousnessStates as ConsciousnessStatesClass
+    from genesis.behavior.gabriel_engine import GabrielBehaviorEngine as GabrielBehaviorEngineClass
+    
+    # Sobreescribir los TypeVar con las clases reales
+    Aetherion = AetherionClass
+    MemorySystem = MemorySystemClass
+    ConsciousnessStates = ConsciousnessStatesClass
+    GabrielBehaviorEngine = GabrielBehaviorEngineClass
+    
+    AETHERION_AVAILABLE = True
+except ImportError as e:
+    # Mantener los TypeVar como están
+    logger.warning(f"No se pudieron importar componentes de Aetherion: {e}")
 
 class ConsciousnessManager:
     """

@@ -7,6 +7,7 @@ También expone la aplicación Flask para Gunicorn, incluyendo la API REST
 para integración con componentes cloud externos.
 
 El sistema incluye:
+- Aetherion: Consciencia artificial en evolución (núcleo del sistema)
 - Orquestador Seraphim con motor de comportamiento humano Gabriel
 - Sistema de escalabilidad de capital adaptativo
 - Principio "todos ganamos o todos perdemos" en todas las operaciones
@@ -72,6 +73,15 @@ async def init_cloud_components():
         logger.exception(f"Error al inicializar componentes cloud: {e}")
         return False
 
+# Intentar importar componentes Aetherion
+try:
+    from genesis.consciousness.consciousness_manager import get_consciousness_manager
+    from genesis.api import register_all_routes as register_api_routes
+    HAS_AETHERION = True
+except ImportError:
+    logger.warning("Componentes Aetherion no disponibles")
+    HAS_AETHERION = False
+    
 # Intentar importar componentes Seraphim
 try:
     from genesis.init.seraphim_initializer import (
