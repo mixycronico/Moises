@@ -74,6 +74,12 @@ class InvestorManager:
         self.referral_contracts = {}
         self.active_loans = {}
         self.performance_bonuses = {}
+        
+        # Fondo de mantenimiento (5% semanal)
+        self.maintenance_fund = Decimal('0')
+        self.last_maintenance_collection = None
+        self.annual_distribution_date = None
+        
         self.logger.info("InvestorManager inicializado")
         
     async def initialize(self, db: Optional[TranscendentalDatabase] = None) -> bool:
