@@ -18,11 +18,11 @@
       --color-warning: #ffb86c;
       --color-danger: #ff5371;
       --color-background: #2c1259;
-      --color-card-bg: rgba(59, 35, 113, 0.7);
-      --color-sidebar: #3b2371;
+      --color-card-bg: rgba(59, 35, 113, 0.45);
+      --color-sidebar: rgba(59, 35, 113, 0.8);
       --color-text: #e1eaff;
       --color-text-secondary: #a8a0c0;
-      --color-border: rgba(123, 97, 255, 0.3);
+      --color-border: rgba(123, 97, 255, 0.5);
       --color-gradient-1: #7b61ff;
       --color-gradient-2: #42e8c3;
       --color-gradient-3: #ff5371;
@@ -47,7 +47,7 @@
       --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
       --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
       --shadow-inner: inset 0 2px 5px rgba(0, 0, 0, 0.2);
-      --shadow-glow: 0 0 10px rgba(123, 97, 255, 0.5);
+      --shadow-glow: 0 0 15px rgba(123, 97, 255, 0.8);
     }
     
     /* Estilos base */
@@ -440,15 +440,16 @@
       background-color: var(--color-card-bg);
       border-radius: var(--border-radius-lg);
       padding: var(--spacing-lg);
-      box-shadow: var(--shadow-md);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(123, 97, 255, 0.2);
+      box-shadow: var(--shadow-md), 0 0 20px rgba(123, 97, 255, 0.4);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(123, 97, 255, 0.4);
       transition: all 0.3s ease;
     }
     
     .card:hover {
       transform: translateY(-5px);
-      box-shadow: var(--shadow-lg);
+      box-shadow: var(--shadow-lg), 0 0 25px rgba(123, 97, 255, 0.6);
+      border-color: rgba(123, 97, 255, 0.6);
     }
     
     .card-header {
@@ -1134,7 +1135,7 @@
       left: -100%;
       width: 50%;
       height: 100%;
-      background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+      background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent);
       transform: skewX(-25deg);
       animation: holographic 3s infinite;
       pointer-events: none;
@@ -1146,7 +1147,28 @@
     }
     
     .glow-effect {
-      filter: drop-shadow(0 0 5px rgba(123, 97, 255, 0.5));
+      filter: drop-shadow(0 0 15px rgba(123, 97, 255, 0.7));
+    }
+    
+    /* Efecto de brillo adicional para tarjetas */
+    .card {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, 
+                 rgba(123, 97, 255, 0.1) 0%, 
+                 rgba(66, 232, 195, 0.1) 50%, 
+                 rgba(255, 83, 113, 0.1) 100%);
+      opacity: 0.4;
+      pointer-events: none;
     }
   </style>
 </head>
