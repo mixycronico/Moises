@@ -870,6 +870,110 @@
         }
       }
       
+      // Cargar datos del portafolio personal
+      async function loadPortfolioData() {
+        try {
+          const response = await fetch('/api/investor/current');
+          const data = await response.json();
+          
+          if (data.success) {
+            // Actualizar datos en la interfaz
+            const investor = data.investor;
+            
+            // Formatear moneda
+            const formatCurrency = (amount) => {
+              return new Intl.NumberFormat('es-MX', {
+                style: 'currency',
+                currency: 'USD'
+              }).format(amount);
+            };
+            
+            // Actualizar balance y estadísticas
+            document.getElementById('userBalance').textContent = formatCurrency(investor.balance || 0);
+            
+            // Manejar estructura diferente de datos de rendimiento
+            let performanceValue = 0;
+            if (typeof investor.performance === 'object' && investor.performance.yearly) {
+              performanceValue = investor.performance.yearly;
+            } else if (typeof investor.performance === 'number') {
+              performanceValue = investor.performance;
+            }
+            
+            document.getElementById('userPerformance').textContent = 
+              `${performanceValue > 0 ? '+' : ''}${performanceValue}%`;
+            
+            document.getElementById('userTransactions').textContent = 
+              investor.transactions ? investor.transactions.length : 0;
+            
+            document.getElementById('investedCapital').textContent = 
+              formatCurrency(investor.invested || investor.invested_capital || 0);
+            
+            // Llenar tabla de transacciones
+            if (investor.transactions && investor.transactions.length > 0) {
+              const tbody = document.getElementById('transactionsTableBody');
+              tbody.innerHTML = '';
+              
+              investor.transactions.forEach(transaction => {
+                const row = document.createElement('tr');
+                
+                // Determinar clase para tipo de transacción
+                let typeClass = `transaction-${transaction.type}`;
+                let typeDisplay = transaction.type;
+                
+                switch(transaction.type) {
+                  case 'deposit':
+                    typeDisplay = 'Depósito';
+                    break;
+                  case 'withdrawal':
+                    typeDisplay = 'Retiro';
+                    break;
+                  case 'bonus':
+                    typeDisplay = 'Bono';
+                    break;
+                  case 'profit':
+                    typeDisplay = 'Ganancia';
+                    break;
+                }
+                
+                // Determinar estado de la transacción
+                let statusDisplay = transaction.status || 'completed';
+                
+                switch(statusDisplay.toLowerCase()) {
+                  case 'complete':
+                  case 'completed':
+                  case 'online':
+                    statusDisplay = 'Completado';
+                    break;
+                  case 'pending':
+                    statusDisplay = 'Pendiente';
+                    break;
+                  case 'failed':
+                    statusDisplay = 'Fallido';
+                    break;
+                }
+                
+                row.innerHTML = `
+                  <td>${transaction.date}</td>
+                  <td><span class="transaction-type ${typeClass}">${typeDisplay}</span></td>
+                  <td>${transaction.description}</td>
+                  <td>${formatCurrency(transaction.amount)}</td>
+                  <td>${statusDisplay}</td>
+                `;
+                
+                tbody.appendChild(row);
+              });
+            } else {
+              document.getElementById('transactionsTableBody').innerHTML = 
+                '<tr><td colspan="5" style="text-align: center;">No hay transacciones recientes</td></tr>';
+            }
+          } else {
+            console.error('Error al obtener datos del inversionista:', data.message);
+          }
+        } catch (error) {
+          console.error('Error al cargar datos de portafolio:', error);
+        }
+      }
+
       // Obtener información del usuario
       async function getUserInfo() {
         try {
@@ -894,6 +998,9 @@
             
             // Configurar menú según el rol
             setupMenuByRole(data.user.role);
+            
+            // Cargar datos del portafolio al iniciar
+            loadPortfolioData();
           } else {
             window.location.href = '/login';
           }
