@@ -32,46 +32,51 @@
     <div class="page-wrapper">
         <!-- Cabecera -->
         <header class="main-header">
-            <div class="logo-container">
-                <a href="{{ url_for('index') }}" class="logo-link">
-                    <div class="floating-logo">
-                        <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo">
-                    </div>
-                </a>
-            </div>
-            <nav class="main-nav">
-                <div class="nav-links">
-                    <a href="{{ url_for('index') }}" class="nav-item">Inicio</a>
-                    
-                    {% if session.get('logged_in') %}
-                        {% if session.get('role') == 'super_admin' %}
-                            <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
-                            <a href="{{ url_for('system_control') }}" class="nav-item">Control</a>
-                            <a href="{{ url_for('aetherion_page') }}" class="nav-item">Aetherion</a>
-                            <a href="{{ url_for('cosmic_family_page') }}" class="nav-item">Familia Cósmica</a>
-                        {% elif session.get('role') == 'admin' %}
-                            <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
-                            <a href="{{ url_for('aetherion_page') }}" class="nav-item">Aetherion</a>
-                        {% elif session.get('role') == 'investor' %}
-                            <a href="{{ url_for('investor_home') }}" class="nav-item">Mi Inversión</a>
-                            <a href="{{ url_for('portfolio') }}" class="nav-item">Portafolio</a>
-                        {% endif %}
+            <div class="header-container">
+                <!-- Logo -->
+                <div class="logo-container">
+                    <a href="{{ url_for('index') }}" class="logo-link">
+                        <div class="floating-logo">
+                            <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo">
+                        </div>
+                    </a>
+                </div>
+                
+                <!-- Navegación -->
+                <nav class="main-nav">
+                    <div class="nav-links">
+                        <a href="{{ url_for('index') }}" class="nav-item">Inicio</a>
                         
-                        <a href="{{ url_for('notifications') }}" class="nav-item">
-                            Notificaciones
-                            {% if session.get('unread_notifications', 0) > 0 %}
-                                <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
+                        {% if session.get('logged_in') %}
+                            {% if session.get('role') == 'super_admin' %}
+                                <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
+                                <a href="{{ url_for('system_control') }}" class="nav-item">Control</a>
+                                <a href="{{ url_for('aetherion_page') }}" class="nav-item">Aetherion</a>
+                                <a href="{{ url_for('cosmic_family_page') }}" class="nav-item">Familia Cósmica</a>
+                            {% elif session.get('role') == 'admin' %}
+                                <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
+                                <a href="{{ url_for('aetherion_page') }}" class="nav-item">Aetherion</a>
+                            {% elif session.get('role') == 'investor' %}
+                                <a href="{{ url_for('investor_home') }}" class="nav-item">Mi Inversión</a>
+                                <a href="{{ url_for('portfolio') }}" class="nav-item">Portafolio</a>
                             {% endif %}
-                        </a>
-                        <a href="{{ url_for('logout') }}" class="nav-item">Cerrar Sesión</a>
-                    {% else %}
-                        <a href="{{ url_for('login') }}" class="nav-item">Ingresar</a>
-                    {% endif %}
-                </div>
-                <div class="mobile-menu-toggle">
-                    <i class="fas fa-bars"></i>
-                </div>
-            </nav>
+                            
+                            <a href="{{ url_for('notifications') }}" class="nav-item">
+                                Notificaciones
+                                {% if session.get('unread_notifications', 0) > 0 %}
+                                    <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
+                                {% endif %}
+                            </a>
+                            <a href="{{ url_for('logout') }}" class="nav-item">Cerrar Sesión</a>
+                        {% else %}
+                            <a href="{{ url_for('login') }}" class="nav-item">Ingresar</a>
+                        {% endif %}
+                    </div>
+                    <div class="mobile-menu-toggle">
+                        <i class="fas fa-bars"></i>
+                    </div>
+                </nav>
+            </div>
         </header>
         
         <!-- Menú móvil -->
