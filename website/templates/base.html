@@ -47,6 +47,7 @@
             {% if session.get('role') == 'super_admin' %}
                 <!-- MENÚ SUPER ADMIN -->
                 <div class="menu-super-admin">
+                    <div class="quantum-menu-particles" id="superAdminParticles"></div>
                     <div class="menu-title">Menú Super Admin</div>
                     <div class="menu-container">
                         <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
@@ -72,6 +73,7 @@
             {% elif session.get('role') == 'admin' %}
                 <!-- MENÚ ADMIN -->
                 <div class="menu-admin">
+                    <div class="quantum-menu-particles" id="adminParticles"></div>
                     <div class="menu-title">Menú Administrador</div>
                     <div class="menu-container">
                         <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
@@ -90,6 +92,7 @@
             {% elif session.get('role') == 'investor' or session.get('role') == 'inversionista' %}
                 <!-- MENÚ INVERSIONISTA -->
                 <div class="menu-investor">
+                    <div class="quantum-menu-particles" id="investorParticles"></div>
                     <div class="menu-title">Menú Inversionista</div>
                     <div class="menu-container">
                         <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
@@ -110,6 +113,7 @@
         {% else %}
             <!-- MENÚ VISITANTE -->
             <div class="menu-visitor">
+                <div class="quantum-menu-particles" id="visitorParticles"></div>
                 <div class="menu-title">Bienvenido a Genesis</div>
                 <div class="menu-container">
                     <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
@@ -187,21 +191,31 @@
                 });
             });
             
-            // Crear partículas cuánticas
-            function createQuantumParticles() {
-                const container = document.getElementById('quantumParticles');
-                const numParticles = 25;
+            // Crear partículas cuánticas para cada menú con colores específicos
+            function createMenuParticles(containerId, colorRange) {
+                const container = document.getElementById(containerId);
+                if (!container) return; // Salir si el contenedor no existe
+                
+                const numParticles = 15;
+                const colors = {
+                    'gold': [40, 60], // Dorado (Super Admin)
+                    'cyan': [180, 200], // Cian (Admin)
+                    'magenta': [290, 310], // Magenta (Inversionista)
+                    'white': [0, 0, 100] // Blanco (Visitante, con saturación 0%)
+                };
+                
+                const [hueMin, hueMax, sat = 100] = colorRange in colors ? colors[colorRange] : [180, 240, 100];
                 
                 for (let i = 0; i < numParticles; i++) {
                     const particle = document.createElement('div');
                     particle.classList.add('quantum-particle');
                     
                     // Propiedades aleatorias
-                    const size = Math.random() * 10 + 2; // 2-12px
+                    const size = Math.random() * 8 + 2; // 2-10px
                     const posX = Math.random() * 100; // 0-100%
                     const posY = Math.random() * 100; // 0-100%
-                    const delay = Math.random() * 5; // 0-5s
-                    const duration = Math.random() * 5 + 5; // 5-10s
+                    const delay = Math.random() * 4; // 0-4s
+                    const duration = Math.random() * 4 + 4; // 4-8s
                     
                     // Aplicar estilos
                     particle.style.width = `${size}px`;
@@ -211,16 +225,21 @@
                     particle.style.animationDelay = `${delay}s`;
                     particle.style.animationDuration = `${duration}s`;
                     
-                    // Color aleatorio entre azul y cian
-                    const hue = Math.random() * 60 + 180; // 180-240 (azul a cian)
-                    particle.style.background = `radial-gradient(circle, hsla(${hue}, 100%, 70%, 0.8) 0%, hsla(${hue}, 100%, 70%, 0) 70%)`;
+                    // Color según el tipo de menú
+                    const hue = hueMin === hueMax ? hueMin : Math.random() * (hueMax - hueMin) + hueMin;
+                    const opacity = Math.random() * 0.3 + 0.5; // 0.5-0.8
+                    particle.style.background = `radial-gradient(circle, hsla(${hue}, ${sat}%, 70%, ${opacity}) 0%, hsla(${hue}, ${sat}%, 70%, 0) 70%)`;
                     
                     container.appendChild(particle);
                 }
             }
             
-            // Iniciar partículas
-            createQuantumParticles();
+            // Iniciar partículas para cada menú
+            createMenuParticles('quantumParticles', 'cyan'); // Partículas generales
+            createMenuParticles('superAdminParticles', 'gold'); // Super Admin
+            createMenuParticles('adminParticles', 'cyan'); // Admin
+            createMenuParticles('investorParticles', 'magenta'); // Inversionista
+            createMenuParticles('visitorParticles', 'white'); // Visitante
         });
     </script>
     

@@ -124,13 +124,177 @@ body::before {
 }
 
 /* Menú básico - Simplemente botones uno al lado del otro */
-.basic-menu {
-    background-color: rgba(30, 30, 40, 0.95);
-    border-top: 1px solid #6c5ce7;
-    border-bottom: 1px solid #6c5ce7;
-    padding: 10px 0;
+/* Partículas de menú */
+.quantum-menu-particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.quantum-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: radial-gradient(circle, rgba(0, 255, 255, 0.6) 0%, rgba(0, 255, 255, 0) 70%);
+    border-radius: 50%;
+    opacity: 0.7;
+    pointer-events: none;
+    z-index: 1;
+    animation: float 8s ease-in-out infinite, pulse-opacity 4s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0) translateX(0); }
+    25% { transform: translateY(-10px) translateX(5px); }
+    50% { transform: translateY(0) translateX(10px); }
+    75% { transform: translateY(10px) translateX(5px); }
+}
+
+@keyframes pulse-opacity {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+}
+
+/* Estilos base para todos los menús */
+.menu-super-admin,
+.menu-admin,
+.menu-investor,
+.menu-visitor {
+    background-color: rgba(10, 10, 20, 0.85);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px 0;
     text-align: center;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+    position: relative;
+    overflow: hidden;
+    z-index: 10;
+}
+
+/* Efecto de partículas en el fondo de los menús */
+.menu-super-admin::before,
+.menu-admin::before,
+.menu-investor::before,
+.menu-visitor::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.3;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* Efectos específicos para cada menú */
+.menu-super-admin {
+    background: linear-gradient(to right, rgba(10, 10, 20, 0.85), rgba(75, 0, 130, 0.85), rgba(10, 10, 20, 0.85));
+    border-top: 1px solid var(--gold-color);
+    border-bottom: 1px solid var(--gold-color);
+}
+
+.menu-super-admin::before {
+    background-image: 
+        radial-gradient(2px 2px at 10% 10%, rgba(255, 215, 0, 0.8) 1px, transparent 0),
+        radial-gradient(2px 2px at 20% 80%, rgba(255, 215, 0, 0.6) 1px, transparent 0),
+        radial-gradient(2px 2px at 30% 30%, rgba(255, 215, 0, 0.7) 1px, transparent 0),
+        radial-gradient(2px 2px at 70% 40%, rgba(255, 215, 0, 0.6) 1px, transparent 0),
+        radial-gradient(2px 2px at 90% 10%, rgba(255, 215, 0, 0.8) 1px, transparent 0);
+    background-size: 250px 250px;
+    animation: particlesMovement 20s linear infinite;
+}
+
+.menu-admin {
+    background: linear-gradient(to right, rgba(10, 10, 20, 0.85), rgba(0, 50, 100, 0.85), rgba(10, 10, 20, 0.85));
+    border-top: 1px solid var(--cyan-color);
+    border-bottom: 1px solid var(--cyan-color);
+}
+
+.menu-admin::before {
+    background-image: 
+        radial-gradient(2px 2px at 15% 15%, rgba(0, 255, 255, 0.8) 1px, transparent 0),
+        radial-gradient(2px 2px at 25% 75%, rgba(0, 255, 255, 0.6) 1px, transparent 0),
+        radial-gradient(2px 2px at 35% 35%, rgba(0, 255, 255, 0.7) 1px, transparent 0),
+        radial-gradient(2px 2px at 65% 35%, rgba(0, 255, 255, 0.6) 1px, transparent 0),
+        radial-gradient(2px 2px at 85% 15%, rgba(0, 255, 255, 0.8) 1px, transparent 0);
+    background-size: 250px 250px;
+    animation: particlesMovement 25s linear infinite;
+}
+
+.menu-investor {
+    background: linear-gradient(to right, rgba(10, 10, 20, 0.85), rgba(75, 0, 75, 0.85), rgba(10, 10, 20, 0.85));
+    border-top: 1px solid var(--magenta-color);
+    border-bottom: 1px solid var(--magenta-color);
+}
+
+.menu-investor::before {
+    background-image: 
+        radial-gradient(2px 2px at 12% 12%, rgba(255, 0, 255, 0.8) 1px, transparent 0),
+        radial-gradient(2px 2px at 22% 78%, rgba(255, 0, 255, 0.6) 1px, transparent 0),
+        radial-gradient(2px 2px at 38% 38%, rgba(255, 0, 255, 0.7) 1px, transparent 0),
+        radial-gradient(2px 2px at 68% 32%, rgba(255, 0, 255, 0.6) 1px, transparent 0),
+        radial-gradient(2px 2px at 88% 18%, rgba(255, 0, 255, 0.8) 1px, transparent 0);
+    background-size: 250px 250px;
+    animation: particlesMovement 22s linear infinite;
+}
+
+.menu-visitor {
+    background: linear-gradient(to right, rgba(10, 10, 20, 0.85), rgba(25, 25, 50, 0.85), rgba(10, 10, 20, 0.85));
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.menu-visitor::before {
+    background-image: 
+        radial-gradient(2px 2px at 10% 20%, rgba(255, 255, 255, 0.8) 1px, transparent 0),
+        radial-gradient(2px 2px at 30% 70%, rgba(255, 255, 255, 0.6) 1px, transparent 0),
+        radial-gradient(2px 2px at 50% 40%, rgba(255, 255, 255, 0.7) 1px, transparent 0),
+        radial-gradient(2px 2px at 70% 60%, rgba(255, 255, 255, 0.6) 1px, transparent 0),
+        radial-gradient(2px 2px at 90% 30%, rgba(255, 255, 255, 0.8) 1px, transparent 0);
+    background-size: 250px 250px;
+    animation: particlesMovement 30s linear infinite;
+}
+
+@keyframes particlesMovement {
+    0% { background-position: 0 0; }
+    100% { background-position: 250px 250px; }
+}
+
+.menu-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* Colores específicos para títulos de menú */
+.menu-super-admin .menu-title {
+    color: var(--gold-color);
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.7);
+}
+
+.menu-admin .menu-title {
+    color: var(--cyan-color);
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.7);
+}
+
+.menu-investor .menu-title {
+    color: var(--magenta-color);
+    text-shadow: 0 0 8px rgba(255, 0, 255, 0.7);
+}
+
+.menu-visitor .menu-title {
+    color: var(--light-text);
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
 .menu-container {
@@ -139,21 +303,155 @@ body::before {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
+    gap: 12px;
     padding: 5px;
 }
 
-/* Botones de menú planos y simples */
+/* Botones de menú con efectos */
 .menu-button {
     display: inline-block;
     padding: 10px 20px;
-    background: rgba(108, 92, 231, 0.3);
+    background: rgba(20, 20, 30, 0.6);
     color: white;
     text-decoration: none;
-    border-radius: 4px;
+    border-radius: 6px;
     font-weight: 500;
-    transition: background 0.3s ease;
-    border: 1px solid rgba(108, 92, 231, 0.5);
+    font-family: 'Roboto', sans-serif;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+/* Efecto de brillo para botones según rol */
+.menu-super-admin .menu-button::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    z-index: -1;
+    background: var(--gold-color);
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.3s ease;
+    border-radius: 6px;
+}
+
+.menu-admin .menu-button::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    z-index: -1;
+    background: var(--cyan-color);
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.3s ease;
+    border-radius: 6px;
+}
+
+.menu-investor .menu-button::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    z-index: -1;
+    background: var(--magenta-color);
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.3s ease;
+    border-radius: 6px;
+}
+
+.menu-visitor .menu-button::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    z-index: -1;
+    background: rgba(255, 255, 255, 0.7);
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.3s ease;
+    border-radius: 6px;
+}
+
+.menu-button:hover::before {
+    opacity: 0.15;
+    transform: scale(1);
+}
+
+/* Botón especial para Aetherion y Familia Cósmica (solo para mixycronico) */
+.special-button {
+    background: rgba(20, 20, 40, 0.8);
+    border: 1px solid var(--gold-color);
+    position: relative;
+    overflow: hidden;
+}
+
+.special-button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, 
+        rgba(255, 215, 0, 0.1), 
+        rgba(255, 0, 255, 0.1), 
+        rgba(0, 255, 255, 0.1), 
+        rgba(255, 215, 0, 0.1));
+    z-index: -1;
+    opacity: 0.5;
+    animation: specialGlow 3s infinite alternate;
+}
+
+@keyframes specialGlow {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
+}
+
+.special-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+    background: rgba(30, 30, 60, 0.8);
+    color: var(--gold-color);
+}
+
+/* Botón de cerrar sesión */
+.logout-button {
+    background: rgba(30, 0, 0, 0.5);
+    border: 1px solid rgba(220, 53, 69, 0.7);
+    color: #ff8888;
+    margin-top: 10px;
+}
+
+.logout-button:hover {
+    background: rgba(50, 0, 0, 0.7);
+    box-shadow: 0 0 10px rgba(220, 53, 69, 0.7);
+    color: white;
+}
+
+/* Botón de login para visitantes */
+.login-button {
+    background: rgba(0, 30, 50, 0.5);
+    border: 1px solid rgba(0, 123, 255, 0.7);
+    color: #88ccff;
+}
+
+.login-button:hover {
+    background: rgba(0, 40, 70, 0.7);
+    box-shadow: 0 0 10px rgba(0, 123, 255, 0.7);
+    color: white;
 }
 
 .menu-button:hover {
@@ -376,6 +674,36 @@ body::before {
     transform: translateX(5px);
     color: var(--accent-color);
     box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+}
+
+/* Estilos para notificaciones */
+.notification-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: var(--red-color, #ff3333);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: bold;
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 8px rgba(255, 51, 51, 0.5);
+    animation: pulseNotification 1.5s infinite;
+}
+
+@keyframes pulseNotification {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Posición relativa para el contenedor del botón de notificaciones */
+.menu-button {
+    position: relative;
 }
 
 /* Estilos generales para componentes */
