@@ -1,16 +1,19 @@
 /* Estilos base */
 :root {
-  /* Paleta principal (colores más luminosos y brillantes) */
-  --primary-bg: #1a2d68;       /* Azul profundo pero más luminoso */
+  /* Paleta principal (colores aún más luminosos y brillantes) */
+  --primary-bg: #1a2d68;       /* Azul profundo luminoso */
   --secondary-bg: #2154b9;     /* Azul medio brillante */
   --highlight-color: #00eaff;  /* Cian brillante */
   --accent-color: #ffee00;     /* Amarillo brillante */
   --text-color: #ffffff;       /* Texto blanco */
   --card-bg: rgba(33, 84, 185, 0.8); /* Azul semitransparente brillante */
   
-  /* Luminosidad de efectos (aumentada) */
-  --glow-intensity: 1;
-  --glow-spread: 20px;
+  /* Luminosidad de efectos (maximizada) */
+  --glow-intensity: 1.5;
+  --glow-spread: 25px;
+  --star-glow: 0 0 5px rgba(0, 234, 255, 0.8);
+  --text-glow: 0 0 10px rgba(0, 234, 255, 0.6);
+  --button-glow: 0 0 15px rgba(255, 238, 0, 0.7);
 }
 
 /* Reset y estilos generales */
@@ -38,7 +41,7 @@ body {
   padding: 20px;
 }
 
-/* Efectos de estrellas */
+/* Efectos de estrellas mejorados */
 .stars-container {
   position: fixed;
   top: 0;
@@ -47,7 +50,7 @@ body {
   height: 100%;
   z-index: -1;
   overflow: hidden;
-  opacity: 0.7; /* Más visible para un efecto más luminoso */
+  opacity: 0.9; /* Mayor visibilidad para efecto más luminoso */
 }
 
 .stars, .stars2, .stars3 {
@@ -62,37 +65,81 @@ body {
 .stars {
   background-image: radial-gradient(2px 2px at 20px 30px, #00eaff, rgba(0, 0, 0, 0)),
                    radial-gradient(2px 2px at 40px 70px, #ffffff, rgba(0, 0, 0, 0)),
-                   radial-gradient(1px 1px at 90px 40px, #00eaff, rgba(0, 0, 0, 0));
+                   radial-gradient(2px 2px at 90px 40px, #00eaff, rgba(0, 0, 0, 0)),
+                   radial-gradient(3px 3px at 160px 120px, #00eaff, rgba(0, 0, 0, 0)); /* Nueva estrella */
   background-repeat: repeat;
   background-size: 200px 200px;
   animation: twinkle 4s ease-in-out infinite;
-  filter: drop-shadow(0 0 2px rgba(0, 234, 255, 0.8));
+  filter: drop-shadow(0 0 3px rgba(0, 234, 255, 0.9)); /* Más brillo */
 }
 
 .stars2 {
-  background-image: radial-gradient(1px 1px at 100px 150px, #ffffff, rgba(0, 0, 0, 0)),
-                   radial-gradient(1px 1px at 200px 220px, #00eaff, rgba(0, 0, 0, 0)),
-                   radial-gradient(2px 2px at 300px 300px, #ffffff, rgba(0, 0, 0, 0));
+  background-image: radial-gradient(2px 2px at 100px 150px, #ffffff, rgba(0, 0, 0, 0)),
+                   radial-gradient(2px 2px at 200px 220px, #00eaff, rgba(0, 0, 0, 0)),
+                   radial-gradient(3px 3px at 300px 300px, #ffffff, rgba(0, 0, 0, 0)),
+                   radial-gradient(2px 2px at 400px 320px, #00eaff, rgba(0, 0, 0, 0)); /* Nueva estrella */
   background-repeat: repeat;
   background-size: 400px 400px;
   animation: twinkle 5s ease-in-out infinite;
-  filter: drop-shadow(0 0 1px rgba(0, 234, 255, 0.5));
+  filter: drop-shadow(0 0 3px rgba(0, 234, 255, 0.7)); /* Más brillo */
 }
 
 .stars3 {
-  background-image: radial-gradient(1px 1px at 50px 80px, #00eaff, rgba(0, 0, 0, 0)),
-                   radial-gradient(1px 1px at 150px 50px, #ffffff, rgba(0, 0, 0, 0)),
-                   radial-gradient(1px 1px at 250px 350px, #00eaff, rgba(0, 0, 0, 0));
+  background-image: radial-gradient(2px 2px at 50px 80px, #00eaff, rgba(0, 0, 0, 0)),
+                   radial-gradient(2px 2px at 150px 50px, #ffffff, rgba(0, 0, 0, 0)),
+                   radial-gradient(2px 2px at 250px 350px, #00eaff, rgba(0, 0, 0, 0)),
+                   radial-gradient(3px 3px at 350px 150px, #00eaff, rgba(0, 0, 0, 0)), /* Nueva estrella */
+                   radial-gradient(2px 2px at 180px 280px, #ffffff, rgba(0, 0, 0, 0)); /* Nueva estrella */
   background-repeat: repeat;
   background-size: 300px 300px;
   animation: twinkle 6s ease-in-out infinite;
-  filter: drop-shadow(0 0 2px rgba(0, 234, 255, 0.8));
+  filter: drop-shadow(0 0 4px rgba(0, 234, 255, 0.9)); /* Más brillo */
 }
 
+/* Animación más brillante para las estrellas */
 @keyframes twinkle {
-  0% { opacity: 0.5; }
+  0% { opacity: 0.6; }
   50% { opacity: 1; }
-  100% { opacity: 0.5; }
+  100% { opacity: 0.6; }
+}
+
+/* Partículas flotantes brillantes */
+.particles-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  background-color: var(--highlight-color);
+  box-shadow: 0 0 8px var(--highlight-color);
+  animation: float 15s linear infinite;
+  opacity: 0.7;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
+  25% {
+    transform: translateY(-30px) translateX(20px) scale(1.1);
+  }
+  50% {
+    transform: translateY(-15px) translateX(40px) scale(1);
+  }
+  75% {
+    transform: translateY(10px) translateX(10px) scale(0.9);
+  }
+  100% {
+    transform: translateY(0) translateX(0) scale(1);
+  }
 }
 
 /* Header y navegación */
@@ -256,13 +303,43 @@ header {
   position: relative;
   border: 2px solid var(--accent-color);
   box-shadow: 0 0 15px var(--accent-color);
+  animation: button-pulse 3s infinite;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
 }
 
 .cta-button:hover {
   background-color: var(--accent-color);
   color: var(--primary-bg);
-  transform: translateY(-3px);
-  box-shadow: 0 0 20px var(--accent-color);
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 0 25px var(--accent-color);
+  animation: none;
+}
+
+.cta-button:before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 30px;
+  background: linear-gradient(45deg, var(--highlight-color), var(--accent-color), var(--highlight-color));
+  z-index: -1;
+  opacity: 0.7;
+  filter: blur(10px);
+  animation: button-glow 3s ease-in-out infinite;
+}
+
+@keyframes button-pulse {
+  0% { box-shadow: 0 0 15px var(--accent-color); }
+  50% { box-shadow: 0 0 25px var(--accent-color); }
+  100% { box-shadow: 0 0 15px var(--accent-color); }
+}
+
+@keyframes button-glow {
+  0% { opacity: 0.5; filter: blur(10px); }
+  50% { opacity: 0.8; filter: blur(15px); }
+  100% { opacity: 0.5; filter: blur(10px); }
 }
 
 /* Features section */
