@@ -504,15 +504,15 @@
   
   <div class="main-container">
     <div class="sidebar">
-      <div class="nav-item active">
+      <div class="nav-item active" id="dashboard">
         <i class="icon">📊</i>
         <span>Dashboard</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="usuarios">
         <i class="icon">👥</i>
         <span>Usuarios</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="inversiones">
         <i class="icon">💰</i>
         <span>Inversiones</span>
       </div>
@@ -520,27 +520,27 @@
         <i class="icon">💼</i>
         <span>Mi Portafolio</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="estrategias">
         <i class="icon">📈</i>
         <span>Estrategias</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="integraciones">
         <i class="icon">📡</i>
         <span>Integraciones</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="configuracion">
         <i class="icon">⚙️</i>
         <span>Configuración</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="baseDatos">
         <i class="icon">🔄</i>
         <span>Base de Datos</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="reportes">
         <i class="icon">📝</i>
         <span>Reportes</span>
       </div>
-      <div class="nav-item">
+      <div class="nav-item" id="concienciaGenesis">
         <i class="icon">🧠</i>
         <span>Conciencia Genesis</span>
       </div>
@@ -815,6 +815,54 @@
       `;
       document.head.appendChild(styleElement);
       
+      // Configurar elementos del menú según el rol del usuario
+      function setupMenuByRole(userRole) {
+        // Elementos visibles para todos los roles
+        const commonMenuItems = ['dashboard', 'portfolioButton', 'logoutButton'];
+        
+        // Elementos específicos por rol
+        const menuByRole = {
+          'super_admin': [
+            'usuarios', 'inversiones', 'estrategias', 'integraciones', 
+            'configuracion', 'baseDatos', 'reportes', 'concienciaGenesis'
+          ],
+          'admin': [
+            'usuarios', 'inversiones', 'estrategias', 'reportes'
+          ],
+          'inversor': []
+        };
+        
+        // Ocultar todos los elementos del menú que no sean comunes
+        document.querySelectorAll('.nav-item').forEach(item => {
+          const id = item.id;
+          if (!commonMenuItems.includes(id)) {
+            // Si el elemento no tiene ID, asignamos uno basado en su texto
+            if (!id) {
+              const text = item.querySelector('span').textContent.trim().toLowerCase();
+              const sanitizedText = text
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "") // Eliminar acentos
+                .replace(/\s+/g, ''); // Eliminar espacios
+              
+              item.id = sanitizedText;
+            }
+            
+            // Por defecto, ocultar todos los elementos específicos
+            item.style.display = 'none';
+          }
+        });
+        
+        // Mostrar solo los elementos correspondientes al rol actual
+        if (menuByRole[userRole]) {
+          menuByRole[userRole].forEach(itemId => {
+            const element = document.getElementById(itemId);
+            if (element) {
+              element.style.display = 'flex';
+            }
+          });
+        }
+      }
+      
       // Obtener información del usuario
       async function getUserInfo() {
         try {
@@ -822,6 +870,9 @@
           const data = await response.json();
           
           if (data.authenticated) {
+            // Para depuración
+            console.log("Usuario autenticado:", data.user);
+            
             document.getElementById('userName').textContent = data.user.name;
             document.getElementById('userRole').textContent = 
               data.user.role === 'super_admin' ? 'Super Administrador' : 
@@ -833,6 +884,9 @@
                               .toUpperCase()
                               .substring(0, 2);
             document.getElementById('userAvatar').textContent = initials;
+            
+            // Configurar menú según el rol
+            setupMenuByRole(data.user.role);
           } else {
             window.location.href = '/login';
           }
@@ -891,12 +945,23 @@
               
               // Actualizar balance y estadísticas
               document.getElementById('userBalance').textContent = formatCurrency(investor.balance || 0);
+              
+              // Manejar estructura diferente de datos de rendimiento
+              let performanceValue = 0;
+              if (typeof investor.performance === 'object' && investor.performance.yearly) {
+                performanceValue = investor.performance.yearly;
+              } else if (typeof investor.performance === 'number') {
+                performanceValue = investor.performance;
+              }
+              
               document.getElementById('userPerformance').textContent = 
-                `${investor.performance > 0 ? '+' : ''}${investor.performance || 0}%`;
+                `${performanceValue > 0 ? '+' : ''}${performanceValue}%`;
+              
               document.getElementById('userTransactions').textContent = 
                 investor.transactions ? investor.transactions.length : 0;
+              
               document.getElementById('investedCapital').textContent = 
-                formatCurrency(investor.invested_capital || 0);
+                formatCurrency(investor.invested || investor.invested_capital || 0);
               
               // Llenar tabla de transacciones
               if (investor.transactions && investor.transactions.length > 0) {
@@ -926,10 +991,11 @@
                   }
                   
                   // Determinar estado de la transacción
-                  let statusDisplay = transaction.status;
+                  let statusDisplay = transaction.status || 'completed';
                   
-                  switch(transaction.status) {
+                  switch(statusDisplay.toLowerCase()) {
                     case 'complete':
+                    case 'completed':
                     case 'online':
                       statusDisplay = 'Completado';
                       break;
