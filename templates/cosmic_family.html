@@ -1244,10 +1244,38 @@
             createStars();
             
             // Crear partículas cuánticas para menús según el rol
-            createMenuParticles('superAdminParticles', 'gold');
-            createMenuParticles('adminParticles', 'cyan');
-            createMenuParticles('investorParticles', 'magenta');
-            createMenuParticles('visitorParticles', 'white');
+            try {
+                console.log("Inicializando partículas cuánticas para menús en Familia Cósmica...");
+                
+                // Verificar y crear partículas para cada tipo de menú
+                const superAdminContainer = document.getElementById('superAdminParticles');
+                if (superAdminContainer) {
+                    createMenuParticles('superAdminParticles', 'gold');
+                    console.log("Partículas de Super Admin creadas");
+                }
+                
+                const adminContainer = document.getElementById('adminParticles');
+                if (adminContainer) {
+                    createMenuParticles('adminParticles', 'cyan');
+                    console.log("Partículas de Admin creadas");
+                }
+                
+                const investorContainer = document.getElementById('investorParticles');
+                if (investorContainer) {
+                    createMenuParticles('investorParticles', 'magenta');
+                    console.log("Partículas de Inversionista creadas");
+                }
+                
+                const visitorContainer = document.getElementById('visitorParticles');
+                if (visitorContainer) {
+                    createMenuParticles('visitorParticles', 'white');
+                    console.log("Partículas de Visitante creadas");
+                }
+                
+                console.log("Partículas cuánticas inicializadas correctamente en Familia Cósmica");
+            } catch (error) {
+                console.error("Error al crear partículas cuánticas en Familia Cósmica:", error);
+            }
             
             // Configurar componentes de la interfaz
             setupDiaryTabs();
