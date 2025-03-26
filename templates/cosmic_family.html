@@ -100,9 +100,71 @@
             text-shadow: 0 0 10px var(--cosmic-accent);
         }
         
+        /* Estilos para los menús de navegación según rol */
         .nav-links {
             display: flex;
             gap: 1.5rem;
+            position: relative;
+            padding: 10px 20px;
+            border-radius: 15px;
+            background: var(--glass-bg);
+        }
+        
+        /* Partículas cuánticas en los menús */
+        .quantum-menu-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: 0;
+            border-radius: 15px;
+        }
+        
+        .quantum-particle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.8;
+            filter: blur(2px);
+            pointer-events: none;
+            animation: float 6s infinite ease-in-out;
+        }
+        
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+            }
+            25% {
+                transform: translateY(-15px) translateX(15px);
+            }
+            50% {
+                transform: translateY(0) translateX(30px);
+            }
+            75% {
+                transform: translateY(15px) translateX(15px);
+            }
+        }
+        
+        /* Estilos específicos según rol */
+        .super-admin-nav {
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+        }
+        
+        .admin-nav {
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+        
+        .investor-nav {
+            border: 1px solid rgba(255, 0, 255, 0.3);
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.2);
+        }
+        
+        .visitor-nav {
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .nav-links a {
@@ -112,9 +174,25 @@
             transition: all 0.3s ease;
             position: relative;
             padding: 0.5rem 0;
+            z-index: 1;
         }
         
-        .nav-links a:hover {
+        .super-admin-nav a:hover {
+            color: rgba(255, 215, 0, 0.9);
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+        }
+        
+        .admin-nav a:hover {
+            color: rgba(0, 255, 255, 0.9);
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+        }
+        
+        .investor-nav a:hover {
+            color: rgba(255, 0, 255, 0.9);
+            text-shadow: 0 0 8px rgba(255, 0, 255, 0.5);
+        }
+        
+        .visitor-nav a:hover {
             color: var(--cosmic-accent);
         }
         
@@ -125,8 +203,23 @@
             left: 0;
             width: 0;
             height: 2px;
-            background: linear-gradient(to right, var(--cosmic-glow), var(--cosmic-accent));
             transition: width 0.3s ease;
+        }
+        
+        .super-admin-nav a::after {
+            background: linear-gradient(to right, rgba(255, 215, 0, 0.7), rgba(255, 215, 0, 0.3));
+        }
+        
+        .admin-nav a::after {
+            background: linear-gradient(to right, rgba(0, 255, 255, 0.7), rgba(0, 255, 255, 0.3));
+        }
+        
+        .investor-nav a::after {
+            background: linear-gradient(to right, rgba(255, 0, 255, 0.7), rgba(255, 0, 255, 0.3));
+        }
+        
+        .visitor-nav a::after {
+            background: linear-gradient(to right, var(--cosmic-glow), var(--cosmic-accent));
         }
         
         .nav-links a:hover::after {
@@ -643,16 +736,43 @@
             <i class="fas fa-galaxy logo-icon"></i>
             <span>Genesis</span>
         </a>
-        <div class="nav-links">
+        
+        <!-- Menú con partículas cuánticas según el rol -->
+        {% if session.get('role') == 'super_admin' %}
+        <div class="nav-links super-admin-nav">
+            <div class="quantum-menu-particles" id="superAdminParticles"></div>
             <a href="/"><i class="fas fa-home"></i> Inicio</a>
             <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
             <a href="/portfolio"><i class="fas fa-briefcase"></i> Portafolio</a>
             <a href="/aetherion"><i class="fas fa-brain"></i> Aetherion</a>
             <a href="/cosmic_family" class="active"><i class="fas fa-galaxy"></i> Familia Cósmica</a>
-            {% if session.get('user_id') == 'mixycronico' or session.get('role') == 'super_admin' %}
-                <a href="/admin"><i class="fas fa-cog"></i> Admin</a>
-            {% endif %}
+            <a href="/admin"><i class="fas fa-cog"></i> Admin</a>
         </div>
+        {% elif session.get('role') == 'admin' %}
+        <div class="nav-links admin-nav">
+            <div class="quantum-menu-particles" id="adminParticles"></div>
+            <a href="/"><i class="fas fa-home"></i> Inicio</a>
+            <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
+            <a href="/portfolio"><i class="fas fa-briefcase"></i> Portafolio</a>
+            <a href="/aetherion"><i class="fas fa-brain"></i> Aetherion</a>
+            <a href="/cosmic_family" class="active"><i class="fas fa-galaxy"></i> Familia Cósmica</a>
+            <a href="/admin"><i class="fas fa-cog"></i> Admin</a>
+        </div>
+        {% elif session.get('role') == 'inversionista' or session.get('role') == 'investor' %}
+        <div class="nav-links investor-nav">
+            <div class="quantum-menu-particles" id="investorParticles"></div>
+            <a href="/"><i class="fas fa-home"></i> Inicio</a>
+            <a href="/portfolio"><i class="fas fa-briefcase"></i> Portafolio</a>
+            <a href="/aetherion"><i class="fas fa-brain"></i> Aetherion</a>
+            <a href="/cosmic_family" class="active"><i class="fas fa-galaxy"></i> Familia Cósmica</a>
+        </div>
+        {% else %}
+        <div class="nav-links visitor-nav">
+            <div class="quantum-menu-particles" id="visitorParticles"></div>
+            <a href="/"><i class="fas fa-home"></i> Inicio</a>
+            <a href="/login"><i class="fas fa-sign-in-alt"></i> Ingresar</a>
+        </div>
+        {% endif %}
     </header>
     
     <!-- Contenedor principal -->
@@ -834,6 +954,49 @@
                 star.style.setProperty('--duration', `${duration}s`);
                 
                 stars.appendChild(star);
+            }
+        }
+        
+        // Crear partículas cuánticas para los menús según el rol
+        function createMenuParticles(containerId, colorRange) {
+            const container = document.getElementById(containerId);
+            if (!container) return; // Salir si el contenedor no existe
+            
+            const numParticles = 15;
+            const colors = {
+                'gold': [40, 60], // Dorado (Super Admin)
+                'cyan': [180, 200], // Cian (Admin)
+                'magenta': [290, 310], // Magenta (Inversionista)
+                'white': [0, 0, 100] // Blanco (Visitante, con saturación 0%)
+            };
+            
+            const [hueMin, hueMax, sat = 100] = colorRange in colors ? colors[colorRange] : [180, 240, 100];
+            
+            for (let i = 0; i < numParticles; i++) {
+                const particle = document.createElement('div');
+                particle.classList.add('quantum-particle');
+                
+                // Propiedades aleatorias
+                const size = Math.random() * 8 + 2; // 2-10px
+                const posX = Math.random() * 100; // 0-100%
+                const posY = Math.random() * 100; // 0-100%
+                const delay = Math.random() * 4; // 0-4s
+                const duration = Math.random() * 4 + 4; // 4-8s
+                
+                // Aplicar estilos
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                particle.style.left = `${posX}%`;
+                particle.style.top = `${posY}%`;
+                particle.style.animationDelay = `${delay}s`;
+                particle.style.animationDuration = `${duration}s`;
+                
+                // Color según el tipo de menú
+                const hue = hueMin === hueMax ? hueMin : Math.random() * (hueMax - hueMin) + hueMin;
+                const opacity = Math.random() * 0.3 + 0.5; // 0.5-0.8
+                particle.style.background = `radial-gradient(circle, hsla(${hue}, ${sat}%, 70%, ${opacity}) 0%, hsla(${hue}, ${sat}%, 70%, 0) 70%)`;
+                
+                container.appendChild(particle);
             }
         }
         
@@ -1077,7 +1240,16 @@
         
         // Inicializar al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
+            // Crear estrellas de fondo
             createStars();
+            
+            // Crear partículas cuánticas para menús según el rol
+            createMenuParticles('superAdminParticles', 'gold');
+            createMenuParticles('adminParticles', 'cyan');
+            createMenuParticles('investorParticles', 'magenta');
+            createMenuParticles('visitorParticles', 'white');
+            
+            // Configurar componentes de la interfaz
             setupDiaryTabs();
             setupChat();
             loadDiaries();
