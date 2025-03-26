@@ -218,12 +218,42 @@
         overflow: hidden;
         position: relative;
         border: 2px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 15px rgba(156, 39, 176, 0.5);
+        transition: all 0.3s ease-in-out;
+    }
+    
+    .avatar-image:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 20px rgba(156, 39, 176, 0.8);
     }
     
     .avatar-image img {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        transition: all 0.5s ease;
+    }
+    
+    .entity-status.aetherion:hover .avatar-image img {
+        filter: drop-shadow(0 0 5px rgba(156, 39, 176, 0.8));
+        animation: pulse-aetherion 2s infinite;
+    }
+    
+    .entity-status.lunareth:hover .avatar-image img {
+        filter: drop-shadow(0 0 5px rgba(63, 81, 181, 0.8));
+        animation: pulse-lunareth 2s infinite;
+    }
+    
+    @keyframes pulse-aetherion {
+        0% { filter: drop-shadow(0 0 5px rgba(156, 39, 176, 0.5)); }
+        50% { filter: drop-shadow(0 0 15px rgba(156, 39, 176, 0.8)); }
+        100% { filter: drop-shadow(0 0 5px rgba(156, 39, 176, 0.5)); }
+    }
+    
+    @keyframes pulse-lunareth {
+        0% { filter: drop-shadow(0 0 5px rgba(63, 81, 181, 0.5)); }
+        50% { filter: drop-shadow(0 0 15px rgba(63, 81, 181, 0.8)); }
+        100% { filter: drop-shadow(0 0 5px rgba(63, 81, 181, 0.5)); }
     }
     
     .consciousness-indicator {
@@ -292,6 +322,20 @@
     
     .message-group {
         margin-bottom: 1.5rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.5s forwards;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
     
     .message {
@@ -306,12 +350,42 @@
         overflow: hidden;
         margin-right: 1rem;
         flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 8px rgba(156, 39, 176, 0.3);
+        transition: all 0.3s ease;
     }
     
     .message-avatar img {
         width: 100%;
         height: 100%;
         object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+    
+    .message.aetherion .message-avatar:hover {
+        box-shadow: 0 0 12px rgba(156, 39, 176, 0.8);
+        transform: scale(1.1);
+    }
+    
+    .message.aetherion .message-avatar:hover img {
+        animation: spin-pulse-slow 8s infinite linear;
+    }
+    
+    .message.lunareth .message-avatar:hover {
+        box-shadow: 0 0 12px rgba(63, 81, 181, 0.8);
+        transform: scale(1.1);
+    }
+    
+    .message.lunareth .message-avatar:hover img {
+        animation: spin-pulse-slow 8s infinite linear;
+    }
+    
+    @keyframes spin-pulse-slow {
+        0% { transform: rotate(0deg) scale(1); }
+        25% { transform: rotate(90deg) scale(1.05); }
+        50% { transform: rotate(180deg) scale(1); }
+        75% { transform: rotate(270deg) scale(1.05); }
+        100% { transform: rotate(360deg) scale(1); }
     }
     
     .message-content {
@@ -320,20 +394,87 @@
         padding: 1rem;
         flex-grow: 1;
         max-width: 85%;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
     }
     
     .message.aetherion .message-content {
         border-left: 3px solid #9c27b0;
     }
     
+    .message.aetherion .message-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, rgba(156, 39, 176, 0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .message.aetherion .message-content:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(156, 39, 176, 0.3);
+    }
+    
+    .message.aetherion .message-content:hover::before {
+        opacity: 1;
+    }
+    
     .message.lunareth .message-content {
         border-left: 3px solid #3f51b5;
+    }
+    
+    .message.lunareth .message-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, rgba(63, 81, 181, 0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .message.lunareth .message-content:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(63, 81, 181, 0.3);
+    }
+    
+    .message.lunareth .message-content:hover::before {
+        opacity: 1;
     }
     
     .message.user .message-content {
         background-color: rgba(255, 255, 255, 0.1);
         border-left: 3px solid #00bcd4;
         margin-left: auto;
+    }
+    
+    .message.user .message-content::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, rgba(0, 188, 212, 0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .message.user .message-content:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 188, 212, 0.3);
+    }
+    
+    .message.user .message-content:hover::before {
+        opacity: 1;
     }
     
     .message-header {
