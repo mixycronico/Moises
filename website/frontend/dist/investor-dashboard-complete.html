@@ -886,6 +886,15 @@
       display: flex;
       gap: var(--spacing-md);
       border-bottom: 1px solid rgba(123, 97, 255, 0.2);
+      overflow-x: auto;
+      width: 100%;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; /* Para Firefox */
+      -ms-overflow-style: none; /* Para IE y Edge */
+    }
+    
+    .tabs::-webkit-scrollbar {
+      display: none; /* Para Chrome y Safari */
     }
     
     .tab {
@@ -894,6 +903,10 @@
       border-bottom: 2px solid transparent;
       transition: all 0.3s ease;
       font-weight: 500;
+      white-space: nowrap;
+      text-align: center;
+      flex: 1;
+      min-width: max-content;
     }
     
     .tab.active {
@@ -1946,7 +1959,7 @@
         <div class="card">
           <div class="tabs-container">
             <div class="section-title">
-              <h2>Inversiones y Transacciones</h2>
+              <h2>Transacciones</h2>
             </div>
             <div class="tabs">
               <div class="tab active" data-tab="investments">Inversiones</div>
