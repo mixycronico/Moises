@@ -108,6 +108,14 @@
             padding: 10px 20px;
             border-radius: 15px;
             background: var(--glass-bg);
+            z-index: 50;
+            transition: all 0.3s ease;
+        }
+        
+        /* Efecto de elevación al hacer hover sobre el menú completo */
+        .nav-links:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
         
         /* Partículas cuánticas en los menús */
@@ -194,6 +202,29 @@
             position: relative;
             padding: 0.5rem 0;
             z-index: 1;
+        }
+        
+        /* Estilo para enlaces activos con efecto especial */
+        .nav-links a.active {
+            font-weight: 700;
+            color: var(--cosmic-accent);
+            text-shadow: 0 0 10px var(--cosmic-accent);
+            position: relative;
+        }
+        
+        /* Efecto especial para enlaces activos */
+        .nav-links a.active::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--cosmic-accent);
+            box-shadow: 0 0 12px var(--cosmic-accent);
+            animation: pulse 2s infinite;
         }
         
         .super-admin-nav a:hover {
@@ -1319,8 +1350,81 @@
             }, 5000);
         }
         
+        // Función para establecer el enlace activo según la URL actual
+        function updateActiveLink() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-links a');
+            
+            // Eliminar la clase active de todos los enlaces
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Buscar el enlace que coincide con la ruta actual y marcarlo como activo
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+                if (href === currentPath || 
+                    (currentPath === '/cosmic_family' && href === '#') ||
+                    (href !== '#' && currentPath.includes(href) && href !== '/')) {
+                    link.classList.add('active');
+                    console.log(`Enlace activo marcado: ${href}`);
+                }
+            });
+        }
+        
+        // Función para mejorar la navegación
+        function enhanceNavigation() {
+            // Mejorar accesibilidad y experiencia de usuario en navegación
+            const navLinks = document.querySelectorAll('.nav-links a');
+            
+            navLinks.forEach(link => {
+                // Agregar efecto visual al hacer hover
+                link.addEventListener('mouseenter', () => {
+                    // Añadir un resplandor extra al hacer hover
+                    link.style.textShadow = '0 0 15px var(--cosmic-glow)';
+                });
+                
+                link.addEventListener('mouseleave', () => {
+                    // Restaurar estilo original
+                    link.style.textShadow = '';
+                });
+                
+                // Agregar feedback táctil y visual al hacer clic
+                link.addEventListener('click', function(e) {
+                    // Verificar si es el enlace activo o tiene href='#'
+                    if (this.classList.contains('active') && this.getAttribute('href') === '#') {
+                        e.preventDefault();
+                        return;
+                    }
+                    
+                    // Quitar active de todos los enlaces
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    
+                    // Agregar la clase active al enlace actual si no es un enlace externo
+                    if (this.getAttribute('href').startsWith('/') || this.getAttribute('href') === '#') {
+                        this.classList.add('active');
+                    }
+                    
+                    // Efecto visual de clic
+                    this.style.transform = 'scale(0.95)';
+                    
+                    // Restaurar después de un pequeño delay
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 150);
+                });
+            });
+            
+            // Marcar el enlace activo basado en la URL actual
+            updateActiveLink();
+            
+            console.log("Navegación mejorada con efectos táctiles y enlaces activos");
+        }
+        
         // Inicializar al cargar la página
         document.addEventListener('DOMContentLoaded', () => {
+            console.log("Inicializando Familia Cósmica...");
+            
             // Crear estrellas de fondo
             createStars();
             
@@ -1328,6 +1432,7 @@
             setupDiaryTabs();
             setupChat();
             loadDiaries();
+            enhanceNavigation();
             
             // Crear partículas cuánticas para menús con retraso para asegurar que el DOM está listo
             setTimeout(() => {
@@ -1340,6 +1445,7 @@
                             nav.style.position = 'relative';
                         }
                         nav.style.overflow = 'hidden';
+                        nav.style.zIndex = '100'; // Asegurar que el menú está encima
                     });
                     
                     // Verificar y crear partículas para cada tipo de menú
@@ -1358,16 +1464,24 @@
                         }
                     }
                     
-                    console.log("Partículas cuánticas inicializadas correctamente en Familia Cósmica");
-                    
                     // Agregar clase para activar animaciones solo después de que todo esté cargado
                     document.querySelectorAll('.nav-links').forEach(nav => {
                         nav.classList.add('particles-active');
                     });
+                    
+                    console.log("Partículas cuánticas inicializadas correctamente");
                 } catch (error) {
-                    console.error("Error al crear partículas cuánticas en Familia Cósmica:", error);
+                    console.error("Error al crear partículas cuánticas:", error);
                 }
-            }, 500); // Pequeño retraso para asegurar que todo el DOM está listo
+                
+                // Imprimir mensaje en consola para identificar si hay problemas
+                console.log("Estado final de los menús de navegación:", {
+                    'superAdmin': document.querySelector('.super-admin-nav') ? 'Presente' : 'No encontrado',
+                    'admin': document.querySelector('.admin-nav') ? 'Presente' : 'No encontrado',
+                    'investor': document.querySelector('.investor-nav') ? 'Presente' : 'No encontrado',
+                    'visitor': document.querySelector('.visitor-nav') ? 'Presente' : 'No encontrado'
+                });
+            }, 300); // Pequeño retraso para asegurar que todo el DOM está listo
         });
     </script>
 </body>
