@@ -171,18 +171,36 @@ def dashboard():
         return redirect(url_for('login'))
     
     user_role = get_user_role()
+    user = User.query.get(session['user_id'])
     
     if user_role == 'inversionista':
+        # Obtener datos del inversionista
+        investor = Investor.query.filter_by(user_id=user.id).first()
+        
+        if not investor:
+            flash('No se encontró perfil de inversionista', 'error')
+            return redirect(url_for('index'))
+        
         return render_template('investor_dashboard.html', 
-                              user=User.query.get(session['user_id']),
+                              user=user,
+                              investor=investor,
+                              balance=investor.balance,
+                              earnings=investor.earnings,
+                              capital=investor.capital,
+                              authenticated=True,
+                              user_role=user_role,
                               is_creator=is_creator())
     elif user_role == 'admin':
         return render_template('admin_dashboard.html', 
-                              user=User.query.get(session['user_id']),
+                              user=user,
+                              authenticated=True,
+                              user_role=user_role,
                               is_creator=is_creator())
     elif user_role == 'super_admin':
         return render_template('super_admin_dashboard.html', 
-                              user=User.query.get(session['user_id']),
+                              user=user,
+                              authenticated=True,
+                              user_role=user_role,
                               is_creator=is_creator())
     else:
         return redirect(url_for('index'))

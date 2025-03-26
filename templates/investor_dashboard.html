@@ -3,508 +3,500 @@
 {% block title %}Dashboard de Inversionista - Genesis{% endblock %}
 
 {% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/gauges.css') }}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css">
 <style>
     .dashboard-container {
-        background-color: rgba(27, 20, 53, 0.8);
-        border-radius: 10px;
-        padding: 2rem;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(156, 39, 176, 0.3);
-        margin-top: 2rem;
+        padding: 30px 0;
+    }
+    
+    .dashboard-header {
+        text-align: center;
+        margin-bottom: 40px;
     }
     
     .dashboard-title {
         font-family: var(--font-display);
-        font-weight: 700;
-        color: var(--text-light);
-        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
-        margin-bottom: 1.5rem;
-        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 2px;
     }
     
     .dashboard-subtitle {
+        font-size: 1.2rem;
         color: var(--text-medium);
-        margin-bottom: 2rem;
-        text-align: center;
+        margin-bottom: 20px;
     }
     
-    .investor-profile {
-        background-color: rgba(45, 35, 75, 0.6);
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
+    .metrics-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+    
+    .metric-card {
+        background: rgba(27, 20, 53, 0.6);
+        border-radius: 15px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 
+                    inset 0 0 15px rgba(156, 39, 176, 0.1);
         border: 1px solid rgba(156, 39, 176, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4), 
+                    inset 0 0 20px rgba(156, 39, 176, 0.2);
+        border-color: rgba(156, 39, 176, 0.4);
+    }
+    
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .metric-title {
+        font-size: 1.2rem;
+        color: var(--text-light);
+        font-weight: 500;
+    }
+    
+    .metric-icon {
+        width: 30px;
+        height: 30px;
+        color: var(--accent-primary);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        font-family: var(--font-display);
+        margin-bottom: 10px;
+        background: linear-gradient(135deg, #e1bee7, #b39ddb);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    
+    .metric-change {
         display: flex;
         align-items: center;
-    }
-    
-    .investor-avatar {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        background-color: rgba(156, 39, 176, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 1.5rem;
-        color: var(--text-light);
-        font-size: 2rem;
-    }
-    
-    .investor-info {
-        flex-grow: 1;
-    }
-    
-    .investor-name {
-        font-size: 1.5rem;
-        margin-bottom: 0.25rem;
-        color: var(--text-light);
-    }
-    
-    .investor-category {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 50px;
-        font-size: 0.85rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .investor-category.platinum {
-        background-color: rgba(229, 228, 226, 0.2);
-        color: #e5e4e2;
-        border: 1px solid #e5e4e2;
-    }
-    
-    .investor-category.gold {
-        background-color: rgba(255, 215, 0, 0.2);
-        color: #ffd700;
-        border: 1px solid #ffd700;
-    }
-    
-    .investor-category.silver {
-        background-color: rgba(192, 192, 192, 0.2);
-        color: #c0c0c0;
-        border: 1px solid #c0c0c0;
-    }
-    
-    .investor-category.bronze {
-        background-color: rgba(205, 127, 50, 0.2);
-        color: #cd7f32;
-        border: 1px solid #cd7f32;
-    }
-    
-    .investor-since {
-        color: var(--text-medium);
         font-size: 0.9rem;
     }
     
-    .stat-card {
-        background-color: rgba(45, 35, 75, 0.6);
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        border: 1px solid rgba(156, 39, 176, 0.2);
-        transition: all 0.3s ease;
-        text-align: center;
+    .increase {
+        color: #4caf50;
     }
     
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(156, 39, 176, 0.3);
-        border: 1px solid rgba(156, 39, 176, 0.4);
-    }
-    
-    .stat-icon {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-        color: var(--accent-secondary);
-    }
-    
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        color: var(--text-light);
-    }
-    
-    .stat-label {
-        color: var(--text-medium);
+    .decrease {
+        color: #f44336;
     }
     
     .chart-container {
-        background-color: rgba(45, 35, 75, 0.6);
-        border-radius: 10px;
-        padding: 1.5rem;
+        background: rgba(27, 20, 53, 0.6);
+        border-radius: 15px;
+        padding: 25px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3),
+                    inset 0 0 15px rgba(156, 39, 176, 0.1);
         border: 1px solid rgba(156, 39, 176, 0.2);
-        margin-bottom: 1.5rem;
-    }
-    
-    .chart-title {
-        font-size: 1.2rem;
-        margin-bottom: 1.5rem;
-        color: var(--text-light);
-        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
-        padding-bottom: 0.5rem;
-    }
-    
-    .quick-actions {
-        background-color: rgba(45, 35, 75, 0.6);
-        border-radius: 10px;
-        padding: 1.5rem;
-        border: 1px solid rgba(156, 39, 176, 0.2);
-        margin-bottom: 1.5rem;
-    }
-    
-    .action-btn {
-        margin-bottom: 1rem;
-        width: 100%;
-        text-align: left;
-        padding: 1rem;
-        border-radius: 10px;
-        transition: all 0.3s ease;
-        background-color: rgba(156, 39, 176, 0.1);
-        color: var(--text-light);
-        border: 1px solid rgba(156, 39, 176, 0.2);
-        display: flex;
-        align-items: center;
-    }
-    
-    .action-btn .action-icon {
-        font-size: 1.5rem;
-        margin-right: 1rem;
-        width: 40px;
-        text-align: center;
-    }
-    
-    .action-btn:hover {
-        background-color: rgba(156, 39, 176, 0.2);
-        transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    }
-    
-    .recent-transactions {
-        background-color: rgba(45, 35, 75, 0.6);
-        border-radius: 10px;
-        padding: 1.5rem;
-        border: 1px solid rgba(156, 39, 176, 0.2);
-    }
-    
-    .transaction-item {
-        display: flex;
-        align-items: center;
-        padding: 1rem 0;
-        border-bottom: 1px solid rgba(156, 39, 176, 0.1);
-    }
-    
-    .transaction-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 1rem;
-        font-size: 1.2rem;
-    }
-    
-    .transaction-icon.deposit {
-        background-color: rgba(76, 175, 80, 0.2);
-        color: #4caf50;
-    }
-    
-    .transaction-icon.withdrawal {
-        background-color: rgba(244, 67, 54, 0.2);
-        color: #f44336;
-    }
-    
-    .transaction-icon.profit {
-        background-color: rgba(33, 150, 243, 0.2);
-        color: #2196f3;
-    }
-    
-    .transaction-info {
-        flex-grow: 1;
-    }
-    
-    .transaction-description {
-        margin-bottom: 0.25rem;
-        color: var(--text-light);
-    }
-    
-    .transaction-date {
-        font-size: 0.85rem;
-        color: var(--text-medium);
-    }
-    
-    .transaction-amount {
-        font-weight: 700;
-    }
-    
-    .transaction-amount.positive {
-        color: #4caf50;
-    }
-    
-    .transaction-amount.negative {
-        color: #f44336;
-    }
-    
-    /* Medidores de rendimiento */
-    .gauge-container {
-        background-color: rgba(45, 35, 75, 0.6);
-        border-radius: 10px;
-        padding: 1.5rem;
-        border: 1px solid rgba(156, 39, 176, 0.2);
-        margin-bottom: 1.5rem;
+        margin-bottom: 40px;
         position: relative;
         overflow: hidden;
     }
     
-    .gauge-container::before {
+    .chart-container:before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: 
+            radial-gradient(circle at top right, rgba(103, 58, 183, 0.1), transparent 60%),
+            radial-gradient(circle at bottom left, rgba(156, 39, 176, 0.1), transparent 60%);
+        pointer-events: none;
+    }
+    
+    .chart-title {
+        font-size: 1.4rem;
+        color: var(--text-light);
+        margin-bottom: 20px;
+        font-weight: 500;
+    }
+    
+    .portfolio-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 40px;
+    }
+    
+    .portfolio-card {
+        background: rgba(27, 20, 53, 0.6);
+        border-radius: 15px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3),
+                    inset 0 0 15px rgba(156, 39, 176, 0.1);
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        transition: all 0.3s ease;
+    }
+    
+    .portfolio-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4),
+                    inset 0 0 20px rgba(156, 39, 176, 0.2);
+        border-color: rgba(156, 39, 176, 0.4);
+    }
+    
+    .portfolio-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .portfolio-title {
+        font-size: 1.2rem;
+        color: var(--text-light);
+        font-weight: 500;
+    }
+    
+    .portfolio-list {
+        margin: 0;
+        padding: 0;
+    }
+    
+    .portfolio-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(156, 39, 176, 0.1);
+    }
+    
+    .portfolio-item:last-child {
+        border-bottom: none;
+    }
+    
+    .investment-name {
+        display: flex;
+        align-items: center;
+    }
+    
+    .investment-icon {
+        width: 25px;
+        height: 25px;
+        margin-right: 10px;
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 14px;
+    }
+    
+    .investment-value {
+        font-weight: 500;
+        color: var(--text-light);
+    }
+    
+    .investment-change {
+        font-size: 0.85rem;
+    }
+    
+    .dashboard-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(13, 12, 30, 0.5);
+        border-radius: 10px;
+        padding: 15px 25px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(156, 39, 176, 0.2);
+    }
+    
+    .footer-stats {
+        display: flex;
+        gap: 30px;
+    }
+    
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-medium);
+    }
+    
+    .stat-value {
+        font-size: 1.2rem;
+        color: var(--text-light);
+        font-weight: 500;
+    }
+    
+    .dashboard-actions {
+        display: flex;
+        gap: 15px;
+    }
+    
+    .action-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(156, 39, 176, 0.3);
+        border-radius: 8px;
+        padding: 10px 20px;
+        color: var(--text-light);
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .action-btn:hover {
+        background: rgba(156, 39, 176, 0.1);
+        border-color: var(--accent-primary);
+        transform: translateY(-2px);
+    }
+    
+    .action-btn-primary {
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        border: none;
+        box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
+    }
+    
+    .action-btn-primary:hover {
+        background: linear-gradient(135deg, #ba68c8, #7986cb);
+        box-shadow: 0 6px 20px rgba(156, 39, 176, 0.4);
+    }
+    
+    /* Estilo para Hologramas 3D */
+    .hologram-container {
+        position: relative;
+        perspective: 1000px;
+    }
+    
+    .hologram-card {
+        position: relative;
+        transform-style: preserve-3d;
+        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .hologram-card:hover {
+        transform: rotateY(5deg) rotateX(5deg);
+    }
+    
+    .hologram-card:after {
         content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(135deg, rgba(156, 39, 176, 0.1) 0%, rgba(103, 58, 183, 0.1) 100%);
+        border-radius: 15px;
+        background: linear-gradient(135deg, 
+            rgba(156, 39, 176, 0) 0%, 
+            rgba(156, 39, 176, 0.1) 50%, 
+            rgba(156, 39, 176, 0) 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
         pointer-events: none;
-        z-index: 1;
     }
     
-    .gauge-title {
-        font-size: 1.2rem;
-        margin-bottom: 1.5rem;
-        color: var(--text-light);
-        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
-        padding-bottom: 0.5rem;
-        text-align: center;
-        position: relative;
-        z-index: 2;
+    .hologram-card:hover:after {
+        opacity: 1;
     }
     
-    .gauge-row {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-around;
-        margin-bottom: 2rem;
-        position: relative;
-        z-index: 2;
+    /* Animaciones */
+    @keyframes pulse-glow {
+        0% {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 
+                        inset 0 0 15px rgba(156, 39, 176, 0.1);
+        }
+        50% {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 
+                        inset 0 0 25px rgba(156, 39, 176, 0.3);
+        }
+        100% {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), 
+                        inset 0 0 15px rgba(156, 39, 176, 0.1);
+        }
     }
     
-    .gauge-wrapper {
-        width: 160px;
-        margin-bottom: 1.5rem;
-        text-align: center;
-        position: relative;
-    }
-    
-    .gauge-wrapper::after {
-        content: '';
-        position: absolute;
-        width: 100%;
-        height: 15px;
-        bottom: -5px;
-        left: 0;
-        background: radial-gradient(ellipse at center, rgba(156, 39, 176, 0.3) 0%, rgba(156, 39, 176, 0) 70%);
-        filter: blur(5px);
-        z-index: 1;
-    }
-    
-    .gauge {
-        width: 120px;
-        height: 120px;
-        margin: 0 auto 0.5rem;
-        position: relative;
-        filter: drop-shadow(0 0 10px rgba(156, 39, 176, 0.3));
-    }
-    
-    .gauge-label {
-        color: var(--text-medium);
-        font-size: 0.9rem;
-        margin-top: 0.5rem;
-        text-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
-    }
-    
-    .gauge-value {
-        font-family: var(--font-display);
-        text-shadow: 0 0 10px rgba(156, 39, 176, 0.7);
+    .pulse-effect {
+        animation: pulse-glow 4s infinite;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row">
-        <div class="col-12">
-            <div class="dashboard-container">
-                <h2 class="dashboard-title">Dashboard de Inversionista</h2>
-                <p class="dashboard-subtitle">Bienvenido a tu panel de control personalizado</p>
-                
-                <!-- Perfil del inversionista -->
-                <div class="investor-profile">
-                    <div class="investor-avatar">
-                        {{ user.name[0] }}
-                    </div>
-                    <div class="investor-info">
-                        <h3 class="investor-name">{{ user.name }}</h3>
-                        <span class="investor-category platinum">Platinum</span>
-                        <div class="investor-since">Inversionista desde {{ user.created_at.strftime('%d/%m/%Y') }}</div>
-                    </div>
-                </div>
-                
-                <!-- Estadísticas principales -->
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">💰</div>
-                            <div class="stat-value">${{ "1.0M" }}</div>
-                            <div class="stat-label">Balance Total</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">📈</div>
-                            <div class="stat-value">{{ "+18%" }}</div>
-                            <div class="stat-label">Rendimiento</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="stat-card">
-                            <div class="stat-icon">💹</div>
-                            <div class="stat-value">${{ "180K" }}</div>
-                            <div class="stat-label">Ganancias</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Gráfico de rendimiento -->
-                <div class="row">
-                    <div class="col-md-8">
-                        <div class="chart-container">
-                            <h3 class="chart-title">Rendimiento de Inversión</h3>
-                            <canvas id="performanceChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="quick-actions">
-                            <h3 class="chart-title">Acciones Rápidas</h3>
-                            <a href="#" class="action-btn">
-                                <span class="action-icon">💸</span>
-                                <span>Solicitar Préstamo</span>
-                            </a>
-                            <a href="#" class="action-btn">
-                                <span class="action-icon">🏆</span>
-                                <span>Ver Bonos</span>
-                            </a>
-                            <a href="#" class="action-btn">
-                                <span class="action-icon">📊</span>
-                                <span>Ver Reportes</span>
-                            </a>
-                            <a href="{{ url_for('cosmic_chat') }}" class="action-btn">
-                                <span class="action-icon">🤖</span>
-                                <span>Consulta Cósmica</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Medidores de rendimiento -->
-                <div class="gauge-container">
-                    <h3 class="gauge-title">Indicadores de Rendimiento</h3>
-                    <div class="gauge-row">
-                        <div class="gauge-wrapper">
-                            <div class="gauge" id="roi-gauge"></div>
-                            <div class="gauge-label">ROI</div>
-                        </div>
-                        <div class="gauge-wrapper">
-                            <div class="gauge" id="risk-gauge"></div>
-                            <div class="gauge-label">Riesgo</div>
-                        </div>
-                        <div class="gauge-wrapper">
-                            <div class="gauge" id="volatility-gauge"></div>
-                            <div class="gauge-label">Volatilidad</div>
-                        </div>
-                        <div class="gauge-wrapper">
-                            <div class="gauge" id="growth-gauge"></div>
-                            <div class="gauge-label">Crecimiento</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Gráficos adicionales -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="chart-container">
-                            <h3 class="chart-title">Distribución de la Inversión</h3>
-                            <canvas id="portfolioDistributionChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="chart-container">
-                            <h3 class="chart-title">Evolución del Capital</h3>
-                            <canvas id="capitalEvolutionChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Transacciones recientes -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="recent-transactions">
-                            <h3 class="chart-title">Transacciones Recientes</h3>
-                            
-                            <div class="transaction-item">
-                                <div class="transaction-icon profit">💹</div>
-                                <div class="transaction-info">
-                                    <div class="transaction-description">Rendimiento mensual</div>
-                                    <div class="transaction-date">Hoy, 10:30 AM</div>
-                                </div>
-                                <div class="transaction-amount positive">+$12,500.00</div>
-                            </div>
-                            
-                            <div class="transaction-item">
-                                <div class="transaction-icon deposit">⬆️</div>
-                                <div class="transaction-info">
-                                    <div class="transaction-description">Depósito mensual</div>
-                                    <div class="transaction-date">20/03/2025, 09:15 AM</div>
-                                </div>
-                                <div class="transaction-amount positive">+$50,000.00</div>
-                            </div>
-                            
-                            <div class="transaction-item">
-                                <div class="transaction-icon profit">💹</div>
-                                <div class="transaction-info">
-                                    <div class="transaction-description">Bono trimestral</div>
-                                    <div class="transaction-date">15/03/2025, 11:20 AM</div>
-                                </div>
-                                <div class="transaction-amount positive">+$8,750.00</div>
-                            </div>
-                            
-                            <div class="transaction-item">
-                                <div class="transaction-icon withdrawal">⬇️</div>
-                                <div class="transaction-info">
-                                    <div class="transaction-description">Retiro programado</div>
-                                    <div class="transaction-date">10/03/2025, 02:45 PM</div>
-                                </div>
-                                <div class="transaction-amount negative">-$15,000.00</div>
-                            </div>
-                            
-                            <div class="transaction-item">
-                                <div class="transaction-icon profit">💹</div>
-                                <div class="transaction-info">
-                                    <div class="transaction-description">Rendimiento mensual</div>
-                                    <div class="transaction-date">01/03/2025, 10:30 AM</div>
-                                </div>
-                                <div class="transaction-amount positive">+$11,250.00</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<div class="container dashboard-container">
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">Dashboard de Inversionista</h1>
+        <p class="dashboard-subtitle">Bienvenido de nuevo, {{ user.first_name }}</p>
+    </div>
+    
+    <div class="metrics-container">
+        <div class="metric-card pulse-effect hologram-card">
+            <div class="metric-header">
+                <span class="metric-title">Balance Total</span>
+                <svg class="metric-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
             </div>
+            <div class="metric-value">${{ "%.2f"|format(balance) }}</div>
+            <div class="metric-change increase">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                </svg>
+                <span>+2.4% desde ayer</span>
+            </div>
+        </div>
+        
+        <div class="metric-card pulse-effect hologram-card">
+            <div class="metric-header">
+                <span class="metric-title">Ganancias</span>
+                <svg class="metric-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+            </div>
+            <div class="metric-value">${{ "%.2f"|format(earnings) }}</div>
+            <div class="metric-change increase">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                </svg>
+                <span>+3.8% este mes</span>
+            </div>
+        </div>
+        
+        <div class="metric-card pulse-effect hologram-card">
+            <div class="metric-header">
+                <span class="metric-title">Rendimiento</span>
+                <svg class="metric-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+            </div>
+            <div class="metric-value">12.8%</div>
+            <div class="metric-change increase">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                </svg>
+                <span>+1.2% vs. mercado</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Medidores holográficos personalizados -->
+    <div class="chart-container">
+        <h2 class="chart-title">Indicadores de Rendimiento</h2>
+        <div id="gauges-container" class="gauges-grid"></div>
+    </div>
+    
+    <div class="chart-container">
+        <h2 class="chart-title">Evolución del Balance</h2>
+        <canvas id="balanceChart" height="300"></canvas>
+    </div>
+    
+    <div class="portfolio-container">
+        <div class="portfolio-card hologram-card">
+            <div class="portfolio-header">
+                <h3 class="portfolio-title">Distribución de Inversiones</h3>
+            </div>
+            <canvas id="portfolioDistributionChart" height="250"></canvas>
+        </div>
+        
+        <div class="portfolio-card hologram-card">
+            <div class="portfolio-header">
+                <h3 class="portfolio-title">Inversiones Activas</h3>
+            </div>
+            <ul class="portfolio-list">
+                <li class="portfolio-item">
+                    <div class="investment-name">
+                        <div class="investment-icon">B</div>
+                        <span>Bitcoin</span>
+                    </div>
+                    <div>
+                        <div class="investment-value">$15,320.00</div>
+                        <div class="investment-change increase">+2.5%</div>
+                    </div>
+                </li>
+                <li class="portfolio-item">
+                    <div class="investment-name">
+                        <div class="investment-icon">E</div>
+                        <span>Ethereum</span>
+                    </div>
+                    <div>
+                        <div class="investment-value">$8,750.50</div>
+                        <div class="investment-change increase">+5.2%</div>
+                    </div>
+                </li>
+                <li class="portfolio-item">
+                    <div class="investment-name">
+                        <div class="investment-icon">C</div>
+                        <span>Cardano</span>
+                    </div>
+                    <div>
+                        <div class="investment-value">$4,325.75</div>
+                        <div class="investment-change decrease">-1.3%</div>
+                    </div>
+                </li>
+                <li class="portfolio-item">
+                    <div class="investment-name">
+                        <div class="investment-icon">S</div>
+                        <span>Solana</span>
+                    </div>
+                    <div>
+                        <div class="investment-value">$3,250.25</div>
+                        <div class="investment-change increase">+3.1%</div>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="dashboard-footer">
+        <div class="footer-stats">
+            <div class="stat-item">
+                <span class="stat-label">Categoría</span>
+                <span class="stat-value">{{ investor.category | title }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Nivel de Riesgo</span>
+                <span class="stat-value">{{ investor.risk_level | title }}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Miembro desde</span>
+                <span class="stat-value">{{ investor.created_at.strftime('%b %Y') }}</span>
+            </div>
+        </div>
+        
+        <div class="dashboard-actions">
+            <a href="{{ url_for('loans') }}" class="action-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                Préstamos
+            </a>
+            <a href="{{ url_for('bonuses') }}" class="action-btn action-btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                </svg>
+                Ver Bonos
+            </a>
         </div>
     </div>
 </div>
@@ -512,210 +504,217 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-<script src="/static/js/gauges/custom-gauges.js"></script>
+<script src="{{ url_for('static', filename='js/custom-gauges.js') }}"></script>
 <script>
+    // Datos para los medidores
+    const gaugeData = [
+        {
+            label: 'ROI',
+            value: 18.5,
+            min: 0,
+            max: 30,
+            colorStart: '#9c27b0',
+            colorEnd: '#3f51b5',
+            decimals: 1,
+            symbol: '%',
+            subLabel: 'Retorno de Inversión'
+        },
+        {
+            label: 'Rentabilidad Diaria',
+            value: 0.42,
+            min: 0,
+            max: 1,
+            colorStart: '#673ab7',
+            colorEnd: '#2196f3',
+            decimals: 2,
+            symbol: '%',
+            subLabel: 'Promedio 7 días'
+        },
+        {
+            label: 'Diversificación',
+            value: 75,
+            min: 0,
+            max: 100,
+            colorStart: '#7e57c2',
+            colorEnd: '#26a69a',
+            decimals: 0,
+            symbol: '%',
+            subLabel: 'Índice de diversificación'
+        },
+        {
+            label: 'Crecimiento',
+            value: 22.8,
+            min: 0,
+            max: 50,
+            colorStart: '#5e35b1',
+            colorEnd: '#ec407a',
+            decimals: 1,
+            symbol: '%',
+            subLabel: 'Crecimiento anual'
+        }
+    ];
+
+    // Inicializar medidores cuando se cargue la página
     document.addEventListener('DOMContentLoaded', function() {
-        // Gráfico de rendimiento
-        const ctx = document.getElementById('performanceChart').getContext('2d');
-        const performanceChart = new Chart(ctx, {
+        // Inicializar medidores
+        const gauges = new GaugeGroup('gauges-container', gaugeData);
+        
+        // Iniciar simulación para demostración
+        gauges.startSimulation(5000);
+        
+        // Gráfico de evolución del balance
+        const ctxBalance = document.getElementById('balanceChart').getContext('2d');
+        const gradientFill = ctxBalance.createLinearGradient(0, 0, 0, 400);
+        gradientFill.addColorStop(0, 'rgba(156, 39, 176, 0.3)');
+        gradientFill.addColorStop(1, 'rgba(156, 39, 176, 0)');
+        
+        const balanceChart = new Chart(ctxBalance, {
             type: 'line',
             data: {
                 labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
                 datasets: [{
-                    label: 'Rendimiento (%)',
-                    data: [5, 8, 12, 10, 15, 18, 17, 19, 20, 22, 25, 28],
-                    borderColor: '#9c27b0',
-                    tension: 0.3,
-                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        labels: {
-                            color: '#ffffff'
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: '#ffffff'
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
-                        },
-                        ticks: {
-                            color: '#ffffff'
-                        }
-                    }
-                }
-            }
-        });
-        
-        // Crear medidores personalizados con efectos holográficos
-        const roiGauge = createROIGauge('roi-gauge', 85);
-        const riskGauge = createRiskGauge('risk-gauge', 30);
-        const volatilityGauge = createVolatilityGauge('volatility-gauge', 45);
-        const growthGauge = createGrowthGauge('growth-gauge', 70);
-        
-        // Configuración común para todos los gráficos
-        Chart.defaults.color = '#ffffff';
-        Chart.defaults.font.family = "'Poppins', 'Helvetica', 'Arial', sans-serif";
-        
-        // Gráfico de distribución de la inversión (dona)
-        const portfolioCtx = document.getElementById('portfolioDistributionChart').getContext('2d');
-        const portfolioChart = new Chart(portfolioCtx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Acciones', 'Bonos', 'Criptomonedas', 'Materias primas', 'Efectivo'],
-                datasets: [{
-                    data: [45, 20, 15, 10, 10],
-                    backgroundColor: [
-                        '#9c27b0',
-                        '#673ab7',
-                        '#3f51b5',
-                        '#2196f3',
-                        '#00bcd4'
-                    ],
-                    borderColor: 'rgba(27, 20, 53, 0.8)',
-                    borderWidth: 2,
-                    hoverOffset: 15
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            padding: 15,
-                            usePointStyle: true,
-                            pointStyle: 'circle'
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(27, 20, 53, 0.9)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#ffffff',
-                        borderColor: 'rgba(156, 39, 176, 0.5)',
-                        borderWidth: 1,
-                        padding: 15,
-                        displayColors: true,
-                        callbacks: {
-                            label: function(context) {
-                                const label = context.label || '';
-                                const value = context.raw || 0;
-                                return `${label}: ${value}%`;
-                            }
-                        }
-                    }
-                },
-                cutout: '70%',
-                animation: {
-                    animateScale: true,
-                    animateRotate: true
-                }
-            }
-        });
-        
-        // Gráfico de evolución del capital (línea)
-        const capitalEvolutionCtx = document.getElementById('capitalEvolutionChart').getContext('2d');
-        
-        // Crear gradiente para el fondo
-        const capitalGradient = capitalEvolutionCtx.createLinearGradient(0, 0, 0, 400);
-        capitalGradient.addColorStop(0, 'rgba(156, 39, 176, 0.4)');
-        capitalGradient.addColorStop(1, 'rgba(156, 39, 176, 0)');
-        
-        const capitalEvolutionChart = new Chart(capitalEvolutionCtx, {
-            type: 'line',
-            data: {
-                labels: ['2020', '2021', '2022', '2023', '2024', '2025'],
-                datasets: [{
-                    label: 'Capital (USD)',
-                    data: [150000, 280000, 450000, 620000, 830000, 1000000],
+                    label: 'Balance 2024',
+                    data: [30000, 31200, 32800, 34100, 36500, 38200, 40500, 42800, 44200, 46500, 48900, 52000],
                     borderColor: '#9c27b0',
                     borderWidth: 3,
-                    backgroundColor: capitalGradient,
-                    pointBackgroundColor: '#673ab7',
-                    pointBorderColor: '#ffffff',
-                    pointBorderWidth: 2,
-                    pointRadius: 6,
-                    pointHoverRadius: 8,
+                    tension: 0.4,
+                    pointBackgroundColor: '#9c27b0',
+                    pointBorderColor: '#fff',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
                     fill: true,
-                    tension: 0.4
+                    backgroundColor: gradientFill
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: false
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(27, 20, 53, 0.9)',
-                        titleColor: '#ffffff',
-                        bodyColor: '#ffffff',
-                        borderColor: 'rgba(156, 39, 176, 0.5)',
+                        backgroundColor: 'rgba(13, 12, 30, 0.9)',
+                        titleColor: '#e1bee7',
+                        bodyColor: '#b39ddb',
+                        borderColor: 'rgba(156, 39, 176, 0.3)',
                         borderWidth: 1,
-                        padding: 15,
+                        padding: 12,
+                        boxPadding: 8,
+                        usePointStyle: true,
                         callbacks: {
                             label: function(context) {
-                                let value = context.dataset.data[context.dataIndex];
-                                return `$${value.toLocaleString()}`;
+                                return `$${context.parsed.y.toLocaleString()}`;
                             }
                         }
                     }
                 },
                 scales: {
-                    y: {
-                        beginAtZero: true,
+                    x: {
                         grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
+                            display: false,
+                            drawBorder: true,
+                            drawOnChartArea: false,
+                            drawTicks: true,
+                            color: 'rgba(156, 39, 176, 0.2)'
                         },
                         ticks: {
+                            color: '#b39ddb'
+                        }
+                    },
+                    y: {
+                        grid: {
+                            display: true,
+                            drawBorder: true,
+                            color: 'rgba(156, 39, 176, 0.1)'
+                        },
+                        ticks: {
+                            color: '#b39ddb',
                             callback: function(value) {
                                 return '$' + value.toLocaleString();
                             }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(255, 255, 255, 0.1)'
                         }
                     }
                 }
             }
         });
         
-        // Añadir efectos de animación aleatorios para dar la sensación de datos en tiempo real
-        setInterval(() => {
-            // Pequeñas variaciones aleatorias
-            const roiVariation = Math.random() * 5 - 2.5;
-            const riskVariation = Math.random() * 3 - 1.5;
-            const volatilityVariation = Math.random() * 4 - 2;
-            const growthVariation = Math.random() * 3 - 1;
-            
-            // Aplicar variaciones asegurando que estén dentro de los límites
-            let newRoi = Math.min(Math.max(roiGauge.options.value + roiVariation, 0), 100);
-            let newRisk = Math.min(Math.max(riskGauge.options.value + riskVariation, 0), 100);
-            let newVolatility = Math.min(Math.max(volatilityGauge.options.value + volatilityVariation, 0), 100);
-            let newGrowth = Math.min(Math.max(growthGauge.options.value + growthVariation, 0), 100);
-            
-            // Actualizar medidores con animación
-            roiGauge.setValue(newRoi);
-            riskGauge.setValue(newRisk);
-            volatilityGauge.setValue(newVolatility);
-            growthGauge.setValue(newGrowth);
-        }, 5000);
+        // Gráfico de distribución de portafolio
+        const ctxPortfolio = document.getElementById('portfolioDistributionChart').getContext('2d');
+        const portfolioDistributionChart = new Chart(ctxPortfolio, {
+            type: 'doughnut',
+            data: {
+                labels: ['Bitcoin', 'Ethereum', 'Cardano', 'Solana', 'Otras'],
+                datasets: [{
+                    data: [40, 25, 15, 10, 10],
+                    backgroundColor: [
+                        '#9c27b0',
+                        '#673ab7',
+                        '#3f51b5',
+                        '#2196f3',
+                        '#7e57c2'
+                    ],
+                    borderColor: 'rgba(13, 12, 30, 0.8)',
+                    borderWidth: 2,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: '#b39ddb',
+                            padding: 15,
+                            font: {
+                                size: 12
+                            },
+                            generateLabels: function(chart) {
+                                const data = chart.data;
+                                if (data.labels.length && data.datasets.length) {
+                                    return data.labels.map(function(label, i) {
+                                        const value = data.datasets[0].data[i];
+                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        const percentage = Math.round((value / total) * 100) + '%';
+                                        
+                                        return {
+                                            text: `${label}: ${percentage}`,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            strokeStyle: data.datasets[0].borderColor,
+                                            lineWidth: 2,
+                                            hidden: false,
+                                            index: i
+                                        };
+                                    });
+                                }
+                                return [];
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(13, 12, 30, 0.9)',
+                        titleColor: '#e1bee7',
+                        bodyColor: '#b39ddb',
+                        borderColor: 'rgba(156, 39, 176, 0.3)',
+                        borderWidth: 1,
+                        padding: 12,
+                        boxPadding: 8,
+                        usePointStyle: true,
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const value = context.parsed;
+                                const percentage = Math.round((value / total) * 100);
+                                return `${context.label}: ${percentage}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     });
 </script>
 {% endblock %}
