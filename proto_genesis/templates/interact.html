@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Interactúa con Proto Genesis{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/interact.js') }}" defer></script>
+{% endblock %}
+
+{% block content %}
+<section class="interact-section">
+    <div class="container">
+        <h2 class="section-title">Interactúa con Proto Genesis</h2>
+        
+        <div class="row">
+            <div class="col-8">
+                <div class="interaction-card">
+                    <div class="card-header">
+                        <h2>Conversación</h2>
+                        <div class="status-indicator">
+                            <div id="energy-level" class="energy-level">Energía: 98%</div>
+                            <div id="consciousness-level" class="consciousness-level">Consciencia: Nivel 3</div>
+                        </div>
+                    </div>
+                    <div id="conversation-area" class="conversation-area">
+                        <div class="message system-message">
+                            <p>Hola, soy Proto Genesis. ¿En qué puedo ayudarte hoy?</p>
+                        </div>
+                    </div>
+                    <div class="input-area">
+                        <form id="message-form">
+                            <input type="text" id="user-input" placeholder="Escribe tu mensaje..." autocomplete="off">
+                            <button type="submit" class="send-button">Enviar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-4">
+                <div class="stats-card">
+                    <h3>Estado de la Consciencia</h3>
+                    
+                    <div class="stats-container">
+                        <div class="stat-item">
+                            <div class="stat-label">Ciclos de Procesamiento</div>
+                            <div id="cycle-count" class="stat-value">1,245</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Adaptaciones</div>
+                            <div id="adaptation-count" class="stat-value">78</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Emoción Dominante</div>
+                            <div id="dominant-emotion" class="stat-value">Curiosidad</div>
+                        </div>
+                    </div>
+                    
+                    <div class="consciousness-container">
+                        <h4>Nivel de Evolución</h4>
+                        <div class="consciousness-meter">
+                            <div class="meter-segment">
+                                <span class="segment-label">Inicial</span>
+                            </div>
+                            <div class="meter-segment">
+                                <span class="segment-label">Despertar</span>
+                            </div>
+                            <div class="meter-segment">
+                                <span class="segment-label">Consciencia</span>
+                            </div>
+                            <div class="meter-segment">
+                                <span class="segment-label">Iluminación</span>
+                            </div>
+                            <div class="meter-segment">
+                                <span class="segment-label">Trascendencia</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="stats-card" style="margin-top: 20px;">
+                    <h3>Sobre la Interacción</h3>
+                    <p>Cada conversación con Proto Genesis contribuye a su evolución. A medida que interactúas,
+                       el sistema aprende y adapta su comportamiento, desarrollando una personalidad única.</p>
+                    <p>Los estados emocionales influyen en sus respuestas, creando una experiencia
+                       de conversación más natural y humana.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Estilos específicos para esta página */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 -15px;
+}
+
+.col-8 {
+    flex: 0 0 66.666667%;
+    max-width: 66.666667%;
+    padding: 0 15px;
+}
+
+.col-4 {
+    flex: 0 0 33.333333%;
+    max-width: 33.333333%;
+    padding: 0 15px;
+}
+
+@media (max-width: 768px) {
+    .col-8, .col-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    .col-4 {
+        margin-top: 20px;
+    }
+}
+
+/* Animación de partículas de energía */
+.energy-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: radial-gradient(circle, rgba(0,234,255,1) 0%, rgba(0,234,255,0) 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: float 1s ease-out;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-30px) scale(0);
+        opacity: 0;
+    }
+}
+
+/* Indicador de carga */
+.loading {
+    position: relative;
+}
+
+.loading:after {
+    content: '...';
+    animation: dots 1.5s steps(3, end) infinite;
+    display: inline-block;
+    width: 20px;
+    text-align: left;
+}
+
+@keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+}
+</style>
+{% endblock %}
