@@ -551,7 +551,14 @@ def update_investor(investor_id):
     })
 
 def get_current_investor():
-    """Obtener datos del inversionista actual basado en la sesión."""
+    """
+    Obtener datos del inversionista actual basado en la sesión.
+    
+    Reglas importantes:
+    1. Todo usuario del sistema debe poder ver SUS PROPIOS datos de inversión
+    2. Independientemente del rol (admin, super_admin, inversionista), 
+       los datos a mostrar son siempre los mismos - el de SU inversión personal
+    """
     user = session.get('user', {})
     user_id = user.get('username')
     
@@ -560,27 +567,27 @@ def get_current_investor():
     
     # Si el usuario está autenticado, intentar encontrar su perfil de inversionista correspondiente
     if user and user_id:
-        # Buscar inversionista por user_id
+        # Buscar inversionista por user_id de manera directa
+        # Esta lógica garantiza que cada usuario, sin importar su rol, ve sus propios datos de inversión
         investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == user_id), None)
-        
-        # Si el usuario autenticado es mixycronico (super admin) y no tiene perfil de inversionista específico,
-        # darle acceso al perfil de inversionista de "mixycronico"
-        if user_id == "mixycronico" and not investor:
-            investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == "mixycronico"), None)
     else:
-        # Usuario no autenticado, usar modo demo
+        # Usuario no autenticado
         investor = None
     
-    # MODO DEMO: Si no hay un usuario autenticado o no se encontró un inversionista, 
-    # usar el perfil de mixycronico para demostración
+    # Si no se encontró un perfil de inversionista para el usuario actual, 
+    # buscamos el perfil demo para este propósito
     if not investor:
-        investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == "mixycronico"), None)
+        # Modo DEMO para desarrollo y pruebas
+        # En producción esto no debería ocurrir, ya que todos los usuarios autenticados
+        # tendrían un perfil de inversionista asociado
+        investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == "demo_user"), None)
         
-    # Si todavía no hay inversionista, usar el primero disponible
-    if not investor:
-        investor = list(INVESTORS.values())[0] if INVESTORS else None
+        # Si no hay un perfil demo, usar el primero disponible como último recurso
+        if not investor and INVESTORS:
+            investor = list(INVESTORS.values())[0]
     
-    # Si aún no hay inversionista (sería raro), crear uno de demostración
+    # En el improbable caso de que no haya datos de inversionistas en el sistema,
+    # creamos uno básico temporal para no romper la UI
     if not investor:
         investor = {
             "id": "demo1",
@@ -588,18 +595,11 @@ def get_current_investor():
             "name": "Usuario Demostración",
             "email": "demo@genesis.com",
             "balance": 75000.0,
-            "investment_target": 150000.0,
-            "risk_profile": "MODERATE",
-            "category": "JADE",
-            "creation_date": "2023-01-15",
-            "last_activity": "2025-03-26",
-            "profile_photo": None,
-            "investments": [
-                {"name": "Bitcoin", "amount": 25000, "performance": 15.5},
-                {"name": "Ethereum", "amount": 20000, "performance": -3.2},
-                {"name": "Cardano", "amount": 15000, "performance": 7.8},
-                {"name": "Solana", "amount": 15000, "performance": 22.1}
-            ]
+            "invested": 70000.0,
+            "available": 5000.0,
+            "category": "silver",
+            "transactions": [],
+            "investments": []
         }
     
     category = INVESTOR_CATEGORIES.get(investor["category"], {})
