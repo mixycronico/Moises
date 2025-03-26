@@ -1,304 +1,119 @@
 {% extends 'layout.html' %}
 
-{% block title %}Genesis - Iniciar Sesión{% endblock %}
-
-{% block styles %}
-<style>
-    .auth-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 80vh;
-        padding: 2rem 1rem;
-    }
-    
-    .auth-card {
-        width: 100%;
-        max-width: 450px;
-        background: rgba(25, 25, 50, 0.8);
-        border-radius: 20px;
-        padding: 2.5rem;
-        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-        border: 1px solid rgba(166, 104, 255, 0.3);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .auth-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 5px;
-        background: linear-gradient(90deg, #7642ff, #a076f9, #d6abff);
-        z-index: 1;
-    }
-    
-    .auth-header {
-        text-align: center;
-        margin-bottom: 2.5rem;
-    }
-    
-    .auth-title {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        background: linear-gradient(90deg, #a076f9, #d6abff, #7642ff);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        font-weight: 700;
-    }
-    
-    .auth-subtitle {
-        color: #b5b5e3;
-        font-size: 1rem;
-    }
-    
-    .form-group {
-        margin-bottom: 1.5rem;
-        position: relative;
-    }
-    
-    .form-label {
-        display: block;
-        margin-bottom: 0.5rem;
-        color: #d6abff;
-        font-size: 0.9rem;
-        font-weight: 500;
-    }
-    
-    .form-input {
-        width: 100%;
-        padding: 0.8rem 1rem;
-        border-radius: 8px;
-        background: rgba(30, 30, 60, 0.8);
-        border: 1px solid rgba(166, 104, 255, 0.3);
-        color: white;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-    }
-    
-    .form-input:focus {
-        outline: none;
-        border-color: rgba(166, 104, 255, 0.8);
-        box-shadow: 0 0 10px rgba(166, 104, 255, 0.4);
-    }
-    
-    .form-input-icon {
-        position: absolute;
-        right: 1rem;
-        top: 2.3rem;
-        color: rgba(166, 104, 255, 0.6);
-    }
-    
-    .auth-button {
-        width: 100%;
-        padding: 1rem;
-        background: linear-gradient(135deg, #7642ff, #a076f9);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        font-family: 'Orbitron', sans-serif;
-        text-transform: uppercase;
-        margin-top: 1rem;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .auth-button:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 25px rgba(166, 104, 255, 0.5);
-    }
-    
-    .auth-button::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%);
-        transition: all 0.5s ease;
-        opacity: 0;
-    }
-    
-    .auth-button:hover::before {
-        opacity: 1;
-        transform: scale(1.2);
-    }
-    
-    .auth-links {
-        text-align: center;
-        margin-top: 1.5rem;
-    }
-    
-    .auth-link {
-        color: #a076f9;
-        text-decoration: none;
-        font-size: 0.9rem;
-        transition: all 0.3s ease;
-    }
-    
-    .auth-link:hover {
-        color: #d6abff;
-        text-decoration: underline;
-    }
-    
-    .form-error {
-        color: #ff6b6b;
-        font-size: 0.85rem;
-        margin-top: 0.5rem;
-    }
-    
-    .cosmic-asterisk {
-        position: absolute;
-        width: 100px;
-        height: 100px;
-        background-image: url("{{ url_for('static', filename='images/cosmic-asterisk.svg') }}");
-        background-size: contain;
-        background-repeat: no-repeat;
-        opacity: 0.1;
-        z-index: -1;
-    }
-    
-    .cosmic-asterisk-1 {
-        top: -30px;
-        right: -30px;
-        transform: rotate(45deg);
-    }
-    
-    .cosmic-asterisk-2 {
-        bottom: -30px;
-        left: -30px;
-        transform: rotate(15deg);
-    }
-    
-    .alert {
-        padding: 0.8rem 1rem;
-        border-radius: 8px;
-        margin-bottom: 1.5rem;
-        font-size: 0.9rem;
-    }
-    
-    .alert-error {
-        background: rgba(255, 107, 107, 0.2);
-        border: 1px solid rgba(255, 107, 107, 0.4);
-        color: #ff6b6b;
-    }
-    
-    .alert-success {
-        background: rgba(107, 255, 153, 0.2);
-        border: 1px solid rgba(107, 255, 153, 0.4);
-        color: #6bff99;
-    }
-</style>
-{% endblock %}
+{% block title %}Iniciar Sesión - Genesis{% endblock %}
 
 {% block content %}
-<div class="auth-container">
-    <div class="auth-card">
-        <div class="cosmic-asterisk cosmic-asterisk-1"></div>
-        <div class="cosmic-asterisk cosmic-asterisk-2"></div>
-        
-        <div class="auth-header">
-            <h1 class="auth-title">INICIAR SESIÓN</h1>
-            <p class="auth-subtitle">Accede a tu portal cósmico personal</p>
-        </div>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">
-                        {{ message }}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="login-container">
+                <div class="text-center mb-4">
+                    <img src="{{ url_for('static', filename='images/genesis-logo-official.png') }}" alt="Genesis" class="login-logo mb-3">
+                    <h2 class="login-title">Acceso al Sistema Genesis</h2>
+                    <p class="login-subtitle">Ingresa tus credenciales para acceder</p>
+                </div>
+                
+                {% if error %}
+                <div class="alert alert-danger">
+                    {{ error }}
+                </div>
+                {% endif %}
+                
+                <form method="POST" action="{{ url_for('login') }}" data-validate="true">
+                    <div class="form-group">
+                        <label for="username">Nombre de Usuario</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
                     </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        <form method="POST" action="{{ url_for('login') }}">
-            <div class="form-group">
-                <label for="username" class="form-label">Nombre de Usuario</label>
-                <input type="text" id="username" name="username" class="form-input" required>
-                <span class="form-input-icon">👤</span>
+                    
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <input type="password" class="form-control" id="password" name="password" required data-min-length="6">
+                    </div>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="remember" name="remember">
+                            <label class="form-check-label" for="remember">Recordarme</label>
+                        </div>
+                        <a href="#" class="forgot-password">¿Olvidaste tu contraseña?</a>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-block">Iniciar Sesión</button>
+                </form>
+                
+                <div class="text-center mt-4">
+                    <p>¿No tienes una cuenta? <a href="{{ url_for('register') }}">Regístrate aquí</a></p>
+                </div>
             </div>
-            
-            <div class="form-group">
-                <label for="password" class="form-label">Contraseña</label>
-                <input type="password" id="password" name="password" class="form-input" required>
-                <span class="form-input-icon">🔒</span>
-            </div>
-            
-            <button type="submit" class="auth-button">Ingresar</button>
-        </form>
-        
-        <div class="auth-links">
-            <a href="{{ url_for('register') }}" class="auth-link">¿No tienes cuenta? Regístrate</a>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Animación de entrada
-        gsap.from('.auth-card', {
-            opacity: 0,
-            y: 30,
-            duration: 0.8,
-            ease: 'power2.out'
-        });
-        
-        gsap.from('.auth-title, .auth-subtitle', {
-            opacity: 0,
-            y: -20,
-            duration: 0.7,
-            stagger: 0.1,
-            delay: 0.3
-        });
-        
-        gsap.from('.form-group', {
-            opacity: 0,
-            x: -20,
-            duration: 0.5,
-            stagger: 0.1,
-            delay: 0.5
-        });
-        
-        gsap.from('.auth-button, .auth-links', {
-            opacity: 0,
-            y: 20,
-            duration: 0.6,
-            stagger: 0.1,
-            delay: 0.8
-        });
-        
-        // Efecto de hover en los campos
-        const inputs = document.querySelectorAll('.form-input');
-        
-        inputs.forEach(input => {
-            input.addEventListener('focus', function() {
-                gsap.to(this.nextElementSibling, {
-                    scale: 1.2,
-                    color: '#d6abff',
-                    duration: 0.3
-                });
-            });
-            
-            input.addEventListener('blur', function() {
-                gsap.to(this.nextElementSibling, {
-                    scale: 1,
-                    color: 'rgba(166, 104, 255, 0.6)',
-                    duration: 0.3
-                });
-            });
-        });
-    });
-</script>
+<style>
+    .login-container {
+        background-color: rgba(27, 20, 53, 0.8);
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(156, 39, 176, 0.3);
+    }
+    
+    .login-logo {
+        height: 80px;
+        margin-bottom: 1rem;
+    }
+    
+    .login-title {
+        font-family: var(--font-display);
+        font-weight: 700;
+        color: var(--text-light);
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 0.5rem;
+    }
+    
+    .login-subtitle {
+        color: var(--text-medium);
+        margin-bottom: 2rem;
+    }
+    
+    .form-group label {
+        color: var(--text-medium);
+        margin-bottom: 0.5rem;
+    }
+    
+    .forgot-password {
+        font-size: 0.9rem;
+        color: var(--accent-secondary);
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .forgot-password:hover {
+        color: var(--accent-primary);
+        text-decoration: underline;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        border: none;
+        padding: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(156, 39, 176, 0.4);
+    }
+    
+    .form-check-label {
+        color: var(--text-medium);
+        font-size: 0.9rem;
+    }
+</style>
 {% endblock %}
