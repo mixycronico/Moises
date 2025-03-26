@@ -1,5 +1,6 @@
 import os
 import logging
+import sys
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -11,6 +12,9 @@ from datetime import datetime, timedelta
 logging.basicConfig(level=logging.DEBUG,
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Añadir el directorio actual al path para importaciones
+sys.path.append('.')
 
 # Clase base para modelos SQLAlchemy
 class Base(DeclarativeBase):
@@ -35,8 +39,15 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # Inicializar la base de datos
 db.init_app(app)
 
-# Importar los modelos
-from models import User, Investor, Transaction, Loan, Bonus, Commission
+# Importar los modelos - aseguramos que la importación funcione
+try:
+    from models import User, Investor, Transaction, Loan, Bonus, Commission
+    logger.info("Importación de modelos exitosa")
+except ImportError as e:
+    logger.error(f"Error al importar modelos: {str(e)}")
+    sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+    from models import User, Investor, Transaction, Loan, Bonus, Commission
+    logger.info("Importación de modelos exitosa después de ajuste de path")
 
 # Verificar si el usuario está autenticado
 def is_authenticated():
@@ -71,18 +82,36 @@ def index():
 def login():
     error = None
     if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
+        username = request.form.get('username', '')
+        password = request.form.get('password', '')
+        
+        logger.info(f"Intento de inicio de sesión para usuario: {username}")
         
         # Buscar usuario sin importar mayúsculas/minúsculas
-        user = User.query.filter(User.username.ilike(username)).first()
-        
-        if user and check_password_hash(user.password_hash, password):
-            session['user_id'] = user.id
-            session['username'] = user.username
-            return redirect(url_for('dashboard'))
-        else:
+        try:
+            user = User.query.filter(User.username.ilike(username)).first()
+            
+            if user:
+                # Verificar contraseña directamente contra el hash almacenado
+                password_matches = check_password_hash(user.password_hash, password)
+                logger.info(f"Verificación de contraseña para {username}: {'exitosa' if password_matches else 'fallida'}")
+                
+                if password_matches:
+                    session['user_id'] = user.id
+                    session['username'] = user.username
+                    logger.info(f"Inicio de sesión exitoso para: {username}")
+                    
+                    # Actualizar hora de último login
+                    user.last_login = datetime.utcnow()
+                    db.session.commit()
+                    
+                    return redirect(url_for('dashboard'))
+            
             error = 'Credenciales inválidas. Por favor, intente de nuevo.'
+            logger.warning(f"Inicio de sesión fallido para: {username}")
+        except Exception as e:
+            error = 'Error al procesar el inicio de sesión. Por favor, intente de nuevo.'
+            logger.error(f"Error en login: {str(e)}")
     
     return render_template('login.html', error=error)
 
