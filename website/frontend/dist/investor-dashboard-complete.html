@@ -757,13 +757,21 @@
     }
     
     .gauge-glow-point.positive {
-      background: #2ecc71;
+      background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(46,204,113,0.8) 70%);
       box-shadow: 0 0 15px 5px rgba(46, 204, 113, 0.7);
+      animation: rainbowGlow 4s infinite linear;
     }
     
     .gauge-glow-point.negative {
-      background: #e74c3c;
+      background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(231,76,60,0.8) 70%);
       box-shadow: 0 0 15px 5px rgba(231, 76, 60, 0.7);
+      animation: rainbowGlow 4s infinite linear;
+    }
+    
+    @keyframes rainbowGlow {
+      0% { filter: hue-rotate(0deg); }
+      50% { filter: hue-rotate(180deg); }
+      100% { filter: hue-rotate(360deg); }
     }
     
     @keyframes glowPointMove {
@@ -813,6 +821,7 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-shadow: 0 0 15px rgba(46, 204, 113, 0.8);
+      animation: rainbowText 4s infinite linear;
     }
     
     .chart-percentage.negative-change {
@@ -820,6 +829,13 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-shadow: 0 0 15px rgba(231, 76, 60, 0.8);
+      animation: rainbowText 4s infinite linear;
+    }
+    
+    @keyframes rainbowText {
+      0% { filter: hue-rotate(0deg); }
+      50% { filter: hue-rotate(180deg); }
+      100% { filter: hue-rotate(360deg); }
     }
     
     @keyframes glowingText {
@@ -1559,20 +1575,61 @@
         <stop offset="100%" stop-color="#c0392b" />
       </linearGradient>
       
-      <!-- Gradiente para medidor positivo con brillo -->
+      <!-- Gradiente arcoíris para medidor positivo -->
       <linearGradient id="positiveGlowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#2ecc71" />
-        <stop offset="40%" stop-color="#57e096" />
-        <stop offset="60%" stop-color="#2ecc71" />
-        <stop offset="100%" stop-color="#1db954" />
+        <stop offset="0%" stop-color="#2ecc71">
+          <animate attributeName="stop-color" 
+            values="#2ecc71; #3498db; #9b59b6; #f1c40f; #e67e22; #2ecc71" 
+            dur="4s" repeatCount="indefinite"/>
+        </stop>
+        <stop offset="50%" stop-color="#57e096">
+          <animate attributeName="stop-color" 
+            values="#57e096; #5dade2; #c39bd3; #f4d03f; #eb984e; #57e096" 
+            dur="4s" repeatCount="indefinite"/>
+        </stop>
+        <stop offset="100%" stop-color="#1db954">
+          <animate attributeName="stop-color" 
+            values="#1db954; #2471a3; #7d3c98; #d4ac0d; #ca6f1e; #1db954" 
+            dur="4s" repeatCount="indefinite"/>
+        </stop>
       </linearGradient>
       
-      <!-- Gradiente para medidor negativo con brillo -->
+      <!-- Gradiente arcoíris para medidor negativo -->
       <linearGradient id="negativeGlowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stop-color="#e74c3c" />
-        <stop offset="40%" stop-color="#f65d4e" />
-        <stop offset="60%" stop-color="#e74c3c" />
-        <stop offset="100%" stop-color="#c0392b" />
+        <stop offset="0%" stop-color="#e74c3c">
+          <animate attributeName="stop-color" 
+            values="#e74c3c; #3498db; #9b59b6; #f1c40f; #e67e22; #e74c3c" 
+            dur="4s" repeatCount="indefinite"/>
+        </stop>
+        <stop offset="50%" stop-color="#f65d4e">
+          <animate attributeName="stop-color" 
+            values="#f65d4e; #5dade2; #c39bd3; #f4d03f; #eb984e; #f65d4e" 
+            dur="4s" repeatCount="indefinite"/>
+        </stop>
+        <stop offset="100%" stop-color="#c0392b">
+          <animate attributeName="stop-color" 
+            values="#c0392b; #2471a3; #7d3c98; #d4ac0d; #ca6f1e; #c0392b" 
+            dur="4s" repeatCount="indefinite"/>
+        </stop>
+      </linearGradient>
+      
+      <!-- Gradiente holográfico animado para efectos de brillo -->
+      <linearGradient id="holoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#7b61ff">
+          <animate attributeName="stop-color" 
+            values="#7b61ff; #42e8c3; #e8c442; #e842a0; #7b61ff" 
+            dur="3s" repeatCount="indefinite"/>
+        </stop>
+        <stop offset="50%" stop-color="#42e8c3">
+          <animate attributeName="stop-color" 
+            values="#42e8c3; #e8c442; #e842a0; #7b61ff; #42e8c3" 
+            dur="3s" repeatCount="indefinite"/>
+        </stop>
+        <stop offset="100%" stop-color="#e842a0">
+          <animate attributeName="stop-color" 
+            values="#e842a0; #7b61ff; #42e8c3; #e8c442; #e842a0" 
+            dur="3s" repeatCount="indefinite"/>
+        </stop>
       </linearGradient>
       
       <!-- Filtro para partículas brillantes -->
