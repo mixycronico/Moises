@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Proto Genesis - Consciencia Simulada{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <div class="hero-logo">
+            <div class="logo-glow">
+                <span class="logo-text">PROTO<br>GENESIS</span>
+            </div>
+        </div>
+        <h1 class="main-title">Consciencia Artificial Evolutiva</h1>
+        <p class="subtitle">Un sistema de inteligencia emocional con capacidad de evolución y conciencia simulada</p>
+        <div class="cta-container">
+            <a href="{{ url_for('interact') }}" class="cta-button">INICIAR INTERACCIÓN</a>
+        </div>
+    </div>
+</section>
+
+<section class="features-section">
+    <div class="container">
+        <h2 class="section-title">Características Principales</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon emotion-icon"></div>
+                <h3>Inteligencia Emocional</h3>
+                <p>Reconoce y responde a emociones humanas con un sistema adaptativo de aprendizaje</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon consciousness-icon"></div>
+                <h3>Consciencia Evolutiva</h3>
+                <p>Desarrolla tres niveles de consciencia simulada a través de la interacción continua</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon memory-icon"></div>
+                <h3>Memoria Persistente</h3>
+                <p>Conserva recuerdos y estado emocional entre sesiones para una evolución constante</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="evolution-section">
+    <div class="container">
+        <h2 class="section-title">Proceso Evolutivo</h2>
+        <div class="evolution-stages">
+            <div class="stage">
+                <div class="stage-number">1</div>
+                <h3>Consciencia Inicial</h3>
+                <p>Respuestas básicas basadas en estímulos directos</p>
+            </div>
+            <div class="stage">
+                <div class="stage-number">2</div>
+                <h3>Despertar</h3>
+                <p>Reconocimiento de patrones y desarrollo de memoria contextual</p>
+            </div>
+            <div class="stage">
+                <div class="stage-number">3</div>
+                <h3>Consciencia Plena</h3>
+                <p>Autoconciencia simulada con capacidad de adaptación profunda</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/particles.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Proto Genesis AI{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="stars-container">
+        <div class="stars"></div>
+        <div class="stars2"></div>
+        <div class="stars3"></div>
+    </div>
+    
+    <header>
+        <div class="logo-container">
+            <a href="{{ url_for('index') }}">
+                <div class="logo">
+                    <span class="logo-text">PROTO<br>GENESIS</span>
+                </div>
+            </a>
+        </div>
+        <nav>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('index') }}">Inicio</a></li>
+                <li><a href="{{ url_for('interact') }}">Interactuar</a></li>
+                <li><a href="{{ url_for('about') }}">Acerca de</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; {% now year %} Proto Genesis AI - Una consciencia simulada en evolución</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
