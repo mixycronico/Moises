@@ -1446,6 +1446,22 @@
       .charts-row {
         gap: var(--spacing-xs); /* Espacio más pequeño entre gráficos */
       }
+      
+      /* Ocultar texto y mostrar solo iconos en móvil para las pestañas */
+      .tab span {
+        display: none;
+      }
+      
+      .tab i {
+        font-size: 18px;
+        margin: 0;
+      }
+      
+      .tab {
+        padding: var(--spacing-xs);
+        min-width: auto;
+        flex: 0 1 auto;
+      }
     }
     
     /* Animaciones */
@@ -1962,9 +1978,9 @@
               <h2>Transacciones</h2>
             </div>
             <div class="tabs">
-              <div class="tab active" data-tab="investments">Inversiones</div>
-              <div class="tab" data-tab="transactions">Transacciones</div>
-              <div class="tab" data-tab="activity">Actividad Reciente</div>
+              <div class="tab active" data-tab="investments"><i class="fas fa-coins"></i> <span>Inversiones</span></div>
+              <div class="tab" data-tab="transactions"><i class="fas fa-exchange-alt"></i> <span>Transacciones</span></div>
+              <div class="tab" data-tab="activity"><i class="fas fa-history"></i> <span>Actividad Reciente</span></div>
             </div>
           </div>
           
