@@ -47,8 +47,11 @@
                         {% if session.get('role') == 'super_admin' %}
                             <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
                             <a href="{{ url_for('system_control') }}" class="nav-item">Control</a>
+                            <a href="{{ url_for('aetherion_page') }}" class="nav-item">Aetherion</a>
+                            <a href="{{ url_for('cosmic_family_page') }}" class="nav-item">Familia Cósmica</a>
                         {% elif session.get('role') == 'admin' %}
                             <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
+                            <a href="{{ url_for('aetherion_page') }}" class="nav-item">Aetherion</a>
                         {% elif session.get('role') == 'investor' %}
                             <a href="{{ url_for('investor_home') }}" class="nav-item">Mi Inversión</a>
                             <a href="{{ url_for('portfolio') }}" class="nav-item">Portafolio</a>
@@ -83,8 +86,11 @@
                     {% if session.get('role') == 'super_admin' %}
                         <a href="{{ url_for('admin_dashboard') }}" class="mobile-nav-item">Admin</a>
                         <a href="{{ url_for('system_control') }}" class="mobile-nav-item">Control</a>
+                        <a href="{{ url_for('aetherion_page') }}" class="mobile-nav-item">Aetherion</a>
+                        <a href="{{ url_for('cosmic_family_page') }}" class="mobile-nav-item">Familia Cósmica</a>
                     {% elif session.get('role') == 'admin' %}
                         <a href="{{ url_for('admin_dashboard') }}" class="mobile-nav-item">Admin</a>
+                        <a href="{{ url_for('aetherion_page') }}" class="mobile-nav-item">Aetherion</a>
                     {% elif session.get('role') == 'investor' %}
                         <a href="{{ url_for('investor_home') }}" class="mobile-nav-item">Mi Inversión</a>
                         <a href="{{ url_for('portfolio') }}" class="mobile-nav-item">Portafolio</a>
@@ -135,6 +141,10 @@
                         <li><a href="{{ url_for('index') }}">Inicio</a></li>
                         {% if not session.get('logged_in') %}
                             <li><a href="{{ url_for('login') }}">Ingresar</a></li>
+                        {% endif %}
+                        {% if session.get('logged_in') and session.get('role') == 'super_admin' %}
+                            <li><a href="{{ url_for('aetherion_page') }}">Aetherion</a></li>
+                            <li><a href="{{ url_for('cosmic_family_page') }}">Familia Cósmica</a></li>
                         {% endif %}
                     </ul>
                 </div>
