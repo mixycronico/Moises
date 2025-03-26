@@ -1,158 +1,21 @@
 /**
- * GENESIS - Sistema de Inversiones
- * Script principal
+ * Genesis - Sistema de Inversiones
+ * Script principal para funcionalidades del sitio
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar efectos de partículas
-    initParticles();
-    
-    // Inicializar la navegación móvil
-    initMobileNav();
-    
-    // Inicializar efectos de scroll
-    initScrollEffects();
-    
-    // Inicializar GSAP ScrollTrigger si está disponible
-    if (window.gsap && window.ScrollTrigger) {
-        gsap.registerPlugin(ScrollTrigger);
-    }
-});
-
-/**
- * Inicializar animación de partículas
- */
-function initParticles() {
-    const canvas = document.getElementById('particle-canvas');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    let particles = [];
-    const particleCount = 100;
-    
-    // Ajustar el tamaño del canvas al tamaño de la ventana
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    
-    // Crear partículas iniciales
-    function createParticles() {
-        particles = [];
-        for (let i = 0; i < particleCount; i++) {
-            particles.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                radius: Math.random() * 2 + 1,
-                color: getRandomColor(),
-                speed: Math.random() * 0.5 + 0.1,
-                angle: Math.random() * 360,
-                opacity: Math.random() * 0.5 + 0.1
-            });
-        }
-    }
-    
-    // Obtener un color aleatorio de la paleta
-    function getRandomColor() {
-        const colors = [
-            'rgba(156, 39, 176, 0.7)',  // Púrpura
-            'rgba(103, 58, 183, 0.7)',  // Violeta
-            'rgba(63, 81, 181, 0.7)',   // Índigo
-            'rgba(225, 190, 231, 0.3)'  // Lavanda claro
-        ];
-        return colors[Math.floor(Math.random() * colors.length)];
-    }
-    
-    // Dibujar partículas
-    function drawParticles() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        particles.forEach(particle => {
-            ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
-            ctx.fillStyle = particle.color;
-            ctx.fill();
-            
-            // Actualizar posición
-            particle.x += Math.cos(particle.angle * Math.PI / 180) * particle.speed;
-            particle.y += Math.sin(particle.angle * Math.PI / 180) * particle.speed;
-            
-            // Rebote en los bordes
-            if (particle.x > canvas.width) particle.x = 0;
-            if (particle.x < 0) particle.x = canvas.width;
-            if (particle.y > canvas.height) particle.y = 0;
-            if (particle.y < 0) particle.y = canvas.height;
-        });
-        
-        // Dibujar líneas entre partículas cercanas
-        drawConnections();
-        
-        requestAnimationFrame(drawParticles);
-    }
-    
-    // Dibujar conexiones entre partículas cercanas
-    function drawConnections() {
-        for (let i = 0; i < particles.length; i++) {
-            for (let j = i + 1; j < particles.length; j++) {
-                const dx = particles[i].x - particles[j].x;
-                const dy = particles[i].y - particles[j].y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < 100) {
-                    ctx.beginPath();
-                    ctx.strokeStyle = `rgba(156, 39, 176, ${0.2 * (1 - distance / 100)})`;
-                    ctx.lineWidth = 0.5;
-                    ctx.moveTo(particles[i].x, particles[i].y);
-                    ctx.lineTo(particles[j].x, particles[j].y);
-                    ctx.stroke();
-                }
-            }
-        }
-    }
-    
-    // Inicializar
-    resizeCanvas();
-    createParticles();
-    drawParticles();
-    
-    // Ajustar canvas cuando cambia el tamaño de la ventana
-    window.addEventListener('resize', function() {
-        resizeCanvas();
-        createParticles();
-    });
-}
-
-/**
- * Inicializar navegación móvil
- */
-function initMobileNav() {
+    // Menú móvil
     const menuToggle = document.querySelector('.menu-toggle');
     const navList = document.querySelector('.nav-list');
     
     if (menuToggle && navList) {
         menuToggle.addEventListener('click', function() {
             navList.classList.toggle('active');
-            const isOpen = navList.classList.contains('active');
-            
-            // Animar las barras del menú
-            const bars = menuToggle.querySelectorAll('.bar');
-            if (isOpen) {
-                bars[0].style.transform = 'rotate(-45deg) translate(-5px, 6px)';
-                bars[1].style.opacity = '0';
-                bars[2].style.transform = 'rotate(45deg) translate(-5px, -6px)';
-            } else {
-                bars[0].style.transform = 'none';
-                bars[1].style.opacity = '1';
-                bars[2].style.transform = 'none';
-            }
+            menuToggle.classList.toggle('active');
         });
     }
-}
-
-/**
- * Inicializar efectos de scroll
- */
-function initScrollEffects() {
+    
+    // Efecto header al scroll
     const header = document.querySelector('.site-header');
     
     if (header) {
@@ -165,22 +28,148 @@ function initScrollEffects() {
         });
     }
     
-    // Detectar elementos que aparecen en el viewport
-    const fadeElements = document.querySelectorAll('.fade-in');
+    // Manejador de alertas para cerrarlas
+    const alerts = document.querySelectorAll('.alert');
     
-    if (fadeElements.length > 0) {
-        const fadeInObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                }
-            });
-        }, {
-            threshold: 0.1
+    alerts.forEach(alert => {
+        const closeBtn = document.createElement('span');
+        closeBtn.innerHTML = '&times;';
+        closeBtn.className = 'alert-close';
+        closeBtn.style.float = 'right';
+        closeBtn.style.cursor = 'pointer';
+        closeBtn.style.fontWeight = 'bold';
+        
+        closeBtn.addEventListener('click', function() {
+            alert.style.display = 'none';
         });
         
+        alert.appendChild(closeBtn);
+        
+        // Auto-ocultar alertas después de 5 segundos
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            alert.style.transition = 'opacity 0.5s ease';
+            
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 500);
+        }, 5000);
+    });
+    
+    // Ajustar tamaño del texto en logos para dispositivos pequeños
+    function adjustLogoTextSize() {
+        const logoText = document.querySelectorAll('.logo-text, .footer-logo-text');
+        if (window.innerWidth < 576) {
+            logoText.forEach(text => {
+                text.style.fontSize = '1rem';
+            });
+        } else {
+            logoText.forEach(text => {
+                text.style.fontSize = '';
+            });
+        }
+    }
+    
+    window.addEventListener('resize', adjustLogoTextSize);
+    adjustLogoTextSize();
+    
+    // Efecto de aparición en scroll (solo para elementos con clase 'fade-in')
+    const fadeElements = document.querySelectorAll('.fade-in');
+    
+    function checkFade() {
+        const triggerBottom = window.innerHeight * 0.8;
+        
         fadeElements.forEach(element => {
-            fadeInObserver.observe(element);
+            const elementTop = element.getBoundingClientRect().top;
+            
+            if (elementTop < triggerBottom) {
+                element.classList.add('visible');
+            }
         });
     }
-}
+    
+    window.addEventListener('scroll', checkFade);
+    checkFade(); // Verificar elementos visibles inicialmente
+    
+    // Validación de formularios genérica
+    const forms = document.querySelectorAll('form[data-validate="true"]');
+    
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            let isValid = true;
+            const requiredInputs = form.querySelectorAll('[required]');
+            
+            requiredInputs.forEach(input => {
+                // Eliminar mensajes de error previos
+                const existingError = input.parentNode.querySelector('.error-message');
+                if (existingError) {
+                    existingError.remove();
+                }
+                
+                // Validar campo vacío
+                if (!input.value.trim()) {
+                    isValid = false;
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'error-message';
+                    errorMsg.style.color = '#f44336';
+                    errorMsg.style.fontSize = '0.8rem';
+                    errorMsg.style.marginTop = '5px';
+                    errorMsg.textContent = 'Este campo es obligatorio';
+                    
+                    input.parentNode.appendChild(errorMsg);
+                    input.style.borderColor = '#f44336';
+                }
+                
+                // Validación de email
+                if (input.type === 'email' && input.value.trim()) {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(input.value)) {
+                        isValid = false;
+                        const errorMsg = document.createElement('div');
+                        errorMsg.className = 'error-message';
+                        errorMsg.style.color = '#f44336';
+                        errorMsg.style.fontSize = '0.8rem';
+                        errorMsg.style.marginTop = '5px';
+                        errorMsg.textContent = 'Email inválido';
+                        
+                        input.parentNode.appendChild(errorMsg);
+                        input.style.borderColor = '#f44336';
+                    }
+                }
+                
+                // Validación de contraseña
+                if (input.type === 'password' && input.dataset.minLength && input.value.trim()) {
+                    const minLength = parseInt(input.dataset.minLength);
+                    if (input.value.length < minLength) {
+                        isValid = false;
+                        const errorMsg = document.createElement('div');
+                        errorMsg.className = 'error-message';
+                        errorMsg.style.color = '#f44336';
+                        errorMsg.style.fontSize = '0.8rem';
+                        errorMsg.style.marginTop = '5px';
+                        errorMsg.textContent = `La contraseña debe tener al menos ${minLength} caracteres`;
+                        
+                        input.parentNode.appendChild(errorMsg);
+                        input.style.borderColor = '#f44336';
+                    }
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+        
+        // Resetear estilos de error al escribir
+        const inputs = form.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                const existingError = input.parentNode.querySelector('.error-message');
+                if (existingError) {
+                    existingError.remove();
+                }
+                input.style.borderColor = '';
+            });
+        });
+    });
+});
