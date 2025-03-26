@@ -32,14 +32,14 @@
     <div class="page-wrapper">
         <!-- Cabecera -->
         <header class="main-header">
+            <div class="logo-container">
+                <a href="{{ url_for('index') }}" class="logo-link">
+                    <div class="floating-logo">
+                        <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo">
+                    </div>
+                </a>
+            </div>
             <nav class="main-nav">
-                <div class="nav-logo">
-                    <a href="{{ url_for('index') }}" class="logo-link">
-                        <div class="floating-logo">
-                            <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo">
-                        </div>
-                    </a>
-                </div>
                 <div class="nav-links">
                     <a href="{{ url_for('index') }}" class="nav-item">Inicio</a>
                     
