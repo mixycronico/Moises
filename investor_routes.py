@@ -558,11 +558,25 @@ def get_current_investor():
     # Para propósitos de depuración
     logger.info(f"Usuario actual: {user}")
     
-    # MODO DEMO: Siempre mostrar un inversionista para visualizar la interfaz
-    # Primero intentar obtener mixycronico como usuario de demostración
-    investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == "mixycronico"), None)
+    # Si el usuario está autenticado, intentar encontrar su perfil de inversionista correspondiente
+    if user and user_id:
+        # Buscar inversionista por user_id
+        investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == user_id), None)
+        
+        # Si el usuario autenticado es mixycronico (super admin) y no tiene perfil de inversionista específico,
+        # darle acceso al perfil de inversionista de "mixycronico"
+        if user_id == "mixycronico" and not investor:
+            investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == "mixycronico"), None)
+    else:
+        # Usuario no autenticado, usar modo demo
+        investor = None
     
-    # Si no encuentra mixycronico, usar el primer inversionista disponible
+    # MODO DEMO: Si no hay un usuario autenticado o no se encontró un inversionista, 
+    # usar el perfil de mixycronico para demostración
+    if not investor:
+        investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == "mixycronico"), None)
+        
+    # Si todavía no hay inversionista, usar el primero disponible
     if not investor:
         investor = list(INVESTORS.values())[0] if INVESTORS else None
     
