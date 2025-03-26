@@ -1,0 +1,305 @@
+/* Estilos para los dashboards */
+
+/* Layout principal */
+.dashboard-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  position: relative;
+}
+
+.dashboard-section {
+  background-color: rgba(42, 46, 65, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-md);
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 2rem;
+  background-color: rgba(26, 31, 46, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 100;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gradient-cosmic);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text-light);
+  margin-right: 1rem;
+  box-shadow: 0 0 15px rgba(156, 39, 176, 0.5);
+}
+
+.navbar-brand h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.navbar-menu {
+  display: flex;
+  align-items: center;
+}
+
+.navbar-notifications {
+  position: relative;
+  margin-right: 1.5rem;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-dim);
+  font-size: 1.2rem;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: var(--accent-cyan);
+  color: var(--text-dark);
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  font-size: 0.7rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+.navbar-user {
+  display: flex;
+  align-items: center;
+  margin-right: 1.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
+.user-name {
+  margin-right: 0.8rem;
+  font-weight: 500;
+}
+
+.user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--gradient-cosmic);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-light);
+  font-size: 0.8rem;
+}
+
+.logout-button {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.logout-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  transform: none;
+}
+
+.logout-button span {
+  margin-left: 0.5rem;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px;
+  background-color: rgba(26, 31, 46, 0.8);
+  backdrop-filter: blur(10px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow-y: auto;
+}
+
+.sidebar-items {
+  padding: 1.5rem 0;
+}
+
+.sidebar-item {
+  padding: 0.8rem 1.5rem;
+  display: flex;
+  align-items: center;
+  color: var(--text-dim);
+  cursor: pointer;
+  position: relative;
+  transition: var(--transition-normal);
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-item.active {
+  color: var(--text-light);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-icon {
+  margin-right: 0.8rem;
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+}
+
+.active-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(to bottom, var(--accent-cyan), var(--accent-blue));
+  border-radius: 0 4px 4px 0;
+}
+
+.sidebar-footer {
+  padding: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.system-status {
+  display: flex;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 0.8rem;
+}
+
+.status-indicator.online {
+  background-color: var(--success);
+  box-shadow: 0 0 10px var(--success);
+}
+
+/* Fondos específicos para cada dashboard */
+.investor-dashboard .dashboard-background {
+  background-image: 
+    radial-gradient(circle at 20% 30%, rgba(0, 229, 255, 0.1) 0%, transparent 20%),
+    radial-gradient(circle at 80% 60%, rgba(63, 81, 181, 0.1) 0%, transparent 20%);
+}
+
+.admin-dashboard .dashboard-background {
+  background-image: 
+    radial-gradient(circle at 70% 20%, rgba(0, 229, 255, 0.15) 0%, transparent 25%),
+    radial-gradient(circle at 30% 60%, rgba(156, 39, 176, 0.1) 0%, transparent 25%);
+}
+
+.super-admin-dashboard .dashboard-background {
+  background-image: 
+    radial-gradient(circle at 30% 30%, rgba(156, 39, 176, 0.15) 0%, transparent 25%),
+    radial-gradient(circle at 70% 70%, rgba(63, 81, 181, 0.15) 0%, transparent 25%),
+    radial-gradient(circle at 50% 50%, rgba(0, 229, 255, 0.05) 0%, transparent 40%);
+}
+
+/* Componentes de dashboard */
+.stats-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+  .dashboard-content {
+    flex-direction: column;
+  }
+  
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .sidebar-items {
+    display: flex;
+    overflow-x: auto;
+    padding: 1rem;
+  }
+  
+  .sidebar-item {
+    padding: 0.6rem 1rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0;
+    white-space: nowrap;
+  }
+  
+  .active-indicator {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    height: 3px;
+  }
+  
+  .sidebar-footer {
+    display: none;
+  }
+  
+  .dashboard-main {
+    padding: 1rem;
+  }
+  
+  .navbar {
+    padding: 0.5rem 1rem;
+  }
+  
+  .navbar-brand h1 {
+    font-size: 1.2rem;
+  }
+  
+  .user-name {
+    display: none;
+  }
+}
