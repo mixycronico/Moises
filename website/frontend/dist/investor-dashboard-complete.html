@@ -578,6 +578,87 @@
       font-weight: 600;
     }
     
+    .card-subtitle {
+      font-size: 0.75rem;
+      margin-top: 3px;
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: 400;
+    }
+    
+    .transparency-info {
+      display: flex;
+      align-items: center;
+      margin-top: 8px;
+      position: relative;
+      font-size: 0.75rem;
+    }
+    
+    .transparency-info i {
+      color: rgba(123, 97, 255, 0.8);
+      margin-right: 5px;
+      cursor: help;
+    }
+    
+    .transparency-info:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    .tooltip-text {
+      visibility: hidden;
+      position: absolute;
+      bottom: 125%;
+      left: 0;
+      width: 220px;
+      background-color: rgba(42, 31, 83, 0.95);
+      color: #fff;
+      text-align: left;
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.3s;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(123, 97, 255, 0.3);
+      font-size: 0.7rem;
+      line-height: 1.4;
+    }
+    
+    .tooltip-text::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 15px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: rgba(42, 31, 83, 0.95) transparent transparent transparent;
+    }
+    
+    .detailed-info {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      width: 100%;
+      background-color: rgba(47, 33, 95, 0.2);
+      border-radius: 8px;
+      padding: 5px 8px;
+      border: 1px solid rgba(123, 97, 255, 0.2);
+    }
+    
+    .detail-line {
+      display: flex;
+      justify-content: space-between;
+      margin: 3px 0;
+    }
+    
+    .detail-label {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
+    .detail-value {
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
     .card-footer {
       margin-top: var(--spacing-md);
       font-size: 12px;
@@ -1793,13 +1874,14 @@
         <div class="date-display" id="currentDate">Cargando fecha...</div>
       </div>
       
-      <!-- Tarjetas de resumen -->
+      <!-- Tarjetas de resumen con información transparente y detallada -->
       <div class="summary-cards">
         <div class="card">
           <div class="card-header">
             <div>
               <div class="card-title">BALANCE TOTAL</div>
               <div class="card-value" id="totalBalance">$0.00</div>
+              <div class="card-subtitle">Incluye comisiones y gastos operativos</div>
             </div>
             <div class="card-icon-container">
               <i class="fas fa-wallet"></i>
@@ -1811,6 +1893,10 @@
               <span id="balanceChange">+0.0%</span>
             </div>
             <span>este mes</span>
+            <div class="transparency-info">
+              <i class="fas fa-info-circle"></i>
+              <span class="tooltip-text">Balance actualizado cada 24h. Incluye todos los fondos, ganancias y pérdidas después de comisiones.</span>
+            </div>
           </div>
         </div>
         
@@ -1819,6 +1905,7 @@
             <div>
               <div class="card-title">CAPITAL INVERTIDO</div>
               <div class="card-value" id="investedCapital">$0.00</div>
+              <div class="card-subtitle">Aportaciones netas realizadas</div>
             </div>
             <div class="card-icon-container">
               <i class="fas fa-chart-line"></i>
@@ -1826,6 +1913,10 @@
           </div>
           <div class="card-footer">
             <span id="joinDate">Desde 01/01/2023</span>
+            <div class="transparency-info">
+              <i class="fas fa-info-circle"></i>
+              <span class="tooltip-text">Representa el dinero total que has aportado menos retiros. No incluye ganancias ni pérdidas por operaciones.</span>
+            </div>
           </div>
         </div>
         
@@ -1834,6 +1925,7 @@
             <div>
               <div class="card-title">DISPONIBLE</div>
               <div class="card-value" id="availableBalance">$0.00</div>
+              <div class="card-subtitle">Liquidez inmediata sin inversión</div>
             </div>
             <div class="card-icon-container">
               <i class="fas fa-piggy-bank"></i>
@@ -1841,14 +1933,29 @@
           </div>
           <div class="card-footer">
             <span>Fondos para invertir</span>
+            <div class="detailed-info">
+              <div class="detail-line">
+                <span class="detail-label">Retirable:</span>
+                <span class="detail-value" id="withdrawableBalance">$0.00</span>
+              </div>
+              <div class="detail-line">
+                <span class="detail-label">Pendiente:</span>
+                <span class="detail-value" id="pendingBalance">$0.00</span>
+              </div>
+            </div>
+            <div class="transparency-info">
+              <i class="fas fa-info-circle"></i>
+              <span class="tooltip-text">Fondos no invertidos. Los fondos pendientes pueden tardar hasta 48h en procesarse según tu método de pago.</span>
+            </div>
           </div>
         </div>
         
         <div class="card">
           <div class="card-header">
             <div>
-              <div class="card-title">GANANCIA TOTAL</div>
+              <div class="card-title">GANANCIA/PÉRDIDA TOTAL</div>
               <div class="card-value" id="totalProfit">$0.00</div>
+              <div class="card-subtitle">Rendimiento después de comisiones</div>
             </div>
             <div class="card-icon-container">
               <i class="fas fa-hand-holding-usd"></i>
@@ -1860,6 +1967,20 @@
               <span id="profitChange">+0.0%</span>
             </div>
             <span>Rendimiento general</span>
+            <div class="detailed-info">
+              <div class="detail-line">
+                <span class="detail-label">Comisiones pagadas:</span>
+                <span class="detail-value" id="totalFees">$0.00</span>
+              </div>
+              <div class="detail-line">
+                <span class="detail-label">Impuestos estimados:</span>
+                <span class="detail-value" id="estimatedTaxes">$0.00</span>
+              </div>
+            </div>
+            <div class="transparency-info">
+              <i class="fas fa-info-circle"></i>
+              <span class="tooltip-text">Ganancia o pérdida neta basada en el valor actual del mercado. Las cifras pueden fluctuar según las condiciones del mercado.</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1995,6 +2116,8 @@
                     <th>Valor (USD)</th>
                     <th>Asignación</th>
                     <th>Cambio 24h</th>
+                    <th>Comisión est.</th>
+                    <th>Riesgo</th>
                   </tr>
                 </thead>
                 <tbody id="investmentsTableBody">
