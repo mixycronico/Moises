@@ -1,196 +1,453 @@
 {% extends 'layout.html' %}
 
-{% block title %}Panel de Inversionista - Genesis{% endblock %}
+{% block title %}Dashboard de Inversionista - Genesis{% endblock %}
+
+{% block styles %}
+<style>
+    .dashboard-container {
+        background-color: rgba(27, 20, 53, 0.8);
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(156, 39, 176, 0.3);
+        margin-top: 2rem;
+    }
+    
+    .dashboard-title {
+        font-family: var(--font-display);
+        font-weight: 700;
+        color: var(--text-light);
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .dashboard-subtitle {
+        color: var(--text-medium);
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .investor-profile {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        display: flex;
+        align-items: center;
+    }
+    
+    .investor-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background-color: rgba(156, 39, 176, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1.5rem;
+        color: var(--text-light);
+        font-size: 2rem;
+    }
+    
+    .investor-info {
+        flex-grow: 1;
+    }
+    
+    .investor-name {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+        color: var(--text-light);
+    }
+    
+    .investor-category {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .investor-category.platinum {
+        background-color: rgba(229, 228, 226, 0.2);
+        color: #e5e4e2;
+        border: 1px solid #e5e4e2;
+    }
+    
+    .investor-category.gold {
+        background-color: rgba(255, 215, 0, 0.2);
+        color: #ffd700;
+        border: 1px solid #ffd700;
+    }
+    
+    .investor-category.silver {
+        background-color: rgba(192, 192, 192, 0.2);
+        color: #c0c0c0;
+        border: 1px solid #c0c0c0;
+    }
+    
+    .investor-category.bronze {
+        background-color: rgba(205, 127, 50, 0.2);
+        color: #cd7f32;
+        border: 1px solid #cd7f32;
+    }
+    
+    .investor-since {
+        color: var(--text-medium);
+        font-size: 0.9rem;
+    }
+    
+    .stat-card {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(156, 39, 176, 0.3);
+        border: 1px solid rgba(156, 39, 176, 0.4);
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent-secondary);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--text-light);
+    }
+    
+    .stat-label {
+        color: var(--text-medium);
+    }
+    
+    .chart-container {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        margin-bottom: 1.5rem;
+    }
+    
+    .chart-title {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-light);
+        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+        padding-bottom: 0.5rem;
+    }
+    
+    .quick-actions {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        margin-bottom: 1.5rem;
+    }
+    
+    .action-btn {
+        margin-bottom: 1rem;
+        width: 100%;
+        text-align: left;
+        padding: 1rem;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        background-color: rgba(156, 39, 176, 0.1);
+        color: var(--text-light);
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        display: flex;
+        align-items: center;
+    }
+    
+    .action-btn .action-icon {
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        width: 40px;
+        text-align: center;
+    }
+    
+    .action-btn:hover {
+        background-color: rgba(156, 39, 176, 0.2);
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    .recent-transactions {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+    }
+    
+    .transaction-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid rgba(156, 39, 176, 0.1);
+    }
+    
+    .transaction-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.2rem;
+    }
+    
+    .transaction-icon.deposit {
+        background-color: rgba(76, 175, 80, 0.2);
+        color: #4caf50;
+    }
+    
+    .transaction-icon.withdrawal {
+        background-color: rgba(244, 67, 54, 0.2);
+        color: #f44336;
+    }
+    
+    .transaction-icon.profit {
+        background-color: rgba(33, 150, 243, 0.2);
+        color: #2196f3;
+    }
+    
+    .transaction-info {
+        flex-grow: 1;
+    }
+    
+    .transaction-description {
+        margin-bottom: 0.25rem;
+        color: var(--text-light);
+    }
+    
+    .transaction-date {
+        font-size: 0.85rem;
+        color: var(--text-medium);
+    }
+    
+    .transaction-amount {
+        font-weight: 700;
+    }
+    
+    .transaction-amount.positive {
+        color: #4caf50;
+    }
+    
+    .transaction-amount.negative {
+        color: #f44336;
+    }
+    
+    /* Medidores de rendimiento */
+    .gauge-container {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        margin-bottom: 1.5rem;
+    }
+    
+    .gauge-title {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-light);
+        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+        padding-bottom: 0.5rem;
+        text-align: center;
+    }
+    
+    .gauge-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-around;
+        margin-bottom: 2rem;
+    }
+    
+    .gauge-wrapper {
+        width: 160px;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .gauge {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto 0.5rem;
+        position: relative;
+    }
+    
+    .gauge-label {
+        color: var(--text-medium);
+        font-size: 0.9rem;
+        margin-top: 0.5rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
-    <div class="dashboard-header">
-        <h1>Panel de Inversionista</h1>
-        <p>Bienvenido/a, {{ user.first_name }} {{ user.last_name }}</p>
-    </div>
-    
-    <div class="dashboard-summary">
-        <div class="row">
-            <!-- Balance -->
-            <div class="col-md-4">
-                <div class="summary-card balance-card">
-                    <div class="card-icon">
-                        <i class="fas fa-wallet"></i>
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-container">
+                <h2 class="dashboard-title">Dashboard de Inversionista</h2>
+                <p class="dashboard-subtitle">Bienvenido a tu panel de control personalizado</p>
+                
+                <!-- Perfil del inversionista -->
+                <div class="investor-profile">
+                    <div class="investor-avatar">
+                        {{ user.name[0] }}
                     </div>
-                    <div class="card-content">
-                        <h3>Balance Total</h3>
-                        <p class="value">$ <span class="counter">{{ '%0.2f'| format(user.investors[0].balance) }}</span></p>
-                        <p class="subtitle">Actualizado: Hoy</p>
+                    <div class="investor-info">
+                        <h3 class="investor-name">{{ user.name }}</h3>
+                        <span class="investor-category platinum">Platinum</span>
+                        <div class="investor-since">Inversionista desde {{ user.created_at.strftime('%d/%m/%Y') }}</div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Capital -->
-            <div class="col-md-4">
-                <div class="summary-card capital-card">
-                    <div class="card-icon">
-                        <i class="fas fa-coins"></i>
-                    </div>
-                    <div class="card-content">
-                        <h3>Capital Invertido</h3>
-                        <p class="value">$ <span class="counter">{{ '%0.2f'| format(user.investors[0].capital) }}</span></p>
-                        <p class="subtitle">Base de inversión</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Ganancias -->
-            <div class="col-md-4">
-                <div class="summary-card earnings-card">
-                    <div class="card-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="card-content">
-                        <h3>Ganancias</h3>
-                        <p class="value">$ <span class="counter">{{ '%0.2f'| format(user.investors[0].earnings) }}</span></p>
-                        <p class="subtitle">Rendimiento acumulado</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="dashboard-sections">
-        <div class="row">
-            <!-- Información del Inversionista -->
-            <div class="col-lg-6">
-                <div class="dashboard-card investor-info">
-                    <div class="card-header">
-                        <h3><i class="fas fa-user-circle"></i> Información del Inversionista</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="info-item">
-                            <div class="info-label">Categoría:</div>
-                            <div class="info-value">
-                                <span class="category-badge {{ user.investors[0].category }}">
-                                    {{ user.investors[0].category|capitalize }}
-                                </span>
-                            </div>
+                
+                <!-- Estadísticas principales -->
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-value">${{ "1.0M" }}</div>
+                            <div class="stat-label">Balance Total</div>
                         </div>
-                        <div class="info-item">
-                            <div class="info-label">Nivel de riesgo:</div>
-                            <div class="info-value">{{ user.investors[0].risk_level|capitalize }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-value">{{ "+18%" }}</div>
+                            <div class="stat-label">Rendimiento</div>
                         </div>
-                        <div class="info-item">
-                            <div class="info-label">Fecha de ingreso:</div>
-                            <div class="info-value">{{ user.investors[0].created_at.strftime('%d/%m/%Y') }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Tiempo en el sistema:</div>
-                            <div class="info-value">
-                                {% set days = ((now - user.investors[0].created_at).total_seconds() / 86400)|int %}
-                                {% if days < 30 %}
-                                    {{ days }} días
-                                {% elif days < 365 %}
-                                    {{ (days / 30)|int }} meses, {{ days % 30 }} días
-                                {% else %}
-                                    {{ (days / 365)|int }} años, {{ ((days % 365) / 30)|int }} meses
-                                {% endif %}
-                            </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card">
+                            <div class="stat-icon">💹</div>
+                            <div class="stat-value">${{ "180K" }}</div>
+                            <div class="stat-label">Ganancias</div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Rendimiento Reciente -->
-            <div class="col-lg-6">
-                <div class="dashboard-card performance">
-                    <div class="card-header">
-                        <h3><i class="fas fa-chart-bar"></i> Rendimiento Reciente</h3>
+                
+                <!-- Gráfico de rendimiento -->
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <h3 class="chart-title">Rendimiento de Inversión</h3>
+                            <canvas id="performanceChart"></canvas>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <canvas id="performanceChart" width="400" height="250"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mt-4">
-            <!-- Transacciones Recientes -->
-            <div class="col-lg-8">
-                <div class="dashboard-card transactions">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h3><i class="fas fa-exchange-alt"></i> Transacciones Recientes</h3>
-                        <a href="#" class="btn btn-sm cosmic-btn-outline">Ver todas</a>
-                    </div>
-                    <div class="card-body table-responsive">
-                        <table class="table cosmic-table">
-                            <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Tipo</th>
-                                    <th>Descripción</th>
-                                    <th>Monto</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% if user.investors[0].transactions %}
-                                    {% for transaction in user.investors[0].transactions[:5] %}
-                                    <tr>
-                                        <td>{{ transaction.timestamp.strftime('%d/%m/%Y') }}</td>
-                                        <td>
-                                            <span class="transaction-type {{ transaction.type }}">
-                                                {{ transaction.type|capitalize }}
-                                            </span>
-                                        </td>
-                                        <td>{{ transaction.description }}</td>
-                                        <td class="amount {{ 'positive' if transaction.type in ['deposit', 'profit'] else 'negative' }}">
-                                            {{ '+' if transaction.type in ['deposit', 'profit'] else '-' }} ${{ '%0.2f'| format(transaction.amount) }}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="4" class="text-center">No hay transacciones recientes</td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
+                    <div class="col-md-4">
+                        <div class="quick-actions">
+                            <h3 class="chart-title">Acciones Rápidas</h3>
+                            <a href="#" class="action-btn">
+                                <span class="action-icon">💸</span>
+                                <span>Solicitar Préstamo</span>
+                            </a>
+                            <a href="#" class="action-btn">
+                                <span class="action-icon">🏆</span>
+                                <span>Ver Bonos</span>
+                            </a>
+                            <a href="#" class="action-btn">
+                                <span class="action-icon">📊</span>
+                                <span>Ver Reportes</span>
+                            </a>
+                            <a href="{{ url_for('cosmic_chat') }}" class="action-btn">
+                                <span class="action-icon">🤖</span>
+                                <span>Consulta Cósmica</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Acciones Rápidas -->
-            <div class="col-lg-4">
-                <div class="dashboard-card quick-actions">
-                    <div class="card-header">
-                        <h3><i class="fas fa-bolt"></i> Acciones Rápidas</h3>
+                
+                <!-- Medidores de rendimiento -->
+                <div class="gauge-container">
+                    <h3 class="gauge-title">Indicadores de Rendimiento</h3>
+                    <div class="gauge-row">
+                        <div class="gauge-wrapper">
+                            <div class="gauge" id="roi-gauge"></div>
+                            <div class="gauge-label">ROI</div>
+                        </div>
+                        <div class="gauge-wrapper">
+                            <div class="gauge" id="risk-gauge"></div>
+                            <div class="gauge-label">Riesgo</div>
+                        </div>
+                        <div class="gauge-wrapper">
+                            <div class="gauge" id="volatility-gauge"></div>
+                            <div class="gauge-label">Volatilidad</div>
+                        </div>
+                        <div class="gauge-wrapper">
+                            <div class="gauge" id="growth-gauge"></div>
+                            <div class="gauge-label">Crecimiento</div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <a href="{{ url_for('cosmic_chat') }}" class="action-button">
-                            <div class="action-icon">
-                                <i class="fas fa-robot"></i>
+                </div>
+                
+                <!-- Transacciones recientes -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="recent-transactions">
+                            <h3 class="chart-title">Transacciones Recientes</h3>
+                            
+                            <div class="transaction-item">
+                                <div class="transaction-icon profit">💹</div>
+                                <div class="transaction-info">
+                                    <div class="transaction-description">Rendimiento mensual</div>
+                                    <div class="transaction-date">Hoy, 10:30 AM</div>
+                                </div>
+                                <div class="transaction-amount positive">+$12,500.00</div>
                             </div>
-                            <div class="action-content">
-                                <h4>Chat Cósmico</h4>
-                                <p>Consulta con Aetherion y Lunareth</p>
+                            
+                            <div class="transaction-item">
+                                <div class="transaction-icon deposit">⬆️</div>
+                                <div class="transaction-info">
+                                    <div class="transaction-description">Depósito mensual</div>
+                                    <div class="transaction-date">20/03/2025, 09:15 AM</div>
+                                </div>
+                                <div class="transaction-amount positive">+$50,000.00</div>
                             </div>
-                        </a>
-                        
-                        <a href="{{ url_for('loans') }}" class="action-button">
-                            <div class="action-icon">
-                                <i class="fas fa-hand-holding-usd"></i>
+                            
+                            <div class="transaction-item">
+                                <div class="transaction-icon profit">💹</div>
+                                <div class="transaction-info">
+                                    <div class="transaction-description">Bono trimestral</div>
+                                    <div class="transaction-date">15/03/2025, 11:20 AM</div>
+                                </div>
+                                <div class="transaction-amount positive">+$8,750.00</div>
                             </div>
-                            <div class="action-content">
-                                <h4>Préstamos</h4>
-                                <p>Solicita préstamos sobre tu capital</p>
+                            
+                            <div class="transaction-item">
+                                <div class="transaction-icon withdrawal">⬇️</div>
+                                <div class="transaction-info">
+                                    <div class="transaction-description">Retiro programado</div>
+                                    <div class="transaction-date">10/03/2025, 02:45 PM</div>
+                                </div>
+                                <div class="transaction-amount negative">-$15,000.00</div>
                             </div>
-                        </a>
-                        
-                        <a href="{{ url_for('bonuses') }}" class="action-button">
-                            <div class="action-icon">
-                                <i class="fas fa-gift"></i>
+                            
+                            <div class="transaction-item">
+                                <div class="transaction-icon profit">💹</div>
+                                <div class="transaction-info">
+                                    <div class="transaction-description">Rendimiento mensual</div>
+                                    <div class="transaction-date">01/03/2025, 10:30 AM</div>
+                                </div>
+                                <div class="transaction-amount positive">+$11,250.00</div>
                             </div>
-                            <div class="action-content">
-                                <h4>Bonos</h4>
-                                <p>Revisa tus bonos por rendimiento</p>
-                            </div>
-                        </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -199,380 +456,95 @@
 </div>
 {% endblock %}
 
-{% block extra_styles %}
-<style>
-    .dashboard-container {
-        padding: 2rem 1rem;
-    }
-    
-    .dashboard-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    
-    .dashboard-header h1 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(to right, #9c27b0, #673ab7);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
-    }
-    
-    .dashboard-header p {
-        color: #b39ddb;
-        font-size: 1.2rem;
-    }
-    
-    .dashboard-summary {
-        margin-bottom: 2rem;
-    }
-    
-    .summary-card {
-        display: flex;
-        background-color: rgba(25, 10, 41, 0.85);
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        transition: all 0.3s ease;
-    }
-    
-    .summary-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-    }
-    
-    .card-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        font-size: 1.8rem;
-        margin-right: 1.5rem;
-    }
-    
-    .balance-card .card-icon {
-        background: linear-gradient(135deg, #9c27b0, #673ab7);
-        color: white;
-    }
-    
-    .capital-card .card-icon {
-        background: linear-gradient(135deg, #4a148c, #311b92);
-        color: white;
-    }
-    
-    .earnings-card .card-icon {
-        background: linear-gradient(135deg, #00c853, #64dd17);
-        color: white;
-    }
-    
-    .card-content h3 {
-        font-size: 1.2rem;
-        color: #d1c4e9;
-        margin-bottom: 0.5rem;
-    }
-    
-    .card-content .value {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 0.2rem;
-        color: #e1bee7;
-    }
-    
-    .card-content .subtitle {
-        font-size: 0.9rem;
-        color: #9575cd;
-    }
-    
-    .dashboard-card {
-        background-color: rgba(25, 10, 41, 0.85);
-        border-radius: 15px;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        overflow: hidden;
-    }
-    
-    .dashboard-card .card-header {
-        padding: 1.2rem 1.5rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        background-color: rgba(40, 15, 70, 0.5);
-    }
-    
-    .dashboard-card .card-header h3 {
-        margin: 0;
-        font-size: 1.3rem;
-        color: #e1bee7;
-    }
-    
-    .dashboard-card .card-header h3 i {
-        margin-right: 0.5rem;
-        color: #9c27b0;
-    }
-    
-    .dashboard-card .card-body {
-        padding: 1.5rem;
-    }
-    
-    .info-item {
-        display: flex;
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .info-item:last-child {
-        margin-bottom: 0;
-        padding-bottom: 0;
-        border-bottom: none;
-    }
-    
-    .info-label {
-        font-weight: 500;
-        color: #b39ddb;
-        width: 40%;
-    }
-    
-    .info-value {
-        color: #e1bee7;
-        width: 60%;
-    }
-    
-    .category-badge {
-        display: inline-block;
-        padding: 0.35rem 0.75rem;
-        border-radius: 50px;
-        font-size: 0.85rem;
-        font-weight: 500;
-    }
-    
-    .category-badge.bronze {
-        background-color: #cd7f32;
-        color: white;
-    }
-    
-    .category-badge.silver {
-        background-color: #c0c0c0;
-        color: #333;
-    }
-    
-    .category-badge.gold {
-        background-color: #ffd700;
-        color: #333;
-    }
-    
-    .category-badge.platinum {
-        background: linear-gradient(135deg, #e5e4e2, #9c9c9c);
-        color: #333;
-    }
-    
-    .cosmic-table {
-        color: #d1c4e9;
-        margin: 0;
-    }
-    
-    .cosmic-table thead th {
-        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-        color: #e1bee7;
-        font-weight: 600;
-    }
-    
-    .cosmic-table td, .cosmic-table th {
-        padding: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-    }
-    
-    .transaction-type {
-        display: inline-block;
-        padding: 0.25rem 0.6rem;
-        border-radius: 50px;
-        font-size: 0.85rem;
-    }
-    
-    .transaction-type.deposit {
-        background-color: rgba(0, 200, 83, 0.2);
-        color: #00c853;
-    }
-    
-    .transaction-type.withdrawal {
-        background-color: rgba(244, 67, 54, 0.2);
-        color: #f44336;
-    }
-    
-    .transaction-type.profit {
-        background-color: rgba(0, 188, 212, 0.2);
-        color: #00bcd4;
-    }
-    
-    .transaction-type.transfer {
-        background-color: rgba(255, 152, 0, 0.2);
-        color: #ff9800;
-    }
-    
-    .amount {
-        font-weight: 600;
-    }
-    
-    .amount.positive {
-        color: #00c853;
-    }
-    
-    .amount.negative {
-        color: #f44336;
-    }
-    
-    .cosmic-btn-outline {
-        color: #9c27b0;
-        background-color: transparent;
-        border: 1px solid #9c27b0;
-        border-radius: 30px;
-        padding: 0.35rem 0.85rem;
-        font-size: 0.85rem;
-        transition: all 0.3s ease;
-    }
-    
-    .cosmic-btn-outline:hover {
-        background-color: rgba(156, 39, 176, 0.1);
-        color: #ba68c8;
-        border-color: #ba68c8;
-    }
-    
-    .action-button {
-        display: flex;
-        align-items: center;
-        padding: 1rem;
-        background-color: rgba(255, 255, 255, 0.05);
-        border-radius: 10px;
-        margin-bottom: 1rem;
-        transition: all 0.3s ease;
-        text-decoration: none;
-    }
-    
-    .action-button:last-child {
-        margin-bottom: 0;
-    }
-    
-    .action-button:hover {
-        background-color: rgba(156, 39, 176, 0.1);
-        transform: translateX(5px);
-        text-decoration: none;
-    }
-    
-    .action-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background-color: #4a148c;
-        color: white;
-        font-size: 1.3rem;
-        margin-right: 1rem;
-    }
-    
-    .action-content h4 {
-        margin: 0 0 0.3rem 0;
-        font-size: 1.1rem;
-        color: #e1bee7;
-    }
-    
-    .action-content p {
-        margin: 0;
-        font-size: 0.9rem;
-        color: #9575cd;
-    }
-</style>
-{% endblock %}
-
-{% block extra_scripts %}
-<!-- Chart.js para gráficos -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gauge-chart@0.5.3/dist/bundle.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Datos simulados para el gráfico de rendimiento
-        const performanceData = {
-            labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
-            datasets: [{
-                label: 'Rendimiento Mensual',
-                data: [12, 19, 8, 15, 22, 17],
-                backgroundColor: 'rgba(156, 39, 176, 0.2)',
-                borderColor: '#9c27b0',
-                borderWidth: 2,
-                pointBackgroundColor: '#9c27b0',
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: '#9c27b0',
-                tension: 0.4
-            }]
-        };
-        
-        // Opciones del gráfico
-        const options = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: {
-                        color: '#b39ddb'
-                    }
-                }
+        // Gráfico de rendimiento
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        const performanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                datasets: [{
+                    label: 'Rendimiento (%)',
+                    data: [5, 8, 12, 10, 15, 18, 17, 19, 20, 22, 25, 28],
+                    borderColor: '#9c27b0',
+                    tension: 0.3,
+                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                    fill: true
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: {
-                        color: '#9575cd'
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#ffffff'
+                        }
                     }
                 },
-                x: {
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#ffffff'
+                        }
                     },
-                    ticks: {
-                        color: '#9575cd'
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#ffffff'
+                        }
                     }
                 }
             }
-        };
-        
-        // Inicializar gráfico
-        const ctx = document.getElementById('performanceChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: performanceData,
-            options: options
         });
         
-        // Animación de contadores
-        const counters = document.querySelectorAll('.counter');
-        counters.forEach(counter => {
-            const target = parseFloat(counter.textContent);
-            const duration = 1500;
-            const frameRate = 1000 / 60;
-            const totalFrames = Math.round(duration / frameRate);
-            
-            let frame = 0;
-            const animate = () => {
-                if (frame < totalFrames) {
-                    const progress = frame / totalFrames;
-                    const currentValue = progress * target;
-                    counter.textContent = currentValue.toFixed(2);
-                    frame++;
-                    requestAnimationFrame(animate);
-                } else {
-                    counter.textContent = target.toFixed(2);
-                }
-            };
-            
-            animate();
+        // Crear medidores de rendimiento
+        const gaugeOptions = {
+            hasNeedle: true,
+            needleColor: 'rgba(255, 255, 255, 0.9)',
+            needleUpdateSpeed: 1000,
+            arcColors: ['#4caf50', '#cddc39', '#ffeb3b', '#ff9800', '#f44336'],
+            arcDelimiters: [20, 40, 60, 80],
+            rangeLabel: ['0', '100'],
+            centralLabel: '%',
+            arcLabels: ['', '', '', '']
+        };
+        
+        // ROI Gauge
+        GaugeChart.gaugeChart(document.getElementById('roi-gauge'), {
+            ...gaugeOptions,
+            needleValue: 85,
+            centralLabel: '85%'
+        });
+        
+        // Risk Gauge
+        GaugeChart.gaugeChart(document.getElementById('risk-gauge'), {
+            ...gaugeOptions,
+            needleValue: 30,
+            centralLabel: '30%'
+        });
+        
+        // Volatility Gauge
+        GaugeChart.gaugeChart(document.getElementById('volatility-gauge'), {
+            ...gaugeOptions,
+            needleValue: 45,
+            centralLabel: '45%'
+        });
+        
+        // Growth Gauge
+        GaugeChart.gaugeChart(document.getElementById('growth-gauge'), {
+            ...gaugeOptions,
+            needleValue: 70,
+            centralLabel: '70%'
         });
     });
 </script>

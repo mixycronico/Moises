@@ -1,0 +1,356 @@
+{% extends 'layout.html' %}
+
+{% block title %}Panel de Administrador - Genesis{% endblock %}
+
+{% block styles %}
+<style>
+    .dashboard-container {
+        background-color: rgba(27, 20, 53, 0.8);
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(156, 39, 176, 0.3);
+        margin-top: 2rem;
+    }
+    
+    .dashboard-title {
+        font-family: var(--font-display);
+        font-weight: 700;
+        color: var(--text-light);
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .dashboard-subtitle {
+        color: var(--text-medium);
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .stat-card {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(156, 39, 176, 0.3);
+        border: 1px solid rgba(156, 39, 176, 0.4);
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent-secondary);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--text-light);
+    }
+    
+    .stat-label {
+        color: var(--text-medium);
+    }
+    
+    .quick-actions {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .action-btn {
+        margin-bottom: 1rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 50px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    .recent-activity {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+    }
+    
+    .activity-title {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-light);
+        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+        padding-bottom: 0.5rem;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(156, 39, 176, 0.1);
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: rgba(156, 39, 176, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        color: var(--accent-secondary);
+    }
+    
+    .activity-details {
+        flex-grow: 1;
+    }
+    
+    .activity-text {
+        color: var(--text-light);
+        margin-bottom: 0.25rem;
+    }
+    
+    .activity-time {
+        font-size: 0.85rem;
+        color: var(--text-medium);
+    }
+    
+    .chart-container {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        margin-bottom: 1.5rem;
+    }
+    
+    .chart-title {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-light);
+        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+        padding-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-container">
+                <h2 class="dashboard-title">Panel de Administrador</h2>
+                <p class="dashboard-subtitle">Bienvenido, {{ user.name }}. Aquí tienes un resumen de la actividad del sistema.</p>
+                
+                <!-- Estadísticas principales -->
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-value">{{ 25 }}</div>
+                            <div class="stat-label">Inversionistas</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-value">${{ "2.5M" }}</div>
+                            <div class="stat-label">Capital Total</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-value">{{ "12%" }}</div>
+                            <div class="stat-label">Rendimiento Mensual</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon">🏆</div>
+                            <div class="stat-value">{{ 5 }}</div>
+                            <div class="stat-label">Préstamos Activos</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Gráficos -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h3 class="chart-title">Rendimiento del Capital</h3>
+                            <canvas id="capitalChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h3 class="chart-title">Distribución de Inversionistas</h3>
+                            <canvas id="investorChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Acciones rápidas y actividad reciente -->
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="quick-actions">
+                            <h3 class="chart-title">Acciones Rápidas</h3>
+                            <button class="btn btn-primary action-btn btn-block">Registrar Inversionista</button>
+                            <button class="btn btn-success action-btn btn-block">Aprobar Comisiones</button>
+                            <button class="btn btn-info action-btn btn-block">Generar Reportes</button>
+                            <button class="btn btn-warning action-btn btn-block">Procesar Bonos</button>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="recent-activity">
+                            <h3 class="activity-title">Actividad Reciente</h3>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">💸</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Juan Pérez solicitó un préstamo de $50,000</div>
+                                    <div class="activity-time">Hace 2 horas</div>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">🔄</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">María López realizó una inversión de $100,000</div>
+                                    <div class="activity-time">Hace 5 horas</div>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">🎯</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Carlos Rodríguez cambió a categoría Platinum</div>
+                                    <div class="activity-time">Hace 8 horas</div>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">📊</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Distribución de bonos mensuales completada</div>
+                                    <div class="activity-time">Hace 1 día</div>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">👋</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Nuevo inversionista: Ana Martínez</div>
+                                    <div class="activity-time">Hace 2 días</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gráfico de rendimiento del capital
+        const capitalCtx = document.getElementById('capitalChart').getContext('2d');
+        const capitalChart = new Chart(capitalCtx, {
+            type: 'line',
+            data: {
+                labels: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'],
+                datasets: [{
+                    label: 'Rendimiento (%)',
+                    data: [8, 10, 9, 12, 14, 12],
+                    borderColor: '#9c27b0',
+                    tension: 0.3,
+                    backgroundColor: 'rgba(156, 39, 176, 0.1)',
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#ffffff'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#ffffff'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: '#ffffff'
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de distribución de inversionistas
+        const investorCtx = document.getElementById('investorChart').getContext('2d');
+        const investorChart = new Chart(investorCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Platinum', 'Gold', 'Silver', 'Bronze'],
+                datasets: [{
+                    data: [10, 25, 30, 35],
+                    backgroundColor: [
+                        '#e5e4e2',
+                        '#ffd700',
+                        '#c0c0c0',
+                        '#cd7f32'
+                    ],
+                    borderColor: 'rgba(27, 20, 53, 0.8)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: '#ffffff'
+                        }
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

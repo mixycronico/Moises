@@ -1,0 +1,460 @@
+{% extends 'layout.html' %}
+
+{% block title %}Panel de Super Administrador - Genesis{% endblock %}
+
+{% block styles %}
+<style>
+    .dashboard-container {
+        background-color: rgba(27, 20, 53, 0.8);
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(156, 39, 176, 0.3);
+        margin-top: 2rem;
+    }
+    
+    .dashboard-title {
+        font-family: var(--font-display);
+        font-weight: 700;
+        color: var(--text-light);
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .dashboard-subtitle {
+        color: var(--text-medium);
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    .stat-card {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(156, 39, 176, 0.3);
+        border: 1px solid rgba(156, 39, 176, 0.4);
+    }
+    
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent-secondary);
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--text-light);
+    }
+    
+    .stat-label {
+        color: var(--text-medium);
+    }
+    
+    .quick-actions {
+        margin-top: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .action-btn {
+        margin-bottom: 1rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 50px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+    
+    .recent-activity {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+    }
+    
+    .activity-title {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-light);
+        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+        padding-bottom: 0.5rem;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(156, 39, 176, 0.1);
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: rgba(156, 39, 176, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        color: var(--accent-secondary);
+    }
+    
+    .activity-details {
+        flex-grow: 1;
+    }
+    
+    .activity-text {
+        color: var(--text-light);
+        margin-bottom: 0.25rem;
+    }
+    
+    .activity-time {
+        font-size: 0.85rem;
+        color: var(--text-medium);
+    }
+    
+    .chart-container {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        margin-bottom: 1.5rem;
+    }
+    
+    .chart-title {
+        font-size: 1.2rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-light);
+        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+        padding-bottom: 0.5rem;
+    }
+    
+    .system-status {
+        margin-top: 2rem;
+    }
+    
+    .status-card {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+    }
+    
+    .status-title {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+        color: var(--text-light);
+    }
+    
+    .status-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .status-label {
+        width: 150px;
+        color: var(--text-medium);
+    }
+    
+    .status-value {
+        flex-grow: 1;
+        color: var(--text-light);
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+    }
+    
+    .status-badge.success {
+        background-color: rgba(76, 175, 80, 0.2);
+        color: #4caf50;
+        border: 1px solid #4caf50;
+    }
+    
+    .status-badge.warning {
+        background-color: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+        border: 1px solid #ffc107;
+    }
+    
+    .status-badge.danger {
+        background-color: rgba(244, 67, 54, 0.2);
+        color: #f44336;
+        border: 1px solid #f44336;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="dashboard-container">
+                <h2 class="dashboard-title">Panel de Super Administrador</h2>
+                <p class="dashboard-subtitle">Bienvenido, {{ user.name }}. Aquí tienes un resumen completo del sistema Genesis.</p>
+                
+                <!-- Estadísticas principales -->
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-value">{{ 50 }}</div>
+                            <div class="stat-label">Usuarios Totales</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-value">${{ "5M" }}</div>
+                            <div class="stat-label">Capital Gestionado</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon">📈</div>
+                            <div class="stat-value">{{ "15%" }}</div>
+                            <div class="stat-label">ROI Anual</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-card">
+                            <div class="stat-icon">⚡</div>
+                            <div class="stat-value">{{ "99.9%" }}</div>
+                            <div class="stat-label">Uptime Sistema</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Gráficos -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h3 class="chart-title">Capital Bajo Gestión</h3>
+                            <canvas id="capitalChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h3 class="chart-title">Distribución de Usuarios</h3>
+                            <canvas id="userChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Estado del sistema -->
+                <div class="row system-status">
+                    <div class="col-md-6">
+                        <div class="status-card">
+                            <h3 class="status-title">Estado del Sistema</h3>
+                            
+                            <div class="status-item">
+                                <div class="status-label">Base de datos:</div>
+                                <div class="status-value">
+                                    <span class="status-badge success">Operativo</span>
+                                </div>
+                            </div>
+                            
+                            <div class="status-item">
+                                <div class="status-label">API:</div>
+                                <div class="status-value">
+                                    <span class="status-badge success">Operativo</span>
+                                </div>
+                            </div>
+                            
+                            <div class="status-item">
+                                <div class="status-label">Procesamiento:</div>
+                                <div class="status-value">
+                                    <span class="status-badge success">Operativo</span>
+                                </div>
+                            </div>
+                            
+                            <div class="status-item">
+                                <div class="status-label">Conexiones:</div>
+                                <div class="status-value">
+                                    <span class="status-badge success">25 activas</span>
+                                </div>
+                            </div>
+                            
+                            <div class="status-item">
+                                <div class="status-label">Uso de CPU:</div>
+                                <div class="status-value">
+                                    <span class="status-badge success">32%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="status-item">
+                                <div class="status-label">Uso de memoria:</div>
+                                <div class="status-value">
+                                    <span class="status-badge warning">78%</span>
+                                </div>
+                            </div>
+                            
+                            <div class="status-item">
+                                <div class="status-label">Último respaldo:</div>
+                                <div class="status-value">
+                                    <span>Hoy, 04:00 AM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Acciones rápidas -->
+                    <div class="col-md-6">
+                        <div class="quick-actions">
+                            <h3 class="chart-title">Acciones de Sistema</h3>
+                            <button class="btn btn-primary action-btn btn-block">Gestionar Usuarios</button>
+                            <button class="btn btn-success action-btn btn-block">Configuración General</button>
+                            <button class="btn btn-info action-btn btn-block">Ver Logs del Sistema</button>
+                            <button class="btn btn-warning action-btn btn-block">Realizar Respaldo</button>
+                            <button class="btn btn-danger action-btn btn-block">Mantenimiento</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Actividad reciente -->
+                <div class="row">
+                    <div class="col-12">
+                        <div class="recent-activity">
+                            <h3 class="activity-title">Actividad Reciente del Sistema</h3>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">🔐</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Nuevo administrador creado: Roberto Gómez</div>
+                                    <div class="activity-time">Hace 30 minutos</div>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">📊</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Procesamiento de reportes mensuales completado</div>
+                                    <div class="activity-time">Hace 2 horas</div>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">💾</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Respaldo automático de base de datos completado</div>
+                                    <div class="activity-time">Hace 5 horas</div>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">🚨</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Alerta resuelta: Uso elevado de memoria</div>
+                                    <div class="activity-time">Hace 12 horas</div>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">🔄</div>
+                                <div class="activity-details">
+                                    <div class="activity-text">Actualización de sistema completada</div>
+                                    <div class="activity-time">Hace 1 día</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Configuración común para ambos gráficos
+        Chart.defaults.color = '#ffffff';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+        
+        // Gráfico de capital
+        const capitalCtx = document.getElementById('capitalChart').getContext('2d');
+        const capitalChart = new Chart(capitalCtx, {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                datasets: [{
+                    label: 'Capital (millones $)',
+                    data: [2.2, 2.5, 3.1, 3.3, 3.8, 4.2, 4.5, 4.7, 4.8, 5.0, 5.2, 5.5],
+                    borderColor: '#9c27b0',
+                    backgroundColor: 'rgba(156, 39, 176, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        
+        // Gráfico de usuarios
+        const userCtx = document.getElementById('userChart').getContext('2d');
+        const userChart = new Chart(userCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Inversionistas', 'Administradores', 'Super Administradores'],
+                datasets: [{
+                    data: [42, 7, 1],
+                    backgroundColor: [
+                        'rgba(33, 150, 243, 0.7)',
+                        'rgba(76, 175, 80, 0.7)',
+                        'rgba(156, 39, 176, 0.7)'
+                    ],
+                    borderColor: 'rgba(27, 20, 53, 0.8)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}
