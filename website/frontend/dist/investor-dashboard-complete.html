@@ -598,6 +598,7 @@
     
     .negative-change {
       color: var(--color-danger);
+      text-shadow: 0 0 10px rgba(231, 76, 60, 0.8);
     }
     
     /* Gráficos circulares */
@@ -1864,15 +1865,59 @@
       document.getElementById('totalProfit').textContent = formatCurrency(investor.total_profit);
       document.getElementById('joinDate').textContent = `Desde ${investor.join_date}`;
       
-      // Actualizar cambios 
-      document.getElementById('balanceChange').textContent = formatPercentage(investor.performance.monthly);
-      document.getElementById('profitChange').textContent = formatPercentage(investor.performance.yearly);
+      // Actualizar cambios y añadir clases positivo/negativo
+      const monthlyPerformance = investor.performance.monthly;
+      const yearlyPerformance = investor.performance.yearly;
       
-      // Actualizar rendimientos y crear gráficos
-      document.getElementById('dailyPerformance').textContent = formatPercentage(investor.performance.daily);
-      document.getElementById('weeklyPerformance').textContent = formatPercentage(investor.performance.weekly);
-      document.getElementById('monthlyPerformance').textContent = formatPercentage(investor.performance.monthly);
-      document.getElementById('yearlyPerformance').textContent = formatPercentage(investor.performance.yearly);
+      // Balance change
+      const balanceChangeElement = document.getElementById('balanceChange');
+      const balanceParent = balanceChangeElement.parentElement;
+      balanceChangeElement.textContent = formatPercentage(monthlyPerformance);
+      
+      if (monthlyPerformance >= 0) {
+        balanceParent.className = 'change-indicator positive-change';
+        balanceParent.querySelector('i').className = 'fas fa-arrow-up';
+      } else {
+        balanceParent.className = 'change-indicator negative-change';
+        balanceParent.querySelector('i').className = 'fas fa-arrow-down';
+      }
+      
+      // Profit change
+      const profitChangeElement = document.getElementById('profitChange');
+      const profitParent = profitChangeElement.parentElement;
+      profitChangeElement.textContent = formatPercentage(yearlyPerformance);
+      
+      if (yearlyPerformance >= 0) {
+        profitParent.className = 'change-indicator positive-change';
+        profitParent.querySelector('i').className = 'fas fa-arrow-up';
+      } else {
+        profitParent.className = 'change-indicator negative-change';
+        profitParent.querySelector('i').className = 'fas fa-arrow-down';
+      }
+      
+      // Actualizar rendimientos y crear gráficos (con clases positivo/negativo)
+      const dailyPerformance = investor.performance.daily;
+      const weeklyPerformance = investor.performance.weekly;
+      
+      // Daily performance
+      const dailyElement = document.getElementById('dailyPerformance');
+      dailyElement.textContent = formatPercentage(dailyPerformance);
+      dailyElement.className = dailyPerformance >= 0 ? 'chart-percentage positive-change' : 'chart-percentage negative-change';
+      
+      // Weekly performance
+      const weeklyElement = document.getElementById('weeklyPerformance');
+      weeklyElement.textContent = formatPercentage(weeklyPerformance);
+      weeklyElement.className = weeklyPerformance >= 0 ? 'chart-percentage positive-change' : 'chart-percentage negative-change';
+      
+      // Monthly performance
+      const monthlyElement = document.getElementById('monthlyPerformance');
+      monthlyElement.textContent = formatPercentage(monthlyPerformance);
+      monthlyElement.className = monthlyPerformance >= 0 ? 'chart-percentage positive-change' : 'chart-percentage negative-change';
+      
+      // Yearly performance
+      const yearlyElement = document.getElementById('yearlyPerformance');
+      yearlyElement.textContent = formatPercentage(yearlyPerformance);
+      yearlyElement.className = yearlyPerformance >= 0 ? 'chart-percentage positive-change' : 'chart-percentage negative-change';
       
       // Crear gráficos
       createDonutChart('dailyChart', investor.performance.daily, 'var(--color-chart-1)');
