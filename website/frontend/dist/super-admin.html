@@ -13,17 +13,23 @@
       --color-secondary: #9270ff;
       --color-accent: #ff27b3;
       --color-background: #0d1930;
-      --color-card-bg: rgba(22, 43, 77, 0.7);
+      --color-card-bg: rgba(22, 43, 77, 0.25);
       --color-text: #e1eaff;
       --color-text-secondary: #8b9ebb;
       --color-border: rgba(70, 137, 180, 0.3);
       --color-error: #ff5371;
+      --color-gold: #ffd700;
+      --color-gold-light: #fff4b8;
       --font-display: 'Orbitron', sans-serif;
       --font-body: 'Poppins', sans-serif;
       --spacing-sm: 0.5rem;
       --spacing-md: 1rem;
       --spacing-lg: 1.5rem;
       --border-radius-md: 8px;
+      --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+      --shadow-glow: 0 0 20px rgba(12, 198, 222, 0.9);
     }
     
     /* Estilos base */
@@ -182,11 +188,37 @@
       background: var(--color-card-bg);
       border-radius: var(--border-radius-md);
       padding: var(--spacing-lg);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), 0 0 20px rgba(12, 198, 222, 0.1);
       backdrop-filter: blur(10px);
-      border: 1px solid var(--color-border);
+      border: 1px solid rgba(70, 137, 180, 0.15);
       position: relative;
       overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, 
+        rgba(255, 215, 0, 0) 0%, 
+        rgba(255, 215, 0, 0.8) 50%, 
+        rgba(255, 215, 0, 0) 100%);
+      animation: goldBorderFlow 3s infinite ease-in-out;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+    
+    @keyframes goldBorderFlow {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    
+    .card:hover {
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3), 0 0 25px rgba(12, 198, 222, 0.2);
+      border-color: rgba(70, 137, 180, 0.3);
     }
     
     .card-header {
@@ -228,6 +260,21 @@
       -webkit-background-clip: text;
       background-clip: text;
       color: transparent;
+      text-shadow: 0 0 10px rgba(12, 198, 222, 0.4);
+      position: relative;
+    }
+    
+    .stat::after {
+      content: "";
+      position: absolute;
+      top: -5px;
+      left: -10px;
+      right: -10px;
+      bottom: -5px;
+      background: radial-gradient(ellipse at center, rgba(12, 198, 222, 0.15) 0%, rgba(12, 198, 222, 0) 70%);
+      z-index: -1;
+      opacity: 0.7;
+      filter: blur(5px);
     }
     
     .stat-description {
@@ -293,10 +340,27 @@
       background: var(--color-card-bg);
       border-radius: var(--border-radius-md);
       padding: var(--spacing-lg);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), 0 0 20px rgba(12, 198, 222, 0.1);
       backdrop-filter: blur(10px);
-      border: 1px solid var(--color-border);
+      border: 1px solid rgba(70, 137, 180, 0.15);
       margin-bottom: var(--spacing-lg);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .chart-container::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, 
+        rgba(255, 215, 0, 0) 0%, 
+        rgba(255, 215, 0, 0.8) 50%, 
+        rgba(255, 215, 0, 0) 100%);
+      animation: goldBorderFlow 3s infinite ease-in-out;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
     }
     
     .chart-header {
