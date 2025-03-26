@@ -435,6 +435,22 @@
                     </div>
                 </div>
                 
+                <!-- Gráficos adicionales -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h3 class="chart-title">Distribución de la Inversión</h3>
+                            <canvas id="portfolioDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h3 class="chart-title">Evolución del Capital</h3>
+                            <canvas id="capitalEvolutionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Transacciones recientes -->
                 <div class="row">
                     <div class="col-12">
@@ -550,6 +566,135 @@
         const riskGauge = createRiskGauge('risk-gauge', 30);
         const volatilityGauge = createVolatilityGauge('volatility-gauge', 45);
         const growthGauge = createGrowthGauge('growth-gauge', 70);
+        
+        // Configuración común para todos los gráficos
+        Chart.defaults.color = '#ffffff';
+        Chart.defaults.font.family = "'Poppins', 'Helvetica', 'Arial', sans-serif";
+        
+        // Gráfico de distribución de la inversión (dona)
+        const portfolioCtx = document.getElementById('portfolioDistributionChart').getContext('2d');
+        const portfolioChart = new Chart(portfolioCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Acciones', 'Bonos', 'Criptomonedas', 'Materias primas', 'Efectivo'],
+                datasets: [{
+                    data: [45, 20, 15, 10, 10],
+                    backgroundColor: [
+                        '#9c27b0',
+                        '#673ab7',
+                        '#3f51b5',
+                        '#2196f3',
+                        '#00bcd4'
+                    ],
+                    borderColor: 'rgba(27, 20, 53, 0.8)',
+                    borderWidth: 2,
+                    hoverOffset: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(27, 20, 53, 0.9)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: 'rgba(156, 39, 176, 0.5)',
+                        borderWidth: 1,
+                        padding: 15,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                return `${label}: ${value}%`;
+                            }
+                        }
+                    }
+                },
+                cutout: '70%',
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                }
+            }
+        });
+        
+        // Gráfico de evolución del capital (línea)
+        const capitalEvolutionCtx = document.getElementById('capitalEvolutionChart').getContext('2d');
+        
+        // Crear gradiente para el fondo
+        const capitalGradient = capitalEvolutionCtx.createLinearGradient(0, 0, 0, 400);
+        capitalGradient.addColorStop(0, 'rgba(156, 39, 176, 0.4)');
+        capitalGradient.addColorStop(1, 'rgba(156, 39, 176, 0)');
+        
+        const capitalEvolutionChart = new Chart(capitalEvolutionCtx, {
+            type: 'line',
+            data: {
+                labels: ['2020', '2021', '2022', '2023', '2024', '2025'],
+                datasets: [{
+                    label: 'Capital (USD)',
+                    data: [150000, 280000, 450000, 620000, 830000, 1000000],
+                    borderColor: '#9c27b0',
+                    borderWidth: 3,
+                    backgroundColor: capitalGradient,
+                    pointBackgroundColor: '#673ab7',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(27, 20, 53, 0.9)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: 'rgba(156, 39, 176, 0.5)',
+                        borderWidth: 1,
+                        padding: 15,
+                        callbacks: {
+                            label: function(context) {
+                                let value = context.dataset.data[context.dataIndex];
+                                return `$${value.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        }
+                    }
+                }
+            }
+        });
         
         // Añadir efectos de animación aleatorios para dar la sensación de datos en tiempo real
         setInterval(() => {
