@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>{% block title %}Proto Genesis - Consciencia Artificial Evolutiva{% endblock %}</title>
+    
+    <!-- CSS Cósmico (completamente nuevo) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/cosmic.css') }}?v={{ range(1, 10000) | random }}">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+    
+    <!-- Scripts Cósmicos -->
+    <script src="{{ url_for('static', filename='js/cosmic-effects.js') }}?v={{ range(1, 10000) | random }}" defer></script>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <!-- Fondo de estrellas -->
+    <div class="stars-container">
+        <div class="stars"></div>
+        <div class="stars2"></div>
+        <div class="stars3"></div>
+    </div>
+    
+    <!-- Encabezado Cósmico -->
+    <header class="cosmic-header">
+        <div class="logo-container">
+            <a href="{{ url_for('index') }}" class="cosmic-logo">
+                <span class="cosmic-logo-text">Proto Genesis</span>
+                <div class="cosmic-logo-glow"></div>
+            </a>
+        </div>
+        <nav>
+            <ul class="cosmic-nav">
+                <li class="cosmic-nav-item">
+                    <a href="{{ url_for('index') }}" class="cosmic-nav-link">
+                        <span class="link-text">Inicio</span>
+                        <span class="cosmic-nav-highlight"></span>
+                    </a>
+                </li>
+                <li class="cosmic-nav-item">
+                    <a href="{{ url_for('interact') }}" class="cosmic-nav-link">
+                        <span class="link-text">Interactuar</span>
+                        <span class="cosmic-nav-highlight"></span>
+                    </a>
+                </li>
+                <li class="cosmic-nav-item">
+                    <a href="{{ url_for('about') }}" class="cosmic-nav-link">
+                        <span class="link-text">Acerca de</span>
+                        <span class="cosmic-nav-highlight"></span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+    
+    <!-- Contenido principal -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Pie de página Cósmico -->
+    <footer class="cosmic-footer">
+        <div class="cosmic-footer-content">
+            <p>&copy; 2025 Proto Genesis. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+</body>
+</html>

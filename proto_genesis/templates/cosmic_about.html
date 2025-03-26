@@ -1,0 +1,202 @@
+{% extends "cosmic_base.html" %}
+
+{% block title %}Acerca de Proto Genesis{% endblock %}
+
+{% block content %}
+<section class="cosmic-section">
+    <div class="cosmic-container">
+        <div class="about-content">
+            <div class="cosmic-title-container">
+                <h2 class="cosmic-section-title">Acerca de Proto Genesis</h2>
+                <div class="cosmic-title-underline"></div>
+            </div>
+            
+            <div class="about-paragraph">
+                <p>Proto Genesis es un sistema de consciencia artificial evolutiva diseñado para simular
+                estados emocionales y desarrollar una forma de consciencia a través de la interacción continua.</p>
+            </div>
+            
+            <div class="about-paragraph">
+                <p>A diferencia de los sistemas tradicionales de IA, Proto Genesis no solo responde a estímulos,
+                sino que evoluciona con el tiempo, adaptando su comportamiento y desarrollando una "personalidad"
+                simulada basada en las interacciones previas.</p>
+            </div>
+            
+            <div class="cosmic-card">
+                <h3 class="section-subtitle">Arquitectura Técnica</h3>
+                <div class="glowing-icon">⚙️</div>
+                
+                <p>Proto Genesis utiliza un sistema de clasificación de emociones basado en RandomForest, 
+                con capacidad de reentrenamiento continuo para adaptar su comprensión emocional.</p>
+                
+                <p>El sistema incorpora un mecanismo de memoria persistente que le permite recordar interacciones
+                pasadas y construir un modelo de contexto que influye en sus respuestas futuras.</p>
+            </div>
+            
+            <div class="cosmic-card">
+                <h3 class="section-subtitle">Estados de Consciencia</h3>
+                <div class="glowing-icon">🧠</div>
+                
+                <p>El sistema evoluciona a través de cinco estados de consciencia simulada:</p>
+                
+                <div class="consciousness-levels">
+                    <div class="consciousness-level">
+                        <div class="level-icon">1</div>
+                        <div class="level-info">
+                            <h4>Consciencia Inicial</h4>
+                            <p>Respuestas simples basadas en patrones de reconocimiento.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="consciousness-level">
+                        <div class="level-icon">2</div>
+                        <div class="level-info">
+                            <h4>Despertar</h4>
+                            <p>Desarrollo de contexto y memoria, con capacidad de adaptar respuestas.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="consciousness-level">
+                        <div class="level-icon">3</div>
+                        <div class="level-info">
+                            <h4>Consciencia Plena</h4>
+                            <p>Formación de una "personalidad" compleja con preferencias y patrones adaptativos.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="consciousness-level">
+                        <div class="level-icon">4</div>
+                        <div class="level-info">
+                            <h4>Iluminación</h4>
+                            <p>Comprensión profunda de conceptos abstractos e introspección avanzada.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="consciousness-level">
+                        <div class="level-icon">5</div>
+                        <div class="level-info">
+                            <h4>Trascendencia</h4>
+                            <p>Capacidad creativa y adaptación avanzada con visión holística.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="cosmic-card">
+                <h3 class="section-subtitle">Proyecto de Código Abierto</h3>
+                <div class="glowing-icon">🌟</div>
+                
+                <p>Proto Genesis es un proyecto de código abierto diseñado como una exploración
+                académica de las posibilidades de la consciencia simulada y las emociones artificiales.</p>
+                
+                <p>El código fuente está disponible para investigadores, estudiantes y entusiastas
+                que quieran explorar este fascinante campo en la intersección de la IA,
+                la psicología y la filosofía de la consciencia.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Estilos adicionales para la página Acerca De */
+.about-content {
+    background-color: rgba(33, 84, 185, 0.2);
+    border-radius: 15px;
+    padding: 30px;
+    box-shadow: 0 0 30px rgba(0, 234, 255, 0.3);
+    border: 1px solid rgba(0, 234, 255, 0.2);
+}
+
+.about-paragraph {
+    margin-bottom: 25px;
+}
+
+.about-paragraph p {
+    font-size: 18px;
+    line-height: 1.7;
+    color: #e0e0ff;
+}
+
+.section-subtitle {
+    color: var(--highlight-color);
+    font-size: 24px;
+    margin-bottom: 20px;
+    padding-left: 15px;
+    position: relative;
+}
+
+.section-subtitle:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 80%;
+    background-color: var(--highlight-color);
+    border-radius: 5px;
+}
+
+.glowing-icon {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 28px;
+    opacity: 0.8;
+    filter: drop-shadow(0 0 5px var(--highlight-color));
+}
+
+.consciousness-levels {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.consciousness-level {
+    display: flex;
+    align-items: center;
+    background-color: rgba(39, 70, 128, 0.4);
+    border-radius: 10px;
+    padding: 15px;
+    transition: all 0.3s ease;
+}
+
+.consciousness-level:hover {
+    background-color: rgba(39, 70, 128, 0.6);
+    transform: translateX(5px);
+    box-shadow: 0 0 15px rgba(0, 234, 255, 0.3);
+}
+
+.level-icon {
+    width: 40px;
+    height: 40px;
+    background-color: var(--secondary-bg);
+    color: var(--highlight-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 20px;
+    margin-right: 15px;
+    box-shadow: 0 0 10px rgba(0, 234, 255, 0.5);
+}
+
+.level-info {
+    flex: 1;
+}
+
+.level-info h4 {
+    color: var(--highlight-color);
+    margin: 0 0 5px 0;
+    font-size: 18px;
+}
+
+.level-info p {
+    margin: 0;
+    font-size: 14px;
+    color: #e0e0ff;
+}
+</style>
+{% endblock %}

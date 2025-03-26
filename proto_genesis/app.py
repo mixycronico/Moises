@@ -64,16 +64,32 @@ emotion_data = {
 @app.route('/')
 def index():
     """Página principal."""
-    return render_template('index.html')
+    return render_template('cosmic_index.html')  # Usar la versión cósmica
 
 @app.route('/interact')
 def interact():
     """Panel de control del Sistema Genesis."""
-    return render_template('interact.html')
+    return render_template('cosmic_interact.html')  # Usar la versión cósmica
 
 @app.route('/about')
 def about():
     """Página de información sobre Sistema Genesis."""
+    return render_template('cosmic_about.html')  # Usar la versión cósmica
+
+# Rutas adicionales para pruebas o desarrollo
+@app.route('/original')
+def original_index():
+    """Versión original de la página principal."""
+    return render_template('index.html')
+
+@app.route('/original/interact')
+def original_interact():
+    """Versión original del panel de control."""
+    return render_template('interact.html')
+
+@app.route('/original/about')
+def original_about():
+    """Versión original de la página de información."""
     return render_template('about.html')
 
 @app.route('/api/status')

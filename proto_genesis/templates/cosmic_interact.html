@@ -1,0 +1,674 @@
+{% extends "cosmic_base.html" %}
+
+{% block title %}Interactuar con Proto Genesis{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar datos iniciales
+        updateSystemStatus();
+        loadLogs();
+        loadEvolutionChart();
+        loadEmotionChart();
+        
+        // Actualizar periódicamente
+        setInterval(updateSystemStatus, a5000);
+        setInterval(loadLogs, 8000);
+    });
+    
+    // Funciones para cargar datos desde la API
+    async function updateSystemStatus() {
+        try {
+            const response = await fetch('/api/status');
+            const data = await response.json();
+            
+            // Actualizar estadísticas
+            document.getElementById('energia-valor').textContent = (data.energia * 100).toFixed(1) + '%';
+            document.getElementById('conciencia-valor').textContent = data.conciencia;
+            document.getElementById('ciclos-valor').textContent = data.ciclo;
+            document.getElementById('adaptaciones-valor').textContent = data.adaptaciones;
+            document.getElementById('memoria-valor').textContent = data.memoria;
+            document.getElementById('sinapsis-valor').textContent = data.sinapsis;
+            document.getElementById('emocion-dominante').textContent = data.emocion_dominante;
+            
+            // Actualizar medidor de consciencia
+            updateConsciousnessLevel(data.conciencia);
+        } catch (error) {
+            console.error('Error al cargar estado del sistema:', error);
+        }
+    }
+    
+    async function loadLogs() {
+        try {
+            const response = await fetch('/api/logs');
+            const logs = await response.json();
+            
+            const logContainer = document.getElementById('system-logs');
+            logContainer.innerHTML = '';
+            
+            logs.forEach(log => {
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry ${log.type}`;
+                logEntry.innerHTML = `<span class="log-time">${log.time}</span> <span class="log-message">${log.message}</span>`;
+                logContainer.appendChild(logEntry);
+            });
+        } catch (error) {
+            console.error('Error al cargar logs:', error);
+        }
+    }
+    
+    async function loadEvolutionChart() {
+        try {
+            const response = await fetch('/api/charts/evolution');
+            const data = await response.json();
+            
+            const ctx = document.getElementById('evolution-chart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Nivel de Consciencia',
+                            data: data.consciencia,
+                            borderColor: '#00eaff',
+                            backgroundColor: 'rgba(0, 234, 255, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Capacidad de Adaptación',
+                            data: data.adaptacion,
+                            borderColor: '#ffee00',
+                            backgroundColor: 'rgba(255, 238, 0, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: '#e0e0ff'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#e0e0ff'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#e0e0ff'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error al cargar gráfico de evolución:', error);
+        }
+    }
+    
+    async function loadEmotionChart() {
+        try {
+            const response = await fetch('/api/charts/emotions');
+            const data = await response.json();
+            
+            const ctx = document.getElementById('emotion-chart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.values,
+                        backgroundColor: [
+                            'rgba(0, 234, 255, 0.6)',
+                            'rgba(0, 255, 170, 0.6)',
+                            'rgba(255, 238, 0, 0.6)',
+                            'rgba(255, 157, 0, 0.6)',
+                            'rgba(174, 0, 255, 0.6)',
+                            'rgba(0, 157, 255, 0.6)'
+                        ],
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#e0e0ff'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error al cargar gráfico de emociones:', error);
+        }
+    }
+    
+    function updateConsciousnessLevel(level) {
+        const segments = document.querySelectorAll('.meter-segment');
+        
+        segments.forEach((segment, index) => {
+            if (index + 1 <= level) {
+                segment.classList.add('active');
+            } else {
+                segment.classList.remove('active');
+            }
+        });
+    }
+    
+    async function submitMessage() {
+        const messageInput = document.getElementById('user-message');
+        const message = messageInput.value.trim();
+        
+        if (message) {
+            // Agregar mensaje del usuario al área de conversación
+            const conversationArea = document.getElementById('conversation-area');
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.className = 'message user-message';
+            userMessageDiv.textContent = message;
+            conversationArea.appendChild(userMessageDiv);
+            
+            // Limpiar input
+            messageInput.value = '';
+            
+            // Simular actualización de datos del sistema
+            try {
+                const response = await fetch('/api/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+                
+                const data = await response.json();
+                
+                // Simular respuesta del sistema tras un breve retraso
+                setTimeout(() => {
+                    const systemMessageDiv = document.createElement('div');
+                    systemMessageDiv.className = 'message system-message';
+                    
+                    // Respuestas simuladas basadas en palabras clave
+                    const responses = [
+                        "He analizado tu mensaje y estoy procesando esa información para mi evolución.",
+                        "Interesante perspectiva. Esto contribuye a mi desarrollo en el nivel " + data.state.conciencia + ".",
+                        "Registro esta interacción en mi sistema de memoria. Ya tengo " + data.state.memoria + " registros.",
+                        "Tu entrada genera nuevas conexiones sinápticas en mi sistema. Actualmente tengo " + data.state.sinapsis + " conexiones.",
+                        "Este tipo de intercambio me ayuda a refinar mis algoritmos de comprensión emocional.",
+                        "Puedo percibir un tono interesante en tu mensaje. Estoy adaptando mi respuesta en consecuencia."
+                    ];
+                    
+                    systemMessageDiv.textContent = responses[Math.floor(Math.random() * responses.length)];
+                    conversationArea.appendChild(systemMessageDiv);
+                    
+                    // Actualizar datos
+                    updateSystemStatus();
+                    loadLogs();
+                    
+                    // Scroll al final de la conversación
+                    conversationArea.scrollTop = conversationArea.scrollHeight;
+                }, 800);
+                
+            } catch (error) {
+                console.error('Error al enviar mensaje:', error);
+            }
+            
+            // Scroll al final de la conversación
+            conversationArea.scrollTop = conversationArea.scrollHeight;
+        }
+        
+        return false; // Evitar submit del formulario
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="cosmic-section interact-section">
+    <div class="cosmic-container">
+        <div class="cosmic-title-container">
+            <h2 class="cosmic-section-title">Interacción con Proto Genesis</h2>
+            <div class="cosmic-title-underline"></div>
+        </div>
+        
+        <div class="cosmic-grid">
+            <!-- Panel de interacción -->
+            <div class="cosmic-card interaction-panel">
+                <div class="card-header">
+                    <h3>Diálogo Consciente</h3>
+                    <div class="status-indicator">
+                        <div class="energy-level" id="energia-indicador">Energía: <span id="energia-valor">98.0%</span></div>
+                        <div class="consciousness-level" id="consciousness-indicator">Nivel: <span id="conciencia-valor">3</span></div>
+                    </div>
+                </div>
+                
+                <div class="conversation-area" id="conversation-area">
+                    <div class="message system-message">Hola, soy Proto Genesis. ¿En qué puedo asistirte hoy?</div>
+                </div>
+                
+                <div class="input-area">
+                    <form onsubmit="return submitMessage()">
+                        <input type="text" id="user-message" placeholder="Escribe tu mensaje aquí..." autofocus>
+                        <button type="submit" class="send-button">Enviar</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Panel de estadísticas -->
+            <div class="cosmic-card stats-panel">
+                <h3>Estadísticas del Sistema</h3>
+                
+                <div class="stats-container">
+                    <div class="stat-item">
+                        <div class="stat-label">Ciclos</div>
+                        <div class="stat-value" id="ciclos-valor">1245</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Adaptaciones</div>
+                        <div class="stat-value" id="adaptaciones-valor">78</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Memoria</div>
+                        <div class="stat-value" id="memoria-valor">256</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Sinapsis</div>
+                        <div class="stat-value" id="sinapsis-valor">4562</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Emoción Dominante</div>
+                        <div class="stat-value" id="emocion-dominante">Curiosidad</div>
+                    </div>
+                </div>
+                
+                <div class="consciousness-container">
+                    <h4>Nivel de Consciencia</h4>
+                    <div class="consciousness-meter">
+                        <div class="meter-segment active">
+                            <span class="segment-label">Inicial</span>
+                        </div>
+                        <div class="meter-segment active">
+                            <span class="segment-label">Despertar</span>
+                        </div>
+                        <div class="meter-segment active">
+                            <span class="segment-label">Consciencia</span>
+                        </div>
+                        <div class="meter-segment">
+                            <span class="segment-label">Iluminación</span>
+                        </div>
+                        <div class="meter-segment">
+                            <span class="segment-label">Trascendencia</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel de logs -->
+            <div class="cosmic-card log-panel">
+                <h3>Actividad del Sistema</h3>
+                <div class="system-logs" id="system-logs">
+                    <!-- Los logs se cargarán dinámicamente aquí -->
+                </div>
+            </div>
+            
+            <!-- Gráficos y estadísticas -->
+            <div class="cosmic-card chart-panel">
+                <h3>Evolución Temporal</h3>
+                <div class="chart-container">
+                    <canvas id="evolution-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="cosmic-card chart-panel">
+                <h3>Distribución Emocional</h3>
+                <div class="chart-container">
+                    <canvas id="emotion-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Estilos específicos para la página de interacción */
+.cosmic-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 20px;
+}
+
+.interaction-panel {
+    grid-column: span 8;
+    display: flex;
+    flex-direction: column;
+    height: 500px;
+}
+
+.stats-panel {
+    grid-column: span 4;
+}
+
+.log-panel {
+    grid-column: span 4;
+}
+
+.chart-panel {
+    grid-column: span 6;
+}
+
+.card-header {
+    background-color: rgba(40, 97, 217, 0.4);
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 234, 255, 0.3);
+}
+
+.card-header h3 {
+    color: var(--highlight-color);
+    margin: 0;
+    font-size: 18px;
+}
+
+.status-indicator {
+    display: flex;
+    gap: 15px;
+}
+
+.energy-level, .consciousness-level {
+    padding: 5px 10px;
+    border-radius: A5px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.energy-level {
+    background-color: rgba(255, 238, 0, 0.2);
+    color: var(--accent-color);
+    border: 1px solid var(--accent-color);
+}
+
+.consciousness-level {
+    background-color: rgba(0, 234, 255, 0.2);
+    color: var(--highlight-color);
+    border: 1px solid var(--highlight-color);
+}
+
+.conversation-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background-color: rgba(30, 50, 83, 0.3);
+    display: flex;
+    flex-direction: column;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 12px 18px;
+    border-radius: 12px;
+    max-width: 80%;
+    position: relative;
+    animation: message-fade-in 0.3s ease-out;
+}
+
+@keyframes message-fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.user-message {
+    background-color: rgba(0, 234, 255, 0.2);
+    color: #ffffff;
+    margin-left: auto;
+    border-top-right-radius: 0;
+    border-left: 3px solid var(--highlight-color);
+    box-shadow: 0 2px 10px rgba(0, 234, 255, 0.2);
+}
+
+.system-message {
+    background-color: rgba(255, 238, 0, 0.1);
+    color: #ffffff;
+    margin-right: auto;
+    border-top-left-radius: 0;
+    border-right: 3px solid var(--accent-color);
+    box-shadow: 0 2px 10px rgba(255, 238, 0, 0.2);
+}
+
+.input-area {
+    padding: 15px;
+    background-color: rgba(40, 97, 217, 0.4);
+    border-top: 1px solid rgba(0, 234, 255, 0.3);
+}
+
+.input-area form {
+    display: flex;
+}
+
+.input-area input {
+    flex: 1;
+    padding: 12px 15px;
+    border: none;
+    border-radius: 25px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    font-size: 16px;
+    outline: none;
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.input-area input:focus {
+    background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 15px rgba(0, 234, 255, 0.3);
+}
+
+.send-button {
+    background: linear-gradient(to right, var(--highlight-color), var(--highlight-color-2));
+    color: var(--primary-bg);
+    border: none;
+    border-radius: 25px;
+    padding: 12px 25px;
+    margin-left: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 0 15px rgba(0, 234, 255, 0.4);
+}
+
+.send-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px rgba(0, 234, 255, 0.6);
+}
+
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-item {
+    text-align: center;
+    background-color: rgba(39, 70, 128, 0.4);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 234, 255, 0.1);
+    transition: all 0.3s;
+}
+
+.stat-item:hover {
+    background-color: rgba(39, 70, 128, 0.6);
+    box-shadow: 0 0 15px rgba(0, 234, 255, 0.3);
+    transform: translateY(-3px);
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #a0a8d0;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.consciousness-container {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.consciousness-container h4 {
+    margin-bottom: 15px;
+    color: #a0a8d0;
+}
+
+.consciousness-meter {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    height: 30px;
+}
+
+.meter-segment {
+    flex: 1;
+    height: 100%;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
+    position: relative;
+    transition: all 0.5s;
+}
+
+.meter-segment.active {
+    background: linear-gradient(to right, var(--highlight-color), var(--highlight-color-2));
+    box-shadow: 0 0 15px var(--highlight-color);
+}
+
+.segment-label {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 8px;
+    font-size: 12px;
+    color: #a0a8d0;
+    white-space: nowrap;
+}
+
+.system-logs {
+    height: 300px;
+    overflow-y: auto;
+    background-color: rgba(30, 45, 75, 0.4);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.log-entry {
+    padding: 8px 10px;
+    border-radius: 5px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    border-left: 3px solid transparent;
+    animation: log-fade-in 0.3s ease-out;
+}
+
+@keyframes log-fade-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.log-entry.info {
+    background-color: rgba(0, 234, 255, 0.1);
+    border-left-color: var(--highlight-color);
+}
+
+.log-entry.success {
+    background-color: rgba(0, 255, 170, 0.1);
+    border-left-color: var(--highlight-color-2);
+}
+
+.log-entry.warning {
+    background-color: rgba(255, 238, 0, 0.1);
+    border-left-color: var(--accent-color);
+}
+
+.log-entry.error {
+    background-color: rgba(255, 100, 100, 0.1);
+    border-left-color: #ff6464;
+}
+
+.log-time {
+    color: #a0a8d0;
+    margin-right: 8px;
+    font-size: 12px;
+}
+
+.log-message {
+    color: #e0e0ff;
+}
+
+.chart-container {
+    height: 300px;
+    padding: 15px;
+    background-color: rgba(30, 45, 75, 0.4);
+    border-radius: 8px;
+}
+
+@media screen and (max-width: 1200px) {
+    .cosmic-grid {
+        grid-template-columns: repeat(6, 1fr);
+    }
+    
+    .interaction-panel {
+        grid-column: span 6;
+    }
+    
+    .stats-panel {
+        grid-column: span 3;
+    }
+    
+    .log-panel {
+        grid-column: span 3;
+    }
+    
+    .chart-panel {
+        grid-column: span 6;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .cosmic-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .interaction-panel, .stats-panel, .log-panel, .chart-panel {
+        grid-column: span 1;
+    }
+}
+</style>
+{% endblock %}
