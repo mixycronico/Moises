@@ -2053,6 +2053,20 @@
               <div class="card-title">GANANCIA/PÉRDIDA TOTAL</div>
               <div class="card-value" id="totalProfit">$0.00</div>
               <div class="card-subtitle">Rendimiento después de comisiones</div>
+              
+              <!-- Información sobre transferencias entre inversionistas -->
+              <div class="transparency-info">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Transferencias entre inversionistas</span>
+                <div class="tooltip-text">
+                  Puedes transferir fondos a otros inversionistas del sistema con un límite diario de $10,000. Las transferencias son procesadas inmediatamente y no tienen comisión entre miembros del mismo pool.
+                  <br><br>
+                  Para realizar una transferencia, necesitarás:
+                  <br>- El código de referido del destinatario
+                  <br>- Fondos disponibles suficientes
+                  <br>- No haber excedido el límite diario de transferencias
+                </div>
+              </div>
             </div>
             <div class="card-icon-container">
               <i class="fas fa-hand-holding-usd"></i>
@@ -2261,6 +2275,18 @@
                 <li><span class="transparency-highlight">Impuestos:</span> Recuerda que las ganancias pueden estar sujetas a impuestos según las leyes de tu país. Genesis no retiene ni calcula impuestos automáticamente.</li>
               </ul>
             </div>
+            
+            <!-- Información sobre bonos, préstamos y transferencias -->
+            <div class="transaction-transparency-info">
+              <div class="transparency-title">
+                <i class="fas fa-star"></i> Beneficios adicionales del sistema
+              </div>
+              <ul class="transparency-list">
+                <li><span class="transparency-highlight">Bonos:</span> Todos los inversionistas reciben bonos mensuales automáticos según su categoría (Platinum: 7%, Gold: 5%, Silver: 3%, Bronze: 2%). Los bonos se calculan sobre el capital invertido y se acreditan automáticamente a tu balance disponible.</li>
+                <li><span class="transparency-highlight">Préstamos:</span> Los inversionistas de categoría Silver o superior pueden solicitar préstamos de hasta el 20% de su capital invertido. Los préstamos tienen una tasa de interés del 5% anual y un plazo máximo de 6 meses para su devolución.</li>
+                <li><span class="transparency-highlight">Transferencias entre inversionistas:</span> Puedes transferir fondos a otros inversionistas del sistema con un límite diario de $10,000. Las transferencias son procesadas inmediatamente y no tienen comisión entre miembros del mismo pool de inversión.</li>
+              </ul>
+            </div>
           </div>
           
           <div class="tab-content" id="activity-content">
@@ -2303,6 +2329,32 @@
                 <li><i class="fas fa-check-circle"></i> Cargando beneficios...</li>
               </ul>
             </div>
+            
+            <!-- Detalles transparentes sobre bonos por categoría -->
+            <div class="transparency-info category-transparency">
+              <i class="fas fa-percentage"></i>
+              <span>Detalles del bono mensual</span>
+              <div class="tooltip-text">
+                Tu categoría actual te otorga un bono mensual automático calculado como porcentaje de tu capital invertido. Los bonos se acreditan el primer día de cada mes en tu balance disponible sin necesidad de reinversión forzosa.
+                <br><br>
+                <span class="detail-line">
+                  <span class="detail-label">Platinum:</span>
+                  <span class="detail-value">7% anual (0.58% mensual)</span>
+                </span>
+                <span class="detail-line">
+                  <span class="detail-label">Gold:</span>
+                  <span class="detail-value">5% anual (0.42% mensual)</span>
+                </span>
+                <span class="detail-line">
+                  <span class="detail-label">Silver:</span>
+                  <span class="detail-value">3% anual (0.25% mensual)</span>
+                </span>
+                <span class="detail-line">
+                  <span class="detail-label">Bronze:</span>
+                  <span class="detail-value">2% anual (0.17% mensual)</span>
+                </span>
+              </div>
+            </div>
           </div>
           
           <div class="activity-card card">
@@ -2339,6 +2391,33 @@
                   <div class="activity-description">Alta volatilidad detectada en el mercado</div>
                 </div>
                 <div class="activity-time">2d</div>
+              </div>
+            </div>
+            <!-- Información sobre préstamos disponibles -->
+            <div class="transparency-info loans-transparency">
+              <i class="fas fa-hand-holding-usd"></i>
+              <span>Préstamos disponibles</span>
+              <div class="tooltip-text">
+                Como inversionista de nuestra plataforma, puedes solicitar préstamos según tu categoría:
+                <br><br>
+                <span class="detail-line">
+                  <span class="detail-label">Platinum:</span>
+                  <span class="detail-value">Hasta 30% de tu capital invertido</span>
+                </span>
+                <span class="detail-line">
+                  <span class="detail-label">Gold:</span>
+                  <span class="detail-value">Hasta 25% de tu capital invertido</span>
+                </span>
+                <span class="detail-line">
+                  <span class="detail-label">Silver:</span>
+                  <span class="detail-value">Hasta 20% de tu capital invertido</span>
+                </span>
+                <span class="detail-line">
+                  <span class="detail-label">Bronze:</span>
+                  <span class="detail-value">No disponible</span>
+                </span>
+                <br>
+                Tasa de interés fija: 5% anual. Plazo máximo: 6 meses. Sin comisiones de apertura ni penalizaciones por pago anticipado.
               </div>
             </div>
           </div>
