@@ -644,11 +644,13 @@
             <span>Genesis</span>
         </a>
         <div class="nav-links">
-            <a href="/">Inicio</a>
-            <a href="/aetherion">Aetherion</a>
-            <a href="/cosmic_family" class="active">Familia Cósmica</a>
-            {% if session.get('user_id') == 'mixycronico' %}
-                <a href="/admin">Admin</a>
+            <a href="/"><i class="fas fa-home"></i> Inicio</a>
+            <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
+            <a href="/portfolio"><i class="fas fa-briefcase"></i> Portafolio</a>
+            <a href="/aetherion"><i class="fas fa-brain"></i> Aetherion</a>
+            <a href="/cosmic_family" class="active"><i class="fas fa-galaxy"></i> Familia Cósmica</a>
+            {% if session.get('user_id') == 'mixycronico' or session.get('role') == 'super_admin' %}
+                <a href="/admin"><i class="fas fa-cog"></i> Admin</a>
             {% endif %}
         </div>
     </header>
