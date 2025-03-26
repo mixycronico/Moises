@@ -1,19 +1,29 @@
 /* Estilos base */
 :root {
-  /* Paleta principal (colores aún más luminosos y brillantes) */
+  /* Paleta principal - Ultra luminosos para máxima visibilidad */
   --primary-bg: #1a2d68;       /* Azul profundo luminoso */
-  --secondary-bg: #2154b9;     /* Azul medio brillante */
+  --secondary-bg: #2861d9;     /* Azul medio más brillante */
   --highlight-color: #00eaff;  /* Cian brillante */
+  --highlight-color-2: #00ffaa; /* Segundo color brillante para gradientes */
   --accent-color: #ffee00;     /* Amarillo brillante */
+  --accent-color-2: #ff9d00;   /* Naranja brillante para efectos secundarios */
   --text-color: #ffffff;       /* Texto blanco */
+  --text-color-alt: #e0fcff;   /* Texto alternativo con tono cian suave */
   --card-bg: rgba(33, 84, 185, 0.8); /* Azul semitransparente brillante */
   
-  /* Luminosidad de efectos (maximizada) */
-  --glow-intensity: 1.5;
-  --glow-spread: 25px;
-  --star-glow: 0 0 5px rgba(0, 234, 255, 0.8);
-  --text-glow: 0 0 10px rgba(0, 234, 255, 0.6);
-  --button-glow: 0 0 15px rgba(255, 238, 0, 0.7);
+  /* Luminosidad de efectos (ultra maximizada) */
+  --glow-intensity: 2;
+  --glow-spread: 35px;
+  --star-glow: 0 0 8px rgba(0, 234, 255, 0.9);
+  --text-glow: 0 0 15px rgba(0, 234, 255, 0.7);
+  --button-glow: 0 0 20px rgba(255, 238, 0, 0.8);
+  --neon-glow: 0 0 25px rgba(0, 255, 170, 0.8);
+  --cosmic-glow: 0 0 30px rgba(174, 0, 255, 0.7);
+  
+  /* Variables para animaciones */
+  --pulse-duration: 4s;
+  --float-duration: 6s;
+  --shimmer-duration: 3s;
 }
 
 /* Reset y estilos generales */

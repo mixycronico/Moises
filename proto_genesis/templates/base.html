@@ -3,12 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>{% block title %}Proto Genesis - Consciencia Artificial Evolutiva{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v={{ range(1, 10000) | random }}">
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
     <!-- Scripts base -->
-    <script src="{{ url_for('static', filename='js/main.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ range(1, 10000) | random }}" defer></script>
     <!-- Scripts específicos de cada página -->
     {% block scripts %}{% endblock %}
 </head>
@@ -20,19 +23,145 @@
         <div class="stars3"></div>
     </div>
     
-    <!-- Cabecera -->
-    <header>
+    <!-- Cabecera Mejorada -->
+    <header class="enhanced-header">
         <div class="logo-container">
-            <a href="{{ url_for('index') }}" class="logo">Proto Genesis</a>
+            <a href="{{ url_for('index') }}" class="logo">
+                <span class="logo-text">Proto Genesis</span>
+                <div class="logo-glow-effect"></div>
+            </a>
         </div>
         <nav>
             <ul class="nav-links">
-                <li><a href="{{ url_for('index') }}">Inicio</a></li>
-                <li><a href="{{ url_for('interact') }}">Interactuar</a></li>
-                <li><a href="{{ url_for('about') }}">Acerca de</a></li>
+                <li><a href="{{ url_for('index') }}" class="nav-link">
+                    <span class="link-text">Inicio</span>
+                    <span class="link-highlight"></span>
+                </a></li>
+                <li><a href="{{ url_for('interact') }}" class="nav-link">
+                    <span class="link-text">Interactuar</span>
+                    <span class="link-highlight"></span>
+                </a></li>
+                <li><a href="{{ url_for('about') }}" class="nav-link">
+                    <span class="link-text">Acerca de</span>
+                    <span class="link-highlight"></span>
+                </a></li>
             </ul>
         </nav>
     </header>
+    
+    <style>
+    /* Estilos mejorados para el encabezado */
+    .enhanced-header {
+        background: linear-gradient(to right, rgba(33, 84, 185, 0.9), rgba(33, 84, 185, 0.95), rgba(33, 84, 185, 0.9));
+        box-shadow: 0 0 25px rgba(0, 234, 255, 0.5);
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 234, 255, 0.5);
+        position: relative;
+        z-index: 10;
+    }
+    
+    .enhanced-header:before {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: linear-gradient(to right, 
+                    transparent, 
+                    rgba(0, 234, 255, 0.8), 
+                    rgba(255, 238, 0, 0.5),
+                    rgba(0, 234, 255, 0.8), 
+                    transparent);
+        z-index: 11;
+        animation: glow-line 4s infinite alternate;
+    }
+    
+    @keyframes glow-line {
+        0% { opacity: 0.5; filter: blur(1px); }
+        100% { opacity: 1; filter: blur(2px); }
+    }
+    
+    .logo {
+        font-size: 24px;
+        font-weight: bold;
+        color: var(--highlight-color);
+        text-transform: uppercase;
+        position: relative;
+        text-shadow: 0 0 15px var(--highlight-color);
+        text-decoration: none;
+        display: block;
+        padding: 5px 10px;
+    }
+    
+    .logo-text {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .logo-glow-effect {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle closest-side, 
+                    rgba(0, 234, 255, 0.4), 
+                    rgba(0, 234, 255, 0.1), 
+                    transparent);
+        filter: blur(5px);
+        animation: pulse-glow 3s infinite alternate;
+        z-index: 0;
+        border-radius: 5px;
+    }
+    
+    @keyframes pulse-glow {
+        0% { opacity: 0.5; transform: scale(0.95); }
+        100% { opacity: 0.8; transform: scale(1.05); }
+    }
+    
+    .nav-link {
+        position: relative;
+        color: var(--text-color);
+        text-decoration: none;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 8px 15px;
+        border-radius: 20px;
+        display: block;
+        overflow: hidden;
+        transition: color 0.3s, background-color 0.3s;
+    }
+    
+    .nav-link:hover {
+        color: var(--highlight-color);
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .nav-link:hover .link-highlight {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    
+    .link-highlight {
+        position: absolute;
+        bottom: 0;
+        left: 10%;
+        width: 80%;
+        height: 2px;
+        background: linear-gradient(to right, 
+                    transparent, 
+                    var(--highlight-color), 
+                    transparent);
+        transform: translateX(-100%);
+        opacity: 0;
+        transition: transform 0.3s, opacity 0.3s;
+    }
+    </style>
     
     <!-- Contenido principal -->
     <main>
