@@ -1,479 +1,254 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import { FaUserAlt, FaLock, FaEye, FaEyeSlash, FaExclamationTriangle } from 'react-icons/fa';
+import { useAuth } from '../utils/AuthContext';
 
-const Login = ({ onLogin }) => {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: ''
-  });
+/**
+ * Página de inicio de sesión con animaciones y toggle de visibilidad de contraseña
+ */
+const Login = () => {
+  // Estados para formulario
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Hook de navegación y autenticación
   const navigate = useNavigate();
-
+  const { login, user } = useAuth();
+  
+  // Redirigir si ya está autenticado
   useEffect(() => {
-    document.title = 'Iniciar Sesión | Genesis';
-  }, []);
+    if (user) {
+      // Determinar ruta según rol
+      let redirectPath = '/';
+      
+      if (user.role === 'investor') {
+        redirectPath = '/investor';
+      } else if (user.role === 'admin') {
+        redirectPath = '/admin';
+      } else if (user.role === 'super_admin') {
+        redirectPath = '/super-admin';
+      }
+      
+      navigate(redirectPath);
+    }
+  }, [user, navigate]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Limpiar error cuando el usuario corrige
-    if (error) setError('');
-  };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(prev => !prev);
-  };
-
+  // Manejar envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.username || !formData.password) {
-      setError('Por favor complete todos los campos');
+    // Validar campos
+    if (!username.trim() || !password.trim()) {
+      setError('Por favor completa todos los campos');
       return;
     }
     
-    setLoading(true);
+    // Resetear error
     setError('');
+    setIsLoading(true);
     
     try {
-      const response = await axios.post('/api/login', formData);
+      // Intentar inicio de sesión
+      const result = await login(username, password);
       
-      if (response.data.success) {
-        // Llamar a la función onLogin del componente padre
-        onLogin(response.data.user);
-        
-        // Redirigir según el rol
-        const { role } = response.data.user;
-        if (role === 'super_admin') {
-          navigate('/super-admin');
-        } else if (role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/investor');
-        }
+      if (!result.success) {
+        setError(result.message || 'Credenciales incorrectas');
       }
     } catch (err) {
-      if (err.response && err.response.data && err.response.data.message) {
-        setError(err.response.data.message);
-      } else {
-        setError('Error al conectar con el servidor. Por favor, inténtelo de nuevo.');
-      }
+      console.error('Error al iniciar sesión:', err);
+      setError('Error al conectar con el servidor');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Variantes para animaciones
+  // Variantes de animación
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: { 
+    visible: {
       opacity: 1,
-      transition: { 
-        when: "beforeChildren",
-        staggerChildren: 0.1,
+      transition: {
         duration: 0.5
+      }
+    },
+    exit: {
+      opacity: 0,
+      transition: {
+        duration: 0.3
       }
     }
   };
   
-  const itemVariants = {
+  // Animación para campos del formulario
+  const inputVariants = {
     hidden: { y: 20, opacity: 0 },
-    visible: { 
-      y: 0, 
+    visible: (custom) => ({
+      y: 0,
       opacity: 1,
-      transition: { type: "spring", stiffness: 100 }
-    }
+      transition: {
+        delay: custom * 0.1,
+        duration: 0.4
+      }
+    })
   };
-
-  // Generar estrellas aleatorias para el fondo
-  const generateStars = () => {
-    const stars = [];
-    for (let i = 0; i < 100; i++) {
-      const size = Math.random() * 2;
-      stars.push({
-        id: i,
-        size: size,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        animationDuration: 1 + Math.random() * 3
-      });
-    }
-    return stars;
-  };
-
-  const stars = generateStars();
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      overflow: 'hidden',
-      position: 'relative',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundImage: 'linear-gradient(135deg, #0a0e17 0%, #121a29 100%)',
-    }}>
-      {/* Estrellas de fondo */}
-      {stars.map(star => (
-        <motion.div
-          key={star.id}
-          initial={{ opacity: 0.4 }}
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{
-            repeat: Infinity,
-            duration: star.animationDuration,
-            ease: "easeInOut"
-          }}
-          style={{
-            position: 'absolute',
-            top: `${star.y}%`,
-            left: `${star.x}%`,
-            width: `${star.size}px`,
-            height: `${star.size}px`,
-            backgroundColor: '#ffffff',
-            borderRadius: '50%',
-            boxShadow: '0 0 4px rgba(255, 255, 255, 0.8)',
-          }}
-        />
-      ))}
-      
-      {/* Logo en la esquina superior izquierda */}
-      <Link 
-        to="/" 
-        style={{
-          position: 'absolute',
-          top: '2rem',
-          left: '2rem',
-          fontFamily: 'var(--font-title)',
-          fontSize: '1.5rem',
-          color: 'var(--primary-color)',
-          textDecoration: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          textShadow: 'var(--glow-primary)',
-        }}
-      >
-        <svg 
-          width="28" 
-          height="28" 
-          viewBox="0 0 24 24" 
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
-            fill="url(#gradient)"
-          />
-          <path
-            d="M12 11C13.1046 11 14 10.1046 14 9C14 7.89543 13.1046 7 12 7C10.8954 7 10 7.89543 10 9C10 10.1046 10.8954 11 12 11Z"
-            fill="url(#gradient)"
-          />
-          <path
-            d="M12 13C9.79 13 8 14.79 8 17H16C16 14.79 14.21 13 12 13Z"
-            fill="url(#gradient)"
-          />
-          <defs>
-            <linearGradient id="gradient" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#05b2dc" />
-              <stop offset="1" stopColor="#8a2be2" />
-            </linearGradient>
-          </defs>
-        </svg>
-        GENESIS
-      </Link>
-
-      {/* Formulario de inicio de sesión */}
-      <motion.div
+    <div className="login-page">
+      {/* Contenedor principal */}
+      <motion.div 
         className="login-container"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        style={{
-          backgroundColor: 'rgba(20, 26, 40, 0.8)',
-          backdropFilter: 'blur(10px)',
-          borderRadius: 'var(--border-radius-lg)',
-          padding: '2.5rem',
-          width: '90%',
-          maxWidth: '400px',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
-          zIndex: 10
-        }}
+        exit="exit"
       >
+        {/* Logo */}
         <motion.div
-          variants={itemVariants}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            marginBottom: '2rem'
-          }}
+          className="login-logo"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
         >
-          <svg 
-            width="60" 
-            height="60" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            xmlns="http://www.w3.org/2000/svg"
-            style={{ marginBottom: '1rem' }}
-          >
-            <path
-              d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 20C7.59 20 4 16.41 4 12C4 7.59 7.59 4 12 4C16.41 4 20 7.59 20 12C20 16.41 16.41 20 12 20Z"
-              fill="url(#gradient-large)"
-            />
-            <path
-              d="M12 11C13.1046 11 14 10.1046 14 9C14 7.89543 13.1046 7 12 7C10.8954 7 10 7.89543 10 9C10 10.1046 10.8954 11 12 11Z"
-              fill="url(#gradient-large)"
-            />
-            <path
-              d="M12 13C9.79 13 8 14.79 8 17H16C16 14.79 14.21 13 12 13Z"
-              fill="url(#gradient-large)"
-            />
-            <circle cx="12" cy="12" r="9" stroke="url(#gradient-large)" strokeWidth="0.5" strokeDasharray="1 1" fill="none" />
-            <defs>
-              <linearGradient id="gradient-large" x1="2" y1="12" x2="22" y2="12" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#05b2dc" />
-                <stop offset="1" stopColor="#8a2be2" />
-              </linearGradient>
-            </defs>
-          </svg>
-          <h1 style={{ 
-            textAlign: 'center',
-            fontSize: '1.8rem',
-            marginBottom: '0.5rem',
-            background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
-          }}>
-            Iniciar Sesión
-          </h1>
-          <p style={{ 
-            color: 'var(--text-secondary)',
-            textAlign: 'center',
-            fontSize: '0.9rem'
-          }}>
-            Accede a tu cuenta Genesis para continuar
-          </p>
+          <span>G</span>
         </motion.div>
-
-        <motion.form 
-          variants={containerVariants}
-          onSubmit={handleSubmit}
+        
+        <motion.h1
+          className="login-title"
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2, duration: 0.4 }}
         >
-          {/* Campo de usuario */}
-          <motion.div 
-            variants={itemVariants}
-            className="form-group"
+          Acceso al Sistema
+        </motion.h1>
+        
+        {/* Mensaje de error */}
+        {error && (
+          <motion.div
+            className="login-error"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
           >
-            <label 
-              htmlFor="username"
-              className="form-label"
-            >
-              Usuario
-            </label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              className="form-input"
-              value={formData.username}
-              onChange={handleChange}
-              autoComplete="username"
-              placeholder="Ingresa tu nombre de usuario"
-              style={{
-                backgroundColor: 'rgba(10, 14, 23, 0.5)',
-                border: '1px solid rgba(5, 178, 220, 0.3)',
-                borderRadius: 'var(--border-radius-sm)',
-                padding: '0.8rem',
-                color: 'var(--text-color)',
-                width: '100%',
-                transition: 'all 0.3s ease'
-              }}
-            />
+            <FaExclamationTriangle />
+            <span>{error}</span>
           </motion.div>
-
-          {/* Campo de contraseña */}
-          <motion.div 
-            variants={itemVariants}
-            className="form-group"
-            style={{ position: 'relative' }}
+        )}
+        
+        {/* Formulario */}
+        <form className="login-form" onSubmit={handleSubmit}>
+          {/* Campo de usuario */}
+          <motion.div
+            className="login-field"
+            variants={inputVariants}
+            custom={1}
+            initial="hidden"
+            animate="visible"
           >
-            <label 
-              htmlFor="password"
-              className="form-label"
-            >
-              Contraseña
-            </label>
-            <div style={{ position: 'relative' }}>
+            <div className="login-icon">
+              <FaUserAlt />
+            </div>
+            <div className="login-input-container">
+              <input
+                type="text"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Usuario"
+                required
+                autoComplete="username"
+                className="login-input"
+                disabled={isLoading}
+              />
+              <label htmlFor="username" className="login-label">Usuario</label>
+            </div>
+          </motion.div>
+          
+          {/* Campo de contraseña */}
+          <motion.div
+            className="login-field"
+            variants={inputVariants}
+            custom={2}
+            initial="hidden"
+            animate="visible"
+          >
+            <div className="login-icon">
+              <FaLock />
+            </div>
+            <div className="login-input-container">
               <input
                 type={showPassword ? "text" : "password"}
                 id="password"
-                name="password"
-                className="form-input"
-                value={formData.password}
-                onChange={handleChange}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Contraseña"
+                required
                 autoComplete="current-password"
-                placeholder="Ingresa tu contraseña"
-                style={{
-                  backgroundColor: 'rgba(10, 14, 23, 0.5)',
-                  border: '1px solid rgba(5, 178, 220, 0.3)',
-                  borderRadius: 'var(--border-radius-sm)',
-                  padding: '0.8rem',
-                  color: 'var(--text-color)',
-                  width: '100%',
-                  paddingRight: '2.5rem',
-                  transition: 'all 0.3s ease'
-                }}
+                className="login-input"
+                disabled={isLoading}
               />
+              <label htmlFor="password" className="login-label">Contraseña</label>
               <button
                 type="button"
-                onClick={togglePasswordVisibility}
-                style={{
-                  position: 'absolute',
-                  right: '0.5rem',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0.5rem'
-                }}
+                className="login-password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               >
-                {showPassword ? (
-                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
-                  </svg>
-                ) : (
-                  <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z" />
-                  </svg>
-                )}
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
             </div>
           </motion.div>
-
-          {/* Mensaje de error */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{
-                color: 'var(--danger-color)',
-                textAlign: 'center',
-                marginBottom: '1rem',
-                padding: '0.5rem',
-                borderRadius: 'var(--border-radius-sm)',
-                backgroundColor: 'rgba(255, 82, 82, 0.1)',
-                border: '1px solid rgba(255, 82, 82, 0.3)'
-              }}
-            >
-              {error}
-            </motion.div>
-          )}
-
-          {/* Botón de inicio de sesión */}
+          
+          {/* Botón de envío */}
           <motion.button
-            variants={itemVariants}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+            className={`login-button ${isLoading ? 'loading' : ''}`}
+            variants={inputVariants}
+            custom={3}
+            initial="hidden"
+            animate="visible"
             type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '0.8rem',
-              backgroundColor: 'var(--primary-color)',
-              color: 'var(--text-color)',
-              border: 'none',
-              borderRadius: 'var(--border-radius-sm)',
-              fontFamily: 'var(--font-title)',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.8 : 1,
-              transition: 'all 0.3s ease',
-              marginTop: '1rem',
-              boxShadow: 'var(--glow-primary)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
+            disabled={isLoading}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
           >
-            {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
-            
-            {/* Efecto de carga */}
-            {loading && (
-              <motion.div
-                style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  height: '4px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.5)',
-                  width: '100%',
-                  transformOrigin: 'left'
-                }}
-                animate={{
-                  scaleX: [0, 1, 0],
-                  x: ['0%', '0%', '100%']
-                }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1.5,
-                  ease: "easeInOut"
-                }}
-              />
-            )}
+            {isLoading ? (
+              <div className="login-spinner"></div>
+            ) : 'Ingresar'}
           </motion.button>
-        </motion.form>
+        </form>
         
-        {/* Información adicional */}
+        {/* Credenciales de prueba */}
         <motion.div
-          variants={itemVariants}
-          style={{
-            marginTop: '2rem',
-            textAlign: 'center'
-          }}
+          className="login-demo-accounts"
+          variants={inputVariants}
+          custom={4}
+          initial="hidden"
+          animate="visible"
         >
-          <p style={{ 
-            color: 'var(--text-secondary)',
-            fontSize: '0.85rem',
-            marginBottom: '0.5rem'
-          }}>
-            Credenciales de prueba:
-          </p>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '0.3rem',
-            fontSize: '0.8rem',
-            color: 'var(--text-secondary)',
-            backgroundColor: 'rgba(10, 14, 23, 0.5)',
-            borderRadius: 'var(--border-radius-sm)',
-            padding: '0.8rem',
-            marginTop: '0.5rem'
-          }}>
-            <div>
-              <span style={{ color: 'var(--primary-color)' }}>Inversor:</span> investor / investor_password
-            </div>
-            <div>
-              <span style={{ color: 'var(--primary-color)' }}>Admin:</span> admin / admin_password
-            </div>
-            <div>
-              <span style={{ color: 'var(--primary-color)' }}>Super Admin:</span> super_admin / super_admin_password
-            </div>
+          <h3>Cuentas de Prueba</h3>
+          <div className="demo-account">
+            <strong>Inversor:</strong> usuario: investor, contraseña: investor_password
           </div>
+          <div className="demo-account">
+            <strong>Admin:</strong> usuario: admin, contraseña: admin_password
+          </div>
+          <div className="demo-account">
+            <strong>Super Admin:</strong> usuario: super_admin, contraseña: super_admin_password
+          </div>
+        </motion.div>
+        
+        {/* Enlace a la página principal */}
+        <motion.div
+          className="login-home-link"
+          variants={inputVariants}
+          custom={5}
+          initial="hidden"
+          animate="visible"
+        >
+          <Link to="/">Volver a la página principal</Link>
         </motion.div>
       </motion.div>
     </div>
@@ -481,3 +256,309 @@ const Login = ({ onLogin }) => {
 };
 
 export default Login;
+
+// Estilos específicos para la página Login
+const styles = `
+  .login-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--spacing-lg);
+    background-color: var(--color-background);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .login-page::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 30% 30%, rgba(12, 198, 222, 0.1), transparent 70%),
+                radial-gradient(circle at 70% 70%, rgba(146, 112, 255, 0.1), transparent 70%);
+    z-index: 0;
+  }
+  
+  .login-container {
+    width: 100%;
+    max-width: 500px;
+    padding: var(--spacing-xl);
+    background: rgba(22, 43, 77, 0.7);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 1;
+  }
+  
+  .login-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-lg);
+    box-shadow: 0 0 20px rgba(12, 198, 222, 0.5);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .login-logo::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    animation: shimmer 3s infinite;
+  }
+  
+  .login-logo span {
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: bold;
+    color: var(--color-primary);
+  }
+  
+  .login-title {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: var(--spacing-lg);
+    color: var(--color-primary);
+    font-family: var(--font-display);
+  }
+  
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+  }
+  
+  .login-field {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+  
+  .login-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(12, 198, 222, 0.1);
+    border-radius: var(--border-radius-sm);
+    color: var(--color-primary);
+  }
+  
+  .login-input-container {
+    flex: 1;
+    position: relative;
+  }
+  
+  .login-input {
+    width: 100%;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius-sm);
+    padding: 0 var(--spacing-xl) 0 var(--spacing-md);
+    color: var(--color-text);
+    font-size: 1rem;
+    transition: all var(--transition-normal);
+  }
+  
+  .login-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 10px rgba(12, 198, 222, 0.3);
+  }
+  
+  .login-input:focus + .login-label,
+  .login-input:not(:placeholder-shown) + .login-label {
+    transform: translateY(-30px) scale(0.8);
+    color: var(--color-primary);
+  }
+  
+  .login-label {
+    position: absolute;
+    left: var(--spacing-md);
+    top: 15px;
+    color: var(--color-text-secondary);
+    transition: all var(--transition-normal);
+    pointer-events: none;
+    font-family: var(--font-secondary);
+  }
+  
+  .login-password-toggle {
+    position: absolute;
+    right: var(--spacing-sm);
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast);
+  }
+  
+  .login-password-toggle:hover {
+    color: var(--color-primary);
+  }
+  
+  .login-button {
+    height: 50px;
+    background: linear-gradient(45deg, var(--color-primary), var(--color-secondary));
+    border: none;
+    border-radius: var(--border-radius-sm);
+    color: var(--color-background);
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-top: var(--spacing-sm);
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition-normal);
+  }
+  
+  .login-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: all var(--transition-normal);
+  }
+  
+  .login-button:hover::before {
+    animation: shimmer 2s infinite;
+  }
+  
+  .login-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  .login-button.loading {
+    color: transparent;
+  }
+  
+  .login-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+  }
+  
+  @keyframes spin {
+    to {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
+  }
+  
+  .login-error {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: rgba(255, 83, 113, 0.1);
+    border-left: 3px solid var(--color-danger);
+    border-radius: var(--border-radius-sm);
+    color: var(--color-danger);
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .login-home-link {
+    text-align: center;
+    margin-top: var(--spacing-md);
+  }
+  
+  .login-home-link a {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: all var(--transition-fast);
+  }
+  
+  .login-home-link a:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+  
+  .login-demo-accounts {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: rgba(12, 198, 222, 0.05);
+    border-radius: var(--border-radius-md);
+    border: 1px dashed rgba(12, 198, 222, 0.3);
+  }
+  
+  .login-demo-accounts h3 {
+    text-align: center;
+    font-size: 1rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--color-primary);
+  }
+  
+  .demo-account {
+    font-size: 0.8rem;
+    margin-bottom: var(--spacing-xs);
+    color: var(--color-text-secondary);
+  }
+  
+  .demo-account strong {
+    color: var(--color-text);
+  }
+  
+  /* Responsive */
+  @media (max-width: 480px) {
+    .login-container {
+      padding: var(--spacing-md);
+    }
+    
+    .login-title {
+      font-size: 1.5rem;
+    }
+    
+    .login-input {
+      height: 45px;
+    }
+    
+    .login-button {
+      height: 45px;
+    }
+  }
+`;
+
+// Insertar estilos en el documento si no existen ya
+if (typeof document !== 'undefined') {
+  const styleId = 'login-page-styles';
+  
+  if (!document.getElementById(styleId)) {
+    const styleElement = document.createElement('style');
+    styleElement.id = styleId;
+    styleElement.textContent = styles;
+    document.head.appendChild(styleElement);
+  }
+}
