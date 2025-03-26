@@ -1,16 +1,16 @@
 /* Estilos base */
 :root {
-  /* Paleta principal (colores más claros y brillantes) */
-  --primary-bg: #1e3253;       /* Azul menos oscuro */
-  --secondary-bg: #274680;     /* Azul medio */
+  /* Paleta principal (colores más luminosos y brillantes) */
+  --primary-bg: #1a2d68;       /* Azul profundo pero más luminoso */
+  --secondary-bg: #2154b9;     /* Azul medio brillante */
   --highlight-color: #00eaff;  /* Cian brillante */
   --accent-color: #ffee00;     /* Amarillo brillante */
   --text-color: #ffffff;       /* Texto blanco */
-  --card-bg: rgba(46, 76, 144, 0.8); /* Azul semitransparente más claro */
+  --card-bg: rgba(33, 84, 185, 0.8); /* Azul semitransparente brillante */
   
-  /* Luminosidad de efectos */
-  --glow-intensity: 0.8;
-  --glow-spread: 15px;
+  /* Luminosidad de efectos (aumentada) */
+  --glow-intensity: 1;
+  --glow-spread: 20px;
 }
 
 /* Reset y estilos generales */
@@ -22,12 +22,13 @@
 }
 
 body {
-  background: linear-gradient(135deg, var(--primary-bg), #274680);
+  background: linear-gradient(135deg, var(--primary-bg), var(--secondary-bg));
   color: var(--text-color);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   line-height: 1.6;
+  position: relative;
 }
 
 .container {
@@ -46,7 +47,7 @@ body {
   height: 100%;
   z-index: -1;
   overflow: hidden;
-  opacity: 0.5; /* Menos visible para un fondo más claro */
+  opacity: 0.7; /* Más visible para un efecto más luminoso */
 }
 
 .stars, .stars2, .stars3 {
@@ -59,30 +60,33 @@ body {
 }
 
 .stars {
-  background-image: radial-gradient(2px 2px at 20px 30px, #ffffff, rgba(0, 0, 0, 0)),
+  background-image: radial-gradient(2px 2px at 20px 30px, #00eaff, rgba(0, 0, 0, 0)),
                    radial-gradient(2px 2px at 40px 70px, #ffffff, rgba(0, 0, 0, 0)),
-                   radial-gradient(1px 1px at 90px 40px, #ffffff, rgba(0, 0, 0, 0));
+                   radial-gradient(1px 1px at 90px 40px, #00eaff, rgba(0, 0, 0, 0));
   background-repeat: repeat;
   background-size: 200px 200px;
   animation: twinkle 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 2px rgba(0, 234, 255, 0.8));
 }
 
 .stars2 {
   background-image: radial-gradient(1px 1px at 100px 150px, #ffffff, rgba(0, 0, 0, 0)),
-                   radial-gradient(1px 1px at 200px 220px, #ffffff, rgba(0, 0, 0, 0)),
+                   radial-gradient(1px 1px at 200px 220px, #00eaff, rgba(0, 0, 0, 0)),
                    radial-gradient(2px 2px at 300px 300px, #ffffff, rgba(0, 0, 0, 0));
   background-repeat: repeat;
   background-size: 400px 400px;
   animation: twinkle 5s ease-in-out infinite;
+  filter: drop-shadow(0 0 1px rgba(0, 234, 255, 0.5));
 }
 
 .stars3 {
-  background-image: radial-gradient(1px 1px at 50px 80px, #ffffff, rgba(0, 0, 0, 0)),
+  background-image: radial-gradient(1px 1px at 50px 80px, #00eaff, rgba(0, 0, 0, 0)),
                    radial-gradient(1px 1px at 150px 50px, #ffffff, rgba(0, 0, 0, 0)),
-                   radial-gradient(1px 1px at 250px 350px, #ffffff, rgba(0, 0, 0, 0));
+                   radial-gradient(1px 1px at 250px 350px, #00eaff, rgba(0, 0, 0, 0));
   background-repeat: repeat;
   background-size: 300px 300px;
   animation: twinkle 6s ease-in-out infinite;
+  filter: drop-shadow(0 0 2px rgba(0, 234, 255, 0.8));
 }
 
 @keyframes twinkle {
@@ -93,12 +97,13 @@ body {
 
 /* Header y navegación */
 header {
-  background-color: rgba(35, 65, 139, 0.9);
-  box-shadow: 0 0 20px rgba(0, 234, 255, 0.2);
+  background-color: rgba(33, 84, 185, 0.9);
+  box-shadow: 0 0 20px rgba(0, 234, 255, 0.4);
   padding: 15px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  border-bottom: 1px solid rgba(0, 234, 255, 0.3);
 }
 
 .logo-container {
@@ -263,7 +268,7 @@ header {
 /* Features section */
 .features-section {
   padding: 80px 0;
-  background-color: rgba(35, 66, 141, 0.6);
+  background-color: rgba(33, 84, 185, 0.6);
 }
 
 .section-title {
@@ -618,7 +623,8 @@ footer {
   padding: 20px 0;
   margin-top: auto;
   text-align: center;
-  box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(0, 234, 255, 0.3);
 }
 
 .footer-content {
