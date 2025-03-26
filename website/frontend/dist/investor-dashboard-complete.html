@@ -650,31 +650,35 @@
     /* Tipo de transacción */
     .transaction-type {
       display: inline-block;
-      padding: 2px 8px;
+      padding: 4px 10px;
       border-radius: var(--border-radius-sm);
       font-size: 11px;
       font-weight: 600;
       text-transform: uppercase;
     }
     
-    .transaction-deposit {
-      background-color: rgba(46, 204, 113, 0.2);
+    .transaction-deposit, .deposit {
+      background-color: rgba(46, 204, 113, 0.3);
       color: var(--color-success);
+      text-shadow: 0 0 5px rgba(46, 204, 113, 0.8);
     }
     
-    .transaction-withdrawal {
-      background-color: rgba(231, 76, 60, 0.2);
+    .transaction-withdrawal, .withdrawal {
+      background-color: rgba(231, 76, 60, 0.3);
       color: var(--color-danger);
+      text-shadow: 0 0 5px rgba(231, 76, 60, 0.8);
     }
     
-    .transaction-bonus {
-      background-color: rgba(241, 196, 15, 0.2);
+    .transaction-bonus, .bonus {
+      background-color: rgba(241, 196, 15, 0.3);
       color: var(--color-warning);
+      text-shadow: 0 0 5px rgba(241, 196, 15, 0.8);
     }
     
-    .transaction-profit {
-      background-color: rgba(52, 152, 219, 0.2);
+    .transaction-profit, .profit {
+      background-color: rgba(52, 152, 219, 0.3);
       color: #3498db;
+      text-shadow: 0 0 5px rgba(52, 152, 219, 0.8);
     }
     
     /* Estado */
@@ -1873,7 +1877,7 @@
           
           row.innerHTML = `
             <td>${transaction.date}</td>
-            <td><span class="transaction-type ${typeClass}">${transaction.type}</span></td>
+            <td><span class="transaction-type ${typeClass}">${transaction.typeDisplay || transaction.type}</span></td>
             <td>${transaction.description}</td>
             <td>${formatCurrency(transaction.amount)}</td>
             <td><span class="status ${statusClass}">${transaction.status}</span></td>
@@ -1902,18 +1906,23 @@
           switch(transaction.type) {
             case 'deposit':
               iconHtml = '<i class="fas fa-arrow-down"></i>';
+              transaction.typeDisplay = 'Depósito';
               break;
             case 'withdrawal':
               iconHtml = '<i class="fas fa-arrow-up"></i>';
+              transaction.typeDisplay = 'Retiro';
               break;
             case 'bonus':
               iconHtml = '<i class="fas fa-gift"></i>';
+              transaction.typeDisplay = 'Bono';
               break;
             case 'profit':
               iconHtml = '<i class="fas fa-chart-line"></i>';
+              transaction.typeDisplay = 'Ganancia';
               break;
             default:
               iconHtml = '<i class="fas fa-exchange-alt"></i>';
+              transaction.typeDisplay = 'Transacción';
           }
           
           activity.innerHTML = `
