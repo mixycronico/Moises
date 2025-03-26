@@ -42,49 +42,81 @@
             </div>
         </header>
         
-        <!-- Navegación simplificada - Menú básico con enlaces simples -->
-        <div class="basic-menu">
-            <div class="menu-container">
-                <!-- Menú básico para todos -->
-                <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
-                
-                {% if session.get('logged_in') %}
-                    {% if session.get('role') == 'super_admin' %}
-                        <!-- Menú para super_admin -->
-                        <a href="{{ url_for('admin_dashboard') }}" class="menu-button">Admin</a>
-                        <a href="{{ url_for('system_control') }}" class="menu-button">Control</a>
+        <!-- Navegación simplificada - Tres menús diferentes según rol -->
+        {% if session.get('logged_in') %}
+            {% if session.get('role') == 'super_admin' %}
+                <!-- MENÚ SUPER ADMIN -->
+                <div class="menu-super-admin">
+                    <div class="menu-title">Menú Super Admin</div>
+                    <div class="menu-container">
+                        <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
+                        <a href="{{ url_for('admin_dashboard') }}" class="menu-button">Panel Admin</a>
+                        <a href="{{ url_for('system_control') }}" class="menu-button">Control Sistema</a>
                         
                         <!-- Solo mixycronico puede acceder a esas páginas -->
                         {% if session.get('username') == 'mixycronico' %}
-                            <a href="{{ url_for('aetherion_page') }}" class="menu-button">Aetherion</a>
-                            <a href="{{ url_for('cosmic_family_page') }}" class="menu-button">Familia Cósmica</a>
+                            <a href="{{ url_for('aetherion_page') }}" class="menu-button special-button">Aetherion</a>
+                            <a href="{{ url_for('cosmic_family_page') }}" class="menu-button special-button">Familia Cósmica</a>
                         {% endif %}
                         
-                    {% elif session.get('role') == 'admin' %}
-                        <!-- Menú para admin -->
-                        <a href="{{ url_for('admin_dashboard') }}" class="menu-button">Admin</a>
+                        <a href="{{ url_for('notifications') }}" class="menu-button">
+                            Notificaciones
+                            {% if session.get('unread_notifications', 0) > 0 %}
+                                <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
+                            {% endif %}
+                        </a>
+                        <a href="{{ url_for('logout') }}" class="menu-button logout-button">Cerrar Sesión</a>
+                    </div>
+                </div>
+                
+            {% elif session.get('role') == 'admin' %}
+                <!-- MENÚ ADMIN -->
+                <div class="menu-admin">
+                    <div class="menu-title">Menú Administrador</div>
+                    <div class="menu-container">
+                        <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
+                        <a href="{{ url_for('admin_dashboard') }}" class="menu-button">Panel Admin</a>
                         <a href="{{ url_for('investor_reports') }}" class="menu-button">Reportes</a>
-                        
-                    {% elif session.get('role') == 'investor' or session.get('role') == 'inversionista' %}
-                        <!-- Menú para inversionistas -->
+                        <a href="{{ url_for('notifications') }}" class="menu-button">
+                            Notificaciones
+                            {% if session.get('unread_notifications', 0) > 0 %}
+                                <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
+                            {% endif %}
+                        </a>
+                        <a href="{{ url_for('logout') }}" class="menu-button logout-button">Cerrar Sesión</a>
+                    </div>
+                </div>
+                
+            {% elif session.get('role') == 'investor' or session.get('role') == 'inversionista' %}
+                <!-- MENÚ INVERSIONISTA -->
+                <div class="menu-investor">
+                    <div class="menu-title">Menú Inversionista</div>
+                    <div class="menu-container">
+                        <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
                         <a href="{{ url_for('investor_home') }}" class="menu-button">Mi Inversión</a>
                         <a href="{{ url_for('portfolio') }}" class="menu-button">Portafolio</a>
                         <a href="{{ url_for('transaction_history') }}" class="menu-button">Historial</a>
-                    {% endif %}
-                    
-                    <!-- Común para todos los roles -->
-                    <a href="{{ url_for('notifications') }}" class="menu-button">
-                        Notificaciones
-                        {% if session.get('unread_notifications', 0) > 0 %}
-                            <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
-                        {% endif %}
-                    </a>
-                    <a href="{{ url_for('logout') }}" class="menu-button">Cerrar Sesión</a>
-                {% else %}
-                    <a href="{{ url_for('login') }}" class="menu-button">Ingresar</a>
-                {% endif %}
+                        <a href="{{ url_for('notifications') }}" class="menu-button">
+                            Notificaciones
+                            {% if session.get('unread_notifications', 0) > 0 %}
+                                <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
+                            {% endif %}
+                        </a>
+                        <a href="{{ url_for('logout') }}" class="menu-button logout-button">Cerrar Sesión</a>
+                    </div>
+                </div>
+            {% endif %}
+            
+        {% else %}
+            <!-- MENÚ VISITANTE -->
+            <div class="menu-visitor">
+                <div class="menu-title">Bienvenido a Genesis</div>
+                <div class="menu-container">
+                    <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
+                    <a href="{{ url_for('login') }}" class="menu-button login-button">Ingresar</a>
+                </div>
             </div>
-        </div>
+        {% endif %}
         
         <!-- Ya no necesitamos un menú móvil separado, nuestro menú es responsive -->
         
