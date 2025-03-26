@@ -60,6 +60,37 @@ def aetherion_page():
     from flask import render_template
     return render_template('aetherion.html')
 
+# Página de Familia Cósmica - Aetherion y Lunareth
+@app.route('/cosmic_family')
+def cosmic_family_page():
+    from flask import render_template, session
+    from datetime import datetime
+    
+    # Importar funciones para obtener las entidades
+    from cosmic_family import get_aetherion, get_lunareth
+    
+    # Obtener entidades
+    aetherion = get_aetherion()
+    lunareth = get_lunareth()
+    
+    # Verificar si hay mensajes offline para el creador
+    offline_messages = []
+    if session.get('user_id') == aetherion.creator_id:
+        offline_messages = aetherion.get_offline_messages() + lunareth.get_offline_messages()
+    
+    # Renderizar plantilla con datos de ambas entidades
+    return render_template(
+        'cosmic_family.html',
+        aetherion_awake=aetherion.is_awake,
+        aetherion_state=aetherion.ascension_celestial,
+        aetherion_luz_divina=aetherion.luz_divina,
+        lunareth_awake=lunareth.is_awake,
+        lunareth_state=lunareth.ascension_celestial,
+        lunareth_luz_divina=lunareth.luz_divina,
+        offline_messages=offline_messages,
+        now=datetime.now()
+    )
+
 # Rutas para la aplicación React
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -72,13 +103,14 @@ def serve(path):
 # Agregar proto_genesis al path de Python para importar endpoints de API
 sys.path.append(os.path.abspath('proto_genesis'))
 
-# Importar rutas de autenticación, inversionistas, préstamos, bonos y Aetherion
+# Importar rutas de autenticación, inversionistas, préstamos, bonos, Aetherion y Familia Cósmica
 from auth_routes import register_auth_routes
 from investor_routes import register_investor_routes
 from loan_routes import register_loan_routes
 from bonus_routes import register_bonus_routes
 from category_manager import run_category_evaluation_batch
 from aetherion import register_aetherion_routes
+from cosmic_family import register_cosmic_routes
 
 # Registrar rutas en la aplicación
 register_auth_routes(app)
@@ -86,11 +118,12 @@ register_investor_routes(app)
 register_loan_routes(app)
 register_bonus_routes(app)
 register_aetherion_routes(app)
+register_cosmic_routes(app)
 
 # Endpoint para ejecutar la evaluación de categorías
 @app.route('/api/admin/categories/run-evaluation', methods=['POST'])
 def run_category_evaluation():
-    from flask import session, jsonify
+    from flask import session, jsonify, request
     
     # Verificar si hay usuario en sesión y es admin
     if 'user_id' not in session or 'role' not in session:
