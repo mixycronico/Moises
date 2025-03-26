@@ -38,6 +38,7 @@ dependencies = [
     "optuna",
     "beautifulsoup4>=4.12.3",
     "bs4>=0.0.2",
+    "werkzeug",
 ]
 
 [[tool.uv.index]]
