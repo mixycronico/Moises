@@ -704,30 +704,85 @@
     .gauge-bg {
       fill: none;
       stroke: rgba(123, 97, 255, 0.15);
-      stroke-width: 8;
+      stroke-width: 10;
       stroke-linecap: round;
+      filter: url(#gaugeBlur);
     }
     
     .gauge-fill {
       fill: none;
-      stroke-width: 8;
+      stroke-width: 12;
       stroke-linecap: round;
       filter: url(#glow);
       stroke-dasharray: 0 283; /* 283 es aproximadamente el perímetro de un círculo de r=45 */
-      animation: fillGauge 1.5s ease-out forwards;
+      animation: fillGauge 1.5s cubic-bezier(0.215, 0.610, 0.355, 1.000) forwards;
+      transform-origin: center;
+      transform: rotate(0.5deg); /* Ligero offset para efecto especial */
     }
     
     .gauge-fill.positive {
-      stroke: #2ecc71; /* Verde para valores positivos */
+      stroke: url(#positiveGlowGradient);
     }
     
     .gauge-fill.negative {
-      stroke: #e74c3c; /* Rojo para valores negativos */
+      stroke: url(#negativeGlowGradient);
+    }
+    
+    /* Líneas de marcador en el gauge */
+    .gauge-markers {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transform: rotate(180deg);
+      opacity: 0.6;
+    }
+    
+    .gauge-marker {
+      stroke: rgba(255, 255, 255, 0.4);
+      stroke-width: 1;
+      fill: none;
+    }
+    
+    /* Punto brillante que se mueve por el gauge */
+    .gauge-glow-point {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #fff;
+      filter: blur(2px) drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+      z-index: 2;
+      opacity: 0;
+      animation: glowPointMove 2s forwards, glowPointPulse 2s infinite;
+    }
+    
+    .gauge-glow-point.positive {
+      background: #2ecc71;
+      box-shadow: 0 0 15px 5px rgba(46, 204, 113, 0.7);
+    }
+    
+    .gauge-glow-point.negative {
+      background: #e74c3c;
+      box-shadow: 0 0 15px 5px rgba(231, 76, 60, 0.7);
+    }
+    
+    @keyframes glowPointMove {
+      0% { opacity: 0; transform: rotate(0deg) translateX(40px); }
+      20% { opacity: 1; }
+      100% { opacity: 1; transform: rotate(var(--gauge-point-rotation)) translateX(40px); }
+    }
+    
+    @keyframes glowPointPulse {
+      0%, 100% { transform: rotate(var(--gauge-point-rotation)) translateX(40px) scale(1); }
+      50% { transform: rotate(var(--gauge-point-rotation)) translateX(40px) scale(1.3); }
     }
     
     @keyframes fillGauge {
-      from { stroke-dasharray: 0 283; }
-      to { stroke-dasharray: var(--gauge-fill) 283; }
+      0% { stroke-dasharray: 0 283; stroke-width: 10; }
+      40% { stroke-dasharray: calc(var(--gauge-fill) * 0.8) 283; stroke-width: 12; }
+      60% { stroke-dasharray: calc(var(--gauge-fill) * 0.9) 283; stroke-width: 14; }
+      80% { stroke-dasharray: calc(var(--gauge-fill) * 0.95) 283; stroke-width: 12; }
+      100% { stroke-dasharray: var(--gauge-fill) 283; stroke-width: 12; }
     }
     
     /* Contenido del centro */
@@ -1471,6 +1526,21 @@
         <feComposite in="SourceGraphic" in2="glow" operator="over" />
       </filter>
       
+      <!-- Filtro de brillo intenso para gauges -->
+      <filter id="gaugeBlur" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 10 -4" result="glow" />
+        <feComposite in="SourceGraphic" in2="glow" operator="over" />
+      </filter>
+      
+      <!-- Filtro de resplandor holográfico -->
+      <filter id="holoGlow" x="-50%" y="-50%" width="200%" height="200%">
+        <feTurbulence baseFrequency="0.01" numOctaves="3" seed="1" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+        <feGaussianBlur in="displaced" stdDeviation="1.5" result="blurred" />
+        <feBlend in="SourceGraphic" in2="blurred" mode="screen" />
+      </filter>
+      
       <!-- Gradiente lineal para barras de progreso -->
       <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
         <stop offset="0%" stop-color="#7b61ff" />
@@ -1488,6 +1558,28 @@
         <stop offset="0%" stop-color="#e74c3c" />
         <stop offset="100%" stop-color="#c0392b" />
       </linearGradient>
+      
+      <!-- Gradiente para medidor positivo con brillo -->
+      <linearGradient id="positiveGlowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#2ecc71" />
+        <stop offset="40%" stop-color="#57e096" />
+        <stop offset="60%" stop-color="#2ecc71" />
+        <stop offset="100%" stop-color="#1db954" />
+      </linearGradient>
+      
+      <!-- Gradiente para medidor negativo con brillo -->
+      <linearGradient id="negativeGlowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#e74c3c" />
+        <stop offset="40%" stop-color="#f65d4e" />
+        <stop offset="60%" stop-color="#e74c3c" />
+        <stop offset="100%" stop-color="#c0392b" />
+      </linearGradient>
+      
+      <!-- Filtro para partículas brillantes -->
+      <filter id="particleGlow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="2" />
+        <feColorMatrix type="matrix" values="1 0 0 0 1  0 1 0 0 1  0 0 1 0 1  0 0 0 20 -8" />
+      </filter>
     </defs>
   </svg>
   
@@ -1697,13 +1789,23 @@
           <div class="chart-container">
             <div class="pulse-ring"></div>
             <div class="chart-graphic-container">
+              <!-- Líneas de marcadores de medición -->
+              <svg class="gauge-markers" viewBox="0 0 100 100">
+                <path class="gauge-marker" d="M 50,50 L 50,15" />
+                <path class="gauge-marker" d="M 50,50 L 67,20" />
+                <path class="gauge-marker" d="M 50,50 L 80,32" />
+                <path class="gauge-marker" d="M 50,50 L 85,50" />
+              </svg>
+              <!-- Arco de fondo y arco de progreso -->
               <svg class="gauge-path" viewBox="0 0 100 100">
                 <path class="gauge-bg" d="M10,50 a 40,40 0 1,1 80,0" />
                 <path class="gauge-fill positive" d="M10,50 a 40,40 0 1,1 80,0" style="--gauge-fill: 70" />
               </svg>
+              <!-- Punto brillante que se mueve por el arco -->
+              <div class="gauge-glow-point positive" style="--gauge-point-rotation: 70deg"></div>
             </div>
             <div class="chart-label">
-              <div class="chart-percentage positive-change" id="dailyPerformance">+0.0%</div>
+              <div class="chart-percentage positive-change" id="dailyPerformance">+0.70%</div>
               <div class="chart-description">Diario</div>
             </div>
           </div>
@@ -1711,13 +1813,23 @@
           <div class="chart-container">
             <div class="pulse-ring"></div>
             <div class="chart-graphic-container">
+              <!-- Líneas de marcadores de medición -->
+              <svg class="gauge-markers" viewBox="0 0 100 100">
+                <path class="gauge-marker" d="M 50,50 L 50,15" />
+                <path class="gauge-marker" d="M 50,50 L 67,20" />
+                <path class="gauge-marker" d="M 50,50 L 80,32" />
+                <path class="gauge-marker" d="M 50,50 L 85,50" />
+              </svg>
+              <!-- Arco de fondo y arco de progreso -->
               <svg class="gauge-path" viewBox="0 0 100 100">
                 <path class="gauge-bg" d="M10,50 a 40,40 0 1,1 80,0" />
                 <path class="gauge-fill positive" d="M10,50 a 40,40 0 1,1 80,0" style="--gauge-fill: 120" />
               </svg>
+              <!-- Punto brillante que se mueve por el arco -->
+              <div class="gauge-glow-point positive" style="--gauge-point-rotation: 120deg"></div>
             </div>
             <div class="chart-label">
-              <div class="chart-percentage positive-change" id="weeklyPerformance">+0.0%</div>
+              <div class="chart-percentage positive-change" id="weeklyPerformance">+3.20%</div>
               <div class="chart-description">Semanal</div>
             </div>
           </div>
@@ -1725,13 +1837,23 @@
           <div class="chart-container">
             <div class="pulse-ring"></div>
             <div class="chart-graphic-container">
+              <!-- Líneas de marcadores de medición -->
+              <svg class="gauge-markers" viewBox="0 0 100 100">
+                <path class="gauge-marker" d="M 50,50 L 50,15" />
+                <path class="gauge-marker" d="M 50,50 L 67,20" />
+                <path class="gauge-marker" d="M 50,50 L 80,32" />
+                <path class="gauge-marker" d="M 50,50 L 85,50" />
+              </svg>
+              <!-- Arco de fondo y arco de progreso -->
               <svg class="gauge-path" viewBox="0 0 100 100">
                 <path class="gauge-bg" d="M10,50 a 40,40 0 1,1 80,0" />
                 <path class="gauge-fill positive" d="M10,50 a 40,40 0 1,1 80,0" style="--gauge-fill: 180" />
               </svg>
+              <!-- Punto brillante que se mueve por el arco -->
+              <div class="gauge-glow-point positive" style="--gauge-point-rotation: 180deg"></div>
             </div>
             <div class="chart-label">
-              <div class="chart-percentage positive-change" id="monthlyPerformance">+0.0%</div>
+              <div class="chart-percentage positive-change" id="monthlyPerformance">+10.50%</div>
               <div class="chart-description">Mensual</div>
             </div>
           </div>
@@ -1739,13 +1861,23 @@
           <div class="chart-container">
             <div class="pulse-ring"></div>
             <div class="chart-graphic-container">
+              <!-- Líneas de marcadores de medición -->
+              <svg class="gauge-markers" viewBox="0 0 100 100">
+                <path class="gauge-marker" d="M 50,50 L 50,15" />
+                <path class="gauge-marker" d="M 50,50 L 67,20" />
+                <path class="gauge-marker" d="M 50,50 L 80,32" />
+                <path class="gauge-marker" d="M 50,50 L 85,50" />
+              </svg>
+              <!-- Arco de fondo y arco de progreso -->
               <svg class="gauge-path" viewBox="0 0 100 100">
                 <path class="gauge-bg" d="M10,50 a 40,40 0 1,1 80,0" />
                 <path class="gauge-fill positive" d="M10,50 a 40,40 0 1,1 80,0" style="--gauge-fill: 230" />
               </svg>
+              <!-- Punto brillante que se mueve por el arco -->
+              <div class="gauge-glow-point positive" style="--gauge-point-rotation: 230deg"></div>
             </div>
             <div class="chart-label">
-              <div class="chart-percentage positive-change" id="yearlyPerformance">+0.0%</div>
+              <div class="chart-percentage positive-change" id="yearlyPerformance">+38.00%</div>
               <div class="chart-description">Anual</div>
             </div>
           </div>
