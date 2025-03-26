@@ -1273,6 +1273,11 @@
 <body>
   <div id="stars"></div>
   
+  <!-- Botón de menú hamburguesa para móvil/tablet -->
+  <div class="menu-toggle" id="menuToggle">
+    <i class="fas fa-bars"></i>
+  </div>
+  
   <div class="main-container">
     <!-- Barra superior -->
     <header class="header">
@@ -2188,6 +2193,9 @@
       // Configurar modal de subida de fotos
       setupPhotoUploadModal();
       
+      // Configurar menú responsivo
+      setupResponsiveMenu();
+      
       try {
         // Verificar si el usuario está autenticado
         const authResponse = await fetch('/api/auth/status');
@@ -2195,6 +2203,8 @@
         
         if (authData.authenticated) {
           console.log("Usuario autenticado:", authData.user);
+          // Configurar menú según el rol del usuario
+          setupMenuByRole(authData.user.role);
         }
         
         // Obtener datos del inversionista
@@ -2210,6 +2220,105 @@
       } catch (error) {
         console.error('Error al obtener información del usuario:', error);
       }
+    }
+    
+    // Configurar menú responsivo
+    function setupResponsiveMenu() {
+      const menuToggle = document.getElementById('menuToggle');
+      const sidebar = document.querySelector('.sidebar');
+      
+      // Abrir/cerrar menú al hacer clic en el botón de hamburguesa
+      menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+      });
+      
+      // Cerrar menú al hacer clic fuera de él (en dispositivos móviles/tablets)
+      document.addEventListener('click', (e) => {
+        if (
+          window.innerWidth <= 992 && 
+          sidebar.classList.contains('open') && 
+          !sidebar.contains(e.target) && 
+          e.target !== menuToggle &&
+          !menuToggle.contains(e.target)
+        ) {
+          sidebar.classList.remove('open');
+        }
+      });
+    }
+    
+    // Configurar menú según el rol del usuario
+    function setupMenuByRole(role) {
+      // Definición del menú por roles
+      const menuItems = {
+        'inversionista': [
+          { icon: 'fas fa-chart-line', name: 'Panel de Control' },
+          { icon: 'fas fa-wallet', name: 'Mi Portafolio' },
+          { icon: 'fas fa-exchange-alt', name: 'Transacciones' },
+          { icon: 'fas fa-chart-pie', name: 'Análisis' },
+          { icon: 'fas fa-globe', name: 'Mercados' },
+          { icon: 'fas fa-robot', name: 'Aetherion AI' },
+          { icon: 'fas fa-user-friends', name: 'Referidos' },
+          { icon: 'fas fa-headset', name: 'Soporte' }
+        ],
+        'admin': [
+          { icon: 'fas fa-chart-line', name: 'Panel de Control' },
+          { icon: 'fas fa-wallet', name: 'Mi Portafolio' },
+          { icon: 'fas fa-users', name: 'Usuarios' },
+          { icon: 'fas fa-exchange-alt', name: 'Transacciones' },
+          { icon: 'fas fa-chart-pie', name: 'Análisis' },
+          { icon: 'fas fa-globe', name: 'Mercados' },
+          { icon: 'fas fa-file-alt', name: 'Reportes Generales' },
+          { icon: 'fas fa-robot', name: 'Aetherion AI' },
+          { icon: 'fas fa-headset', name: 'Soporte' }
+        ],
+        'super_admin': [
+          { icon: 'fas fa-chart-line', name: 'Panel de Control' },
+          { icon: 'fas fa-wallet', name: 'Mi Portafolio' },
+          { icon: 'fas fa-users', name: 'Usuarios' },
+          { icon: 'fas fa-exchange-alt', name: 'Transacciones' },
+          { icon: 'fas fa-chart-pie', name: 'Análisis' },
+          { icon: 'fas fa-globe', name: 'Mercados' },
+          { icon: 'fas fa-server', name: 'Control del Sistema' },
+          { icon: 'fas fa-file-alt', name: 'Reportes Globales' },
+          { icon: 'fas fa-robot', name: 'Aetherion AI' },
+          { icon: 'fas fa-cog', name: 'Configuración Avanzada' },
+          { icon: 'fas fa-headset', name: 'Soporte' }
+        ]
+      };
+      
+      // Si no existe el rol en nuestra definición, usar inversionista por defecto
+      const userRole = role.toLowerCase();
+      const items = menuItems[userRole] || menuItems['inversionista'];
+      
+      // Generar HTML del menú
+      const navContainer = document.querySelector('.sidebar-nav');
+      navContainer.innerHTML = ''; // Limpiar menú existente
+      
+      items.forEach((item, index) => {
+        const navItem = document.createElement('div');
+        navItem.className = 'nav-item' + (index === 0 ? ' active' : '');
+        navItem.innerHTML = `
+          <div class="icon"><i class="${item.icon}"></i></div>
+          <span>${item.name}</span>
+        `;
+        
+        // Agregar evento de clic al elemento de navegación
+        navItem.addEventListener('click', () => {
+          // Remover clase active de todos los elementos
+          document.querySelectorAll('.nav-item').forEach(el => {
+            el.classList.remove('active');
+          });
+          // Agregar clase active al elemento seleccionado
+          navItem.classList.add('active');
+          
+          // Cerrar menú en vista móvil después de seleccionar
+          if (window.innerWidth <= 992) {
+            document.querySelector('.sidebar').classList.remove('open');
+          }
+        });
+        
+        navContainer.appendChild(navItem);
+      });
     }
   </script>
 </body>
