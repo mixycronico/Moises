@@ -387,8 +387,8 @@ with app.app_context():
     if not creator:
         creator = User(
             username='mixycronico',
-            email='creator@genesis.com',
-            password_hash=generate_password_hash('creator_password'),  # Cambiar en producción
+            email='mixycronico@aol.com',
+            password_hash=generate_password_hash('Jesus@2@7'),  # Credenciales proporcionadas por Moises
             first_name='Moises',
             last_name='Alvarenga',
             is_admin=True
