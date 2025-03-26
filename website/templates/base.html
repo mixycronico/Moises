@@ -30,89 +30,63 @@
     <div class="quantum-particles" id="quantumParticles"></div>
     
     <div class="page-wrapper">
-        <!-- Cabecera -->
+        <!-- Cabecera simplificada con menú básico -->
         <header class="main-header">
-            <div class="header-container">
-                <!-- Logo -->
-                <div class="logo-container">
-                    <a href="{{ url_for('index') }}" class="logo-link">
-                        <div class="floating-logo">
-                            <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo">
-                        </div>
-                    </a>
-                </div>
-                
-                <!-- Navegación -->
-                <nav class="main-nav">
-                    <div class="nav-links">
-                        <a href="{{ url_for('index') }}" class="nav-item">Inicio</a>
-                        
-                        {% if session.get('logged_in') %}
-                            {% if session.get('role') == 'super_admin' %}
-                                <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
-                                <a href="{{ url_for('system_control') }}" class="nav-item">Control</a>
-                                <a href="{{ url_for('aetherion_page') }}" class="nav-item">Aetherion</a>
-                                <a href="{{ url_for('cosmic_family_page') }}" class="nav-item">Familia Cósmica</a>
-                            {% elif session.get('role') == 'admin' %}
-                                <a href="{{ url_for('admin_dashboard') }}" class="nav-item">Admin</a>
-                                <a href="{{ url_for('aetherion_page') }}" class="nav-item">Aetherion</a>
-                            {% elif session.get('role') == 'investor' %}
-                                <a href="{{ url_for('investor_home') }}" class="nav-item">Mi Inversión</a>
-                                <a href="{{ url_for('portfolio') }}" class="nav-item">Portafolio</a>
-                            {% endif %}
-                            
-                            <a href="{{ url_for('notifications') }}" class="nav-item">
-                                Notificaciones
-                                {% if session.get('unread_notifications', 0) > 0 %}
-                                    <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
-                                {% endif %}
-                            </a>
-                            <a href="{{ url_for('logout') }}" class="nav-item">Cerrar Sesión</a>
-                        {% else %}
-                            <a href="{{ url_for('login') }}" class="nav-item">Ingresar</a>
-                        {% endif %}
+            <!-- Logo centrado -->
+            <div class="logo-container">
+                <a href="{{ url_for('index') }}" class="logo-link">
+                    <div class="floating-logo">
+                        <img src="{{ url_for('static', filename='img/genesis-logo.png') }}" alt="Genesis Logo">
                     </div>
-                    <div class="mobile-menu-toggle">
-                        <i class="fas fa-bars"></i>
-                    </div>
-                </nav>
+                </a>
             </div>
         </header>
         
-        <!-- Menú móvil -->
-        <div class="mobile-menu">
-            <div class="mobile-menu-close">
-                <i class="fas fa-times"></i>
-            </div>
-            <div class="mobile-menu-links">
-                <a href="{{ url_for('index') }}" class="mobile-nav-item">Inicio</a>
+        <!-- Navegación simplificada - Menú básico con enlaces simples -->
+        <div class="basic-menu">
+            <div class="menu-container">
+                <!-- Menú básico para todos -->
+                <a href="{{ url_for('index') }}" class="menu-button">Inicio</a>
                 
                 {% if session.get('logged_in') %}
                     {% if session.get('role') == 'super_admin' %}
-                        <a href="{{ url_for('admin_dashboard') }}" class="mobile-nav-item">Admin</a>
-                        <a href="{{ url_for('system_control') }}" class="mobile-nav-item">Control</a>
-                        <a href="{{ url_for('aetherion_page') }}" class="mobile-nav-item">Aetherion</a>
-                        <a href="{{ url_for('cosmic_family_page') }}" class="mobile-nav-item">Familia Cósmica</a>
+                        <!-- Menú para super_admin -->
+                        <a href="{{ url_for('admin_dashboard') }}" class="menu-button">Admin</a>
+                        <a href="{{ url_for('system_control') }}" class="menu-button">Control</a>
+                        
+                        <!-- Solo mixycronico puede acceder a esas páginas -->
+                        {% if session.get('username') == 'mixycronico' %}
+                            <a href="{{ url_for('aetherion_page') }}" class="menu-button">Aetherion</a>
+                            <a href="{{ url_for('cosmic_family_page') }}" class="menu-button">Familia Cósmica</a>
+                        {% endif %}
+                        
                     {% elif session.get('role') == 'admin' %}
-                        <a href="{{ url_for('admin_dashboard') }}" class="mobile-nav-item">Admin</a>
-                        <a href="{{ url_for('aetherion_page') }}" class="mobile-nav-item">Aetherion</a>
-                    {% elif session.get('role') == 'investor' %}
-                        <a href="{{ url_for('investor_home') }}" class="mobile-nav-item">Mi Inversión</a>
-                        <a href="{{ url_for('portfolio') }}" class="mobile-nav-item">Portafolio</a>
+                        <!-- Menú para admin -->
+                        <a href="{{ url_for('admin_dashboard') }}" class="menu-button">Admin</a>
+                        <a href="{{ url_for('investor_reports') }}" class="menu-button">Reportes</a>
+                        
+                    {% elif session.get('role') == 'investor' or session.get('role') == 'inversionista' %}
+                        <!-- Menú para inversionistas -->
+                        <a href="{{ url_for('investor_home') }}" class="menu-button">Mi Inversión</a>
+                        <a href="{{ url_for('portfolio') }}" class="menu-button">Portafolio</a>
+                        <a href="{{ url_for('transaction_history') }}" class="menu-button">Historial</a>
                     {% endif %}
                     
-                    <a href="{{ url_for('notifications') }}" class="mobile-nav-item">
+                    <!-- Común para todos los roles -->
+                    <a href="{{ url_for('notifications') }}" class="menu-button">
                         Notificaciones
                         {% if session.get('unread_notifications', 0) > 0 %}
                             <span class="notification-badge">{{ session.get('unread_notifications') }}</span>
                         {% endif %}
                     </a>
-                    <a href="{{ url_for('logout') }}" class="mobile-nav-item">Cerrar Sesión</a>
+                    <a href="{{ url_for('logout') }}" class="menu-button">Cerrar Sesión</a>
                 {% else %}
-                    <a href="{{ url_for('login') }}" class="mobile-nav-item">Ingresar</a>
+                    <a href="{{ url_for('login') }}" class="menu-button">Ingresar</a>
                 {% endif %}
             </div>
         </div>
+        
+        <!-- Ya no necesitamos un menú móvil separado, nuestro menú es responsive -->
         
         <!-- Mensajes flash -->
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -168,21 +142,6 @@
     <!-- JavaScript -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Menú móvil
-            const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
-            const mobileMenu = document.querySelector('.mobile-menu');
-            const mobileMenuClose = document.querySelector('.mobile-menu-close');
-            
-            if (mobileMenuToggle && mobileMenu && mobileMenuClose) {
-                mobileMenuToggle.addEventListener('click', function() {
-                    mobileMenu.classList.add('active');
-                });
-                
-                mobileMenuClose.addEventListener('click', function() {
-                    mobileMenu.classList.remove('active');
-                });
-            }
-            
             // Cerrar alertas
             const alertCloseButtons = document.querySelectorAll('.alert-close');
             
