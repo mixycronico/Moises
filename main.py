@@ -66,18 +66,20 @@ def serve(path):
 # Agregar proto_genesis al path de Python para importar endpoints de API
 sys.path.append(os.path.abspath('proto_genesis'))
 
-# Importar rutas de autenticación, inversionistas, préstamos y bonos
+# Importar rutas de autenticación, inversionistas, préstamos, bonos y Aetherion
 from auth_routes import register_auth_routes
 from investor_routes import register_investor_routes
 from loan_routes import register_loan_routes
 from bonus_routes import register_bonus_routes
 from category_manager import run_category_evaluation_batch
+from aetherion import register_aetherion_routes
 
 # Registrar rutas en la aplicación
 register_auth_routes(app)
 register_investor_routes(app)
 register_loan_routes(app)
 register_bonus_routes(app)
+register_aetherion_routes(app)
 
 # Endpoint para ejecutar la evaluación de categorías
 @app.route('/api/admin/categories/run-evaluation', methods=['POST'])
