@@ -47,7 +47,7 @@ def super_admin_page():
 # Panel de inversionista - accesible para todos los roles
 @app.route('/portfolio')
 def portfolio_page():
-    return send_file(os.path.join(app.static_folder, 'investor-dashboard.html'))
+    return send_file(os.path.join(app.static_folder, 'investor-dashboard-new.html'))
 
 # Rutas para la aplicación React
 @app.route('/', defaults={'path': ''})

@@ -572,6 +572,64 @@ def get_current_investor():
         "category_info": category
     })
 
+def upload_profile_photo():
+    """Subir foto de perfil para el inversionista actual."""
+    user = session.get('user', {})
+    user_id = user.get('username')
+    
+    # Verificar que el usuario esté autenticado
+    if not user_id:
+        return jsonify({
+            "success": False,
+            "message": "Usuario no autenticado"
+        }), 401
+    
+    # Buscar inversionista por user_id
+    investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == user_id), None)
+    
+    if not investor:
+        return jsonify({
+            "success": False,
+            "message": "Inversionista no encontrado para el usuario actual"
+        }), 404
+    
+    # Verificar que se envió una imagen
+    if 'photo' not in request.files:
+        return jsonify({
+            "success": False,
+            "message": "No se envió ninguna imagen"
+        }), 400
+    
+    file = request.files['photo']
+    
+    if file.filename == '':
+        return jsonify({
+            "success": False,
+            "message": "No se seleccionó ningún archivo"
+        }), 400
+    
+    # Verificar que sea un formato de imagen válido
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+        return jsonify({
+            "success": False,
+            "message": "Formato de archivo no permitido. Use PNG, JPG, JPEG o GIF"
+        }), 400
+    
+    # En una implementación real, aquí guardaríamos la imagen en el servidor
+    # y actualizaríamos la referencia en la base de datos
+    
+    # Para la demo, simulamos que la imagen se guardó correctamente
+    photo_url = f"/static/profile_photos/{user_id}_{file.filename}"
+    
+    # Actualizamos el registro del inversionista con la URL de la foto
+    investor["photo_url"] = photo_url
+    
+    return jsonify({
+        "success": True,
+        "message": "Foto de perfil actualizada correctamente",
+        "photo_url": photo_url
+    })
+
 def register_investor_routes(app):
     """Registrar rutas de inversionistas en la aplicación Flask."""
     app.add_url_rule('/api/investor/dashboard/<investor_id>', 'get_investor_dashboard', get_investor_dashboard)
@@ -581,3 +639,4 @@ def register_investor_routes(app):
     app.add_url_rule('/api/investor', 'create_investor', create_investor, methods=['POST'])
     app.add_url_rule('/api/investor/<investor_id>', 'update_investor', update_investor, methods=['PUT'])
     app.add_url_rule('/api/investor/current', 'get_current_investor', get_current_investor)
+    app.add_url_rule('/api/investor/upload-photo', 'upload_profile_photo', upload_profile_photo, methods=['POST'])
