@@ -41,6 +41,15 @@ DEMO_USERS = {
         "email": "creador@genesis.ai",
         "role": "super_admin",
         "name": "Creador de Genesis"
+    },
+    # Usuario personalizado de Moises Alvarenga
+    "mixycronico": {
+        "id": 5,
+        "username": "mixycronico",
+        "password": "Jesus@2@7",
+        "email": "mixycronico@aol.com",
+        "role": "super_admin",
+        "name": "Moises Alvarenga"
     }
 }
 

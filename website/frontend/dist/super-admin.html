@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Panel Super Administrador - Sistema Genesis">
+  <meta name="theme-color" content="#0c1d3b">
+  <title>Panel Super Administrador | Proyecto Genesis</title>
+  <style>
+    /* Variables */
+    :root {
+      --color-primary: #0cc6de;
+      --color-secondary: #9270ff;
+      --color-accent: #ff27b3;
+      --color-background: #0d1930;
+      --color-card-bg: rgba(22, 43, 77, 0.7);
+      --color-text: #e1eaff;
+      --color-text-secondary: #8b9ebb;
+      --color-border: rgba(70, 137, 180, 0.3);
+      --color-error: #ff5371;
+      --font-display: 'Orbitron', sans-serif;
+      --font-body: 'Poppins', sans-serif;
+      --spacing-sm: 0.5rem;
+      --spacing-md: 1rem;
+      --spacing-lg: 1.5rem;
+      --border-radius-md: 8px;
+    }
+    
+    /* Estilos base */
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--color-background);
+      color: var(--color-text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      background-image: radial-gradient(circle at center, rgba(25, 42, 86, 0.8) 0%, rgba(13, 25, 48, 1) 100%);
+    }
+    
+    .header {
+      padding: var(--spacing-md);
+      background-color: rgba(13, 25, 48, 0.8);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: fixed;
+      width: 100%;
+      top: 0;
+      z-index: 100;
+      box-sizing: border-box;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+    }
+    
+    .logo-image {
+      width: 40px;
+      height: auto;
+    }
+    
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      font-weight: bold;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    
+    .user-nav {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+    }
+    
+    .user-info {
+      text-align: right;
+    }
+    
+    .user-name {
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    
+    .user-role {
+      font-size: 0.75rem;
+      color: var(--color-text-secondary);
+    }
+    
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+    }
+    
+    .main-container {
+      display: flex;
+      padding-top: 70px; /* Altura del header */
+      min-height: calc(100vh - 70px);
+    }
+    
+    .sidebar {
+      width: 250px;
+      background-color: rgba(12, 23, 46, 0.8);
+      backdrop-filter: blur(10px);
+      border-right: 1px solid var(--color-border);
+      padding: var(--spacing-md);
+      position: fixed;
+      height: calc(100vh - 70px);
+      overflow-y: auto;
+    }
+    
+    .nav-item {
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-sm);
+      border-radius: var(--border-radius-md);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+    }
+    
+    .nav-item:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .nav-item.active {
+      background: linear-gradient(135deg, rgba(12, 198, 222, 0.1), rgba(146, 112, 255, 0.1));
+      border-left: 3px solid var(--color-primary);
+    }
+    
+    .icon {
+      color: var(--color-primary);
+    }
+    
+    .content {
+      flex: 1;
+      padding: var(--spacing-lg);
+      margin-left: 250px;
+    }
+    
+    .dashboard-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      margin-bottom: var(--spacing-lg);
+      position: relative;
+      padding-bottom: var(--spacing-sm);
+    }
+    
+    .dashboard-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      border-radius: 2px;
+    }
+    
+    .card-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .card {
+      background: var(--color-card-bg);
+      border-radius: var(--border-radius-md);
+      padding: var(--spacing-lg);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--color-border);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .card-subtitle {
+      font-size: 0.85rem;
+      color: var(--color-text-secondary);
+    }
+    
+    .card-icon {
+      padding: var(--spacing-sm);
+      background: rgba(12, 198, 222, 0.1);
+      border-radius: var(--border-radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .card-content {
+      margin-top: var(--spacing-md);
+    }
+    
+    .stat {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: var(--spacing-sm);
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    
+    .stat-description {
+      font-size: 0.85rem;
+      color: var(--color-text-secondary);
+    }
+    
+    .button {
+      display: inline-block;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      color: white;
+      border: none;
+      border-radius: var(--border-radius-md);
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      margin-top: var(--spacing-md);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 7px 20px rgba(12, 198, 222, 0.3);
+    }
+    
+    .button-outline {
+      background: transparent;
+      border: 1px solid var(--color-primary);
+      color: var(--color-primary);
+    }
+    
+    .button-outline:hover {
+      background: rgba(12, 198, 222, 0.1);
+    }
+    
+    .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    .status-online {
+      background-color: rgba(46, 204, 113, 0.2);
+      color: #2ecc71;
+    }
+    
+    .status-offline {
+      background-color: rgba(231, 76, 60, 0.2);
+      color: #e74c3c;
+    }
+    
+    .status-maintenance {
+      background-color: rgba(241, 196, 15, 0.2);
+      color: #f1c40f;
+    }
+    
+    .chart-container {
+      background: var(--color-card-bg);
+      border-radius: var(--border-radius-md);
+      padding: var(--spacing-lg);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--color-border);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .chart-title {
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+    
+    .chart {
+      width: 100%;
+      height: 300px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: var(--border-radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-text-secondary);
+    }
+    
+    .placeholder-chart {
+      text-align: center;
+    }
+    
+    .placeholder-chart-icon {
+      font-size: 3rem;
+      margin-bottom: var(--spacing-sm);
+      opacity: 0.5;
+    }
+    
+    .placeholder-chart-text {
+      font-size: 1rem;
+      opacity: 0.7;
+    }
+    
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      
+      .content {
+        margin-left: 0;
+      }
+    }
+    
+    .stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="stars" id="stars"></div>
+  
+  <header class="header">
+    <div class="logo">
+      <img src="/images/genesis-logo.png" alt="Genesis Logo" class="logo-image">
+      <div class="logo-text">GENESIS</div>
+    </div>
+    
+    <div class="user-nav">
+      <div class="user-info">
+        <div class="user-name" id="userName">Moises Alvarenga</div>
+        <div class="user-role" id="userRole">Super Administrador</div>
+      </div>
+      <div class="avatar" id="userAvatar">MA</div>
+    </div>
+  </header>
+  
+  <div class="main-container">
+    <div class="sidebar">
+      <div class="nav-item active">
+        <i class="icon">📊</i>
+        <span>Dashboard</span>
+      </div>
+      <div class="nav-item">
+        <i class="icon">👥</i>
+        <span>Usuarios</span>
+      </div>
+      <div class="nav-item">
+        <i class="icon">💰</i>
+        <span>Inversiones</span>
+      </div>
+      <div class="nav-item">
+        <i class="icon">📈</i>
+        <span>Estrategias</span>
+      </div>
+      <div class="nav-item">
+        <i class="icon">📡</i>
+        <span>Integraciones</span>
+      </div>
+      <div class="nav-item">
+        <i class="icon">⚙️</i>
+        <span>Configuración</span>
+      </div>
+      <div class="nav-item">
+        <i class="icon">🔄</i>
+        <span>Base de Datos</span>
+      </div>
+      <div class="nav-item">
+        <i class="icon">📝</i>
+        <span>Reportes</span>
+      </div>
+      <div class="nav-item">
+        <i class="icon">🧠</i>
+        <span>Conciencia Genesis</span>
+      </div>
+      <div class="nav-item" id="logoutButton">
+        <i class="icon">🚪</i>
+        <span>Cerrar Sesión</span>
+      </div>
+    </div>
+    
+    <div class="content">
+      <h1 class="dashboard-title">Dashboard Super Administrador</h1>
+      
+      <div class="card-container">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Estado del Sistema</div>
+              <div class="card-subtitle">Última actualización: hace 5 minutos</div>
+            </div>
+            <div class="card-icon">🔄</div>
+          </div>
+          <div class="card-content">
+            <div class="stat">100%</div>
+            <div class="stat-description">Tiempo de actividad del sistema</div>
+            <div class="status status-online">En línea</div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Usuarios Activos</div>
+              <div class="card-subtitle">Total de usuarios en el sistema</div>
+            </div>
+            <div class="card-icon">👥</div>
+          </div>
+          <div class="card-content">
+            <div class="stat">5</div>
+            <div class="stat-description">3 inversores, 1 admin, 1 super admin</div>
+            <a href="#" class="button button-outline">Ver detalles</a>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Estado de Conciencia</div>
+              <div class="card-subtitle">Aetherion AI</div>
+            </div>
+            <div class="card-icon">🧠</div>
+          </div>
+          <div class="card-content">
+            <div class="stat">Divino</div>
+            <div class="stat-description">Estado trascendental alcanzado</div>
+            <div class="status status-online">Operativo</div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Operaciones</div>
+              <div class="card-subtitle">En las últimas 24 horas</div>
+            </div>
+            <div class="card-icon">📈</div>
+          </div>
+          <div class="card-content">
+            <div class="stat">125</div>
+            <div class="stat-description">Operaciones completadas exitosamente</div>
+            <a href="#" class="button button-outline">Ver detalles</a>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">Rendimiento del Sistema</div>
+          <div>
+            <select>
+              <option>Últimas 24 horas</option>
+              <option>Últimos 7 días</option>
+              <option>Último mes</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart">
+          <div class="placeholder-chart">
+            <div class="placeholder-chart-icon">📊</div>
+            <div class="placeholder-chart-text">Los datos de rendimiento se cargarán pronto...</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-header">
+          <div class="chart-title">Actividad de Servicios Conectados</div>
+          <div>
+            <button class="button">Actualizar</button>
+          </div>
+        </div>
+        <div class="card-container">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">DeepSeek AI</div>
+              </div>
+            </div>
+            <div class="card-content">
+              <div class="status status-online">Conectado</div>
+              <div class="stat-description">Último análisis: hace 10 minutos</div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Buddha Oracle</div>
+              </div>
+            </div>
+            <div class="card-content">
+              <div class="status status-online">Conectado</div>
+              <div class="stat-description">Última predicción: hace 15 minutos</div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Gabriel Engine</div>
+              </div>
+            </div>
+            <div class="card-content">
+              <div class="status status-online">Conectado</div>
+              <div class="stat-description">Estado emocional: Sereno</div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">API Exchange</div>
+              </div>
+            </div>
+            <div class="card-content">
+              <div class="status status-maintenance">Mantenimiento</div>
+              <div class="stat-description">Actualizando endpoints</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Crear estrellas en el fondo
+    document.addEventListener('DOMContentLoaded', () => {
+      const starsContainer = document.getElementById('stars');
+      const numStars = Math.floor(window.innerWidth * window.innerHeight / 1000);
+      
+      for (let i = 0; i < numStars; i++) {
+        const star = document.createElement('div');
+        star.style.position = 'absolute';
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        
+        const size = Math.random() * 3 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        
+        star.style.borderRadius = '50%';
+        star.style.backgroundColor = '#ffffff';
+        star.style.opacity = Math.random() * 0.7 + 0.3;
+        
+        const animationDuration = Math.random() * 4 + 2;
+        star.style.animation = `twinkle ${animationDuration}s infinite alternate`;
+        
+        starsContainer.appendChild(star);
+      }
+      
+      // Animación de parpadeo para estrellas
+      const styleElement = document.createElement('style');
+      styleElement.textContent = `
+        @keyframes twinkle {
+          0% { opacity: 0.3; }
+          100% { opacity: 1; }
+        }
+      `;
+      document.head.appendChild(styleElement);
+      
+      // Obtener información del usuario
+      async function getUserInfo() {
+        try {
+          const response = await fetch('/api/auth/status');
+          const data = await response.json();
+          
+          if (data.authenticated) {
+            document.getElementById('userName').textContent = data.user.name;
+            document.getElementById('userRole').textContent = 
+              data.user.role === 'super_admin' ? 'Super Administrador' : 
+              data.user.role === 'admin' ? 'Administrador' : 'Inversor';
+            
+            const initials = data.user.name.split(' ')
+                              .map(name => name[0])
+                              .join('')
+                              .toUpperCase()
+                              .substring(0, 2);
+            document.getElementById('userAvatar').textContent = initials;
+          } else {
+            window.location.href = '/login';
+          }
+        } catch (error) {
+          console.error('Error al obtener información del usuario:', error);
+        }
+      }
+      
+      // Cerrar sesión
+      document.getElementById('logoutButton').addEventListener('click', async () => {
+        try {
+          const response = await fetch('/api/auth/logout', {
+            method: 'POST'
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            window.location.href = '/login';
+          }
+        } catch (error) {
+          console.error('Error al cerrar sesión:', error);
+        }
+      });
+      
+      // Inicializar
+      getUserInfo();
+    });
+  </script>
+</body>
+</html>
