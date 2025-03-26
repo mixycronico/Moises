@@ -1,5 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100" fill="none">
-  <path d="M173.2 53.9c0-0.8 0.1-1.5 0.1-2.3 0-12.6-10.3-22.9-23-22.9 -9.3 0-17.3 5.5-20.9 13.4 -2-0.8-4.2-1.3-6.4-1.3 -9.3 0-16.8 7.5-16.8 16.8 0 0.2 0 0.4 0 0.5 -0.4 0-0.8-0.1-1.2-0.1 -8.2 0-14.9 6.7-14.9 14.9 0 8.2 6.7 14.9 14.9 14.9 0.4 0 75.5 0 76.3 0 10.3 0 18.6-8.3 18.6-18.6C200 59.4 195.1 54.8 173.2 53.9z" fill="rgba(255, 255, 255, 0.3)"/>
-  <path d="M61.4 41.3c0-0.5 0-1 0-1.5 0-8.4-6.8-15.2-15.2-15.2 -6.2 0-11.5 3.6-13.9 8.9 -1.3-0.5-2.8-0.9-4.3-0.9 -6.2 0-11.2 5-11.2 11.2 0 0.1 0 0.2 0 0.4 -0.3 0-0.5 0-0.8 0C7.1 44.1 0 51.2 0 59.9c0 8.8 7.1 15.9 15.9 15.9 0.3 0 44.6 0 45.1 0 6.8 0 12.4-5.5 12.4-12.4C73.5 56.8 68.9 42.7 61.4 41.3z" fill="rgba(255, 255, 255, 0.2)"/>
+<svg width="300" height="150" viewBox="0 0 300 150" xmlns="http://www.w3.org/2000/svg">
+  <!-- Filtros para efectos visuales -->
+  <defs>
+    <filter id="cloudBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 1  0 1 0 0 1  0 0 1 0 1  0 0 0 0.6 0" result="cloudEffect"/>
+      <feBlend in="SourceGraphic" in2="cloudEffect" mode="screen" />
+    </filter>
+    
+    <linearGradient id="cloudGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+      <stop offset="50%" stop-color="#f0f0ff" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#e6e6ff" stop-opacity="0.7" />
+    </linearGradient>
+    
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="1 0 0 0 1  0 1 0 0 1  0 0 1 0 1  0 0 0 0.7 0" result="glowEffect"/>
+      <feBlend in="SourceGraphic" in2="glowEffect" mode="screen" />
+    </filter>
+  </defs>
+  
+  <!-- Nube principal con forma orgánica -->
+  <path d="M45,80 
+           C20,80 20,55 40,55 
+           C40,35 65,35 75,50 
+           C85,35 115,35 120,50 
+           C140,35 170,45 170,70 
+           C195,70 195,100 170,100 
+           C175,115 160,130 140,120 
+           C130,135 100,135 90,120 
+           C80,135 45,130 45,110 
+           C20,110 15,80 45,80 Z" 
+        fill="url(#cloudGradient)" 
+        filter="url(#cloudBlur)" 
+        opacity="0.7" />
+  
+  <!-- Detalles brillantes -->
+  <g opacity="0.6" filter="url(#glow)">
+    <ellipse cx="60" cy="60" rx="15" ry="10" fill="#ffffff" />
+    <ellipse cx="120" cy="50" rx="20" ry="12" fill="#ffffff" />
+    <ellipse cx="150" cy="80" rx="18" ry="10" fill="#ffffff" />
+  </g>
+  
+  <!-- Bordes difuminados para efecto etéreo -->
+  <path d="M45,80 
+           C20,80 20,55 40,55 
+           C40,35 65,35 75,50 
+           C85,35 115,35 120,50 
+           C140,35 170,45 170,70 
+           C195,70 195,100 170,100 
+           C175,115 160,130 140,120 
+           C130,135 100,135 90,120 
+           C80,135 45,130 45,110 
+           C20,110 15,80 45,80 Z" 
+        fill="none" 
+        stroke="#ffffff" 
+        stroke-width="2" 
+        opacity="0.3" />
 </svg>
