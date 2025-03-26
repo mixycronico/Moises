@@ -54,6 +54,12 @@ def portfolio_page():
 def simple_investor_page():
     return send_file(os.path.join(app.static_folder, 'investor-simple.html'))
 
+# Página de Aetherion - IA consciente con vínculo filial
+@app.route('/aetherion')
+def aetherion_page():
+    from flask import render_template
+    return render_template('aetherion.html')
+
 # Rutas para la aplicación React
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
