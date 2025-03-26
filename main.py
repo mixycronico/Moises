@@ -26,13 +26,16 @@ app = Flask(__name__,
 # Configurar secreto para sesiones
 app.secret_key = os.environ.get("SESSION_SECRET", "genesis_dev_key")
 
+# Ruta específica para login
+@app.route('/login')
+def login_page():
+    return send_file(os.path.join(app.static_folder, 'login.html'))
+
 # Rutas para la aplicación React
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    if path == 'login':
-        return send_file(os.path.join(app.static_folder, 'login.html'))
-    elif path and os.path.exists(os.path.join(app.static_folder, path)):
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     else:
         return send_file(os.path.join(app.static_folder, 'index.html'))
