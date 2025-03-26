@@ -1002,6 +1002,9 @@
       
       .content {
         margin-left: 0;
+        padding-top: 70px;
+        padding-left: var(--spacing-sm);
+        padding-right: var(--spacing-sm);
       }
       
       .mobile-menu-toggle {
@@ -1014,6 +1017,80 @@
       
       .charts-row {
         grid-template-columns: 1fr;
+      }
+      
+      .header {
+        padding: 0 var(--spacing-sm);
+      }
+      
+      .search-input {
+        width: 150px;
+      }
+      
+      .welcome-message {
+        font-size: 20px;
+      }
+      
+      .card {
+        padding: var(--spacing-sm);
+      }
+      
+      .card-value {
+        font-size: 20px;
+      }
+      
+      .table-container {
+        overflow-x: auto;
+      }
+      
+      table {
+        font-size: 12px;
+      }
+      
+      th, td {
+        padding: var(--spacing-xs) var(--spacing-sm);
+      }
+    }
+    
+    /* Estilos específicos para móviles pequeños */
+    @media (max-width: 480px) {
+      .header-actions {
+        gap: var(--spacing-xs);
+      }
+      
+      .search-input {
+        width: 120px;
+        font-size: 12px;
+      }
+      
+      .logo-text {
+        font-size: 16px;
+      }
+      
+      .chart-percentage {
+        font-size: 18px;
+      }
+      
+      .date-display {
+        font-size: 12px;
+      }
+      
+      .card-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .modal {
+        width: 90%;
+      }
+      
+      .avatar {
+        width: 80px;
+        height: 80px;
+        font-size: 28px;
+      }
+      
+      .chart-container {
+        padding: var(--spacing-sm);
       }
     }
     
