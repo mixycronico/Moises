@@ -621,7 +621,7 @@
     
     .charts-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: var(--spacing-md);
     }
     
@@ -630,47 +630,107 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       padding: var(--spacing-md);
       border-radius: var(--border-radius-lg);
-      background: rgba(30, 20, 60, 0.15);
+      background: rgba(30, 20, 60, 0.25);
       backdrop-filter: blur(8px);
-      border: 1px solid rgba(123, 97, 255, 0.2);
-      box-shadow: 0 4px 20px rgba(20, 10, 40, 0.4), 
-                  0 0 15px rgba(123, 97, 255, 0.2),
-                  inset 0 0 8px rgba(123, 97, 255, 0.1);
+      border: 1px solid rgba(123, 97, 255, 0.25);
+      box-shadow: 0 4px 20px rgba(20, 10, 40, 0.5), 
+                  0 0 20px rgba(123, 97, 255, 0.3),
+                  inset 0 0 12px rgba(123, 97, 255, 0.2);
       transition: all 0.3s ease;
       overflow: hidden;
+      height: 180px;
+      aspect-ratio: 1/1;
     }
     
     .chart-container:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 30px rgba(20, 10, 40, 0.5), 
-                  0 0 20px rgba(123, 97, 255, 0.3),
-                  inset 0 0 12px rgba(123, 97, 255, 0.2);
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 8px 30px rgba(20, 10, 40, 0.6), 
+                  0 0 25px rgba(123, 97, 255, 0.4),
+                  inset 0 0 15px rgba(123, 97, 255, 0.3);
     }
     
     .chart-container::before {
       content: '';
       position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
+      top: -10px;
+      left: -10px;
+      right: -10px;
+      bottom: -10px;
       background: radial-gradient(
         circle at center,
-        rgba(123, 97, 255, 0.1) 0%,
+        rgba(123, 97, 255, 0.2) 0%,
         transparent 70%
       );
-      opacity: 0.5;
-      animation: rotateBg 10s linear infinite;
+      opacity: 0.7;
+      filter: blur(10px);
+      z-index: -1;
+    }
+    
+    .chart-container::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, 
+                  rgba(255, 255, 255, 0.1) 0%, 
+                  rgba(255, 255, 255, 0.05) 50%, 
+                  rgba(0, 0, 0, 0.05) 100%);
       pointer-events: none;
     }
     
-    @keyframes rotateBg {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    /* Wrapper nuevo para el gráfico */
+    .chart-graphic-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
+    /* Semicircular gauge nuevo */
+    .gauge-path {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      transform: rotate(180deg);
+    }
+    
+    .gauge-bg {
+      fill: none;
+      stroke: rgba(123, 97, 255, 0.15);
+      stroke-width: 8;
+      stroke-linecap: round;
+    }
+    
+    .gauge-fill {
+      fill: none;
+      stroke-width: 8;
+      stroke-linecap: round;
+      filter: url(#glow);
+      stroke-dasharray: 0 283; /* 283 es aproximadamente el perímetro de un círculo de r=45 */
+      animation: fillGauge 1.5s ease-out forwards;
+    }
+    
+    .gauge-fill.positive {
+      stroke: #2ecc71; /* Verde para valores positivos */
+    }
+    
+    .gauge-fill.negative {
+      stroke: #e74c3c; /* Rojo para valores negativos */
+    }
+    
+    @keyframes fillGauge {
+      from { stroke-dasharray: 0 283; }
+      to { stroke-dasharray: var(--gauge-fill) 283; }
+    }
+    
+    /* Contenido del centro */
     .chart-label {
       position: absolute;
       top: 50%;
@@ -682,23 +742,62 @@
     }
     
     .chart-percentage {
-      font-size: 24px;
+      font-size: 26px;
       font-weight: 700;
       text-shadow: 0 0 10px rgba(123, 97, 255, 0.8);
       transition: all 0.3s ease;
-      animation: pulseValue 3s infinite alternate;
+      background: linear-gradient(to bottom, #fff, rgba(255, 255, 255, 0.8));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: glowingText 2s infinite alternate;
+      letter-spacing: -0.5px;
     }
     
-    @keyframes pulseValue {
-      0% { text-shadow: 0 0 5px rgba(123, 97, 255, 0.5); }
-      100% { text-shadow: 0 0 15px rgba(123, 97, 255, 0.9); }
+    .chart-percentage.positive-change {
+      background: linear-gradient(to bottom, #2ecc71, #26aa5e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 15px rgba(46, 204, 113, 0.8);
+    }
+    
+    .chart-percentage.negative-change {
+      background: linear-gradient(to bottom, #e74c3c, #c0392b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 15px rgba(231, 76, 60, 0.8);
+    }
+    
+    @keyframes glowingText {
+      0% { opacity: 0.9; text-shadow: 0 0 5px currentColor; }
+      100% { opacity: 1; text-shadow: 0 0 15px currentColor, 0 0 20px currentColor; }
     }
     
     .chart-description {
-      font-size: 12px;
+      font-size: 13px;
+      font-weight: 500;
       color: var(--color-text-secondary);
       margin-top: var(--spacing-xs);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.9;
       text-shadow: 0 0 5px rgba(123, 97, 255, 0.5);
+    }
+    
+    /* Pulso de partículas */
+    .pulse-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background-color: rgba(123, 97, 255, 0.3);
+      opacity: 0;
+      animation: pulse 2s infinite;
+      pointer-events: none;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(0.5); opacity: 0.4; }
+      100% { transform: scale(1.2); opacity: 0; }
     }
     
     /* Sección principal de datos */
@@ -1362,6 +1461,36 @@
 <body>
   <div id="stars"></div>
   
+  <!-- SVG definitions para efectos especiales -->
+  <svg width="0" height="0" style="position: absolute;">
+    <defs>
+      <!-- Filtro de brillo para medidores -->
+      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="glow" />
+        <feComposite in="SourceGraphic" in2="glow" operator="over" />
+      </filter>
+      
+      <!-- Gradiente lineal para barras de progreso -->
+      <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#7b61ff" />
+        <stop offset="100%" stop-color="#42e8c3" />
+      </linearGradient>
+      
+      <!-- Gradiente para medidor positivo -->
+      <linearGradient id="positiveGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#2ecc71" />
+        <stop offset="100%" stop-color="#26aa5e" />
+      </linearGradient>
+      
+      <!-- Gradiente para medidor negativo -->
+      <linearGradient id="negativeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#e74c3c" />
+        <stop offset="100%" stop-color="#c0392b" />
+      </linearGradient>
+    </defs>
+  </svg>
+  
   <!-- Botón de menú hamburguesa para móvil/tablet -->
   <div class="menu-toggle" id="menuToggle">
     <i class="fas fa-bars"></i>
@@ -1566,33 +1695,57 @@
         
         <div class="charts-row">
           <div class="chart-container">
-            <canvas id="dailyChart" width="100" height="100"></canvas>
+            <div class="pulse-ring"></div>
+            <div class="chart-graphic-container">
+              <svg class="gauge-path" viewBox="0 0 100 100">
+                <path class="gauge-bg" d="M10,50 a 40,40 0 1,1 80,0" />
+                <path class="gauge-fill positive" d="M10,50 a 40,40 0 1,1 80,0" style="--gauge-fill: 70" />
+              </svg>
+            </div>
             <div class="chart-label">
-              <div class="chart-percentage" id="dailyPerformance">+0.0%</div>
+              <div class="chart-percentage positive-change" id="dailyPerformance">+0.0%</div>
               <div class="chart-description">Diario</div>
             </div>
           </div>
           
           <div class="chart-container">
-            <canvas id="weeklyChart" width="100" height="100"></canvas>
+            <div class="pulse-ring"></div>
+            <div class="chart-graphic-container">
+              <svg class="gauge-path" viewBox="0 0 100 100">
+                <path class="gauge-bg" d="M10,50 a 40,40 0 1,1 80,0" />
+                <path class="gauge-fill positive" d="M10,50 a 40,40 0 1,1 80,0" style="--gauge-fill: 120" />
+              </svg>
+            </div>
             <div class="chart-label">
-              <div class="chart-percentage" id="weeklyPerformance">+0.0%</div>
+              <div class="chart-percentage positive-change" id="weeklyPerformance">+0.0%</div>
               <div class="chart-description">Semanal</div>
             </div>
           </div>
           
           <div class="chart-container">
-            <canvas id="monthlyChart" width="100" height="100"></canvas>
+            <div class="pulse-ring"></div>
+            <div class="chart-graphic-container">
+              <svg class="gauge-path" viewBox="0 0 100 100">
+                <path class="gauge-bg" d="M10,50 a 40,40 0 1,1 80,0" />
+                <path class="gauge-fill positive" d="M10,50 a 40,40 0 1,1 80,0" style="--gauge-fill: 180" />
+              </svg>
+            </div>
             <div class="chart-label">
-              <div class="chart-percentage" id="monthlyPerformance">+0.0%</div>
+              <div class="chart-percentage positive-change" id="monthlyPerformance">+0.0%</div>
               <div class="chart-description">Mensual</div>
             </div>
           </div>
           
           <div class="chart-container">
-            <canvas id="yearlyChart" width="100" height="100"></canvas>
+            <div class="pulse-ring"></div>
+            <div class="chart-graphic-container">
+              <svg class="gauge-path" viewBox="0 0 100 100">
+                <path class="gauge-bg" d="M10,50 a 40,40 0 1,1 80,0" />
+                <path class="gauge-fill positive" d="M10,50 a 40,40 0 1,1 80,0" style="--gauge-fill: 230" />
+              </svg>
+            </div>
             <div class="chart-label">
-              <div class="chart-percentage" id="yearlyPerformance">+0.0%</div>
+              <div class="chart-percentage positive-change" id="yearlyPerformance">+0.0%</div>
               <div class="chart-description">Anual</div>
             </div>
           </div>
