@@ -7,6 +7,65 @@
   <meta name="theme-color" content="#0c1d3b">
   <title>Panel Super Administrador | Proyecto Genesis</title>
   <style>
+    /* Estilos para la tabla de datos */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+    
+    .data-table th, .data-table td {
+      padding: 0.5rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(70, 137, 180, 0.3);
+    }
+    
+    .data-table th {
+      font-weight: 500;
+      color: #8b9ebb;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .data-table tbody tr:hover {
+      background-color: rgba(255, 255, 255, 0.03);
+    }
+    
+    .table-container {
+      overflow-x: auto;
+      margin-top: 1rem;
+    }
+    
+    .transaction-type {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    
+    .transaction-deposit {
+      background-color: rgba(46, 204, 113, 0.1);
+      color: #2ecc71;
+    }
+    
+    .transaction-withdrawal {
+      background-color: rgba(231, 76, 60, 0.1);
+      color: #e74c3c;
+    }
+    
+    .transaction-bonus {
+      background-color: rgba(241, 196, 15, 0.1);
+      color: #f1c40f;
+    }
+    
+    .transaction-profit {
+      background-color: rgba(12, 198, 222, 0.1);
+      color: #0cc6de;
+    }
+    
     /* Variables */
     :root {
       --color-primary: #0cc6de;
@@ -457,7 +516,7 @@
         <i class="icon">💰</i>
         <span>Inversiones</span>
       </div>
-      <div class="nav-item" id="portfolioButton" onclick="window.location.href='/portfolio'">
+      <div class="nav-item" id="portfolioButton">
         <i class="icon">💼</i>
         <span>Mi Portafolio</span>
       </div>
@@ -491,8 +550,93 @@
       </div>
     </div>
     
-    <div class="content">
+    <div class="content" id="mainContent">
       <h1 class="dashboard-title">Dashboard Super Administrador</h1>
+      
+      <!-- Sección de portafolio personal (inicialmente oculta) -->
+      <div id="portfolioSection" style="display: none;">
+        <h1 class="dashboard-title">Mi Portafolio Personal</h1>
+        <div class="card-container">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Mi Balance</div>
+                <div class="card-subtitle">Actualizado en tiempo real</div>
+              </div>
+              <div class="card-icon">💰</div>
+            </div>
+            <div class="card-content">
+              <div class="stat" id="userBalance">$0.00</div>
+              <div class="stat-description">Balance actual en cuenta</div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Rendimiento</div>
+                <div class="card-subtitle">Últimos 30 días</div>
+              </div>
+              <div class="card-icon">📈</div>
+            </div>
+            <div class="card-content">
+              <div class="stat" id="userPerformance">+0%</div>
+              <div class="stat-description">Porcentaje de crecimiento</div>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Transacciones</div>
+                <div class="card-subtitle">Historial reciente</div>
+              </div>
+              <div class="card-icon">🔄</div>
+            </div>
+            <div class="card-content">
+              <div class="stat" id="userTransactions">0</div>
+              <div class="stat-description">Transacciones este mes</div>
+              <a href="#" class="button button-outline" id="viewTransactionsBtn">Ver transacciones</a>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Capital Invertido</div>
+                <div class="card-subtitle">Total acumulado</div>
+              </div>
+              <div class="card-icon">💹</div>
+            </div>
+            <div class="card-content">
+              <div class="stat" id="investedCapital">$0.00</div>
+              <div class="stat-description">Capital total invertido</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="chart-container">
+          <div class="chart-header">
+            <div class="chart-title">Historial de Transacciones</div>
+          </div>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Descripción</th>
+                  <th>Monto</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="transactionsTableBody">
+                <!-- Contenido dinámico -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
       
       <div class="card-container">
         <div class="card">
@@ -714,9 +858,120 @@
         }
       });
       
-      // Redirigir al panel de inversionista personal
-      document.getElementById('portfolioButton').addEventListener('click', () => {
-        window.location.href = '/portfolio';
+      // Mostrar/ocultar el panel de inversionista personal
+      document.getElementById('portfolioButton').addEventListener('click', async () => {
+        const dashboardContent = document.querySelectorAll('#mainContent > *:not(#portfolioSection)');
+        const portfolioSection = document.getElementById('portfolioSection');
+        
+        if (portfolioSection.style.display === 'none') {
+          // Ocultar contenido del dashboard
+          dashboardContent.forEach(element => {
+            element.style.display = 'none';
+          });
+          
+          // Mostrar sección de portafolio
+          portfolioSection.style.display = 'block';
+          
+          // Cargar datos del portafolio personal
+          try {
+            const response = await fetch('/api/investor/current');
+            const data = await response.json();
+            
+            if (data.success) {
+              // Actualizar datos en la interfaz
+              const investor = data.investor;
+              
+              // Formatear moneda
+              const formatCurrency = (amount) => {
+                return new Intl.NumberFormat('es-MX', {
+                  style: 'currency',
+                  currency: 'USD'
+                }).format(amount);
+              };
+              
+              // Actualizar balance y estadísticas
+              document.getElementById('userBalance').textContent = formatCurrency(investor.balance || 0);
+              document.getElementById('userPerformance').textContent = 
+                `${investor.performance > 0 ? '+' : ''}${investor.performance || 0}%`;
+              document.getElementById('userTransactions').textContent = 
+                investor.transactions ? investor.transactions.length : 0;
+              document.getElementById('investedCapital').textContent = 
+                formatCurrency(investor.invested_capital || 0);
+              
+              // Llenar tabla de transacciones
+              if (investor.transactions && investor.transactions.length > 0) {
+                const tbody = document.getElementById('transactionsTableBody');
+                tbody.innerHTML = '';
+                
+                investor.transactions.forEach(transaction => {
+                  const row = document.createElement('tr');
+                  
+                  // Determinar clase para tipo de transacción
+                  let typeClass = `transaction-${transaction.type}`;
+                  let typeDisplay = transaction.type;
+                  
+                  switch(transaction.type) {
+                    case 'deposit':
+                      typeDisplay = 'Depósito';
+                      break;
+                    case 'withdrawal':
+                      typeDisplay = 'Retiro';
+                      break;
+                    case 'bonus':
+                      typeDisplay = 'Bono';
+                      break;
+                    case 'profit':
+                      typeDisplay = 'Ganancia';
+                      break;
+                  }
+                  
+                  // Determinar estado de la transacción
+                  let statusDisplay = transaction.status;
+                  
+                  switch(transaction.status) {
+                    case 'complete':
+                    case 'online':
+                      statusDisplay = 'Completado';
+                      break;
+                    case 'pending':
+                      statusDisplay = 'Pendiente';
+                      break;
+                    case 'failed':
+                      statusDisplay = 'Fallido';
+                      break;
+                  }
+                  
+                  row.innerHTML = `
+                    <td>${transaction.date}</td>
+                    <td><span class="transaction-type ${typeClass}">${typeDisplay}</span></td>
+                    <td>${transaction.description}</td>
+                    <td>${formatCurrency(transaction.amount)}</td>
+                    <td>${statusDisplay}</td>
+                  `;
+                  
+                  tbody.appendChild(row);
+                });
+              } else {
+                document.getElementById('transactionsTableBody').innerHTML = 
+                  '<tr><td colspan="5" style="text-align: center;">No hay transacciones recientes</td></tr>';
+              }
+              
+            } else {
+              console.error('Error al obtener datos del inversionista:', data.message);
+            }
+          } catch (error) {
+            console.error('Error al cargar datos de portafolio:', error);
+          }
+          
+        } else {
+          // Mostrar contenido del dashboard
+          dashboardContent.forEach(element => {
+            element.style.display = '';
+          });
+          
+          // Ocultar sección de portafolio
+          portfolioSection.style.display = 'none';
+        }
       });
       
       // Inicializar
