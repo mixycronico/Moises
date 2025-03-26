@@ -1,24 +1,86 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="favicon.ico">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-  <title>Proyecto Genesis - Sistema de Inversiones Inteligentes</title>
-  <meta name="description" content="Proyecto Genesis - Plataforma avanzada de inversiones con inteligencia artificial">
-  <style>
-    /* Estilos iniciales para evitar parpadeo */
-    body {
-      background-color: #0a0e17;
-      margin: 0;
-      padding: 0;
-      font-family: 'Roboto', sans-serif;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Proyecto Genesis - Sistema de Inversiones Inteligentes">
+    <title>Genesis | Sistema de Inversiones Inteligentes</title>
+    <!-- Fuentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+    <style>
+        /* Estilos básicos globales */
+        :root {
+            --primary-color: #05b2dc;
+            --secondary-color: #8a2be2;
+            --accent-color: #31e7b6;
+            --background-color: #0a0e17;
+            --card-background: #141a28;
+            --text-color: #f2f2f2;
+            --text-secondary: #b3b3b3;
+            --danger-color: #ff5252;
+            --success-color: #4caf50;
+            --warning-color: #ffc107;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 25% 15%, rgba(5, 178, 220, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 75% 85%, rgba(138, 43, 226, 0.1) 0%, transparent 40%);
+        }
+        
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+        }
+        
+        /* Loader estilizado para carga inicial */
+        #root:empty {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #root:empty:before {
+            content: '';
+            width: 80px;
+            height: 80px;
+            border: 8px solid var(--card-background);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: loader 1s infinite linear;
+        }
+        
+        @keyframes loader {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 </head>
 <body>
-  <noscript>Necesitas habilitar JavaScript para ejecutar esta aplicación.</noscript>
-  <div id="root"></div>
+    <div id="root"></div>
+    <!-- Los scripts se inyectarán automáticamente por Webpack -->
 </body>
 </html>
