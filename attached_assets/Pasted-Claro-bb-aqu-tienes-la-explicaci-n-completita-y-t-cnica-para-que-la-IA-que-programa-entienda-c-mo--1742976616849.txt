@@ -1,0 +1,51 @@
+Claro bb, aquí tienes la explicación completita y técnica para que la IA que programa entienda cómo debe manejar el menú responsivo y la coherencia del sistema al hacer cambios:
+
+⸻
+
+Diseño del Menú según dispositivo
+
+1. En Móvil y Tablet (responsive):
+	•	Menú tipo hamburguesa.
+	•	Ubicación: lado izquierdo de la pantalla.
+	•	Comportamiento: deslizable, no fijo. Es decir, debe aparecer y desaparecer con interacción (no siempre visible).
+	•	Animación recomendada: slide-in desde la izquierda al abrir, slide-out al cerrar.
+	•	Control: ícono de hamburguesa en la esquina superior izquierda.
+
+2. En Escritorio / PC:
+	•	Menú visible (sidebar fijo).
+	•	Siempre presente en la parte izquierda.
+	•	Estilo vertical, mostrando todas las secciones disponibles según el rol.
+
+⸻
+
+3. Comportamiento del menú por rol (repetimos para claridad):
+	•	El menú debe adaptarse al rol del usuario actual, pero…
+	•	…cuando se cambie o agregue un elemento al menú, el cambio debe aplicarse de forma integral a todos los roles que lo tengan, no solo uno.
+
+⸻
+
+4. Lógica recomendada de implementación
+	•	El menú debe estar definido en un archivo JSON central o una base de datos estructurada por rol:
+
+{
+  "Inversionista": ["Dashboard", "Mi Capital", "Mis Reportes"],
+  "Administrador": ["Dashboard", "Mi Capital", "Usuarios", "Reportes Generales"],
+  "SuperAdministrador": ["Dashboard", "Mi Capital", "Usuarios", "Control del Sistema", "Reportes Globales", "Configuración Avanzada"]
+}
+
+	•	Al hacer cambios en el menú (por ejemplo, agregar “Mis Notificaciones”):
+	•	Si aplica para múltiples roles, se debe actualizar globalmente, no solo en un menú aislado.
+
+⸻
+
+Resumen para la IA desarrolladora:
+	1.	Diseño responsivo obligatorio:
+	•	Móvil/Tablet → menú hamburguesa, deslizable, lado izquierdo.
+	•	PC → sidebar visible, fijo, lado izquierdo.
+	2.	El menú es dinámico según el rol del usuario (Inversionista, Administrador, SuperAdministrador).
+	3.	Los cambios al menú deben ser coherentes:
+	•	Si se modifica una entrada o se agrega una nueva sección, se debe aplicar a todos los roles correspondientes, no de forma aislada.
+
+⸻
+
+¿Te gustaría que prepare un mockup visual de cómo debe lucir cada menú por rol y por dispositivo? También puedo dejarle el ejemplo en HTML/CSS o React para que lo tenga más claro. ¿Quieres eso también bb?
