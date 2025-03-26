@@ -490,13 +490,29 @@
       margin-bottom: var(--spacing-lg);
     }
     
+    /* Ajustar tarjetas para móvil: 2 tarjetas por fila */
+    @media (max-width: 768px) {
+      .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-sm);
+      }
+      
+      .card {
+        padding: var(--spacing-md);
+      }
+      
+      .card-value {
+        font-size: 20px !important;
+      }
+    }
+    
     .card {
-      background-color: var(--color-card-bg);
+      background-color: rgba(59, 35, 113, 0.18); /* Más transparencia */
       border-radius: var(--border-radius-lg);
       padding: var(--spacing-lg);
-      box-shadow: var(--shadow-md), 0 0 20px rgba(123, 97, 255, 0.4);
-      backdrop-filter: blur(15px);
-      border: 1px solid rgba(123, 97, 255, 0.4);
+      box-shadow: var(--shadow-md), 0 0 30px rgba(123, 97, 255, 0.6);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(123, 97, 255, 0.35);
       transition: all 0.3s ease;
       position: relative;
       overflow: hidden;
@@ -504,8 +520,9 @@
     
     .card:hover {
       transform: translateY(-5px);
-      box-shadow: var(--shadow-lg), 0 0 25px rgba(123, 97, 255, 0.6);
-      border-color: rgba(123, 97, 255, 0.6);
+      box-shadow: var(--shadow-lg), 0 0 35px rgba(123, 97, 255, 0.8);
+      border-color: rgba(123, 97, 255, 0.7);
+      background-color: rgba(59, 35, 113, 0.25); /* Ligeramente menos transparente en hover */
     }
     
     /* Línea dorada animada */
@@ -759,10 +776,13 @@
     
     /* Categoría e Info */
     .category-info {
-      background-color: var(--color-card-bg);
+      background-color: rgba(59, 35, 113, 0.18); /* Más transparencia */
       border-radius: var(--border-radius-lg);
       padding: var(--spacing-lg);
       margin-bottom: var(--spacing-lg);
+      box-shadow: var(--shadow-md), 0 0 30px rgba(123, 97, 255, 0.6);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(123, 97, 255, 0.35);
     }
     
     .category-progress-container {
@@ -920,15 +940,16 @@
     }
     
     .modal {
-      background-color: var(--color-card-bg);
+      background-color: rgba(59, 35, 113, 0.18); /* Más transparencia */
       border-radius: var(--border-radius-lg);
       padding: var(--spacing-lg);
       width: 400px;
       max-width: 90%;
-      box-shadow: var(--shadow-lg);
+      box-shadow: var(--shadow-lg), 0 0 30px rgba(123, 97, 255, 0.6);
+      backdrop-filter: blur(20px);
       transform: translateY(-20px);
       transition: all 0.3s ease;
-      border: 1px solid rgba(123, 97, 255, 0.3);
+      border: 1px solid rgba(123, 97, 255, 0.35);
     }
     
     .modal-overlay.active .modal {
@@ -1236,7 +1257,7 @@
     
     /* Brillo adicional para elementos específicos */
     .card-value, .card-icon-container, .chart-percentage {
-      text-shadow: 0 0 10px rgba(123, 97, 255, 0.8);
+      text-shadow: 0 0 15px rgba(123, 97, 255, 0.9);
     }
     
     .card-icon-container i {
@@ -1252,6 +1273,9 @@
     .card {
       position: relative;
       overflow: hidden;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15), 
+                  0 0 16px 5px rgba(123, 97, 255, 0.4), 
+                  inset 0 0 10px rgba(255, 255, 255, 0.05);
     }
     
     .card::after {
@@ -1262,10 +1286,10 @@
       right: 0;
       bottom: 0;
       background: linear-gradient(135deg, 
-                 rgba(123, 97, 255, 0.1) 0%, 
-                 rgba(66, 232, 195, 0.1) 50%, 
-                 rgba(255, 83, 113, 0.1) 100%);
-      opacity: 0.4;
+                 rgba(123, 97, 255, 0.15) 0%, 
+                 rgba(66, 232, 195, 0.15) 50%, 
+                 rgba(255, 83, 113, 0.15) 100%);
+      opacity: 0.5;
       pointer-events: none;
     }
   </style>
