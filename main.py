@@ -42,7 +42,7 @@ def admin_page():
 
 @app.route('/super-admin')
 def super_admin_page():
-    return send_file(os.path.join(app.static_folder, 'index.html'))
+    return send_file(os.path.join(app.static_folder, 'super-admin.html'))
 
 # Rutas para la aplicación React
 @app.route('/', defaults={'path': ''})
