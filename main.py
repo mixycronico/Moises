@@ -66,15 +66,48 @@ def serve(path):
 # Agregar proto_genesis al path de Python para importar endpoints de API
 sys.path.append(os.path.abspath('proto_genesis'))
 
-# Importar rutas de autenticación, inversionistas y préstamos
+# Importar rutas de autenticación, inversionistas, préstamos y bonos
 from auth_routes import register_auth_routes
 from investor_routes import register_investor_routes
 from loan_routes import register_loan_routes
+from bonus_routes import register_bonus_routes
+from category_manager import run_category_evaluation_batch
 
 # Registrar rutas en la aplicación
 register_auth_routes(app)
 register_investor_routes(app)
 register_loan_routes(app)
+register_bonus_routes(app)
+
+# Endpoint para ejecutar la evaluación de categorías
+@app.route('/api/admin/categories/run-evaluation', methods=['POST'])
+def run_category_evaluation():
+    from flask import session, jsonify
+    
+    # Verificar si hay usuario en sesión y es admin
+    if 'user_id' not in session or 'role' not in session:
+        return jsonify({
+            'success': False,
+            'message': 'No hay una sesión activa'
+        }), 401
+    
+    if session['role'] not in ['admin', 'super_admin']:
+        return jsonify({
+            'success': False,
+            'message': 'No tiene permisos para ejecutar esta acción'
+        }), 403
+    
+    # Obtener tamaño del lote (opcional)
+    batch_size = request.json.get('batch_size', 100)
+    
+    # Ejecutar evaluación por lotes
+    results = run_category_evaluation_batch(batch_size)
+    
+    return jsonify({
+        'success': True,
+        'message': 'Evaluación de categorías ejecutada correctamente',
+        'data': results
+    })
 
 # Importar endpoints de API de proto_genesis
 try:
