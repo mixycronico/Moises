@@ -1024,8 +1024,12 @@
                     
                     // Color según el tipo de menú
                     const hue = hueMin === hueMax ? hueMin : Math.random() * (hueMax - hueMin) + hueMin;
-                    const opacity = Math.random() * 0.3 + 0.5; // 0.5-0.8
-                    particle.style.background = `radial-gradient(circle, hsla(${hue}, ${sat}%, 70%, ${opacity}) 0%, hsla(${hue}, ${sat}%, 70%, 0) 70%)`;
+                    const opacity = Math.random() * 0.4 + 0.6; // 0.6-1.0 para mayor visibilidad
+                    const size2 = size * 1.5; // Tamaño para el resplandor
+
+                    // Usar estilos más intensos para mejor visibilidad
+                    particle.style.background = `hsla(${hue}, ${sat}%, 70%, ${opacity})`;
+                    particle.style.boxShadow = `0 0 ${size2}px hsla(${hue}, ${sat}%, 70%, 0.8)`;
                     
                     container.appendChild(particle);
                 }
