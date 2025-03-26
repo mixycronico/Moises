@@ -558,24 +558,35 @@ def get_current_investor():
     # Para propósitos de depuración
     logger.info(f"Usuario actual: {user}")
     
-    # Buscar inversionista por user_id
-    investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == user_id), None)
+    # MODO DEMO: Siempre mostrar un inversionista para visualizar la interfaz
+    # Primero intentar obtener mixycronico como usuario de demostración
+    investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == "mixycronico"), None)
     
-    # Si no se encuentra, usar un inversionista predeterminado para demostración
-    # Esto es temporal para asegurar que la interfaz funcione
-    if not investor and user_id:
-        # Si el usuario está autenticado pero no tiene perfil de inversionista, usar el de mixycronico
-        investor = next((inv for inv in INVESTORS.values() if inv["user_id"] == "mixycronico"), None)
-        
-        # Si aún no se encuentra, usar el primer inversionista
-        if not investor:
-            investor = list(INVESTORS.values())[0] if INVESTORS else None
-    
+    # Si no encuentra mixycronico, usar el primer inversionista disponible
     if not investor:
-        return jsonify({
-            "success": False,
-            "message": "Inversionista no encontrado para el usuario actual"
-        }), 404
+        investor = list(INVESTORS.values())[0] if INVESTORS else None
+    
+    # Si aún no hay inversionista (sería raro), crear uno de demostración
+    if not investor:
+        investor = {
+            "id": "demo1",
+            "user_id": "demo_user",
+            "name": "Usuario Demostración",
+            "email": "demo@genesis.com",
+            "balance": 75000.0,
+            "investment_target": 150000.0,
+            "risk_profile": "MODERATE",
+            "category": "JADE",
+            "creation_date": "2023-01-15",
+            "last_activity": "2025-03-26",
+            "profile_photo": None,
+            "investments": [
+                {"name": "Bitcoin", "amount": 25000, "performance": 15.5},
+                {"name": "Ethereum", "amount": 20000, "performance": -3.2},
+                {"name": "Cardano", "amount": 15000, "performance": 7.8},
+                {"name": "Solana", "amount": 15000, "performance": 22.1}
+            ]
+        }
     
     category = INVESTOR_CATEGORIES.get(investor["category"], {})
     
