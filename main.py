@@ -31,6 +31,19 @@ app.secret_key = os.environ.get("SESSION_SECRET", "genesis_dev_key")
 def login_page():
     return send_file(os.path.join(app.static_folder, 'login.html'))
 
+# Rutas para los diferentes roles (redirigen a index por ahora)
+@app.route('/investor')
+def investor_page():
+    return send_file(os.path.join(app.static_folder, 'index.html'))
+
+@app.route('/admin')
+def admin_page():
+    return send_file(os.path.join(app.static_folder, 'index.html'))
+
+@app.route('/super-admin')
+def super_admin_page():
+    return send_file(os.path.join(app.static_folder, 'index.html'))
+
 # Rutas para la aplicación React
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

@@ -377,6 +377,7 @@
           
           if (data.success) {
             // Redireccionar según el rol del usuario
+            console.log("Usuario autenticado:", data.user);
             switch (data.user.role) {
               case 'super_admin':
                 window.location.href = '/super-admin';
@@ -385,6 +386,7 @@
                 window.location.href = '/admin';
                 break;
               case 'investor':
+              case 'inversionista':
                 window.location.href = '/investor';
                 break;
               default:
