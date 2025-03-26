@@ -30,7 +30,9 @@ app.secret_key = os.environ.get("SESSION_SECRET", "genesis_dev_key")
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
+    if path == 'login':
+        return send_file(os.path.join(app.static_folder, 'login.html'))
+    elif path and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     else:
         return send_file(os.path.join(app.static_folder, 'index.html'))
