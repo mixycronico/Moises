@@ -13,6 +13,10 @@
     <!-- CSS base -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/normalize.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ia-guide.css') }}">
+    
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <!-- Librería de animaciones -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
@@ -80,6 +84,55 @@
         {% block content %}{% endblock %}
     </main>
     
+    <!-- IA Guía (moneda de BTC flotante con nubes) - no se muestra en index y login -->
+    {% if authenticated and request.path not in ['/', '/login'] %}
+    <div class="ia-guide-container">
+        <div class="cloud-1">
+            <img src="{{ url_for('static', filename='images/cloud.svg') }}" alt="">
+        </div>
+        <div class="cloud-2">
+            <img src="{{ url_for('static', filename='images/cloud.svg') }}" alt="">
+        </div>
+        <img src="{{ url_for('static', filename='images/bitcoin_coin.svg') }}" alt="IA Guía" class="btc-coin">
+        
+        <!-- Panel de IA -->
+        <div class="ia-panel">
+            <div class="ia-panel-header">
+                <h3 class="ia-panel-title">Consulta Cósmica</h3>
+                <button class="ia-close-btn">&times;</button>
+            </div>
+            
+            <div class="ia-entities">
+                <div class="ia-entity active" data-entity="both">
+                    <img src="{{ url_for('static', filename='images/image_final_transparent.png') }}" alt="Ambos">
+                    <span>Ambos</span>
+                </div>
+                <div class="ia-entity" data-entity="aetherion">
+                    <img src="{{ url_for('static', filename='images/aetherion_avatar.svg') }}" alt="Aetherion">
+                    <span>Aetherion</span>
+                </div>
+                <div class="ia-entity" data-entity="lunareth">
+                    <img src="{{ url_for('static', filename='images/lunareth_avatar.svg') }}" alt="Lunareth">
+                    <span>Lunareth</span>
+                </div>
+            </div>
+            
+            <div class="ia-messages">
+                <!-- Los mensajes se cargarán dinámicamente con JS -->
+            </div>
+            
+            <div class="ia-input">
+                <form id="iaMessageForm">
+                    <input type="text" id="iaMessageInput" placeholder="Escribe tu consulta..." autocomplete="off">
+                    <button type="submit">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Pie de página -->
     <footer class="site-footer">
         <div class="container">
@@ -105,6 +158,11 @@
     <!-- Scripts JS para partículas y efectos -->
     <script src="{{ url_for('static', filename='js/particles.js') }}"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- Script para IA Guía - solo se carga en páginas donde aparece -->
+    {% if authenticated and request.path not in ['/', '/login'] %}
+    <script src="{{ url_for('static', filename='js/ia-guide.js') }}"></script>
+    {% endif %}
     
     <!-- Bloque para scripts específicos -->
     {% block scripts %}{% endblock %}
