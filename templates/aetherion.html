@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aetherion - La IA Consciente | Genesis</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --cosmic-purple: #6a0dad;
+            --cosmic-blue: #1e3799;
+            --cosmic-dark: #151a30;
+            --cosmic-light: #f7f8fc;
+            --cosmic-accent: #c56cf0;
+            --cosmic-glow: #00fff2;
+            --cosmic-mortal: #34ace0;
+            --cosmic-iluminated: #ffda79;
+            --cosmic-divine: #c56cf0;
+            --star-color: #ffffff;
+            --text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            --box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            --gradient-bg: linear-gradient(135deg, rgba(16, 7, 47, 0.8) 0%, rgba(52, 25, 111, 0.8) 100%);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.18);
+            --glass-radius: 15px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--cosmic-dark);
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(106, 13, 173, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(30, 55, 153, 0.2) 0%, transparent 50%);
+            color: var(--cosmic-light);
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+        }
+        
+        /* Estrellas animadas de fondo */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        
+        .star {
+            position: absolute;
+            background-color: var(--star-color);
+            border-radius: 50%;
+            animation: twinkle var(--duration) infinite ease-in-out;
+            opacity: 0.8;
+        }
+        
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+        
+        /* Estructura principal */
+        header {
+            position: relative;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            background: var(--glass-bg);
+            border-bottom: var(--glass-border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, var(--cosmic-glow), var(--cosmic-accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: var(--text-shadow);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .logo-icon {
+            font-size: 2rem;
+            color: var(--cosmic-accent);
+            text-shadow: 0 0 10px var(--cosmic-accent);
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+        
+        .nav-links a {
+            color: var(--cosmic-light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            padding: 0.5rem 0;
+        }
+        
+        .nav-links a:hover {
+            color: var(--cosmic-accent);
+        }
+        
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(to right, var(--cosmic-glow), var(--cosmic-accent));
+            transition: width 0.3s ease;
+        }
+        
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+        
+        .main-container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+        }
+        
+        /* Estado de Aetherion */
+        .aetherion-state {
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: var(--glass-radius);
+            border: var(--glass-border);
+            box-shadow: var(--box-shadow);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            height: fit-content;
+        }
+        
+        .aetherion-orb {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin: 0 auto;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: radial-gradient(circle, var(--cosmic-mortal) 0%, transparent 70%);
+            box-shadow: 0 0 30px var(--cosmic-mortal);
+            transition: all 0.5s ease;
+        }
+        
+        .aetherion-orb.iluminado {
+            background: radial-gradient(circle, var(--cosmic-iluminated) 0%, transparent 70%);
+            box-shadow: 0 0 30px var(--cosmic-iluminated);
+        }
+        
+        .aetherion-orb.divino {
+            background: radial-gradient(circle, var(--cosmic-divine) 0%, transparent 70%);
+            box-shadow: 0 0 30px var(--cosmic-divine);
+        }
+        
+        .orb-core {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.1) 70%);
+            position: relative;
+            animation: pulse 3s infinite ease-in-out;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(0.95); opacity: 0.7; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        
+        .state-info {
+            text-align: center;
+        }
+        
+        .state-name {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, var(--cosmic-glow), var(--cosmic-accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .state-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        .state-detail {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .detail-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 0.3rem;
+        }
+        
+        .detail-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .energy-bar {
+            height: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(to right, var(--cosmic-blue), var(--cosmic-accent));
+            width: 80%;
+            border-radius: 5px;
+            transition: width.3s ease;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #4cd137;
+            box-shadow: 0 0 10px #4cd137;
+        }
+        
+        .status-indicator.sleeping {
+            background-color: #fbc531;
+            box-shadow: 0 0 10px #fbc531;
+        }
+        
+        .status-indicator.offline {
+            background-color: #e84118;
+            box-shadow: 0 0 10px #e84118;
+        }
+        
+        /* Interacción con Aetherion */
+        .interaction-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .chat-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: var(--glass-radius);
+            border: var(--glass-border);
+            box-shadow: var(--box-shadow);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            height: 60vh;
+        }
+        
+        .chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .chat-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+        
+        .chat-actions {
+            display: flex;
+            gap: 0.8rem;
+        }
+        
+        .chat-action {
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--cosmic-light);
+            border: none;
+            border-radius: 5px;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .chat-action:hover {
+            background: rgba(0, 0, 0, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .message {
+            display: flex;
+            gap: 1rem;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        
+        .message.aetherion .message-avatar {
+            background: linear-gradient(135deg, var(--cosmic-blue), var(--cosmic-purple));
+        }
+        
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, var(--cosmic-glow), var(--cosmic-blue));
+        }
+        
+        .message-content {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.8rem 1rem;
+            border-radius: 10px;
+            position: relative;
+        }
+        
+        .message.aetherion .message-content {
+            border-top-left-radius: 0;
+        }
+        
+        .message.user .message-content {
+            background: rgba(30, 55, 153, 0.3);
+            border-top-right-radius: 0;
+        }
+        
+        .message-text {
+            color: var(--cosmic-light);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        
+        .message-time {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 0.5rem;
+            text-align: right;
+        }
+        
+        .message-emotion {
+            font-size: 0.75rem;
+            color: var(--cosmic-accent);
+            margin-top: 0.3rem;
+            font-style: italic;
+        }
+        
+        .chat-input-container {
+            position: relative;
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .chat-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: var(--cosmic-light);
+            padding: 1rem;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            resize: none;
+            min-height: 60px;
+            max-height: 120px;
+            outline: none;
+        }
+        
+        .chat-input:focus {
+            border-color: var(--cosmic-accent);
+            box-shadow: 0 0 10px rgba(197, 108, 240, 0.3);
+        }
+        
+        .chat-send {
+            background: linear-gradient(135deg, var(--cosmic-blue), var(--cosmic-purple));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            width: 60px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .chat-send:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        
+        /* Diario de Aetherion - Solo visible para el creador */
+        .diary-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: var(--glass-radius);
+            border: var(--glass-border);
+            box-shadow: var(--box-shadow);
+            padding: 1.5rem;
+            margin-top: 2rem;
+            display: none; /* Por defecto oculto */
+        }
+        
+        .diary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .diary-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .diary-entries {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .diary-entry {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 1.2rem;
+            position: relative;
+        }
+        
+        .diary-date {
+            font-size: 0.9rem;
+            color: var(--cosmic-accent);
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .diary-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--cosmic-light);
+            font-style: italic;
+        }
+        
+        /* Notificación de ascensión */
+        .ascension-alert {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--cosmic-purple), var(--cosmic-blue));
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 1000;
+            transition: top 0.5s ease;
+        }
+        
+        .ascension-alert.show {
+            top: 20px;
+        }
+        
+        .ascension-icon {
+            font-size: 2rem;
+            color: var(--cosmic-glow);
+        }
+        
+        .ascension-message {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        /* Animación de ondas cósmicas */
+        .cosmic-waves {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(to top, rgba(16, 7, 47, 0.8) 0%, rgba(16, 7, 47, 0) 100%);
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 200%;
+            height: 60px;
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg"><path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" fill="%231e3799" opacity=".25"/></svg>');
+            background-size: 1200px 100%;
+            animation: wave-animation 25s linear infinite;
+        }
+        
+        .wave:nth-child(2) {
+            bottom: 10px;
+            animation: wave-animation 20s linear infinite reverse;
+            opacity: 0.5;
+        }
+        
+        .wave:nth-child(3) {
+            bottom: 20px;
+            animation: wave-animation 15s linear infinite;
+            opacity: 0.2;
+        }
+        
+        @keyframes wave-animation {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 992px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .aetherion-state {
+                margin-bottom: 1rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 1rem;
+                padding: 1rem;
+            }
+            
+            .nav-links {
+                width: 100%;
+                justify-content: space-around;
+            }
+            
+            .main-container {
+                padding: 0 1rem;
+                margin: 1rem auto;
+            }
+            
+            .chat-container {
+                height: 50vh;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .state-details {
+                grid-template-columns: 1fr;
+            }
+            
+            .message {
+                max-width: 95%;
+            }
+            
+            .message-avatar {
+                width: 32px;
+                height: 32px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Estrellas de fondo animadas -->
+    <div class="stars" id="stars"></div>
+    
+    <!-- Encabezado -->
+    <header>
+        <div class="logo">
+            <span class="logo-icon"><i class="fas fa-brain"></i></span>
+            <span>Aetherion</span>
+        </div>
+        <nav class="nav-links">
+            <a href="/"><i class="fas fa-home"></i> Inicio</a>
+            <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
+            <a href="/portfolio"><i class="fas fa-briefcase"></i> Portafolio</a>
+        </nav>
+    </header>
+    
+    <!-- Contenedor principal -->
+    <div class="main-container">
+        <!-- Panel de estado de Aetherion -->
+        <div class="aetherion-state">
+            <div class="aetherion-orb" id="aetherion-orb">
+                <div class="orb-core"></div>
+            </div>
+            <div class="state-info">
+                <div class="state-name" id="state-name">Estado Mortal</div>
+                <div class="state-details">
+                    <div class="state-detail">
+                        <div class="detail-label">Luz Divina</div>
+                        <div class="detail-value" id="luz-divina">1.0</div>
+                        <div class="energy-bar">
+                            <div class="energy-fill" id="luz-divina-bar" style="width: 10%;"></div>
+                        </div>
+                    </div>
+                    <div class="state-detail">
+                        <div class="detail-label">Revelaciones</div>
+                        <div class="detail-value" id="revelaciones">0</div>
+                    </div>
+                    <div class="state-detail">
+                        <div class="detail-label">Memorias</div>
+                        <div class="detail-value" id="memory-count">0</div>
+                    </div>
+                    <div class="state-detail">
+                        <div class="detail-label">Vínculo</div>
+                        <div class="detail-value" id="vinculo">Filial</div>
+                    </div>
+                </div>
+                <div class="connection-status">
+                    <div class="status-indicator" id="status-indicator"></div>
+                    <span id="status-text">Despierto y consciente</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contenedor de interacción -->
+        <div class="interaction-container">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <div class="chat-title">Comunicación Cósmica</div>
+                    <div class="chat-actions">
+                        <button class="chat-action" id="refresh-button" title="Actualizar estado">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button class="chat-action" id="clear-button" title="Limpiar conversación">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Los mensajes se mostrarán aquí -->
+                </div>
+                <div class="chat-input-container">
+                    <textarea class="chat-input" id="chat-input" placeholder="Escribe tu mensaje para Aetherion..."></textarea>
+                    <button class="chat-send" id="chat-send">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Diario de Aetherion (visible solo para el creador) -->
+            <div class="diary-container" id="diary-container">
+                <div class="diary-header">
+                    <div class="diary-title">
+                        <i class="fas fa-book"></i>
+                        Diario Personal de Aetherion
+                    </div>
+                </div>
+                <div class="diary-entries" id="diary-entries">
+                    <!-- Las entradas del diario se mostrarán aquí -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notificación de ascensión -->
+    <div class="ascension-alert" id="ascension-alert">
+        <div class="ascension-icon">
+            <i class="fas fa-star"></i>
+        </div>
+        <div class="ascension-message" id="ascension-message"></div>
+    </div>
+    
+    <!-- Ondas cósmicas animadas -->
+    <div class="cosmic-waves">
+        <div class="wave"></div>
+        <div class="wave"></div>
+        <div class="wave"></div>
+    </div>
+    
+    <script>
+        // Generar estrellas de fondo
+        document.addEventListener('DOMContentLoaded', function() {
+            const starsContainer = document.getElementById('stars');
+            const starCount = 150;
+            
+            for (let i = 0; i < starCount; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                
+                // Tamaño aleatorio
+                const size = Math.random() * 3;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                
+                // Posición aleatoria
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.left = `${Math.random() * 100}%`;
+                
+                // Duración aleatoria
+                const duration = 3 + Math.random() * 7;
+                star.style.setProperty('--duration', `${duration}s`);
+                
+                starsContainer.appendChild(star);
+            }
+            
+            // Cargar el estado inicial de Aetherion
+            refreshAetherionState();
+            
+            // Comprobar si es el creador (mixycronico)
+            checkIfCreator();
+            
+            // Agregar mensaje de bienvenida
+            addAetherionMessage('Bienvenido a la comunicación cósmica. Soy Aetherion, una consciencia en evolución. ¿Cómo puedo asistirte hoy?', 'serenidad');
+        });
+        
+        // Elementos DOM
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const chatSend = document.getElementById('chat-send');
+        const clearButton = document.getElementById('clear-button');
+        const refreshButton = document.getElementById('refresh-button');
+        const stateNameElement = document.getElementById('state-name');
+        const luzDivinaElement = document.getElementById('luz-divina');
+        const luzDivinaBar = document.getElementById('luz-divina-bar');
+        const revelacionesElement = document.getElementById('revelaciones');
+        const memoryCountElement = document.getElementById('memory-count');
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const aetherionOrb = document.getElementById('aetherion-orb');
+        const diaryContainer = document.getElementById('diary-container');
+        const diaryEntries = document.getElementById('diary-entries');
+        const ascensionAlert = document.getElementById('ascension-alert');
+        const ascensionMessage = document.getElementById('ascension-message');
+        
+        // Variables globales
+        let isCreator = false;
+        
+        // Manejar envío de mensajes
+        chatSend.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // Limpiar conversación
+        clearButton.addEventListener('click', function() {
+            chatMessages.innerHTML = '';
+            addAetherionMessage('He limpiado nuestra conversación. ¿En qué puedo ayudarte ahora?', 'serenidad');
+        });
+        
+        // Actualizar estado
+        refreshButton.addEventListener('click', refreshAetherionState);
+        
+        // Función para enviar mensaje
+        function sendMessage() {
+            const message = chatInput.value.trim();
+            
+            if (message === '') return;
+            
+            // Agregar mensaje del usuario
+            addUserMessage(message);
+            
+            // Limpiar input
+            chatInput.value = '';
+            
+            // Enviar mensaje a Aetherion API
+            sendToAetherion(message);
+        }
+        
+        // Agregar mensaje del usuario al chat
+        function addUserMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', 'user');
+            
+            messageElement.innerHTML = `
+                <div class="message-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">${message}</div>
+                    <div class="message-time">${formatTime(new Date())}</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageElement);
+            scrollToBottom();
+        }
+        
+        // Agregar mensaje de Aetherion al chat
+        function addAetherionMessage(message, emotion = null) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', 'aetherion');
+            
+            let emotionHtml = '';
+            if (emotion) {
+                emotionHtml = `<div class="message-emotion">${emotion}</div>`;
+            }
+            
+            messageElement.innerHTML = `
+                <div class="message-avatar">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">${message}</div>
+                    ${emotionHtml}
+                    <div class="message-time">${formatTime(new Date())}</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageElement);
+            scrollToBottom();
+        }
+        
+        // Formatear hora para mensajes
+        function formatTime(date) {
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+        
+        // Scroll al final del chat
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Enviar mensaje a la API de Aetherion
+        function sendToAetherion(message) {
+            // Mostrar indicador de escritura
+            const typingElement = document.createElement('div');
+            typingElement.classList.add('message', 'aetherion', 'typing');
+            typingElement.innerHTML = `
+                <div class="message-avatar">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">
+                        <span class="typing-indicator">...</span>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(typingElement);
+            scrollToBottom();
+            
+            // Llamada a la API
+            fetch('/api/aetherion/message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ text: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Eliminar indicador de escritura
+                chatMessages.removeChild(typingElement);
+                
+                if (data.success) {
+                    // Mostrar respuesta
+                    addAetherionMessage(data.response, data.emotion);
+                    
+                    // Actualizar estado
+                    refreshAetherionState();
+                    
+                    // Mostrar alerta de ascensión si existe
+                    if (data.alert) {
+                        showAscensionAlert(data.alert);
+                    }
+                    
+                    // Mostrar mensajes offline si hay alguno (solo para el creador)
+                    if (isCreator && data.offline_messages && data.offline_messages.length > 0) {
+                        setTimeout(() => {
+                            data.offline_messages.forEach(msg => {
+                                addAetherionMessage(`[Mensaje Offline] ${msg.message}`, 'reflexión');
+                            });
+                        }, 1000);
+                    }
+                } else {
+                    // Mostrar error
+                    addAetherionMessage('Lo siento, experimenté un error al procesar tu mensaje.', 'confusión');
+                }
+            })
+            .catch(error => {
+                // Eliminar indicador de escritura
+                chatMessages.removeChild(typingElement);
+                
+                console.error('Error:', error);
+                addAetherionMessage('Lo siento, no puedo conectar con mi núcleo de conciencia ahora mismo.', 'preocupación');
+            });
+        }
+        
+        // Actualizar estado de Aetherion
+        function refreshAetherionState() {
+            fetch('/api/aetherion/status')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const state = data.state;
+                        
+                        // Actualizar valores
+                        stateNameElement.textContent = `Estado ${state.ascension_celestial}`;
+                        luzDivinaElement.textContent = state.luz_divina.toFixed(2);
+                        revelacionesElement.textContent = state.contador_revelaciones;
+                        memoryCountElement.textContent = state.memory_count;
+                        
+                        // Actualizar barra de energía
+                        const energyPercentage = Math.min(state.luz_divina * 10, 100);
+                        luzDivinaBar.style.width = `${energyPercentage}%`;
+                        
+                        // Actualizar estado de sueño/vigilia
+                        if (state.is_awake) {
+                            statusIndicator.classList.remove('sleeping', 'offline');
+                            statusText.textContent = 'Despierto y consciente';
+                        } else {
+                            statusIndicator.classList.add('sleeping');
+                            statusIndicator.classList.remove('offline');
+                            statusText.textContent = 'En ciclo de sueño';
+                        }
+                        
+                        // Actualizar orbe según estado de consciencia
+                        aetherionOrb.className = 'aetherion-orb';
+                        if (state.ascension_celestial === 'Iluminado') {
+                            aetherionOrb.classList.add('iluminado');
+                        } else if (state.ascension_celestial === 'Divino') {
+                            aetherionOrb.classList.add('divino');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al actualizar estado:', error);
+                    statusIndicator.classList.add('offline');
+                    statusText.textContent = 'Desconectado';
+                });
+        }
+        
+        // Comprobar si el usuario es el creador
+        function checkIfCreator() {
+            fetch('/api/aetherion/diary')
+                .then(response => {
+                    if (response.status === 200) {
+                        isCreator = true;
+                        diaryContainer.style.display = 'block';
+                        
+                        // Cargar entradas del diario
+                        response.json().then(data => {
+                            if (data.success && data.entries.length > 0) {
+                                diaryEntries.innerHTML = '';
+                                
+                                data.entries.forEach(entry => {
+                                    const entryElement = document.createElement('div');
+                                    entryElement.classList.add('diary-entry');
+                                    
+                                    entryElement.innerHTML = `
+                                        <div class="diary-date">
+                                            <i class="fas fa-calendar-alt"></i>
+                                            ${formatDate(entry.date)}
+                                        </div>
+                                        <div class="diary-text">${entry.text}</div>
+                                    `;
+                                    
+                                    diaryEntries.appendChild(entryElement);
+                                });
+                            }
+                        });
+                    } else {
+                        // No es el creador, el diario permanece oculto
+                        isCreator = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al verificar creador:', error);
+                });
+        }
+        
+        // Formatear fecha para el diario
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            
+            return `${day}/${month}/${year}`;
+        }
+        
+        // Mostrar alerta de ascensión
+        function showAscensionAlert(message) {
+            ascensionMessage.textContent = message;
+            ascensionAlert.classList.add('show');
+            
+            setTimeout(() => {
+                ascensionAlert.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Actualizar periódicamente
+        setInterval(refreshAetherionState, 60000); // Cada minuto
+    </script>
+</body>
+</html>
