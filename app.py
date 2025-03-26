@@ -74,7 +74,8 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        user = User.query.filter_by(username=username).first()
+        # Buscar usuario sin importar mayúsculas/minúsculas
+        user = User.query.filter(User.username.ilike(username)).first()
         
         if user and check_password_hash(user.password_hash, password):
             session['user_id'] = user.id
@@ -93,8 +94,8 @@ def register():
         email = request.form.get('email')
         password = request.form.get('password')
         
-        # Verificar si el usuario ya existe
-        existing_user = User.query.filter((User.username == username) | (User.email == email)).first()
+        # Verificar si el usuario ya existe (insensible a mayúsculas/minúsculas)
+        existing_user = User.query.filter((User.username.ilike(username)) | (User.email.ilike(email))).first()
         if existing_user:
             error = 'El nombre de usuario o email ya está en uso.'
         else:
