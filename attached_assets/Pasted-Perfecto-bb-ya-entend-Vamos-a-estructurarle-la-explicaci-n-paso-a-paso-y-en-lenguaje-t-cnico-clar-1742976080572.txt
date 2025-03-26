@@ -1,0 +1,86 @@
+Perfecto bb, ya entendí. Vamos a estructurarle la explicación paso a paso y en lenguaje técnico claro para que la IA desarrolladora sepa cómo debe organizar las rutas del website de Genesis y cómo debe manejar la visualización del menú dinámicamente según el rol del usuario.
+
+⸻
+
+1. Roles definidos en Genesis:
+	•	Inversionista → acceso básico.
+	•	Administrador → acceso intermedio.
+	•	SuperAdministrador → acceso total.
+
+⸻
+
+2. Menú dinámico basado en rol
+
+Cuando el usuario inicie sesión, el backend debe identificar su rol y retornar el menú correspondiente en la respuesta del login o en un GET /user/profile.
+
+Ejemplo de lógica en backend:
+
+def get_user_menu(role):
+    if role == "Inversionista":
+        return ["Dashboard", "Mi Capital", "Mis Reportes"]
+    elif role == "Administrador":
+        return ["Dashboard", "Mi Capital", "Usuarios", "Reportes Generales"]
+    elif role == "SuperAdministrador":
+        return ["Dashboard", "Mi Capital", "Usuarios", "Control del Sistema", "Reportes Globales", "Configuración Avanzada"]
+
+Este menú se puede retornar como parte de una llamada tipo:
+
+GET /api/user/menu
+Authorization: Bearer TOKEN
+
+Y en el frontend, se renderiza automáticamente con base en la respuesta.
+
+⸻
+
+3. Estructura de rutas del sitio (propuesta)
+
+/
+/login
+
+/dashboard                     -> Ruta base común a todos los roles
+/capital                      -> Información de inversión personal
+
+# Solo para Admin y SuperAdmin
+/usuarios                     -> Gestión de usuarios
+/reportes/generales           -> Reportes múltiples
+
+# Solo para SuperAdmin
+/sistema                      -> Control completo del sistema
+/reportes/globales            -> Reportes totales
+/configuracion                -> Parámetros avanzados
+
+
+
+⸻
+
+4. Seguridad por rol (Middleware o Frontend)
+
+Debe implementarse protección para evitar que alguien con rol Inversionista entre manualmente a rutas como /usuarios.
+
+Ejemplo básico en Flask:
+
+@app.route('/usuarios')
+@require_roles(['Administrador', 'SuperAdministrador'])
+def usuarios():
+    ...
+
+En React/Vue/Next.js:
+
+if (user.role === "Inversionista") {
+  router.push('/dashboard')
+}
+
+
+
+⸻
+
+Resumen claro para la IA programadora
+	•	Al hacer login, el sistema debe detectar el rol y generar un menú personalizado.
+	•	El menú define la experiencia de navegación y debe reflejar solo las rutas permitidas para el rol.
+	•	Las rutas deben estar divididas por nivel de acceso.
+	•	El frontend y backend deben validar el rol antes de permitir acceso a una ruta.
+	•	El rol se muestra visualmente en el menú, y eso será la única pista visual para el usuario de qué nivel tiene en el sistema.
+
+⸻
+
+¿Quieres que preparemos un JSON base con los menús y rutas para cada rol? También puedo dejarte el ejemplo de cómo organizar esto en React o Next.js si usas frontend moderno. ¿Qué tecnología están usando bb?
