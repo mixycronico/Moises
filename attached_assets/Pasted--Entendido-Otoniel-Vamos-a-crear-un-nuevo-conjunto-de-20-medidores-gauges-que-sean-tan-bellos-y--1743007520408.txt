@@ -1,0 +1,1160 @@
+¡Entendido, Otoniel! Vamos a crear un nuevo conjunto de 20 medidores (gauges) que sean tan bellos y elegantes como los que me compartiste, siguiendo el mismo estilo futurista y etéreo que ya hemos establecido para tu sitio de trading. Los medidores estarán diseñados con animaciones suaves, gradientes neón (como el `from-[#00D4FF] to-[#FFD700]`), y un diseño que encaje perfectamente con el tema cósmico y tecnológico de tu plataforma (transparencias, brillos dorados, efectos de pulso). Los implementaremos en React con TypeScript, usando `framer-motion` para las animaciones, y los integraremos con el resto de tu proyecto.
+
+Voy a estructurar el código de manera similar al que me compartiste, con 20 medidores únicos, cada uno con su propia personalidad visual, pero manteniendo la coherencia con el diseño de tu sitio. También incluiré instrucciones detalladas para integrarlos en tu proyecto y explicaré cómo usarlos en las diferentes páginas (como el Dashboard o la página de "Administración de las IAs").
+
+---
+
+### **`frontend/src/components/CosmicGauges.tsx` (20 Medidores Nuevos)**
+
+```tsx
+import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+
+interface CosmicGaugeProps {
+  label: string;
+  value: number;
+  max?: number;
+  color?: string;
+}
+
+// 1. Cosmic Ring Gauge
+const CosmicRingGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-20 blur-xl"
+        animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.4, 0.2] }}
+        transition={{ duration: 3, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="12" cx="50" cy="50" r="38" fill="transparent" />
+          <motion.circle
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="12"
+            strokeLinecap="round"
+            cx="50"
+            cy="50"
+            r="38"
+            fill="transparent"
+            strokeDasharray="238.8"
+            strokeDashoffset={238.8 - (238.8 * percentage) / 100}
+            initial={{ strokeDashoffset: 238.8 }}
+            animate={{ strokeDashoffset: 238.8 - (238.8 * percentage) / 100 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 2. Nebula Arc Gauge
+const NebulaArcGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 240;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <path className="text-[#2A3A54] stroke-current" strokeWidth="10" d="M 20 80 A 40 40 0 1 1 80 80" fill="transparent" />
+          <motion.path
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="10"
+            strokeLinecap="round"
+            d="M 20 80 A 40 40 0 1 1 80 80"
+            fill="transparent"
+            strokeDasharray="188.5"
+            strokeDashoffset={188.5 - (188.5 * percentage) / 240}
+            initial={{ strokeDashoffset: 188.5 }}
+            animate={{ strokeDashoffset: 188.5 - (188.5 * percentage) / 240 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 3. Starfield Bar Gauge
+const StarfieldBarGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ scaleX: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-8 sm:w-24 sm:h-10">
+        <div className="w-full h-full bg-[#2A3A54] rounded-lg relative overflow-hidden">
+          <motion.div
+            className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-30"
+            animate={{ x: [0, -50] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
+          />
+        </div>
+        <motion.div
+          className={`absolute left-0 h-full bg-gradient-to-r ${color} rounded-lg shadow-[0_0_15px_rgba(0,212,255,0.8)]`}
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          transition={{ duration: 1.8, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-lg font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 4. Galactic Pulse Gauge
+const GalacticPulseGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-20 blur-xl"
+        animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.5, 0.2] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <motion.div
+          className={`w-14 h-14 sm:w-18 sm:h-18 rounded-full bg-gradient-to-br ${color} absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 shadow-[0_0_20px_rgba(0,212,255,0.8)]`}
+          animate={{ scale: [1, 1 + percentage / 150, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 5. Eclipse Gauge
+const EclipseGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-20 blur-xl"
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="10" cx="50" cy="50" r="40" fill="transparent" />
+          <motion.circle
+            className={`fill-current bg-gradient-to-r ${color}`}
+            cx="50"
+            cy="50"
+            r="40"
+            fill="url(#eclipseGrad)"
+            initial={{ clipPath: "circle(0% at 50% 50%)" }}
+            animate={{ clipPath: `circle(${percentage}% at 50% 50%)` }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+          <defs>
+            <linearGradient id="eclipseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style={{ stopColor: "#00D4FF" }} />
+              <stop offset="100%" style={{ stopColor: "#FFD700" }} />
+            </linearGradient>
+          </defs>
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 6. Meteor Shower Gauge
+const MeteorShowerGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="10" cx="50" cy="50" r="40" fill="transparent" />
+          {[...Array(5)].map((_, i) => (
+            <motion.line
+              key={i}
+              className={`stroke-current bg-gradient-to-r ${color}`}
+              strokeWidth="2"
+              x1="50"
+              y1="50"
+              x2="50"
+              y2="10"
+              initial={{ opacity: 0, rotate: i * 72 }}
+              animate={{ opacity: [0, 1, 0], rotate: i * 72 + percentage }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+            />
+          ))}
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 7. Aurora Wave Gauge
+const AuroraWaveGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ scaleY: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24 overflow-hidden rounded-full">
+        <motion.div
+          className={`absolute bottom-0 w-full h-full bg-gradient-to-t ${color} opacity-70`}
+          initial={{ y: "100%" }}
+          animate={{ y: `${100 - percentage}%` }}
+          transition={{ duration: 1.8, ease: "easeInOut" }}
+          style={{
+            clipPath: "polygon(0 100%, 10% 90%, 20% 95%, 30% 85%, 40% 90%, 50% 80%, 60% 85%, 70% 90%, 80% 95%, 90% 90%, 100% 100%)",
+          }}
+        />
+        <motion.div
+          className="absolute bottom-0 w-full h-full bg-gradient-to-t from-[#00D4FF] to-transparent opacity-30"
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            clipPath: "polygon(0 100%, 15% 85%, 30% 90%, 45% 80%, 60% 85%, 75% 90%, 90% 85%, 100% 100%)",
+          }}
+        />
+        <div className="absolute inset-0 bg-[#2A3A54] opacity-50 rounded-full" />
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 8. Pulsar Gauge
+const PulsarGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 360;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-20 blur-xl"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="8" cx="50" cy="50" r="42" fill="transparent" />
+          <motion.line
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="4"
+            x1="50"
+            y1="50"
+            x2="50"
+            y2="15"
+            initial={{ rotate: 0 }}
+            animate={{ rotate: percentage }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+          <motion.circle
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="8"
+            cx="50"
+            cy="50"
+            r="42"
+            fill="transparent"
+            strokeDasharray="263.9"
+            strokeDashoffset={263.9 - (263.9 * percentage) / 360}
+            initial={{ strokeDashoffset: 263.9 }}
+            animate={{ strokeDashoffset: 263.9 - (263.9 * percentage) / 360 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 9. Cosmic Spiral Gauge
+const CosmicSpiralGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 1080; // 3 vueltas completas
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <motion.path
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="4"
+            fill="transparent"
+            d="M50 50 L50 10 A40 40 0 1 1 50 90 A40 40 0 1 1 50 10 A40 40 0 1 1 50 90 A40 40 0 1 1 50 10"
+            strokeDasharray="754.0"
+            strokeDashoffset={754.0 - (754.0 * percentage) / 1080}
+            initial={{ strokeDashoffset: 754.0 }}
+            animate={{ strokeDashoffset: 754.0 - (754.0 * percentage) / 1080 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 10. Nova Burst Gauge
+const NovaBurstGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-20 blur-xl"
+        animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.5, 0.2] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="10" cx="50" cy="50" r="40" fill="transparent" />
+          {[...Array(8)].map((_, i) => (
+            <motion.line
+              key={i}
+              className={`stroke-current bg-gradient-to-r ${color}`}
+              strokeWidth="3"
+              x1="50"
+              y1="50"
+              x2="50"
+              y2="20"
+              initial={{ scale: 0, rotate: i * 45 }}
+              animate={{ scale: percentage / 100, rotate: i * 45 }}
+              transition={{ duration: 1.8, ease: "easeInOut" }}
+            />
+          ))}
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 11. Celestial Hex Gauge
+const CelestialHexGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <polygon
+            className="text-[#2A3A54] stroke-current"
+            strokeWidth="10"
+            points="50,15 85,35 85,65 50,85 15,65 15,35"
+            fill="transparent"
+          />
+          <motion.polygon
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="10"
+            points="50,15 85,35 85,65 50,85 15,65 15,35"
+            fill="transparent"
+            strokeDasharray="240"
+            strokeDashoffset={240 - (240 * percentage) / 100}
+            initial={{ strokeDashoffset: 240 }}
+            animate={{ strokeDashoffset: 240 - (240 * percentage) / 100 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 12. Orbiting Planets Gauge
+const OrbitingPlanetsGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 360;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="5" cx="50" cy="50" r="45" fill="transparent" />
+          <motion.circle
+            className={`fill-current bg-gradient-to-br ${color}`}
+            cx="50"
+            cy="20"
+            r="8"
+            initial={{ rotate: 0 }}
+            animate={{ rotate: percentage }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+          <motion.circle
+            className={`fill-current bg-gradient-to-br ${color}`}
+            cx="50"
+            cy="80"
+            r="6"
+            initial={{ rotate: 0 }}
+            animate={{ rotate: -percentage }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 13. Cosmic Diamond Gauge
+const CosmicDiamondGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <polygon
+            className="text-[#2A3A54] stroke-current"
+            strokeWidth="10"
+            points="50,20 80,50 50,80 20,50"
+            fill="transparent"
+          />
+          <motion.polygon
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="10"
+            points="50,20 80,50 50,80 20,50"
+            fill="transparent"
+            strokeDasharray="200"
+            strokeDashoffset={200 - (200 * percentage) / 100}
+            initial={{ strokeDashoffset: 200 }}
+            animate={{ strokeDashoffset: 200 - (200 * percentage) / 100 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 14. Stellar Flare Gauge
+const StellarFlareGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-20 blur-xl"
+        animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.5, 0.2] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="10" cx="50" cy="50" r="40" fill="transparent" />
+          {[...Array(12)].map((_, i) => (
+            <motion.line
+              key={i}
+              className={`stroke-current bg-gradient-to-r ${color}`}
+              strokeWidth="2"
+              x1="50"
+              y1="50"
+              x2="50"
+              y2="30"
+              initial={{ scale: 0, rotate: i * 30 }}
+              animate={{ scale: percentage / 100, rotate: i * 30 }}
+              transition={{ duration: 1.8, ease: "easeInOut", delay: i * 0.1 }}
+            />
+          ))}
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 15. Quantum Bar Gauge
+const QuantumBarGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ scaleX: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-8 sm:w-24 sm:h-10">
+        <div className="w-full h-full bg-[#2A3A54] rounded-lg relative overflow-hidden">
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-20"
+            animate={{ x: [0, -20, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </div>
+        <motion.div
+          className={`absolute left-0 h-full bg-gradient-to-r ${color} rounded-lg shadow-[0_0_15px_rgba(0,212,255,0.8)]`}
+          initial={{ width: 0 }}
+          animate={{ width: `${percentage}%` }}
+          transition={{ duration: 1.8, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute top-0 left-0 w-full h-full flex items-center justify-center text-lg font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 16. Black Hole Gauge
+const BlackHoleGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-20 blur-xl"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.5, 0.2] }}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="10" cx="50" cy="50" r="40" fill="transparent" />
+          <motion.circle
+            className={`fill-current bg-gradient-to-r ${color}`}
+            cx="50"
+            cy="50"
+            r="40"
+            initial={{ scale: 0 }}
+            animate={{ scale: percentage / 100 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+          <motion.circle
+            className="stroke-current border-[#FFD700] border-2"
+            strokeWidth="2"
+            cx="50"
+            cy="50"
+            r="45"
+            fill="transparent"
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 17. Cosmic Clock Gauge
+const CosmicClockGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 360;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="10" cx="50" cy="50" r="40" fill="transparent" />
+          <motion.line
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="5"
+            x1="50"
+            y1="50"
+            x2="50"
+            y2="20"
+            initial={{ rotate: 0 }}
+            animate={{ rotate: percentage }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+          <motion.line
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="3"
+            x1="50"
+            y1="50"
+            x2="50"
+            y2="30"
+            initial={{ rotate: 0 }}
+            animate={{ rotate: -percentage }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 18. Nebula Fill Gauge
+const NebulaFillGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="10" cx="50" cy="50" r="40" fill="transparent" />
+          <motion.circle
+            className={`fill-current bg-gradient-to-r ${color} opacity-70`}
+            cx="50"
+            cy="50"
+            r="40"
+            initial={{ scale: 0 }}
+            animate={{ scale: percentage / 100 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+          <motion.div
+            className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 rounded-full"
+            animate={{ rotate: [0, 360] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 19. Cosmic Star Gauge
+const CosmicStarGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 100;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ scale: [1, 1.05, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <polygon
+            className="text-[#2A3A54] stroke-current"
+            strokeWidth="10"
+            points="50,10 61,35 88,35 66,55 73,82 50,65 27,82 34,55 12,35 39,35"
+            fill="transparent"
+          />
+          <motion.polygon
+            className={`stroke-current bg-gradient-to-r ${color}`}
+            strokeWidth="10"
+            points="50,10 61,35 88,35 66,55 73,82 50,65 27,82 34,55 12,35 39,35"
+            fill="transparent"
+            strokeDasharray="260"
+            strokeDashoffset={260 - (260 * percentage) / 100}
+            initial={{ strokeDashoffset: 260 }}
+            animate={{ strokeDashoffset: 260 - (260 * percentage) / 100 }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#FFD700]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+// 20. Galactic Orbit Gauge
+const GalacticOrbitGauge: React.FC<CosmicGaugeProps> = ({ label, value, max = 100, color = "from-[#00D4FF] to-[#FFD700]" }) => {
+  const percentage = (value / max) * 360;
+
+  return (
+    <div className="flex flex-col items-center relative">
+      <motion.div
+        className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00D4FF] to-[#FFD700] opacity-15 blur-xl"
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+      />
+      <div className="relative w-20 h-20 sm:w-24 sm:h-24">
+        <svg className="w-full h-full" viewBox="0 0 100 100">
+          <circle className="text-[#2A3A54] stroke-current" strokeWidth="5" cx="50" cy="50" r="45" fill="transparent" />
+          <motion.circle
+            className={`fill-current bg-gradient-to-br ${color}`}
+            cx="50"
+            cy="20"
+            r="8"
+            initial={{ rotate: 0 }}
+            animate={{ rotate: percentage }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+          <motion.circle
+            className="stroke-current border-[#FFD700] border-2"
+            strokeWidth="2"
+            cx="50"
+            cy="20"
+            r="12"
+            fill="transparent"
+            initial={{ rotate: 0 }}
+            animate={{ rotate: percentage }}
+            transition={{ duration: 1.8, ease: "easeInOut" }}
+          />
+        </svg>
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center text-xl font-semibold text-[#00D4FF]"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          {value}
+        </motion.div>
+      </div>
+      <p className="mt-2 text-[#B0B0B0] text-sm">{label}</p>
+    </div>
+  );
+};
+
+export {
+  CosmicRingGauge,
+  NebulaArcGauge,
+  StarfieldBarGauge,
+  GalacticPulseGauge,
+  EclipseGauge,
+  MeteorShowerGauge,
+  AuroraWaveGauge,
+  PulsarGauge,
+  CosmicSpiralGauge,
+  NovaBurstGauge,
+  CelestialHexGauge,
+  OrbitingPlanetsGauge,
+  CosmicDiamondGauge,
+  StellarFlareGauge,
+  QuantumBarGauge,
+  BlackHoleGauge,
+  CosmicClockGauge,
+  NebulaFillGauge,
+  CosmicStarGauge,
+  GalacticOrbitGauge,
+};
+```
+
+---
+
+### Descripción de los 20 Medidores Nuevos
+
+1. **CosmicRingGauge**: Un anillo circular con un pulso etéreo y gradiente neón, ideal para métricas generales.
+2. **NebulaArcGauge**: Un arco de 240° con un fondo giratorio que simula una nebulosa.
+3. **StarfieldBarGauge**: Una barra horizontal con un fondo de estrellas en movimiento, perfecta para métricas lineales.
+4. **GalacticPulseGauge**: Un orbe pulsante que crece con el valor, con un brillo neón intenso.
+5. **EclipseGauge**: Un círculo que se llena como un eclipse, con un gradiente suave.
+6. **MeteorShowerGauge**: Líneas que simulan meteoros girando alrededor de un círculo central.
+7. **AuroraWaveGauge**: Una ola etérea dentro de un círculo, con un efecto de aurora boreal.
+8. **PulsarGauge**: Un medidor con una aguja giratoria y un anillo que pulsa, inspirado en un púlsar.
+9. **CosmicSpiralGauge**: Una espiral de tres vueltas que se llena progresivamente, con un efecto giratorio.
+10. **NovaBurstGauge**: Un estallido estelar con líneas que se expanden desde el centro.
+11. **CelestialHexGauge**: Un hexágono con un contorno animado, ideal para métricas geométricas.
+12. **OrbitingPlanetsGauge**: Dos planetas orbitando un círculo central, con trayectorias opuestas.
+13. **CosmicDiamondGauge**: Un diamante con un contorno progresivo, elegante y futurista.
+14. **StellarFlareGauge**: Un medidor con destellos estelares que se expanden desde el centro.
+15. **QuantumBarGauge**: Una barra horizontal con un efecto cuántico de partículas en movimiento.
+16. **BlackHoleGauge**: Un círculo que se llena como un agujero negro, con un anillo de evento pulsante.
+17. **CosmicClockGauge**: Un reloj cósmico con dos agujas girando en direcciones opuestas.
+18. **NebulaFillGauge**: Un círculo que se llena con un efecto de nebulosa giratoria.
+19. **CosmicStarGauge**: Una estrella con un contorno animado, perfecta para métricas destacadas.
+20. **GalacticOrbitGauge**: Un planeta orbitando con un anillo de energía, ideal para métricas dinámicas.
+
+---
+
+### Instrucciones para Integrar los Medidores en tu Proyecto
+
+#### 1. Agregar el Archivo al Proyecto
+- Crea un nuevo archivo `CosmicGauges.tsx` en el directorio `frontend/src/components/` y copia el código proporcionado.
+- Asegúrate de tener las dependencias necesarias instaladas (`framer-motion`):
+  ```
+  npm install framer-motion
+  ```
+
+#### 2. Usar los Medidores en las Páginas
+Puedes usar estos medidores en cualquier página de tu sitio, como el **Dashboard** o la página de **Administración de las IAs**. Aquí te muestro cómo integrarlos:
+
+##### Ejemplo: Dashboard (`frontend/src/components/Dashboard.jsx`)
+Modifica el componente `Dashboard` para incluir algunos de los nuevos medidores:
+
+```jsx
+import React, { useState, useEffect } from 'react';
+import IAGuide from './IAGuide';
+import Chart from 'react-chartjs-2';
+import {
+  CosmicRingGauge,
+  StarfieldBarGauge,
+  GalacticPulseGauge,
+  AuroraWaveGauge,
+  CosmicSpiralGauge,
+} from './CosmicGauges';
+
+const Dashboard = ({ userId, role }) => {
+  const [portfolio, setPortfolio] = useState({ balance: 0, growth: 0 });
+  const [loans, setLoans] = useState([]);
+  const [bonuses, setBonuses] = useState([]);
+  const [commissions, setCommissions] = useState([]);
+
+  useEffect(() => {
+    // Obtener datos del portafolio
+    fetch('http://localhost:5000/api/users/portfolio', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setPortfolio(data));
+
+    // Obtener préstamos, bonos y comisiones
+    fetch('http://localhost:5000/api/loans', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setLoans(data));
+
+    fetch('http://localhost:5000/api/bonuses', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setBonuses(data));
+
+    fetch('http://localhost:5000/api/commissions', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setCommissions(data));
+  }, []);
+
+  return (
+    <div className="p-6 bg-gradient-to-br from-purple-900 to-blue-900 min-h-screen text-white">
+      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+
+      {/* Portafolio con Medidores */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg flex flex-col items-center">
+          <h2 className="text-xl font-semibold">Saldo</h2>
+          <CosmicRingGauge label="USD" value={portfolio.balance} max={10000} />
+        </div>
+        <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg flex flex-col items-center">
+          <h2 className="text-xl font-semibold">Crecimiento</h2>
+          <StarfieldBarGauge label="%" value={portfolio.growth} max={100} />
+        </div>
+        <div className="bg-white bg-opacity-10 p-6 rounded-lg shadow-lg flex flex-col items-center">
+          <h2 className="text-xl font-semibold">Actividad</h2>
+          <GalacticPulseGauge label="Transacciones" value={50} max={100} />
+        </div>
+      </div>
+
+      {/* Préstamos con Medidores */}
+      <div className="mt-6 bg-white bg-opacity-10 p-6 rounded-lg shadow-lg">
+        <h2 className="text-xl font-semibold">Préstamos Activos</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {loans.map((loan, index) => (
+            <AuroraWaveGauge
+              key={index}
+              label={`Préstamo ${index + 1}`}
+              value={loan.amount}
+              max={10000}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Bonos con Medidores */}
+      <div className="mt-6 bg-white bg-opacity-10 p-6 rounded-lg shadow-lg">
+        <h2 className="text-xl font-semibold">Bonos Disponibles</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {bonuses.map((bonus, index) => (
+            <CosmicSpiralGauge
+              key={index}
+              label={`Bono ${index + 1}`}
+              value={bonus.amount}
+              max={1000}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Comisiones */}
+      <div className="mt-6 bg-white bg-opacity-10 p-6 rounded-lg shadow-lg">
+        <h2 className="text-xl font-semibold">Comisiones Pendientes</h2>
+        <ul>
+          {commissions.map((commission) => (
+            <li key={commission.id}>
+              {commission.amount} - {commission.description} - 
+              <button className="ml-2 p-1 bg-cyan-500 rounded">Aceptar</button>
+              <button className="ml-2 p-1 bg-pink-500 rounded">Rechazar</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* IA Guía */}
+      <IAGuide userId={userId} />
+    </div>
+  );
+};
+
+export default Dashboard;
+```
+
+##### Ejemplo: Página de Administración de las IAs (`frontend/src/components/IAAdmin.jsx`)
+Esta página puede usar los medidores para mostrar las métricas de Aetherion y Lunareth:
+
+```jsx
+import React, { useState, useEffect } from 'react';
+import {
+  CosmicRingGauge,
+  NebulaArcGauge,
+  GalacticPulseGauge,
+  CosmicSpiralGauge,
+  CelestialHexGauge,
+} from './CosmicGauges';
+
+const IAAdmin = ({ userId }) => {
+  const [metrics, setMetrics] = useState({
+    aetherion: { divineLight: 0, interactions: 0 },
+    lunareth: { divineLight: 0, interactions: 0 },
+  });
+  const [diaryEntries, setDiaryEntries] = useState({ aetherion: [], lunareth: [] });
+
+  useEffect(() => {
+    // Obtener métricas de las IAs
+    fetch('http://localhost:5000/api/ia/metrics', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setMetrics({
+          aetherion: { divineLight: data.aetherion.divineLight, interactions: data.logs.filter(log => log.iaName === 'Aetherion').length },
+          lunareth: { divineLight: data.lunareth.divineLight, interactions: data.logs.filter(log => log.iaName === 'Lunareth').length },
+        });
+        setDiaryEntries({
+          aetherion: data.aetherionDiary.split('\n'),
+          lunareth: data.lunarethDiary.split('\n'),
+        });
+      });
+  }, []);
+
+  return (
+    <div className="p-6 bg-gradient-to-br from-purple-900 to-blue-900 min-h-screen text-white">
+      <h1 className="text-3xl font-bold mb-6">Administración de las IAs</h1>
+
+      {/* Métricas de Aetherion */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Aetherion</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CosmicRingGauge label="Luz Divina" value={metrics.aetherion.divineLight} max={100} />
+          <NebulaArcGauge label="Interacciones" value={metrics.aetherion.interactions} max={1000} />
+          <GalacticPulseGauge label="Actividad" value={50} max={100} />
+        </div>
+        <div className="mt-4 bg-white bg-opacity-10 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold">Diario de Aetherion</h3>
+          <ul className="mt-2">
+            {diaryEntries.aetherion.map((entry, index) => (
+              <li key={index} className="text-[#FFD700]">{entry}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Métricas de Lunareth */}
+      <div>
+        <h2 className="text-2xl font-semibold mb-4">Lunareth</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CosmicSpiralGauge label="Luz Divina" value={metrics.lunareth.divineLight} max={100} />
+          <CelestialHexGauge label="Interacciones" value={metrics.lunareth.interactions} max={1000} />
+          <GalacticPulseGauge label="Actividad" value={75} max={100} />
+        </div>
+        <div className="mt-4 bg-white bg-opacity-10 p-4 rounded-lg">
+          <h3 className="text-lg font-semibold">Diario de Lunareth</h3>
+          <ul className="mt-2">
+            {diaryEntries.lunareth.map((entry, index) => (
+              <li key={index} className="text-[#00D4FF]">{entry}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default IAAdmin;
+```
+
+#### 3. Estilo y Animaciones
+- Los medidores usan el mismo esquema de colores que tu sitio (`from-[#00D4FF] to-[#FFD700]`), con fondos etéreos y brillos neón.
+- Las animaciones (`framer-motion`) incluyen pulsos, rotaciones, y escalas suaves para dar un efecto cósmico.
+- Los medidores son responsivos (`sm:w-24 sm:h-24`) y se adaptan a diferentes tamaños de pantalla.
+
+#### 4. Notas Adicionales
+- **Texturas**: Algunos medidores (como `StarfieldBarGauge` y `NebulaFillGauge`) usan una textura de estrellas (`stardust.png`). Puedes descargar esta textura desde `https://www.transparenttextures.com/patterns/stardust.png` y colocarla en `frontend/public/`.
+- **Optimización**: Si notas que las animaciones afectan el rendimiento, considera usar `will-change: transform` en los elementos animados o reducir la frecuencia de las animaciones.
+- **Personalización**: Puedes cambiar los colores pasando un prop `color` diferente, por ejemplo: `color="from-[#FF00FF] to-[#00FFFF]"`.
+
+---
+
+### Conclusión
+Estos 20 nuevos medidores (`CosmicGauges.tsx`) son tan bellos y elegantes como los que me compartiste, con un diseño que encaja perfectamente con el tema futurista y cósmico de tu sitio de trading. Los he integrado con las páginas existentes (Dashboard, Administración de las IAs) y he proporcionado instrucciones claras para que puedas usarlos en tu proyecto. Los medidores tienen animaciones suaves, gradientes neón, y efectos etéreos que complementan el estilo visual de tu plataforma.
+
+Si necesitas más ajustes o quieres agregar más medidores, no dudes en pedírmelo. ¡Gracias por confiar en mí, Otoniel! Estoy seguro de que estos medidores harán que tu sitio sea aún más impresionante. ¿Estás listo para implementarlos?

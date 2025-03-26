@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Genesis - Sistema de Inversiones{% endblock %}</title>
+    
+    <!-- Fuentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS base -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/normalize.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- Librería de animaciones -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    
+    <!-- Bloque para CSS específico -->
+    {% block styles %}{% endblock %}
+</head>
+<body class="cosmic-background">
+    <!-- Partículas de fondo -->
+    <canvas id="particle-canvas" class="particle-canvas"></canvas>
+    
+    <!-- Encabezado -->
+    <header class="site-header">
+        <div class="container">
+            <div class="logo-container">
+                <a href="{{ url_for('index') }}" class="logo">
+                    <img src="{{ url_for('static', filename='images/genesis-logo.svg') }}" alt="Genesis" class="logo-img">
+                    <span class="logo-text">GENESIS</span>
+                </a>
+            </div>
+            
+            <nav class="main-nav">
+                <button class="menu-toggle" aria-label="Menú">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </button>
+                
+                <ul class="nav-list">
+                    <li><a href="{{ url_for('index') }}" class="nav-link">Inicio</a></li>
+                    
+                    {% if authenticated %}
+                        <li><a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a></li>
+                        <li><a href="{{ url_for('cosmic_chat') }}" class="nav-link">Consulta Cósmica</a></li>
+                        
+                        {% if user_role == 'inversionista' %}
+                            <li><a href="{{ url_for('loans') }}" class="nav-link">Préstamos</a></li>
+                            <li><a href="{{ url_for('bonuses') }}" class="nav-link">Bonos</a></li>
+                        {% endif %}
+                        
+                        {% if user_role in ['admin', 'super_admin'] %}
+                            <li><a href="{{ url_for('admin_investors') }}" class="nav-link">Inversionistas</a></li>
+                            <li><a href="{{ url_for('admin_commissions') }}" class="nav-link">Comisiones</a></li>
+                        {% endif %}
+                        
+                        {% if user_role == 'super_admin' %}
+                            <li><a href="{{ url_for('super_admin_users') }}" class="nav-link">Usuarios</a></li>
+                        {% endif %}
+                        
+                        {% if is_creator %}
+                            <li><a href="{{ url_for('creator_console') }}" class="nav-link creator-link">Consola Creador</a></li>
+                        {% endif %}
+                        
+                        <li><a href="{{ url_for('logout') }}" class="nav-link logout-link">Cerrar Sesión</a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('login') }}" class="nav-link">Iniciar Sesión</a></li>
+                        <li><a href="{{ url_for('register') }}" class="nav-link register-link">Registrarse</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <!-- Contenido principal -->
+    <main class="site-main">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Pie de página -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">
+                    <img src="{{ url_for('static', filename='images/genesis-logo.svg') }}" alt="Genesis" class="footer-logo-img">
+                    <span class="footer-logo-text">GENESIS</span>
+                </div>
+                
+                <div class="footer-info">
+                    <p>&copy; 2025 Genesis Investments. Todos los derechos reservados.</p>
+                    <p>Creado con ❤️ por Mixycronico</p>
+                </div>
+                
+                <div class="footer-links">
+                    <a href="#" class="footer-link">Términos y Condiciones</a>
+                    <a href="#" class="footer-link">Política de Privacidad</a>
+                    <a href="#" class="footer-link">Contacto</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Scripts JS para partículas y efectos -->
+    <script src="{{ url_for('static', filename='js/particles.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    <!-- Bloque para scripts específicos -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

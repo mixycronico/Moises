@@ -33,12 +33,15 @@ dependencies = [
     "websockets>=15.0.1",
     "aiohttp>=3.10.11",
     "asyncpg>=0.30.0",
-    "gymnasium",
-    "stable-baselines3",
-    "optuna",
+    # "gymnasium", # Commented out to fix dependency issues
+    # "stable-baselines3", # Commented out to fix dependency issues
+    # "optuna", # Commented out to fix dependency issues
     "beautifulsoup4>=4.12.3",
     "bs4>=0.0.2",
     "werkzeug",
+    "flask-login>=0.6.3",
+    "genesis>=0.7.0",
+    "requests>=2.32.3",
 ]
 
 [[tool.uv.index]]
@@ -486,7 +489,7 @@ gretel-synthetics = [{ index = "pytorch-cpu", marker = "platform_system == 'Linu
 gsplat = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 guardrails-ai = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 guidance = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
-gymnasium = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+# gymnasium = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }] # Commented out to fix dependency issues
 hanlp = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 happytransformer = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 hbutils = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
@@ -744,9 +747,9 @@ optimum-intel = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" 
 optimum-neuron = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 optimum-quanto = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 optree = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
-optuna = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
-optuna-dashboard = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
-optuna-integration = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
+# optuna = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }] # Commented out to fix dependency issues
+# optuna-dashboard = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }] # Commented out to fix dependency issues
+# optuna-integration = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }] # Commented out to fix dependency issues
 oracle-ads = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 orbit-ml = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
 otx = [{ index = "pytorch-cpu", marker = "platform_system == 'Linux'" }]
