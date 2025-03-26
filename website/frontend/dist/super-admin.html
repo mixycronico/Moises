@@ -520,7 +520,70 @@
         <i class="icon">💼</i>
         <span>Mi Portafolio</span>
         <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, rgba(255, 215, 0, 0.3) 0%, rgba(218, 165, 32, 0) 70%); animation: pulse 2s infinite;"></div>
+        
+        <!-- Tooltip informativo sobre funciones especiales para inversionistas -->
+        <div class="transparency-tooltip">
+          <div class="tooltip-content">
+            <div class="tooltip-title">Nuevas funciones disponibles</div>
+            <ul class="tooltip-list">
+              <li><b>Bonos mensuales:</b> Platinum (7%), Gold (5%), Silver (3%), Bronze (2%)</li>
+              <li><b>Préstamos:</b> Disponibles según categoría (hasta 30% para Platinum)</li>
+              <li><b>Transferencias:</b> Entre inversionistas (límite $10,000 diarios)</li>
+            </ul>
+            <div class="tooltip-footer">Visita "Mi Portafolio" para ver detalles</div>
+          </div>
+        </div>
       </div>
+      
+      <style>
+        .transparency-tooltip {
+          position: absolute;
+          top: -15px;
+          right: -280px;
+          width: 270px;
+          background: rgba(30, 20, 60, 0.95);
+          border: 1px solid rgba(128, 0, 255, 0.4);
+          border-radius: 8px;
+          padding: 12px;
+          box-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+          z-index: 100;
+          opacity: 0;
+          transform: translateY(10px);
+          pointer-events: none;
+          transition: opacity 0.3s, transform 0.3s;
+        }
+        
+        #portfolioButton:hover .transparency-tooltip {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        
+        .tooltip-title {
+          color: rgba(218, 165, 32, 1);
+          font-weight: bold;
+          margin-bottom: 8px;
+          font-size: 14px;
+        }
+        
+        .tooltip-list {
+          list-style: none;
+          padding: 0;
+          margin: 0 0 8px 0;
+        }
+        
+        .tooltip-list li {
+          padding: 4px 0;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.9);
+          border-bottom: 1px solid rgba(128, 0, 255, 0.2);
+        }
+        
+        .tooltip-footer {
+          font-size: 11px;
+          color: rgba(128, 255, 255, 0.9);
+          font-style: italic;
+        }
+      </style>
       
       <style>
         @keyframes pulse {
@@ -563,6 +626,138 @@
       <!-- Sección de portafolio personal (visible por defecto) -->
       <div id="portfolioSection">
         <h1 class="dashboard-title">Mi Portafolio Personal</h1>
+        
+        <!-- Sección de beneficios según categoría -->
+        <div class="category-benefits-section">
+          <div class="category-title">
+            <div class="category-badge platinum">Platinum</div>
+            <h3>Beneficios de su categoría</h3>
+          </div>
+          <div class="category-benefits-grid">
+            <div class="benefit-item">
+              <div class="benefit-icon">🏆</div>
+              <div class="benefit-details">
+                <h4>Bonos Mensuales</h4>
+                <p>Recibe un <strong>7%</strong> adicional mensual sobre tus rendimientos</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-icon">💸</div>
+              <div class="benefit-details">
+                <h4>Préstamos</h4>
+                <p>Acceso a préstamos de hasta <strong>30%</strong> de tu capital invertido</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-icon">🔄</div>
+              <div class="benefit-details">
+                <h4>Transferencias</h4>
+                <p>Límite diario de <strong>$10,000</strong> para transferencias entre inversionistas</p>
+              </div>
+            </div>
+            <div class="benefit-item">
+              <div class="benefit-icon">⏱️</div>
+              <div class="benefit-details">
+                <h4>Retiros Express</h4>
+                <p>Procesamiento de retiros en <strong>24 horas</strong> (otros niveles: 72h)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <style>
+          .category-benefits-section {
+            background: rgba(10, 10, 40, 0.4);
+            border: 1px solid rgba(128, 0, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 0 15px rgba(128, 0, 255, 0.2);
+          }
+          
+          .category-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+          }
+          
+          .category-badge {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-right: 10px;
+            color: white;
+          }
+          
+          .platinum {
+            background: linear-gradient(135deg, #8e8e8e, #e5e5e5);
+            box-shadow: 0 0 10px rgba(229, 229, 229, 0.7);
+            border: 1px solid #e5e5e5;
+          }
+          
+          .gold {
+            background: linear-gradient(135deg, #b8860b, #ffd700);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+            border: 1px solid #ffd700;
+          }
+          
+          .silver {
+            background: linear-gradient(135deg, #707070, #c0c0c0);
+            box-shadow: 0 0 10px rgba(192, 192, 192, 0.7);
+            border: 1px solid #c0c0c0;
+          }
+          
+          .bronze {
+            background: linear-gradient(135deg, #8b4513, #cd7f32);
+            box-shadow: 0 0 10px rgba(205, 127, 50, 0.7);
+            border: 1px solid #cd7f32;
+          }
+          
+          .category-title h3 {
+            margin: 0;
+            color: #e5e5e5;
+            font-size: 18px;
+          }
+          
+          .category-benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+          }
+          
+          .benefit-item {
+            display: flex;
+            background: rgba(20, 20, 50, 0.5);
+            border: 1px solid rgba(128, 0, 255, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+          }
+          
+          .benefit-icon {
+            font-size: 24px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+          }
+          
+          .benefit-details h4 {
+            margin: 0 0 5px 0;
+            color: rgba(200, 200, 255, 0.9);
+            font-size: 16px;
+          }
+          
+          .benefit-details p {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 13px;
+          }
+          
+          .benefit-details strong {
+            color: rgba(128, 255, 255, 0.9);
+          }
+        </style>
+        
         <div class="card-container">
           <div class="card">
             <div class="card-header">
@@ -575,6 +770,12 @@
             <div class="card-content">
               <div class="stat" id="userBalance">$0.00</div>
               <div class="stat-description">Balance actual en cuenta</div>
+              <!-- Desglose de balance con tooltip -->
+              <div class="balance-details">
+                <span class="detail-item" title="Capital base aportado por usted">Capital base: <strong>$X,XXX.XX</strong></span>
+                <span class="detail-item" title="Ganancias acumuladas hasta la fecha">Ganancias: <strong>$XXX.XX</strong></span>
+                <span class="detail-item" title="Bonos de categoría Platinum (7%)">Bonos: <strong>$XX.XX</strong></span>
+              </div>
             </div>
           </div>
           
@@ -620,6 +821,36 @@
               <div class="stat-description">Capital total invertido</div>
             </div>
           </div>
+          
+          <style>
+            .balance-details {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              margin-top: 10px;
+              padding-top: 10px;
+              border-top: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            
+            .detail-item {
+              font-size: 12px;
+              color: rgba(255, 255, 255, 0.7);
+              background: rgba(0, 0, 0, 0.2);
+              padding: 4px 8px;
+              border-radius: 4px;
+              cursor: help;
+              transition: background 0.3s, box-shadow 0.3s;
+            }
+            
+            .detail-item:hover {
+              background: rgba(128, 0, 255, 0.2);
+              box-shadow: 0 0 10px rgba(128, 0, 255, 0.3);
+            }
+            
+            .detail-item strong {
+              color: rgba(128, 255, 255, 0.9);
+            }
+          </style>
         </div>
         
         <div class="chart-container">
