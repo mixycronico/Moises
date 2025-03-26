@@ -51,6 +51,23 @@
       margin-bottom: var(--spacing-lg);
     }
     
+    .genesis-logo {
+      text-align: center;
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .floating-logo {
+      width: 140px;
+      height: auto;
+      animation: floating 3s ease-in-out infinite;
+    }
+    
+    @keyframes floating {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0); }
+    }
+    
     .logo-inner {
       width: 80px;
       height: 80px;
@@ -227,10 +244,8 @@
   <div class="stars" id="stars"></div>
   
   <div class="login-container">
-    <div class="logo">
-      <div class="logo-inner">
-        <div class="logo-text">G</div>
-      </div>
+    <div class="genesis-logo">
+      <img src="/images/genesis-logo.png" alt="Genesis Logo" class="floating-logo">
       <h1>INICIAR SESIÓN</h1>
     </div>
     
