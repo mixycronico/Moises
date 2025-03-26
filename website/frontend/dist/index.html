@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sistema Genesis - Plataforma avanzada de trading e inversión con IA">
+  <meta name="theme-color" content="#0c1d3b">
+  <title>Proyecto Genesis | Sistema de Inversión Avanzado</title>
+  <style>
+    /* Variables */
+    :root {
+      --color-primary: #0cc6de;
+      --color-secondary: #9270ff;
+      --color-accent: #ff27b3;
+      --color-background: #0d1930;
+      --color-card-bg: rgba(22, 43, 77, 0.7);
+      --color-text: #e1eaff;
+      --color-text-secondary: #8b9ebb;
+      --color-border: rgba(70, 137, 180, 0.3);
+      --font-display: 'Orbitron', sans-serif;
+      --font-body: 'Poppins', sans-serif;
+      --spacing-md: 1rem;
+      --spacing-lg: 1.5rem;
+      --border-radius-md: 8px;
+    }
+    
+    /* Estilos base */
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--color-background);
+      color: var(--color-text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-image: radial-gradient(circle at center, rgba(25, 42, 86, 0.8) 0%, rgba(13, 25, 48, 1) 100%);
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: var(--spacing-lg);
+      text-align: center;
+    }
+    
+    .logo {
+      width: 150px;
+      height: 150px;
+      margin: 0 auto var(--spacing-lg);
+      position: relative;
+      animation: pulse 2s infinite;
+    }
+    
+    .logo-inner {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 4px solid var(--color-primary);
+      background: rgba(12, 198, 222, 0.1);
+      box-shadow: 0 0 20px rgba(12, 198, 222, 0.5);
+    }
+    
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 80px;
+      font-weight: bold;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    
+    h1 {
+      font-family: var(--font-display);
+      font-size: 2.5rem;
+      margin-bottom: var(--spacing-md);
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    
+    p {
+      margin-bottom: var(--spacing-lg);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+    }
+    
+    .button {
+      display: inline-block;
+      padding: 12px 30px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+      color: white;
+      border: none;
+      border-radius: var(--border-radius-md);
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      margin: 0 10px;
+    }
+    
+    .button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(12, 198, 222, 0.3);
+    }
+    
+    .stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: -1;
+    }
+    
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(12, 198, 222, 0.7);
+      }
+      70% {
+        box-shadow: 0 0 0 20px rgba(12, 198, 222, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(12, 198, 222, 0);
+      }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="root">
+    <div class="stars" id="stars"></div>
+    <div class="container">
+      <div class="logo">
+        <div class="logo-inner">
+          <div class="logo-text">G</div>
+        </div>
+      </div>
+      <h1>PROYECTO GENESIS</h1>
+      <p>
+        Sistema de inversión avanzado con inteligencia artificial, diseñado para maximizar rendimientos y minimizar riesgos a través de análisis predictivo y comportamiento adaptativo.
+      </p>
+      <div>
+        <a href="/login" class="button">Iniciar Sesión</a>
+        <a href="/api/check" class="button">Verificar API</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Crear estrellas en el fondo
+    document.addEventListener('DOMContentLoaded', () => {
+      const starsContainer = document.getElementById('stars');
+      const numStars = Math.floor(window.innerWidth * window.innerHeight / 1000);
+      
+      for (let i = 0; i < numStars; i++) {
+        const star = document.createElement('div');
+        star.style.position = 'absolute';
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        
+        const size = Math.random() * 3 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        
+        star.style.borderRadius = '50%';
+        star.style.backgroundColor = '#ffffff';
+        star.style.opacity = Math.random() * 0.7 + 0.3;
+        
+        const animationDuration = Math.random() * 4 + 2;
+        star.style.animation = `twinkle ${animationDuration}s infinite alternate`;
+        
+        starsContainer.appendChild(star);
+      }
+    });
+    
+    // Animación de parpadeo para estrellas
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+      @keyframes twinkle {
+        0% { opacity: 0.3; }
+        100% { opacity: 1; }
+      }
+    `;
+    document.head.appendChild(styleElement);
+  </script>
+</body>
+</html>
