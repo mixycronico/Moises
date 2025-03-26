@@ -32,6 +32,15 @@ DEMO_USERS = {
         "email": "super_admin@genesis.ai",
         "role": "super_admin",
         "name": "Usuario Super Administrador"
+    },
+    # Usuario personalizado para el creador del proyecto
+    "genesis": {
+        "id": 4,
+        "username": "genesis",
+        "password": "genesis",
+        "email": "creador@genesis.ai",
+        "role": "super_admin",
+        "name": "Creador de Genesis"
     }
 }
 
