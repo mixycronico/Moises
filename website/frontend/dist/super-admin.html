@@ -7,6 +7,47 @@
   <meta name="theme-color" content="#0c1d3b">
   <title>Panel Super Administrador | Proyecto Genesis</title>
   <style>
+    /* Estilos para partículas cuánticas */
+    .quantum-menu-particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      overflow: hidden;
+    }
+    
+    .super-admin-nav {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .quantum-particle {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.7;
+      animation: float 25s linear infinite;
+      z-index: 10;
+      pointer-events: none;
+    }
+    
+    @keyframes float {
+      0% {
+        transform: translateY(0) translateX(0) rotate(0deg);
+      }
+      33% {
+        transform: translateY(-20px) translateX(10px) rotate(120deg);
+      }
+      66% {
+        transform: translateY(-10px) translateX(-15px) rotate(240deg);
+      }
+      100% {
+        transform: translateY(0) translateX(0) rotate(360deg);
+      }
+    }
+    
     /* Estilos para la tabla de datos */
     .data-table {
       width: 100%;
@@ -503,7 +544,10 @@
   </header>
   
   <div class="main-container">
-    <div class="sidebar">
+    <div class="sidebar super-admin-nav">
+      <!-- Contenedor para partículas cuánticas -->
+      <div class="quantum-menu-particles" id="superAdminParticles"></div>
+
       <div class="nav-item active" id="dashboard">
         <i class="icon">📊</i>
         <span>Dashboard</span>
@@ -1387,6 +1431,66 @@
       
       // Inicializar
       getUserInfo();
+      
+      // Crear partículas cuánticas para el menú
+      function createMenuParticles(containerId, colorType) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+          console.warn(`Contenedor ${containerId} no encontrado`);
+          return;
+        }
+        
+        // Limpiar contenedor
+        container.innerHTML = '';
+        
+        // Configuración de colores según tipo
+        const colors = {
+          'gold': { hue: [40, 60], sat: 100 },     // Dorado para Super Admin
+          'cyan': { hue: [180, 200], sat: 100 },   // Cyan para Admin
+          'magenta': { hue: [290, 310], sat: 100 } // Magenta para Inversionista
+        };
+        
+        // Usar colores predeterminados si no se especifica
+        const config = colors[colorType] || { hue: [180, 240], sat: 100 };
+        
+        // Crear partículas
+        const numParticles = 20;
+        for (let i = 0; i < numParticles; i++) {
+          const particle = document.createElement('div');
+          particle.classList.add('quantum-particle');
+          
+          // Tamaño aleatorio
+          const size = Math.random() * 6 + 2; // 2-8px
+          particle.style.width = `${size}px`;
+          particle.style.height = `${size}px`;
+          
+          // Posición aleatoria
+          particle.style.left = `${Math.random() * 100}%`;
+          particle.style.top = `${Math.random() * 100}%`;
+          
+          // Color según tipo
+          const hueRange = config.hue;
+          const sat = config.sat;
+          const hue = hueRange[0] === hueRange[1] ? 
+                      hueRange[0] : 
+                      Math.random() * (hueRange[1] - hueRange[0]) + hueRange[0];
+          
+          const opacity = Math.random() * 0.4 + 0.6; // 0.6-1.0 para mayor visibilidad
+          const size2 = size * 1.5; // Tamaño para el resplandor
+          
+          // Aplicar estilos de visibilidad mejorada
+          particle.style.background = `hsla(${hue}, ${sat}%, 70%, ${opacity})`;
+          particle.style.boxShadow = `0 0 ${size2}px hsla(${hue}, ${sat}%, 70%, 0.8)`;
+          
+          // Agregar al contenedor
+          container.appendChild(particle);
+        }
+        
+        console.log(`Partículas creadas para ${containerId}`);
+      }
+      
+      // Iniciar efectos visuales
+      createMenuParticles('superAdminParticles', 'gold');
     });
   </script>
 </body>
