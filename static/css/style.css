@@ -124,8 +124,14 @@ img {
 }
 
 .logo-img {
-    height: 40px;
-    margin-right: 0.5rem;
+    height: 50px;
+    margin-right: 1rem;
+    transition: transform 0.3s ease;
+    filter: drop-shadow(0 0 8px rgba(156, 39, 176, 0.7));
+}
+
+.logo:hover .logo-img {
+    transform: scale(1.05);
 }
 
 .logo-text {
@@ -265,8 +271,9 @@ img {
 }
 
 .footer-logo-img {
-    height: 30px;
+    height: 40px;
     margin-right: 0.5rem;
+    filter: drop-shadow(0 0 5px rgba(156, 39, 176, 0.5));
 }
 
 .footer-logo-text {
