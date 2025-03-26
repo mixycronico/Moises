@@ -650,6 +650,11 @@
         }
       });
       
+      // Redirigir al panel de inversionista personal
+      document.getElementById('portfolioButton').addEventListener('click', () => {
+        window.location.href = '/portfolio';
+      });
+      
       // Inicializar
       getUserInfo();
     });
