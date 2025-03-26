@@ -48,6 +48,11 @@ def super_admin_page():
 @app.route('/portfolio')
 def portfolio_page():
     return send_file(os.path.join(app.static_folder, 'investor-dashboard-new.html'))
+    
+# Panel de inversionista simplificado para pruebas
+@app.route('/simple')
+def simple_investor_page():
+    return send_file(os.path.join(app.static_folder, 'investor-simple.html'))
 
 # Rutas para la aplicación React
 @app.route('/', defaults={'path': ''})
