@@ -706,6 +706,53 @@
       gap: var(--spacing-md);
     }
     
+    /* Estilos para secciones de transparencia */
+    .transparency-title {
+      font-weight: 600;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: var(--color-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .transparency-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    
+    .transparency-list li {
+      margin-bottom: 8px;
+      padding-left: 16px;
+      position: relative;
+    }
+    
+    .transparency-list li:before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--color-primary);
+    }
+    
+    .transparency-highlight {
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+    
+    .transaction-transparency-info,
+    .market-transparency-info {
+      margin-top: 20px;
+      background-color: rgba(47, 33, 95, 0.2);
+      border-radius: 8px;
+      padding: 15px;
+      border: 1px solid rgba(123, 97, 255, 0.2);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
     .chart-container {
       position: relative;
       display: flex;
@@ -1882,6 +1929,31 @@
               <div class="card-title">BALANCE TOTAL</div>
               <div class="card-value" id="totalBalance">$0.00</div>
               <div class="card-subtitle">Incluye comisiones y gastos operativos</div>
+              
+              <!-- Información detallada sobre el balance -->
+              <div class="transparency-info">
+                <i class="fas fa-info-circle"></i>
+                <span>Desglose de balance</span>
+                <div class="tooltip-text">
+                  Este balance incluye todos tus activos, fondos disponibles y ganancias generadas, menos las comisiones acumuladas. Las actualizaciones de valor se realizan cada 10 minutos.
+                </div>
+              </div>
+              
+              <!-- Detalles del balance -->
+              <div class="detailed-info">
+                <div class="detail-line">
+                  <span class="detail-label">Inversiones activas:</span>
+                  <span class="detail-value" id="activeInvestmentsValue">$0.00</span>
+                </div>
+                <div class="detail-line">
+                  <span class="detail-label">Fondos disponibles:</span>
+                  <span class="detail-value" id="availableFundsValue">$0.00</span>
+                </div>
+                <div class="detail-line">
+                  <span class="detail-label">Comisiones pagadas:</span>
+                  <span class="detail-value" id="commissionsPaidValue">$0.00</span>
+                </div>
+              </div>
             </div>
             <div class="card-icon-container">
               <i class="fas fa-wallet"></i>
@@ -1906,6 +1978,31 @@
               <div class="card-title">CAPITAL INVERTIDO</div>
               <div class="card-value" id="investedCapital">$0.00</div>
               <div class="card-subtitle">Aportaciones netas realizadas</div>
+              
+              <!-- Información detallada sobre el capital invertido -->
+              <div class="transparency-info">
+                <i class="fas fa-info-circle"></i>
+                <span>Detalles de inversión</span>
+                <div class="tooltip-text">
+                  Representa el dinero total que has aportado menos retiros. No incluye ganancias ni pérdidas por operaciones. Este capital es la base para calcular tu rendimiento real.
+                </div>
+              </div>
+              
+              <!-- Detalles del capital invertido -->
+              <div class="detailed-info">
+                <div class="detail-line">
+                  <span class="detail-label">Depósitos totales:</span>
+                  <span class="detail-value" id="totalDepositsValue">$0.00</span>
+                </div>
+                <div class="detail-line">
+                  <span class="detail-label">Retiros totales:</span>
+                  <span class="detail-value" id="totalWithdrawalsValue">$0.00</span>
+                </div>
+                <div class="detail-line">
+                  <span class="detail-label">Comisiones acumuladas:</span>
+                  <span class="detail-value" id="accumulatedFeesValue">$0.00</span>
+                </div>
+              </div>
             </div>
             <div class="card-icon-container">
               <i class="fas fa-chart-line"></i>
@@ -2123,7 +2220,7 @@
                 <tbody id="investmentsTableBody">
                   <!-- Las filas se añadirán dinámicamente con JavaScript -->
                   <tr>
-                    <td colspan="6" class="loading-data">Cargando inversiones...</td>
+                    <td colspan="8" class="loading-data">Cargando inversiones...</td>
                   </tr>
                 </tbody>
               </table>
@@ -2139,16 +2236,30 @@
                     <th>Tipo</th>
                     <th>Descripción</th>
                     <th>Monto</th>
+                    <th>Comisión</th>
+                    <th>Neto</th>
                     <th>Estado</th>
                   </tr>
                 </thead>
                 <tbody id="transactionsTableBody">
                   <!-- Las filas se añadirán dinámicamente con JavaScript -->
                   <tr>
-                    <td colspan="5" class="loading-data">Cargando transacciones...</td>
+                    <td colspan="7" class="loading-data">Cargando transacciones...</td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+            
+            <!-- Leyenda de transparencia para transacciones -->
+            <div class="transaction-transparency-info">
+              <div class="transparency-title">
+                <i class="fas fa-shield-alt"></i> Información sobre transacciones
+              </div>
+              <ul class="transparency-list">
+                <li><span class="transparency-highlight">Comisiones:</span> Todas las comisiones se muestran de forma separada para total transparencia. Los montos netos ya tienen descontadas las comisiones.</li>
+                <li><span class="transparency-highlight">Estados de transacción:</span> Las transacciones pueden pasar por diferentes estados (pendiente, completada, fallida). Las transacciones pendientes pueden tardar hasta 48 horas en completarse.</li>
+                <li><span class="transparency-highlight">Impuestos:</span> Recuerda que las ganancias pueden estar sujetas a impuestos según las leyes de tu país. Genesis no retiene ni calcula impuestos automáticamente.</li>
+              </ul>
             </div>
           </div>
           
