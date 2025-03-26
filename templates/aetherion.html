@@ -879,44 +879,61 @@
     <script>
         // Crear partículas cuánticas para los menús según el rol
         function createMenuParticles(containerId, colorRange) {
-            const container = document.getElementById(containerId);
-            if (!container) return; // Salir si el contenedor no existe
-            
-            const numParticles = 15;
-            const colors = {
-                'gold': [40, 60], // Dorado (Super Admin)
-                'cyan': [180, 200], // Cian (Admin)
-                'magenta': [290, 310], // Magenta (Inversionista)
-                'white': [0, 0, 100] // Blanco (Visitante, con saturación 0%)
-            };
-            
-            const [hueMin, hueMax, sat = 100] = colorRange in colors ? colors[colorRange] : [180, 240, 100];
-            
-            for (let i = 0; i < numParticles; i++) {
-                const particle = document.createElement('div');
-                particle.classList.add('quantum-particle');
+            try {
+                // Validar que existe el contenedor
+                const container = document.getElementById(containerId);
+                if (!container) {
+                    console.warn(`Contenedor de partículas "${containerId}" no encontrado`);
+                    return; // Salir si el contenedor no existe
+                }
                 
-                // Propiedades aleatorias
-                const size = Math.random() * 8 + 2; // 2-10px
-                const posX = Math.random() * 100; // 0-100%
-                const posY = Math.random() * 100; // 0-100%
-                const delay = Math.random() * 4; // 0-4s
-                const duration = Math.random() * 4 + 4; // 4-8s
+                console.log(`Creando partículas para ${containerId} con color ${colorRange}`);
                 
-                // Aplicar estilos
-                particle.style.width = `${size}px`;
-                particle.style.height = `${size}px`;
-                particle.style.left = `${posX}%`;
-                particle.style.top = `${posY}%`;
-                particle.style.animationDelay = `${delay}s`;
-                particle.style.animationDuration = `${duration}s`;
+                // Limpiar partículas existentes
+                container.innerHTML = '';
                 
-                // Color según el tipo de menú
-                const hue = hueMin === hueMax ? hueMin : Math.random() * (hueMax - hueMin) + hueMin;
-                const opacity = Math.random() * 0.3 + 0.5; // 0.5-0.8
-                particle.style.background = `radial-gradient(circle, hsla(${hue}, ${sat}%, 70%, ${opacity}) 0%, hsla(${hue}, ${sat}%, 70%, 0) 70%)`;
+                const numParticles = 15;
+                const colors = {
+                    'gold': [40, 60], // Dorado (Super Admin)
+                    'cyan': [180, 200], // Cian (Admin)
+                    'magenta': [290, 310], // Magenta (Inversionista)
+                    'white': [0, 0, 100] // Blanco (Visitante, con saturación 0%)
+                };
                 
-                container.appendChild(particle);
+                // Verificar que el color existe o usar un valor predeterminado
+                const [hueMin, hueMax, sat = 100] = colorRange in colors ? colors[colorRange] : [180, 240, 100];
+                
+                // Crear las partículas
+                for (let i = 0; i < numParticles; i++) {
+                    const particle = document.createElement('div');
+                    particle.classList.add('quantum-particle');
+                    
+                    // Propiedades aleatorias
+                    const size = Math.random() * 8 + 2; // 2-10px
+                    const posX = Math.random() * 100; // 0-100%
+                    const posY = Math.random() * 100; // 0-100%
+                    const delay = Math.random() * 4; // 0-4s
+                    const duration = Math.random() * 4 + 4; // 4-8s
+                    
+                    // Aplicar estilos
+                    particle.style.width = `${size}px`;
+                    particle.style.height = `${size}px`;
+                    particle.style.left = `${posX}%`;
+                    particle.style.top = `${posY}%`;
+                    particle.style.animationDelay = `${delay}s`;
+                    particle.style.animationDuration = `${duration}s`;
+                    
+                    // Color según el tipo de menú
+                    const hue = hueMin === hueMax ? hueMin : Math.random() * (hueMax - hueMin) + hueMin;
+                    const opacity = Math.random() * 0.3 + 0.5; // 0.5-0.8
+                    particle.style.background = `radial-gradient(circle, hsla(${hue}, ${sat}%, 70%, ${opacity}) 0%, hsla(${hue}, ${sat}%, 70%, 0) 70%)`;
+                    
+                    container.appendChild(particle);
+                }
+                
+                console.log(`Creadas ${numParticles} partículas para ${containerId}`);
+            } catch (error) {
+                console.error(`Error al crear partículas para ${containerId}:`, error);
             }
         }
         
