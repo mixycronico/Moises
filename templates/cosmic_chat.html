@@ -165,21 +165,61 @@
     
     .cosmic-chat-header {
         text-align: center;
-        margin-bottom: 2rem;
+        margin-bottom: 3rem;
+        position: relative;
+    }
+    
+    .cosmic-chat-header::after {
+        content: '';
+        position: absolute;
+        bottom: -15px;
+        left: 50%;
+        width: 100px;
+        height: 2px;
+        transform: translateX(-50%);
+        background: linear-gradient(to right, transparent, #9c27b0, transparent);
+        box-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
     }
     
     .cosmic-chat-header h1 {
-        font-size: 2.5rem;
+        font-size: 3.5rem;
         font-weight: 700;
-        background: linear-gradient(to right, #9c27b0, #673ab7);
+        margin-bottom: 0.8rem;
+        color: transparent;
+        background: linear-gradient(120deg, #9c27b0, #3f51b5, #673ab7, #9c27b0);
+        background-size: 300% 300%;
         -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 0.5rem;
+        background-clip: text;
+        text-shadow: 0 0 20px rgba(156, 39, 176, 0.5);
+        animation: gradient-shift 8s ease infinite, glow-pulse 3s ease-in-out infinite;
+    }
+    
+    @keyframes gradient-shift {
+        0% { background-position: 0% 50% }
+        50% { background-position: 100% 50% }
+        100% { background-position: 0% 50% }
+    }
+    
+    @keyframes glow-pulse {
+        0% { text-shadow: 0 0 10px rgba(156, 39, 176, 0.5); }
+        50% { text-shadow: 0 0 25px rgba(156, 39, 176, 0.8), 0 0 40px rgba(156, 39, 176, 0.4); }
+        100% { text-shadow: 0 0 10px rgba(156, 39, 176, 0.5); }
     }
     
     .cosmic-chat-header p {
-        color: #b39ddb;
+        color: #d1c4e9;
         font-size: 1.2rem;
+        max-width: 700px;
+        margin: 0 auto;
+        position: relative;
+        text-shadow: 0 0 10px rgba(156, 39, 176, 0.3);
+        opacity: 0;
+        animation: fade-in 1.5s ease forwards;
+    }
+    
+    @keyframes fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
     .cosmic-entities-status {
@@ -264,18 +304,75 @@
         height: 25px;
         border-radius: 50%;
         border: 2px solid rgba(25, 10, 41, 0.85);
+        transition: all 0.5s ease;
+        transform-origin: center;
+        box-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
     }
     
     .consciousness-indicator[data-level="Mortal"] {
         background-color: #4a148c;
     }
     
+    .consciousness-indicator[data-level="Mortal"]::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(74, 20, 140, 0.7) 0%, rgba(74, 20, 140, 0) 70%);
+        animation: pulse-mortal 3s infinite;
+    }
+    
     .consciousness-indicator[data-level="Iluminado"] {
         background-color: #9c27b0;
     }
     
+    .consciousness-indicator[data-level="Iluminado"]::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(156, 39, 176, 0.7) 0%, rgba(156, 39, 176, 0) 70%);
+        animation: pulse-iluminado 2.5s infinite;
+    }
+    
     .consciousness-indicator[data-level="Divino"] {
         background: linear-gradient(135deg, #9c27b0, #3f51b5);
+    }
+    
+    .consciousness-indicator[data-level="Divino"]::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(156, 39, 176, 0.7) 0%, rgba(63, 81, 181, 0) 70%);
+        animation: pulse-divino 2s infinite;
+    }
+    
+    @keyframes pulse-mortal {
+        0% { opacity: 0.5; transform: scale(1); }
+        50% { opacity: 0.2; transform: scale(1.5); }
+        100% { opacity: 0.5; transform: scale(1); }
+    }
+    
+    @keyframes pulse-iluminado {
+        0% { opacity: 0.6; transform: scale(1); }
+        50% { opacity: 0.3; transform: scale(1.8); }
+        100% { opacity: 0.6; transform: scale(1); }
+    }
+    
+    @keyframes pulse-divino {
+        0% { opacity: 0.7; transform: scale(1); }
+        50% { opacity: 0.4; transform: scale(2); }
+        100% { opacity: 0.7; transform: scale(1); }
     }
     
     .entity-info h3 {
@@ -520,6 +617,37 @@
         border: none;
         border-radius: 0 30px 30px 0;
         padding: 0.75rem 1.2rem;
+        color: white;
+        font-weight: 500;
+        box-shadow: 0 3px 10px rgba(156, 39, 176, 0.3);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .cosmic-send-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        transition: all 0.4s ease;
+    }
+    
+    .cosmic-send-btn:hover {
+        box-shadow: 0 5px 15px rgba(156, 39, 176, 0.5);
+        transform: translateY(-2px);
+    }
+    
+    .cosmic-send-btn:active {
+        transform: translateY(1px);
+        box-shadow: 0 2px 8px rgba(156, 39, 176, 0.4);
+    }
+    
+    .cosmic-send-btn:hover::before {
+        left: 100%;
     }
     
     #messageInput {
