@@ -1880,7 +1880,11 @@
             <td><span class="transaction-type ${typeClass}">${transaction.typeDisplay || transaction.type}</span></td>
             <td>${transaction.description}</td>
             <td>${formatCurrency(transaction.amount)}</td>
-            <td><span class="status ${statusClass}">${transaction.status}</span></td>
+            <td><span class="status ${statusClass}">${transaction.status === 'complete' ? 'Completado' : 
+                transaction.status === 'online' ? 'Completado' : 
+                transaction.status === 'pending' ? 'Pendiente' : 
+                transaction.status === 'failed' ? 'Fallido' : 
+                transaction.status}</span></td>
           `;
           
           transactionsTableBody.appendChild(row);
