@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Panel de Inversionista - Sistema Genesis">
+  <meta name="theme-color" content="#3d1a78">
+  <title>Mi Portafolio | Proyecto Genesis</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    /* Variables */
+    :root {
+      --color-primary: #7b61ff;
+      --color-secondary: #5f3ebb;
+      --color-accent: #ff27b3;
+      --color-success: #42e8c3;
+      --color-warning: #ffb86c;
+      --color-danger: #ff5371;
+      --color-background: #2c1259;
+      --color-card-bg: rgba(59, 35, 113, 0.7);
+      --color-sidebar: #3b2371;
+      --color-text: #e1eaff;
+      --color-text-secondary: #a8a0c0;
+      --color-border: rgba(123, 97, 255, 0.3);
+      --color-gradient-1: #7b61ff;
+      --color-gradient-2: #42e8c3;
+      --color-gradient-3: #ff5371;
+      --color-gradient-4: #ffb86c;
+      --color-chart-1: #ffb86c;
+      --color-chart-2: #42e8c3;
+      --color-chart-3: #ff5371;
+      --color-chart-4: #7b61ff;
+      --font-display: 'Orbitron', sans-serif;
+      --font-body: 'Poppins', sans-serif;
+      --spacing-xs: 0.25rem;
+      --spacing-sm: 0.5rem;
+      --spacing-md: 1rem;
+      --spacing-lg: 1.5rem;
+      --spacing-xl: 2rem;
+      --border-radius-sm: 4px;
+      --border-radius-md: 8px;
+      --border-radius-lg: 12px;
+      --border-radius-xl: 20px;
+      --border-radius-circle: 50%;
+      --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
+      --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+      --shadow-inner: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+      --shadow-glow: 0 0 10px rgba(123, 97, 255, 0.5);
+    }
+    
+    /* Estilos base */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--color-background);
+      color: var(--color-text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      background-image: linear-gradient(135deg, var(--color-background) 0%, #1a0b33 100%);
+      font-size: 14px;
+      line-height: 1.6;
+      font-weight: 400;
+      overflow-x: hidden;
+    }
+    
+    a {
+      color: var(--color-text);
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    
+    a:hover {
+      color: var(--color-primary);
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    /* Fondos con estrellas */
+    #stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+    
+    /* Layout principal */
+    .main-container {
+      display: flex;
+      min-height: 100vh;
+    }
+    
+    /* Barra superior */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background-color: rgba(44, 18, 89, 0.9);
+      backdrop-filter: blur(10px);
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 var(--spacing-lg);
+      border-bottom: 1px solid rgba(123, 97, 255, 0.2);
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      height: 40px;
+    }
+    
+    .logo img {
+      height: 100%;
+    }
+    
+    .logo-text {
+      margin-left: var(--spacing-sm);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 18px;
+      background: linear-gradient(to right, var(--color-gradient-1), var(--color-gradient-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+    }
+    
+    .search-bar {
+      position: relative;
+    }
+    
+    .search-input {
+      background-color: rgba(90, 65, 167, 0.2);
+      border: 1px solid rgba(123, 97, 255, 0.3);
+      border-radius: var(--border-radius-lg);
+      color: var(--color-text);
+      padding: var(--spacing-sm) var(--spacing-md);
+      padding-left: 35px;
+      font-size: 14px;
+      width: 250px;
+      transition: all 0.3s ease;
+    }
+    
+    .search-input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      background-color: rgba(90, 65, 167, 0.3);
+      box-shadow: var(--shadow-glow);
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--color-text-secondary);
+      font-size: 16px;
+    }
+    
+    .header-icon {
+      width: 35px;
+      height: 35px;
+      border-radius: var(--border-radius-circle);
+      background-color: rgba(90, 65, 167, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .header-icon:hover {
+      background-color: rgba(123, 97, 255, 0.5);
+    }
+    
+    /* Barra lateral */
+    .sidebar {
+      width: 280px;
+      background-color: var(--color-sidebar);
+      border-right: 1px solid rgba(123, 97, 255, 0.2);
+      flex-shrink: 0;
+      overflow-y: auto;
+      padding-top: 80px; /* Espacio para la barra superior */
+    }
+    
+    .user-profile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-lg);
+      border-bottom: 1px solid rgba(123, 97, 255, 0.2);
+      position: relative;
+    }
+    
+    .profile-photo-container {
+      position: relative;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: var(--border-radius-circle);
+      background-color: var(--color-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      color: white;
+      font-weight: 600;
+      border: 3px solid rgba(123, 97, 255, 0.5);
+      box-shadow: var(--shadow-glow);
+      background-size: cover;
+      background-position: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .photo-upload-button {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      width: 30px;
+      height: 30px;
+      border-radius: var(--border-radius-circle);
+      background-color: var(--color-accent);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      transition: all 0.3s ease;
+      opacity: 0.7;
+      font-size: 14px;
+    }
+    
+    .photo-upload-button:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+    
+    .user-role {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-top: -5px;
+    }
+    
+    .user-info {
+      text-align: center;
+    }
+    
+    .user-name {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .user-role {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-top: -5px;
+    }
+    
+    .category-badges {
+      display: flex;
+      gap: var(--spacing-xs);
+      margin-top: var(--spacing-sm);
+      justify-content: center;
+    }
+    
+    .category-badge {
+      padding: 3px 8px;
+      border-radius: var(--border-radius-sm);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .category-bronze {
+      background-color: #cd7f32;
+      color: white;
+    }
+    
+    .category-silver {
+      background-color: #c0c0c0;
+      color: #333;
+    }
+    
+    .category-gold {
+      background-color: #ffd700;
+      color: #333;
+    }
+    
+    .category-platinum {
+      background: linear-gradient(to right, #e5e4e2, #bdb5b5, #e5e4e2);
+      color: #333;
+    }
+    
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: var(--spacing-md) var(--spacing-lg);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-left: 3px solid transparent;
+    }
+    
+    .nav-item.active {
+      background-color: rgba(123, 97, 255, 0.2);
+      border-left-color: var(--color-primary);
+    }
+    
+    .nav-item:hover:not(.active) {
+      background-color: rgba(123, 97, 255, 0.1);
+    }
+    
+    .icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .sidebar-footer {
+      padding: var(--spacing-lg);
+      border-top: 1px solid rgba(123, 97, 255, 0.2);
+      margin-top: auto;
+    }
+    
+    .quick-links {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .quick-links h4 {
+      font-size: 12px;
+      margin-bottom: var(--spacing-sm);
+      color: var(--color-text-secondary);
+    }
+    
+    .quick-links-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--spacing-sm);
+    }
+    
+    .quick-link {
+      background-color: rgba(90, 65, 167, 0.3);
+      border-radius: var(--border-radius-sm);
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .quick-link:hover {
+      background-color: rgba(123, 97, 255, 0.5);
+    }
+    
+    .chat-support h4 {
+      font-size: 12px;
+      margin-bottom: var(--spacing-sm);
+      color: var(--color-text-secondary);
+    }
+    
+    .support-status {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      font-size: 12px;
+    }
+    
+    .online-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: var(--border-radius-circle);
+      background-color: var(--color-success);
+    }
+    
+    /* Contenido principal */
+    .content {
+      flex-grow: 1;
+      padding: 80px var(--spacing-lg) var(--spacing-lg);
+      overflow-y: auto;
+    }
+    
+    .page-header {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .welcome-message {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .date-display {
+      color: var(--color-text-secondary);
+    }
+    
+    /* Tarjetas de resumen */
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .card {
+      background-color: var(--color-card-bg);
+      border-radius: var(--border-radius-lg);
+      padding: var(--spacing-lg);
+      box-shadow: var(--shadow-md);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(123, 97, 255, 0.2);
+      transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .card-header {
+      margin-bottom: var(--spacing-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    
+    .card-icon-container {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--border-radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      background-color: rgba(123, 97, 255, 0.2);
+    }
+    
+    .card-title {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .card-value {
+      font-size: 24px;
+      font-weight: 600;
+    }
+    
+    .card-footer {
+      margin-top: var(--spacing-md);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-xs);
+    }
+    
+    .change-indicator {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    
+    .positive-change {
+      color: var(--color-success);
+    }
+    
+    .negative-change {
+      color: var(--color-danger);
+    }
+    
+    /* Gráficos circulares */
+    .performance-section {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .section-title {
+      font-size: 18px;
+      margin-bottom: var(--spacing-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+    }
+    
+    .charts-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--spacing-md);
+    }
+    
+    .chart-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: var(--spacing-lg);
+    }
+    
+    .chart-label {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+    
+    .chart-percentage {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    
+    .chart-description {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-top: var(--spacing-xs);
+    }
+    
+    /* Sección principal de datos */
+    .main-data-section {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: var(--spacing-lg);
+    }
+    
+    .tabs-container {
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .tabs {
+      display: flex;
+      gap: var(--spacing-md);
+      border-bottom: 1px solid rgba(123, 97, 255, 0.2);
+    }
+    
+    .tab {
+      padding: var(--spacing-sm) var(--spacing-md);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.3s ease;
+      font-weight: 500;
+    }
+    
+    .tab.active {
+      border-bottom-color: var(--color-primary);
+      color: var(--color-primary);
+    }
+    
+    /* Tabla de inversiones */
+    .table-container {
+      margin-top: var(--spacing-md);
+      overflow-x: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    thead {
+      background-color: rgba(123, 97, 255, 0.1);
+    }
+    
+    th, td {
+      padding: var(--spacing-sm) var(--spacing-md);
+      text-align: left;
+    }
+    
+    th {
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    
+    tr {
+      border-bottom: 1px solid rgba(123, 97, 255, 0.1);
+    }
+    
+    tbody tr:hover {
+      background-color: rgba(123, 97, 255, 0.05);
+    }
+    
+    /* Tipo de transacción */
+    .transaction-type {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--border-radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .transaction-deposit {
+      background-color: rgba(46, 204, 113, 0.2);
+      color: var(--color-success);
+    }
+    
+    .transaction-withdrawal {
+      background-color: rgba(231, 76, 60, 0.2);
+      color: var(--color-danger);
+    }
+    
+    .transaction-bonus {
+      background-color: rgba(241, 196, 15, 0.2);
+      color: var(--color-warning);
+    }
+    
+    .transaction-profit {
+      background-color: rgba(52, 152, 219, 0.2);
+      color: #3498db;
+    }
+    
+    /* Estado */
+    .status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--border-radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .status-online {
+      background-color: rgba(46, 204, 113, 0.2);
+      color: var(--color-success);
+    }
+    
+    .status-pending {
+      background-color: rgba(241, 196, 15, 0.2);
+      color: var(--color-warning);
+    }
+    
+    .status-failed {
+      background-color: rgba(231, 76, 60, 0.2);
+      color: var(--color-danger);
+    }
+    
+    /* Categoría e Info */
+    .category-info {
+      background-color: var(--color-card-bg);
+      border-radius: var(--border-radius-lg);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .category-progress-container {
+      margin-top: var(--spacing-md);
+    }
+    
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background-color: rgba(90, 65, 167, 0.3);
+      border-radius: var(--border-radius-lg);
+      overflow: hidden;
+      margin-top: var(--spacing-xs);
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(to right, var(--color-gradient-1), var(--color-gradient-2));
+      border-radius: var(--border-radius-lg);
+      transition: width 0.5s ease;
+    }
+    
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: var(--spacing-xs);
+      font-size: 12px;
+      color: var(--color-text-secondary);
+    }
+    
+    .category-benefits {
+      margin-top: var(--spacing-md);
+    }
+    
+    .category-benefits h4 {
+      margin-bottom: var(--spacing-sm);
+      color: var(--color-text-secondary);
+      font-size: 14px;
+    }
+    
+    .benefits-list {
+      list-style: none;
+    }
+    
+    .benefits-list li {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      margin-bottom: var(--spacing-xs);
+      font-size: 13px;
+    }
+    
+    .benefits-list li i {
+      color: var(--color-success);
+    }
+    
+    .activity-card {
+      padding: 0;
+      overflow: hidden;
+    }
+    
+    .activity-header {
+      padding: var(--spacing-md) var(--spacing-lg);
+      border-bottom: 1px solid rgba(123, 97, 255, 0.2);
+    }
+    
+    .activity-list {
+      padding: var(--spacing-sm) 0;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+    
+    .activity-item {
+      padding: var(--spacing-sm) var(--spacing-lg);
+      display: flex;
+      align-items: flex-start;
+      gap: var(--spacing-md);
+      transition: all 0.3s ease;
+    }
+    
+    .activity-item:hover {
+      background-color: rgba(123, 97, 255, 0.05);
+    }
+    
+    .activity-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--border-radius-circle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    
+    .activity-deposit {
+      background-color: rgba(46, 204, 113, 0.2);
+      color: var(--color-success);
+    }
+    
+    .activity-withdrawal {
+      background-color: rgba(231, 76, 60, 0.2);
+      color: var(--color-danger);
+    }
+    
+    .activity-bonus {
+      background-color: rgba(241, 196, 15, 0.2);
+      color: var(--color-warning);
+    }
+    
+    .activity-profit {
+      background-color: rgba(52, 152, 219, 0.2);
+      color: #3498db;
+    }
+    
+    .activity-content {
+      flex-grow: 1;
+    }
+    
+    .activity-title {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    
+    .activity-description {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+    }
+    
+    .activity-time {
+      font-size: 11px;
+      color: var(--color-text-secondary);
+    }
+    
+    /* Modal para subir foto */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    
+    .modal {
+      background-color: var(--color-card-bg);
+      border-radius: var(--border-radius-lg);
+      padding: var(--spacing-lg);
+      width: 400px;
+      max-width: 90%;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(-20px);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(123, 97, 255, 0.3);
+    }
+    
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--color-text-secondary);
+      font-size: 24px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .modal-close:hover {
+      color: var(--color-danger);
+    }
+    
+    .modal-body {
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .file-upload-container {
+      border: 2px dashed rgba(123, 97, 255, 0.5);
+      border-radius: var(--border-radius-md);
+      padding: var(--spacing-lg);
+      text-align: center;
+      margin-bottom: var(--spacing-md);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .file-upload-container:hover {
+      border-color: var(--color-primary);
+      background-color: rgba(123, 97, 255, 0.05);
+    }
+    
+    .file-upload-icon {
+      font-size: 32px;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .file-upload-text {
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .file-upload-formats {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+    }
+    
+    .preview-container {
+      text-align: center;
+      margin-top: var(--spacing-md);
+      display: none;
+    }
+    
+    .preview-container.active {
+      display: block;
+    }
+    
+    .image-preview {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: var(--border-radius-md);
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .preview-file-name {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      word-break: break-all;
+    }
+    
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--spacing-sm);
+    }
+    
+    .btn {
+      padding: var(--spacing-sm) var(--spacing-md);
+      border-radius: var(--border-radius-md);
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: none;
+      font-size: 14px;
+    }
+    
+    .btn-primary {
+      background-color: var(--color-primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: var(--color-secondary);
+    }
+    
+    .btn-secondary {
+      background-color: rgba(123, 97, 255, 0.1);
+      color: var(--color-text);
+    }
+    
+    .btn-secondary:hover {
+      background-color: rgba(123, 97, 255, 0.2);
+    }
+    
+    /* Estilos responsivos */
+    @media (max-width: 1200px) {
+      .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .charts-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .main-data-section {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        position: fixed;
+        left: -100%;
+        top: 60px;
+        bottom: 0;
+        z-index: 90;
+        transition: left 0.3s ease;
+      }
+      
+      .sidebar.active {
+        left: 0;
+      }
+      
+      .content {
+        margin-left: 0;
+      }
+      
+      .mobile-menu-toggle {
+        display: block;
+      }
+      
+      .summary-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .charts-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Animaciones */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes slideInRight {
+      from { transform: translateX(20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.5s ease forwards;
+    }
+    
+    .slide-in-right {
+      animation: slideInRight 0.5s ease forwards;
+    }
+    
+    /* Partículas y efectos holográficos */
+    .particle {
+      position: absolute;
+      background-color: rgba(123, 97, 255, 0.7);
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: -1;
+    }
+    
+    .holographic-effect {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .holographic-effect::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 50%;
+      height: 100%;
+      background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1), transparent);
+      transform: skewX(-25deg);
+      animation: holographic 3s infinite;
+      pointer-events: none;
+    }
+    
+    @keyframes holographic {
+      0% { left: -100%; }
+      100% { left: 200%; }
+    }
+    
+    .glow-effect {
+      filter: drop-shadow(0 0 5px rgba(123, 97, 255, 0.5));
+    }
+  </style>
+</head>
+<body>
+  <div id="stars"></div>
+  
+  <div class="main-container">
+    <!-- Barra superior -->
+    <header class="header">
+      <div class="logo">
+        <img src="/images/genesis-logo.png" alt="Genesis Logo">
+        <div class="logo-text">GENESIS</div>
+      </div>
+      <div class="header-actions">
+        <div class="search-bar">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="search-input" placeholder="Buscar...">
+        </div>
+        <div class="header-icon">
+          <i class="fas fa-bell"></i>
+        </div>
+        <div class="header-icon">
+          <i class="fas fa-cog"></i>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Barra lateral -->
+    <aside class="sidebar">
+      <div class="user-profile">
+        <div class="profile-photo-container">
+          <div class="avatar" id="userAvatar">
+            <!-- Si hay foto de perfil, se muestra aquí, sino se muestra la inicial -->
+            <!-- La inicial se actualizará con JavaScript -->
+          </div>
+          <div class="photo-upload-button" id="photoUploadButton">
+            <i class="fas fa-camera"></i>
+          </div>
+        </div>
+        <div class="user-info">
+          <div class="user-name" id="userName">Cargando...</div>
+          <div class="user-role" id="userRole">Inversionista</div>
+          <div class="category-badges" id="categoryBadgeContainer">
+            <!-- La categoría se añadirá dinámicamente con JavaScript -->
+          </div>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <div class="nav-item active">
+          <div class="icon"><i class="fas fa-chart-line"></i></div>
+          <span>Panel de Control</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon"><i class="fas fa-wallet"></i></div>
+          <span>Mi Portafolio</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon"><i class="fas fa-exchange-alt"></i></div>
+          <span>Transacciones</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon"><i class="fas fa-chart-pie"></i></div>
+          <span>Análisis</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon"><i class="fas fa-globe"></i></div>
+          <span>Mercados</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon"><i class="fas fa-robot"></i></div>
+          <span>Aetherion AI</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon"><i class="fas fa-user-friends"></i></div>
+          <span>Referidos</span>
+        </div>
+        <div class="nav-item">
+          <div class="icon"><i class="fas fa-headset"></i></div>
+          <span>Soporte</span>
+        </div>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="quick-links">
+          <h4>ACCESO RÁPIDO</h4>
+          <div class="quick-links-grid">
+            <div class="quick-link">
+              <i class="fas fa-plus"></i>
+            </div>
+            <div class="quick-link">
+              <i class="fas fa-download"></i>
+            </div>
+            <div class="quick-link">
+              <i class="fas fa-file-export"></i>
+            </div>
+            <div class="quick-link">
+              <i class="fas fa-brain"></i>
+            </div>
+            <div class="quick-link">
+              <i class="fas fa-book"></i>
+            </div>
+            <div class="quick-link">
+              <i class="fas fa-question-circle"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="chat-support">
+          <h4>SOPORTE EN VIVO</h4>
+          <div class="support-status">
+            <div class="online-indicator"></div>
+            <span>Agente disponible</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Contenido principal -->
+    <main class="content">
+      <div class="page-header">
+        <h1 class="welcome-message">Bienvenido a tu portafolio, <span id="welcomeName">Inversionista</span></h1>
+        <div class="date-display" id="currentDate">Cargando fecha...</div>
+      </div>
+      
+      <!-- Tarjetas de resumen -->
+      <div class="summary-cards">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">BALANCE TOTAL</div>
+              <div class="card-value" id="totalBalance">$0.00</div>
+            </div>
+            <div class="card-icon-container">
+              <i class="fas fa-wallet"></i>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="change-indicator positive-change">
+              <i class="fas fa-arrow-up"></i>
+              <span id="balanceChange">+0.0%</span>
+            </div>
+            <span>este mes</span>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">CAPITAL INVERTIDO</div>
+              <div class="card-value" id="investedCapital">$0.00</div>
+            </div>
+            <div class="card-icon-container">
+              <i class="fas fa-chart-line"></i>
+            </div>
+          </div>
+          <div class="card-footer">
+            <span id="joinDate">Desde 01/01/2023</span>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">DISPONIBLE</div>
+              <div class="card-value" id="availableBalance">$0.00</div>
+            </div>
+            <div class="card-icon-container">
+              <i class="fas fa-piggy-bank"></i>
+            </div>
+          </div>
+          <div class="card-footer">
+            <span>Fondos para invertir</span>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">GANANCIA TOTAL</div>
+              <div class="card-value" id="totalProfit">$0.00</div>
+            </div>
+            <div class="card-icon-container">
+              <i class="fas fa-hand-holding-usd"></i>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="change-indicator positive-change">
+              <i class="fas fa-arrow-up"></i>
+              <span id="profitChange">+0.0%</span>
+            </div>
+            <span>Rendimiento general</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Sección de rendimiento -->
+      <div class="performance-section card">
+        <div class="section-title">
+          <h2>Rendimiento del Portafolio</h2>
+          <div class="section-subtitle">Últimos períodos</div>
+        </div>
+        
+        <div class="charts-row">
+          <div class="chart-container">
+            <canvas id="dailyChart" width="100" height="100"></canvas>
+            <div class="chart-label">
+              <div class="chart-percentage" id="dailyPerformance">+0.0%</div>
+              <div class="chart-description">Diario</div>
+            </div>
+          </div>
+          
+          <div class="chart-container">
+            <canvas id="weeklyChart" width="100" height="100"></canvas>
+            <div class="chart-label">
+              <div class="chart-percentage" id="weeklyPerformance">+0.0%</div>
+              <div class="chart-description">Semanal</div>
+            </div>
+          </div>
+          
+          <div class="chart-container">
+            <canvas id="monthlyChart" width="100" height="100"></canvas>
+            <div class="chart-label">
+              <div class="chart-percentage" id="monthlyPerformance">+0.0%</div>
+              <div class="chart-description">Mensual</div>
+            </div>
+          </div>
+          
+          <div class="chart-container">
+            <canvas id="yearlyChart" width="100" height="100"></canvas>
+            <div class="chart-label">
+              <div class="chart-percentage" id="yearlyPerformance">+0.0%</div>
+              <div class="chart-description">Anual</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Sección principal de datos -->
+      <div class="main-data-section">
+        <div class="card">
+          <div class="tabs-container">
+            <div class="section-title">
+              <h2>Inversiones y Transacciones</h2>
+            </div>
+            <div class="tabs">
+              <div class="tab active" data-tab="investments">Inversiones</div>
+              <div class="tab" data-tab="transactions">Transacciones</div>
+              <div class="tab" data-tab="activity">Actividad Reciente</div>
+            </div>
+          </div>
+          
+          <div class="tab-content active" id="investments-content">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Símb.</th>
+                    <th>Cantidad</th>
+                    <th>Valor (USD)</th>
+                    <th>Asignación</th>
+                    <th>Cambio 24h</th>
+                  </tr>
+                </thead>
+                <tbody id="investmentsTableBody">
+                  <!-- Las filas se añadirán dinámicamente con JavaScript -->
+                  <tr>
+                    <td colspan="6" class="loading-data">Cargando inversiones...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="tab-content" id="transactions-content">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
+                    <th>Monto</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody id="transactionsTableBody">
+                  <!-- Las filas se añadirán dinámicamente con JavaScript -->
+                  <tr>
+                    <td colspan="5" class="loading-data">Cargando transacciones...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="tab-content" id="activity-content">
+            <div class="activity-list" id="activityList">
+              <!-- Las actividades se añadirán dinámicamente con JavaScript -->
+              <div class="activity-item">
+                <div class="activity-icon activity-deposit">
+                  <i class="fas fa-arrow-down"></i>
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">Cargando actividades...</div>
+                  <div class="activity-description">Espere un momento por favor</div>
+                </div>
+                <div class="activity-time">ahora</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <div class="category-info card">
+            <div class="section-title">
+              <h2 id="categoryTitle">CATEGORÍA</h2>
+            </div>
+            
+            <div class="category-progress-container">
+              <div class="progress-bar-container">
+                <div class="progress-bar" id="categoryProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="progress-labels">
+                <div id="currentInvestment">$0</div>
+                <div id="targetInvestment">$0</div>
+              </div>
+            </div>
+            
+            <div class="category-benefits">
+              <h4>BENEFICIOS DE TU CATEGORÍA</h4>
+              <ul class="benefits-list" id="categoryBenefits">
+                <!-- Los beneficios se añadirán dinámicamente con JavaScript -->
+                <li><i class="fas fa-check-circle"></i> Cargando beneficios...</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="activity-card card">
+            <div class="activity-header">
+              <h3>Últimas Alertas</h3>
+            </div>
+            <div class="activity-list">
+              <div class="activity-item">
+                <div class="activity-icon activity-deposit">
+                  <i class="fas fa-bell"></i>
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">Alerta de precio BTC</div>
+                  <div class="activity-description">Bitcoin ha superado los $60,000</div>
+                </div>
+                <div class="activity-time">2h</div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon activity-bonus">
+                  <i class="fas fa-gift"></i>
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">Bono de referido</div>
+                  <div class="activity-description">Has recibido un bono por referido</div>
+                </div>
+                <div class="activity-time">1d</div>
+              </div>
+              <div class="activity-item">
+                <div class="activity-icon activity-deposit">
+                  <i class="fas fa-bell"></i>
+                </div>
+                <div class="activity-content">
+                  <div class="activity-title">Alerta de mercado</div>
+                  <div class="activity-description">Alta volatilidad detectada en el mercado</div>
+                </div>
+                <div class="activity-time">2d</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- Modal para subir foto de perfil -->
+  <div class="modal-overlay" id="photoUploadModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Subir Foto de Perfil</div>
+        <button class="modal-close" id="closeModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="photoUploadForm">
+          <div class="file-upload-container" id="dropArea">
+            <input type="file" id="photoInput" accept="image/*" style="display: none;">
+            <div class="file-upload-icon">
+              <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <div class="file-upload-text">
+              Arrastra una imagen aquí o haz clic para seleccionar
+            </div>
+            <div class="file-upload-formats">
+              Formatos: JPG, PNG, GIF (máx. 5MB)
+            </div>
+          </div>
+          
+          <div class="preview-container" id="previewContainer">
+            <img src="" alt="Vista previa" class="image-preview" id="imagePreview">
+            <div class="preview-file-name" id="fileName"></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelUpload">Cancelar</button>
+        <button class="btn btn-primary" id="confirmUpload">Subir Foto</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Crear estrellas en el fondo
+    document.addEventListener('DOMContentLoaded', () => {
+      const starsContainer = document.getElementById('stars');
+      const numStars = Math.floor(window.innerWidth * window.innerHeight / 1000);
+      
+      for (let i = 0; i < numStars; i++) {
+        const star = document.createElement('div');
+        star.style.position = 'absolute';
+        star.style.left = `${Math.random() * 100}%`;
+        star.style.top = `${Math.random() * 100}%`;
+        
+        const size = Math.random() * 3 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        
+        star.style.borderRadius = '50%';
+        star.style.backgroundColor = '#ffffff';
+        star.style.opacity = Math.random() * 0.7 + 0.3;
+        
+        const animationDuration = Math.random() * 4 + 2;
+        star.style.animation = `twinkle ${animationDuration}s infinite alternate`;
+        
+        starsContainer.appendChild(star);
+      }
+      
+      // Inicializar la página
+      initPage();
+    });
+    
+    // Animación de parpadeo para estrellas
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+      @keyframes twinkle {
+        0% { opacity: 0.3; }
+        100% { opacity: 1; }
+      }
+    `;
+    document.head.appendChild(styleElement);
+    
+    // Función para mostrar la fecha actual
+    function setCurrentDate() {
+      const date = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+      document.getElementById('currentDate').textContent = date.toLocaleDateString('es-ES', options);
+    }
+    
+    // Formatear moneda
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(amount);
+    }
+    
+    // Formatear porcentaje
+    function formatPercentage(value) {
+      return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
+    }
+    
+    // Crear gráfico tipo donut
+    function createDonutChart(canvasId, percentage, color) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      
+      // Convertir valor a positivo para propósitos de visualización
+      const positiveValue = Math.abs(percentage);
+      
+      const data = {
+        datasets: [{
+          data: [positiveValue, 100 - positiveValue],
+          backgroundColor: [
+            color,
+            'rgba(90, 65, 167, 0.1)'
+          ],
+          borderWidth: 0,
+          cutout: '75%'
+        }]
+      };
+      
+      const options = {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            enabled: false
+          }
+        },
+        animation: {
+          animateRotate: true,
+          animateScale: true
+        }
+      };
+      
+      return new Chart(ctx, {
+        type: 'doughnut',
+        data: data,
+        options: options
+      });
+    }
+    
+    // Crear efectos de partículas
+    function createParticleEffect(container) {
+      const particlesContainer = container;
+      
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.classList.add('particle');
+        
+        const size = Math.random() * 5 + 2;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        
+        particle.style.top = `${Math.random() * 100}%`;
+        particle.style.left = `${Math.random() * 100}%`;
+        
+        const animationDuration = Math.random() * 10 + 5;
+        particle.style.animation = `float ${animationDuration}s infinite ease-in-out`;
+        
+        particlesContainer.appendChild(particle);
+      }
+    }
+    
+    // Función para mostrar datos del inversionista
+    function displayInvestorData(investor, categoryInfo) {
+      // Actualizar información del usuario
+      document.getElementById('welcomeName').textContent = investor.name;
+      document.getElementById('userName').textContent = investor.name;
+      
+      // Inicializar el avatar
+      const userAvatar = document.getElementById('userAvatar');
+      if (investor.photo_url) {
+        userAvatar.style.backgroundImage = `url(${investor.photo_url})`;
+        userAvatar.textContent = '';
+      } else {
+        userAvatar.textContent = investor.name.charAt(0);
+      }
+      
+      // Actualizar resumen del portafolio
+      document.getElementById('totalBalance').textContent = formatCurrency(investor.balance);
+      document.getElementById('investedCapital').textContent = formatCurrency(investor.invested);
+      document.getElementById('availableBalance').textContent = formatCurrency(investor.available);
+      document.getElementById('totalProfit').textContent = formatCurrency(investor.total_profit);
+      document.getElementById('joinDate').textContent = `Desde ${investor.join_date}`;
+      
+      // Actualizar cambios 
+      document.getElementById('balanceChange').textContent = formatPercentage(investor.performance.monthly);
+      document.getElementById('profitChange').textContent = formatPercentage(investor.performance.yearly);
+      
+      // Actualizar rendimientos y crear gráficos
+      document.getElementById('dailyPerformance').textContent = formatPercentage(investor.performance.daily);
+      document.getElementById('weeklyPerformance').textContent = formatPercentage(investor.performance.weekly);
+      document.getElementById('monthlyPerformance').textContent = formatPercentage(investor.performance.monthly);
+      document.getElementById('yearlyPerformance').textContent = formatPercentage(investor.performance.yearly);
+      
+      // Crear gráficos
+      createDonutChart('dailyChart', investor.performance.daily, 'var(--color-chart-1)');
+      createDonutChart('weeklyChart', investor.performance.weekly, 'var(--color-chart-2)');
+      createDonutChart('monthlyChart', investor.performance.monthly, 'var(--color-chart-3)');
+      createDonutChart('yearlyChart', investor.performance.yearly, 'var(--color-chart-4)');
+      
+      // Añadir insignia de categoría
+      const categoryBadgeContainer = document.getElementById('categoryBadgeContainer');
+      categoryBadgeContainer.innerHTML = '';
+      const categoryBadge = document.createElement('div');
+      categoryBadge.className = `category-badge category-${investor.category}`;
+      categoryBadge.textContent = investor.category.toUpperCase();
+      categoryBadgeContainer.appendChild(categoryBadge);
+      
+      // Actualizar información de categoría
+      document.getElementById('categoryTitle').textContent = `${investor.category.toUpperCase()}`;
+      
+      // Progreso hacia siguiente categoría
+      const progressBar = document.getElementById('categoryProgressBar');
+      const currentInvestment = document.getElementById('currentInvestment');
+      const targetInvestment = document.getElementById('targetInvestment');
+      
+      const progressPercentage = (investor.balance / categoryInfo.min_investment) * 100;
+      progressBar.style.width = `${Math.min(progressPercentage, 100)}%`;
+      currentInvestment.textContent = formatCurrency(investor.balance);
+      targetInvestment.textContent = formatCurrency(categoryInfo.min_investment);
+      
+      // Mostrar beneficios de categoría
+      const benefitsList = document.getElementById('categoryBenefits');
+      benefitsList.innerHTML = '';
+      
+      if (categoryInfo.features && categoryInfo.features.length > 0) {
+        categoryInfo.features.forEach(benefit => {
+          const li = document.createElement('li');
+          li.innerHTML = `<i class="fas fa-check-circle"></i> ${benefit}`;
+          benefitsList.appendChild(li);
+        });
+      } else {
+        const li = document.createElement('li');
+        li.innerHTML = `<i class="fas fa-check-circle"></i> Acceso básico al sistema`;
+        benefitsList.appendChild(li);
+      }
+      
+      // Mostrar inversiones en la tabla
+      const investmentsTableBody = document.getElementById('investmentsTableBody');
+      investmentsTableBody.innerHTML = '';
+      
+      if (investor.investments && investor.investments.length > 0) {
+        investor.investments.forEach(investment => {
+          const row = document.createElement('tr');
+          
+          // Determinar clase para cambio (positivo/negativo)
+          const changeClass = investment.change_24h > 0 ? 'positive-change' : 'negative-change';
+          
+          row.innerHTML = `
+            <td>${investment.name}</td>
+            <td>${investment.symbol || '-'}</td>
+            <td>${investment.amount || '-'}</td>
+            <td>${formatCurrency(investment.value_usd)}</td>
+            <td>${investment.allocation}%</td>
+            <td class="${changeClass}">${formatPercentage(investment.change_24h)}</td>
+          `;
+          
+          investmentsTableBody.appendChild(row);
+        });
+      } else {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="6" class="no-data">No hay inversiones activas</td>`;
+        investmentsTableBody.appendChild(row);
+      }
+      
+      // Mostrar transacciones en la tabla
+      const transactionsTableBody = document.getElementById('transactionsTableBody');
+      transactionsTableBody.innerHTML = '';
+      
+      if (investor.transactions && investor.transactions.length > 0) {
+        investor.transactions.forEach(transaction => {
+          const row = document.createElement('tr');
+          
+          const typeClass = `transaction-${transaction.type}`;
+          const statusClass = `status-${transaction.status}`;
+          
+          row.innerHTML = `
+            <td>${transaction.date}</td>
+            <td><span class="transaction-type ${typeClass}">${transaction.type}</span></td>
+            <td>${transaction.description}</td>
+            <td>${formatCurrency(transaction.amount)}</td>
+            <td><span class="status ${statusClass}">${transaction.status}</span></td>
+          `;
+          
+          transactionsTableBody.appendChild(row);
+        });
+      } else {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="5" class="no-data">No hay transacciones recientes</td>`;
+        transactionsTableBody.appendChild(row);
+      }
+      
+      // Mostrar actividades recientes
+      const activityList = document.getElementById('activityList');
+      activityList.innerHTML = '';
+      
+      if (investor.transactions && investor.transactions.length > 0) {
+        investor.transactions.forEach(transaction => {
+          const activity = document.createElement('div');
+          activity.className = 'activity-item';
+          
+          const iconClass = `activity-${transaction.type}`;
+          let iconHtml = '';
+          
+          switch(transaction.type) {
+            case 'deposit':
+              iconHtml = '<i class="fas fa-arrow-down"></i>';
+              break;
+            case 'withdrawal':
+              iconHtml = '<i class="fas fa-arrow-up"></i>';
+              break;
+            case 'bonus':
+              iconHtml = '<i class="fas fa-gift"></i>';
+              break;
+            case 'profit':
+              iconHtml = '<i class="fas fa-chart-line"></i>';
+              break;
+            default:
+              iconHtml = '<i class="fas fa-exchange-alt"></i>';
+          }
+          
+          activity.innerHTML = `
+            <div class="activity-icon ${iconClass}">
+              ${iconHtml}
+            </div>
+            <div class="activity-content">
+              <div class="activity-title">${transaction.description}</div>
+              <div class="activity-description">${formatCurrency(transaction.amount)}</div>
+            </div>
+            <div class="activity-time">${transaction.date}</div>
+          `;
+          
+          activityList.appendChild(activity);
+        });
+      } else {
+        const activity = document.createElement('div');
+        activity.className = 'activity-item';
+        activity.innerHTML = `
+          <div class="activity-icon">
+            <i class="fas fa-info-circle"></i>
+          </div>
+          <div class="activity-content">
+            <div class="activity-title">No hay actividades recientes</div>
+            <div class="activity-description">Las actividades se mostrarán aquí</div>
+          </div>
+          <div class="activity-time">ahora</div>
+        `;
+        activityList.appendChild(activity);
+      }
+    }
+    
+    // Funcionalidad de las pestañas
+    function setupTabs() {
+      const tabs = document.querySelectorAll('.tab');
+      const tabContents = document.querySelectorAll('.tab-content');
+      
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Remover clase active de todas las pestañas
+          tabs.forEach(t => t.classList.remove('active'));
+          
+          // Añadir clase active a la pestaña actual
+          tab.classList.add('active');
+          
+          // Ocultar todos los contenidos
+          tabContents.forEach(content => content.classList.remove('active'));
+          
+          // Mostrar el contenido correspondiente
+          const tabName = tab.getAttribute('data-tab');
+          document.getElementById(`${tabName}-content`).classList.add('active');
+        });
+      });
+    }
+    
+    // Funcionalidad del modal de subida de fotos
+    function setupPhotoUploadModal() {
+      const modal = document.getElementById('photoUploadModal');
+      const photoUploadButton = document.getElementById('photoUploadButton');
+      const closeModal = document.getElementById('closeModal');
+      const cancelUpload = document.getElementById('cancelUpload');
+      const photoInput = document.getElementById('photoInput');
+      const dropArea = document.getElementById('dropArea');
+      const previewContainer = document.getElementById('previewContainer');
+      const imagePreview = document.getElementById('imagePreview');
+      const fileName = document.getElementById('fileName');
+      const confirmUpload = document.getElementById('confirmUpload');
+      
+      // Abrir modal
+      photoUploadButton.addEventListener('click', () => {
+        modal.classList.add('active');
+      });
+      
+      // Cerrar modal
+      closeModal.addEventListener('click', () => {
+        modal.classList.remove('active');
+      });
+      
+      cancelUpload.addEventListener('click', () => {
+        modal.classList.remove('active');
+      });
+      
+      // Abrir diálogo de selección de archivo al hacer clic en el área
+      dropArea.addEventListener('click', () => {
+        photoInput.click();
+      });
+      
+      // Prevenir comportamiento por defecto de arrastrar y soltar
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(event => {
+        dropArea.addEventListener(event, preventDefaults, false);
+      });
+      
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      // Resaltar área durante arrastre
+      ['dragenter', 'dragover'].forEach(event => {
+        dropArea.addEventListener(event, highlight, false);
+      });
+      
+      ['dragleave', 'drop'].forEach(event => {
+        dropArea.addEventListener(event, unhighlight, false);
+      });
+      
+      function highlight() {
+        dropArea.style.borderColor = 'var(--color-primary)';
+        dropArea.style.backgroundColor = 'rgba(123, 97, 255, 0.05)';
+      }
+      
+      function unhighlight() {
+        dropArea.style.borderColor = 'rgba(123, 97, 255, 0.5)';
+        dropArea.style.backgroundColor = 'transparent';
+      }
+      
+      // Manejar archivo soltado
+      dropArea.addEventListener('drop', handleDrop, false);
+      
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+          handleFiles(files);
+        }
+      }
+      
+      // Manejar selección de archivo
+      photoInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+          handleFiles(this.files);
+        }
+      });
+      
+      function handleFiles(files) {
+        const file = files[0];
+        
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          
+          reader.onload = function(e) {
+            imagePreview.src = e.target.result;
+            fileName.textContent = file.name;
+            previewContainer.classList.add('active');
+          };
+          
+          reader.readAsDataURL(file);
+        } else {
+          alert('Por favor, selecciona un archivo de imagen válido (JPG, PNG, GIF).');
+        }
+      }
+      
+      // Confirmar subida
+      confirmUpload.addEventListener('click', uploadPhoto);
+      
+      async function uploadPhoto() {
+        if (!photoInput.files || photoInput.files.length === 0) {
+          alert('Por favor, selecciona una imagen primero.');
+          return;
+        }
+        
+        const file = photoInput.files[0];
+        const formData = new FormData();
+        formData.append('photo', file);
+        
+        try {
+          const response = await fetch('/api/investor/upload-photo', {
+            method: 'POST',
+            body: formData
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // Actualizar avatar en la interfaz
+            const userAvatar = document.getElementById('userAvatar');
+            userAvatar.style.backgroundImage = `url(${data.photo_url})`;
+            userAvatar.textContent = '';
+            
+            // Cerrar modal
+            modal.classList.remove('active');
+            
+            // Limpiar preview
+            previewContainer.classList.remove('active');
+            photoInput.value = '';
+            
+            alert('Foto de perfil actualizada correctamente.');
+          } else {
+            alert(`Error: ${data.message}`);
+          }
+        } catch (error) {
+          console.error('Error al subir foto de perfil:', error);
+          alert('Ocurrió un error al subir la foto. Por favor, intenta de nuevo.');
+        }
+      }
+    }
+    
+    // Inicializar página
+    async function initPage() {
+      // Mostrar fecha actual
+      setCurrentDate();
+      
+      // Configurar pestañas
+      setupTabs();
+      
+      // Configurar modal de subida de fotos
+      setupPhotoUploadModal();
+      
+      try {
+        // Verificar si el usuario está autenticado
+        const authResponse = await fetch('/api/auth/status');
+        const authData = await authResponse.json();
+        
+        if (authData.authenticated) {
+          console.log("Usuario autenticado:", authData.user);
+        }
+        
+        // Obtener datos del inversionista
+        const investorResponse = await fetch('/api/investor/current');
+        const investorData = await investorResponse.json();
+        
+        if (investorData.success) {
+          displayInvestorData(investorData.investor, investorData.category_info);
+        } else {
+          console.error('Error al obtener datos del inversionista:', investorData.message);
+        }
+        
+      } catch (error) {
+        console.error('Error al obtener información del usuario:', error);
+      }
+    }
+  </script>
+</body>
+</html>
