@@ -1,173 +1,247 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { FaHome, FaExclamationTriangle } from 'react-icons/fa';
 
+/**
+ * Página 404 con animación y estilo cósmico
+ */
 const NotFound = () => {
-  // Estrellas aleatorias para el fondo
-  const generateStars = () => {
-    const stars = [];
-    for (let i = 0; i < 100; i++) {
-      const size = Math.random() * 2;
-      stars.push({
-        id: i,
-        size: size,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        animationDuration: 1 + Math.random() * 3
-      });
-    }
-    return stars;
-  };
-
-  const stars = generateStars();
-  
-  // Variantes para animaciones
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { 
-      opacity: 1,
-      transition: { 
-        when: "beforeChildren",
-        staggerChildren: 0.1,
-        duration: 0.5
-      }
-    }
-  };
-  
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { 
-      y: 0, 
-      opacity: 1,
-      transition: { type: "spring", stiffness: 100 }
-    }
-  };
-
-  useEffect(() => {
-    // Cambiar título de la página
-    document.title = 'Página no encontrada | Genesis';
-    
-    return () => {
-      document.title = 'Genesis | Sistema de Inversiones Inteligentes';
-    };
-  }, []);
-
   return (
-    <div style={{
-      minHeight: '100vh',
-      overflow: 'hidden',
-      position: 'relative',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundImage: 'linear-gradient(135deg, #0a0e17 0%, #121a29 100%)',
-    }}>
-      {/* Estrellas de fondo */}
-      {stars.map(star => (
+    <div className="not-found-page">
+      <div className="not-found-container">
         <motion.div
-          key={star.id}
-          initial={{ opacity: 0.4 }}
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{
-            repeat: Infinity,
-            duration: star.animationDuration,
-            ease: "easeInOut"
-          }}
-          style={{
-            position: 'absolute',
-            top: `${star.y}%`,
-            left: `${star.x}%`,
-            width: `${star.size}px`,
-            height: `${star.size}px`,
-            backgroundColor: '#ffffff',
-            borderRadius: '50%',
-            boxShadow: '0 0 4px rgba(255, 255, 255, 0.8)',
-          }}
-        />
-      ))}
-      
-      {/* Contenido principal */}
-      <motion.div
-        className="not-found-container"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        style={{
-          textAlign: 'center',
-          padding: '2rem',
-          borderRadius: 'var(--border-radius-lg)',
-          backgroundColor: 'rgba(20, 26, 40, 0.8)',
-          backdropFilter: 'blur(10px)',
-          maxWidth: '500px',
-          width: '90%',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
-          zIndex: 10
-        }}
-      >
-        <motion.div variants={itemVariants}>
-          <h1 style={{ 
-            fontSize: '6rem', 
-            margin: '0', 
-            background: 'linear-gradient(135deg, var(--primary-color), var(--secondary-color))',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            textShadow: '0 2px 10px rgba(5, 178, 220, 0.3)'
-          }}>
-            404
-          </h1>
-        </motion.div>
-        
-        <motion.h2 
-          variants={itemVariants}
-          style={{ 
-            marginTop: '0.5rem', 
-            color: 'var(--text-color)',
-            fontSize: '1.8rem'
-          }}
+          className="not-found-content"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-          Anomalía Espacial Detectada
-        </motion.h2>
-        
-        <motion.p 
-          variants={itemVariants}
-          style={{ 
-            marginTop: '1.5rem', 
-            marginBottom: '2rem',
-            color: 'var(--text-secondary)',
-            fontSize: '1.1rem'
-          }}
-        >
-          La coordenada solicitada no existe en nuestro universo digital. El equipo de exploración espacial ha sido notificado.
-        </motion.p>
-        
-        <motion.div 
-          variants={itemVariants}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <Link 
-            to="/"
-            style={{
-              display: 'inline-block',
-              backgroundColor: 'var(--primary-color)',
-              color: 'var(--text-color)',
-              fontFamily: 'var(--font-title)',
-              padding: '0.8rem 1.5rem',
-              borderRadius: 'var(--border-radius-sm)',
-              textDecoration: 'none',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              boxShadow: 'var(--glow-primary)',
-              transition: 'all 0.3s ease'
-            }}
+          <div className="not-found-icon">
+            <FaExclamationTriangle />
+          </div>
+          
+          <motion.h1
+            className="not-found-title"
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
           >
-            Regresar al Núcleo
-          </Link>
+            404
+          </motion.h1>
+          
+          <motion.h2
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            Anomalía Dimensional Detectada
+          </motion.h2>
+          
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+          >
+            La ruta que intentas explorar parece existir en otra dimensión. 
+            Nuestros sensores no pueden localizar este recurso en el continuo espacio-tiempo.
+          </motion.p>
+          
+          <motion.div
+            className="not-found-actions"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            <Link to="/" className="not-found-button">
+              <FaHome />
+              <span>Volver al Origen</span>
+            </Link>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      </div>
+      
+      {/* Estrellas flotantes para efecto cósmico */}
+      <div className="floating-stars">
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="floating-star"
+            initial={{ 
+              x: Math.random() * window.innerWidth, 
+              y: Math.random() * window.innerHeight, 
+              scale: Math.random() * 0.5 + 0.5 
+            }}
+            animate={{ 
+              x: Math.random() * window.innerWidth, 
+              y: Math.random() * window.innerHeight,
+              opacity: [0.2, 0.8, 0.2],
+            }}
+            transition={{ 
+              duration: Math.random() * 20 + 10, 
+              repeat: Infinity, 
+              repeatType: "reverse"
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 };
 
 export default NotFound;
+
+// Estilos específicos para la página NotFound
+const styles = `
+  .not-found-page {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--color-background);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .not-found-container {
+    width: 100%;
+    max-width: 800px;
+    padding: var(--spacing-xl);
+    z-index: 1;
+  }
+  
+  .not-found-content {
+    background: rgba(22, 43, 77, 0.7);
+    backdrop-filter: blur(10px);
+    border-radius: var(--border-radius-lg);
+    border: 1px solid var(--color-border);
+    padding: var(--spacing-xl);
+    text-align: center;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+  }
+  
+  .not-found-icon {
+    font-size: 4rem;
+    color: var(--color-danger);
+    margin-bottom: var(--spacing-md);
+    animation: pulse 2s infinite;
+  }
+  
+  .not-found-title {
+    font-size: 8rem;
+    font-family: var(--font-display);
+    background: linear-gradient(45deg, var(--color-primary), var(--color-secondary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: var(--spacing-sm);
+    line-height: 1;
+    text-shadow: 0 0 10px rgba(12, 198, 222, 0.5);
+  }
+  
+  .not-found-content h2 {
+    color: var(--color-primary);
+    font-family: var(--font-display);
+    font-size: 2rem;
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .not-found-content p {
+    color: var(--color-text);
+    font-size: 1.2rem;
+    margin-bottom: var(--spacing-lg);
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  .not-found-actions {
+    margin-top: var(--spacing-lg);
+  }
+  
+  .not-found-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: linear-gradient(45deg, var(--color-primary), var(--color-secondary));
+    color: var(--color-background);
+    border-radius: var(--border-radius-md);
+    text-decoration: none;
+    font-family: var(--font-display);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 15px rgba(12, 198, 222, 0.4);
+    transition: all var(--transition-normal);
+  }
+  
+  .not-found-button:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(12, 198, 222, 0.6);
+  }
+  
+  .floating-stars {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+  
+  .floating-star {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background-color: white;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .not-found-title {
+      font-size: 6rem;
+    }
+    
+    .not-found-content h2 {
+      font-size: 1.5rem;
+    }
+    
+    .not-found-content p {
+      font-size: 1rem;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .not-found-title {
+      font-size: 4rem;
+    }
+    
+    .not-found-content h2 {
+      font-size: 1.2rem;
+    }
+  }
+`;
+
+// Insertar estilos en el documento si no existen ya
+if (typeof document !== 'undefined') {
+  const styleId = 'not-found-page-styles';
+  
+  if (!document.getElementById(styleId)) {
+    const styleElement = document.createElement('style');
+    styleElement.id = styleId;
+    styleElement.textContent = styles;
+    document.head.appendChild(styleElement);
+  }
+}

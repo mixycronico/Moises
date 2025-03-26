@@ -1,128 +1,121 @@
-import React, { createContext, useState, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-// Crear contexto de autenticación
+/**
+ * Contexto de autenticación para gestionar el inicio de sesión y autorización
+ */
 const AuthContext = createContext(null);
 
-// URL base para API
-const API_URL = '/api';
-
+/**
+ * Proveedor del contexto de autenticación
+ */
 export const AuthProvider = ({ children }) => {
-  // Estado para almacenar información del usuario
+  // Estado para el usuario
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  // Estado de carga
+  const [loading, setLoading] = useState(true);
 
-  // Comprobar estado de autenticación
-  const checkAuth = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const response = await axios.get(`${API_URL}/check-auth`, { withCredentials: true });
-      
-      if (response.data.authenticated) {
-        setUser(response.data.user);
-      } else {
-        setUser(null);
+  // Verificar si el usuario ya está autenticado al cargar la aplicación
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const response = await axios.get('/api/auth/status', {
+          withCredentials: true,
+        });
+        
+        if (response.data.authenticated) {
+          setUser(response.data.user);
+        }
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error al verificar estado de autenticación:', error);
+        setLoading(false);
       }
-      
-      return response.data.authenticated;
-    } catch (err) {
-      console.error('Error al verificar autenticación:', err);
-      setUser(null);
-      setError('Error al verificar autenticación');
-      return false;
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    checkAuthStatus();
   }, []);
 
-  // Iniciar sesión
-  const login = useCallback(async (username, password) => {
-    setLoading(true);
-    setError(null);
-    
+  /**
+   * Iniciar sesión con nombre de usuario y contraseña
+   */
+  const login = async (username, password) => {
     try {
-      const response = await axios.post(`${API_URL}/login`, {
+      const response = await axios.post('/api/auth/login', {
         username,
-        password
-      }, { withCredentials: true });
-      
-      if (response.data.success) {
-        setUser(response.data.user);
-        return { success: true, user: response.data.user };
-      } else {
-        setError(response.data.message || 'Error al iniciar sesión');
-        return { success: false, message: response.data.message };
-      }
-    } catch (err) {
-      console.error('Error al iniciar sesión:', err);
-      
+        password,
+      }, {
+        withCredentials: true,
+      });
+
+      setUser(response.data.user);
+      return { success: true, user: response.data.user };
+    } catch (error) {
+      console.error('Error de inicio de sesión:', error);
       let errorMessage = 'Error al iniciar sesión';
-      if (err.response && err.response.data && err.response.data.message) {
-        errorMessage = err.response.data.message;
+      
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
       }
       
-      setError(errorMessage);
-      return { success: false, message: errorMessage };
-    } finally {
-      setLoading(false);
+      return { success: false, error: errorMessage };
     }
-  }, []);
+  };
 
-  // Cerrar sesión
-  const logout = useCallback(async () => {
-    setLoading(true);
-    
+  /**
+   * Cerrar sesión
+   */
+  const logout = async () => {
     try {
-      await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+      await axios.post('/api/auth/logout', {}, {
+        withCredentials: true,
+      });
+      
       setUser(null);
-      return true;
-    } catch (err) {
-      console.error('Error al cerrar sesión:', err);
-      return false;
-    } finally {
-      setLoading(false);
+      return { success: true };
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+      return { success: false, error: 'Error al cerrar sesión' };
     }
-  }, []);
+  };
 
-  // Verificar si el usuario tiene un rol específico
-  const hasRole = useCallback((roles) => {
+  /**
+   * Determinar si el usuario tiene un rol específico
+   */
+  const hasRole = (role) => {
     if (!user) return false;
-    
-    if (Array.isArray(roles)) {
-      return roles.includes(user.role);
-    }
-    
-    return user.role === roles;
-  }, [user]);
-
-  // Valores que estarán disponibles en el contexto
-  const contextValue = {
+    return user.role === role;
+  };
+  
+  /**
+   * Valores y funciones expuestas por el contexto
+   */
+  const value = {
     user,
     loading,
-    error,
-    checkAuth,
     login,
     logout,
-    hasRole
+    hasRole,
+    isAuthenticated: !!user,
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Hook personalizado para usar el contexto de autenticación
+/**
+ * Hook personalizado para acceder al contexto de autenticación
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  
   if (!context) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
+    throw new Error('useAuth debe ser utilizado dentro de un AuthProvider');
   }
-  
   return context;
 };
+
+export default AuthContext;

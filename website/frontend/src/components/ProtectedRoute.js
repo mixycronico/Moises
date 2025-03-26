@@ -1,60 +1,68 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../utils/AuthContext';
 import Loading from './Loading';
 
 /**
- * Componente para proteger rutas basado en roles
+ * Componente para proteger rutas y controlar acceso basado en roles
+ * 
  * @param {Object} props - Propiedades del componente
- * @param {Array} props.allowedRoles - Roles permitidos para acceder a la ruta
- * @param {React.ReactNode} props.children - Componentes hijos a renderizar si el usuario está autorizado
- * @param {string} [props.redirectPath='/login'] - Ruta a la que redirigir si el usuario no está autorizado
+ * @param {React.ReactNode} props.children - Componente hijo a renderizar si el usuario está autorizado
+ * @param {string[]} [props.allowedRoles] - Roles permitidos para acceder a la ruta
+ * @param {boolean} [props.requireAuth=true] - Si se requiere autenticación
+ * @returns {React.ReactNode}
  */
-const ProtectedRoute = ({ 
-  allowedRoles, 
-  children, 
-  redirectPath = '/login' 
+const ProtectedRoute = ({
+  children,
+  allowedRoles = [],
+  requireAuth = true,
 }) => {
-  const { user, loading, hasRole, checkAuth } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
 
-  // Verificar autenticación al cargar el componente
-  useEffect(() => {
-    if (!user) {
-      checkAuth();
-    }
-  }, [checkAuth, user]);
-
-  // Mientras verifica la autenticación, mostrar indicador de carga
+  // Mostrar pantalla de carga mientras se verifica la autenticación
   if (loading) {
-    return <Loading />;
+    return <Loading message="Verificando sesión..." />;
   }
 
-  // Si no hay usuario autenticado, redirigir al login
-  if (!user) {
-    return <Navigate to={redirectPath} state={{ from: location }} replace />;
-  }
-
-  // Verificar si el usuario tiene los roles permitidos
-  const isAuthorized = hasRole(allowedRoles);
-
-  // Si el usuario no tiene los roles necesarios, redirigir
-  if (!isAuthorized) {
-    // Determinar a dónde redirigir basado en el rol del usuario
-    let redirectTo = '/login';
-    
-    if (user.role === 'investor') {
-      redirectTo = '/investor';
+  // Si no se requiere autenticación pero el usuario está autenticado
+  if (!requireAuth && isAuthenticated) {
+    // Redirigir a la página correspondiente según el rol
+    if (user.role === 'super_admin') {
+      return <Navigate to="/super-admin" state={{ from: location }} replace />;
     } else if (user.role === 'admin') {
-      redirectTo = '/admin';
-    } else if (user.role === 'super_admin') {
-      redirectTo = '/super-admin';
+      return <Navigate to="/admin" state={{ from: location }} replace />;
+    } else if (user.role === 'investor') {
+      return <Navigate to="/investor" state={{ from: location }} replace />;
     }
-    
-    return <Navigate to={redirectTo} replace />;
   }
 
-  // Si está autorizado, renderizar los hijos
+  // Si no se requiere autenticación y el usuario no está autenticado, mostrar el componente
+  if (!requireAuth && !isAuthenticated) {
+    return children;
+  }
+
+  // Si se requiere autenticación pero el usuario no está autenticado
+  if (requireAuth && !isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Si hay roles permitidos y el usuario no tiene ninguno de esos roles
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    // Redirigir a la página correspondiente según el rol
+    if (user.role === 'super_admin') {
+      return <Navigate to="/super-admin" state={{ from: location }} replace />;
+    } else if (user.role === 'admin') {
+      return <Navigate to="/admin" state={{ from: location }} replace />;
+    } else if (user.role === 'investor') {
+      return <Navigate to="/investor" state={{ from: location }} replace />;
+    } else {
+      // Si el rol no se reconoce, redirigir a página no autorizada
+      return <Navigate to="/unauthorized" state={{ from: location }} replace />;
+    }
+  }
+
+  // Si todo está bien, mostrar el componente hijo
   return children;
 };
 
