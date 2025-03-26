@@ -1,142 +1,114 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 
-// Páginas
+// Páginas principales
 import Index from './pages/Index';
 import Login from './pages/Login';
+import NotFound from './pages/NotFound';
+
+// Dashboards según rol
 import InvestorDashboard from './pages/InvestorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
-import NotFound from './pages/NotFound';
 
-// Componentes
+// Rutas protegidas y servicio de autenticación
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider, useAuth } from './utils/AuthContext';
+
+// Componentes comunes
 import Loading from './components/Loading';
+import NavBar from './components/NavBar';
 
-// Configurar axios para incluir cookies en las peticiones
-axios.defaults.withCredentials = true;
-
-const App = () => {
-  const [user, setUser] = useState(null);
+const AppContent = () => {
   const [loading, setLoading] = useState(true);
+  const { user, checkAuth } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Verificar estado de autenticación al cargar
   useEffect(() => {
-    const checkAuth = async () => {
+    const verifyAuth = async () => {
       try {
-        const response = await axios.get('/api/check-auth');
-        if (response.data.authenticated) {
-          setUser(response.data.user);
-        }
+        await checkAuth();
       } catch (error) {
-        console.error('Error al verificar autenticación:', error);
+        console.error('Error verificando autenticación:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    checkAuth();
-  }, []);
+    verifyAuth();
+  }, [checkAuth]);
 
-  // Manejar inicio de sesión
-  const handleLogin = (userData) => {
-    setUser(userData);
-  };
-
-  // Manejar cierre de sesión
-  const handleLogout = async () => {
-    try {
-      await axios.post('/api/logout');
-      setUser(null);
-      navigate('/login');
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    }
-  };
-
-  // Redirigir al dashboard según el rol del usuario
-  const redirectToDashboard = () => {
-    if (!user) return <Navigate to="/login" />;
-
-    switch (user.role) {
-      case 'super_admin':
-        return <Navigate to="/super-admin" />;
-      case 'admin':
-        return <Navigate to="/admin" />;
-      case 'investor':
-        return <Navigate to="/investor" />;
-      default:
-        return <Navigate to="/login" />;
-    }
-  };
-
-  // Rutas protegidas por rol
-  const ProtectedRoute = ({ element, allowedRoles }) => {
-    if (loading) return <Loading />;
-    
-    if (!user) {
-      return <Navigate to="/login" />;
-    }
-    
-    if (allowedRoles.includes(user.role)) {
-      return element;
-    }
-    
-    // Si el usuario no tiene el rol adecuado, redirigir según su rol
-    return redirectToDashboard();
-  };
-
+  // Renderizar loader mientras se verifica autenticación
   if (loading) {
     return <Loading />;
   }
 
   return (
-    <Routes>
-      {/* Rutas públicas */}
-      <Route path="/" element={<Index />} />
-      <Route 
-        path="/login" 
-        element={user ? redirectToDashboard() : <Login onLogin={handleLogin} />} 
-      />
+    <>
+      {/* Mostrar navbar solo si no estamos en la página de login o index */}
+      {!['/login', '/'].includes(location.pathname) && <NavBar />}
 
-      {/* Rutas protegidas */}
-      <Route 
-        path="/investor/*" 
-        element={
-          <ProtectedRoute 
-            element={<InvestorDashboard user={user} onLogout={handleLogout} />} 
-            allowedRoles={['investor', 'admin', 'super_admin']} 
-          />
-        } 
-      />
-      
-      <Route 
-        path="/admin/*" 
-        element={
-          <ProtectedRoute 
-            element={<AdminDashboard user={user} onLogout={handleLogout} />} 
-            allowedRoles={['admin', 'super_admin']} 
-          />
-        } 
-      />
-      
-      <Route 
-        path="/super-admin/*" 
-        element={
-          <ProtectedRoute 
-            element={<SuperAdminDashboard user={user} onLogout={handleLogout} />} 
-            allowedRoles={['super_admin']} 
-          />
-        } 
-      />
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          {/* Rutas públicas */}
+          <Route path="/" element={<Index />} />
+          <Route path="/login" element={<Login />} />
 
-      {/* Ruta para dashboard (redirige según rol) */}
-      <Route path="/dashboard" element={redirectToDashboard()} />
-      
-      {/* Manejo de rutas no encontradas */}
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+          {/* Rutas de inversor */}
+          <Route 
+            path="/investor/*" 
+            element={
+              <ProtectedRoute allowedRoles={['investor']}>
+                <Routes>
+                  <Route path="/" element={<InvestorDashboard />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Rutas de administrador */}
+          <Route 
+            path="/admin/*" 
+            element={
+              <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+                <Routes>
+                  <Route path="/" element={<AdminDashboard />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Rutas de super administrador */}
+          <Route 
+            path="/super-admin/*" 
+            element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <Routes>
+                  <Route path="/" element={<SuperAdminDashboard />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Ruta 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AnimatePresence>
+    </>
+  );
+};
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 
