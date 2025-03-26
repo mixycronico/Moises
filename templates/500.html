@@ -1,0 +1,156 @@
+{% extends 'layout.html' %}
+
+{% block title %}Error del Servidor - Genesis{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-content">
+        <h1 class="cosmic-title">500</h1>
+        <h2>Error Interno del Servidor</h2>
+        <p>Lo sentimos, ocurrió una anomalía en el flujo cuántico del servidor.</p>
+        <p class="sub-message">Nuestros ingenieros cósmicos ya están trabajando para estabilizar la perturbación dimensional.</p>
+        <div class="error-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-primary cosmic-btn">
+                <i class="fas fa-home"></i> Volver al Inicio
+            </a>
+        </div>
+    </div>
+    
+    <div class="portal-container">
+        <div class="portal"></div>
+        <div class="portal-inner"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .error-container {
+        position: relative;
+        min-height: 70vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        z-index: 1;
+    }
+    
+    .error-content {
+        text-align: center;
+        z-index: 10;
+        background-color: rgba(30, 10, 60, 0.7);
+        padding: 3rem;
+        border-radius: 15px;
+        box-shadow: 0 0 30px rgba(138, 43, 226, 0.5);
+        max-width: 600px;
+    }
+    
+    .cosmic-title {
+        font-size: 6rem;
+        font-weight: 700;
+        background: linear-gradient(to right, #9c27b0, #b71c1c);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+        text-shadow: 0 0 15px rgba(183, 28, 28, 0.5);
+    }
+    
+    .error-content h2 {
+        color: #e1bee7;
+        font-size: 2.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .error-content p {
+        color: #d1c4e9;
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+    
+    .sub-message {
+        font-size: 1rem;
+        color: #b39ddb;
+        font-style: italic;
+    }
+    
+    .error-actions {
+        margin-top: 2rem;
+    }
+    
+    .cosmic-btn {
+        background: linear-gradient(135deg, #9c27b0, #673ab7);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(103, 58, 183, 0.4);
+        transition: all 0.3s ease;
+    }
+    
+    .cosmic-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 7px 20px rgba(103, 58, 183, 0.6);
+        background: linear-gradient(135deg, #8e24aa, #5e35b1);
+    }
+    
+    /* Portal animado */
+    .portal-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1;
+        pointer-events: none;
+    }
+    
+    .portal {
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        background: conic-gradient(
+            from 0deg,
+            #9c27b0, #673ab7, #3f51b5, #2196f3, #00bcd4, #009688, #4caf50,
+            #8bc34a, #cddc39, #ffeb3b, #ffc107, #ff9800, #ff5722, #f44336, #9c27b0
+        );
+        filter: blur(5px);
+        animation: rotate 8s linear infinite, pulse 3s ease-in-out infinite;
+    }
+    
+    .portal-inner {
+        position: absolute;
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        background-color: #1a0e2e;
+        z-index: 2;
+    }
+    
+    @keyframes rotate {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            width: 300px;
+            height: 300px;
+            opacity: 0.8;
+        }
+        50% {
+            width: 320px;
+            height: 320px;
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}

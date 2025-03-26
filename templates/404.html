@@ -1,0 +1,146 @@
+{% extends 'layout.html' %}
+
+{% block title %}Página no encontrada - Genesis{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-content">
+        <h1 class="cosmic-title">404</h1>
+        <h2>Página no encontrada</h2>
+        <p>Lo sentimos, la dimensión que buscas no existe en nuestra realidad cósmica.</p>
+        <div class="error-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-primary cosmic-btn">
+                <i class="fas fa-home"></i> Volver al Inicio
+            </a>
+        </div>
+    </div>
+    
+    <div class="stars-container">
+        <!-- Estrellas animadas para el fondo -->
+        <div class="stars"></div>
+        <div class="stars2"></div>
+        <div class="stars3"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .error-container {
+        position: relative;
+        min-height: 70vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+        z-index: 1;
+    }
+    
+    .error-content {
+        text-align: center;
+        z-index: 10;
+        background-color: rgba(30, 10, 60, 0.7);
+        padding: 3rem;
+        border-radius: 15px;
+        box-shadow: 0 0 30px rgba(138, 43, 226, 0.5);
+        max-width: 600px;
+    }
+    
+    .cosmic-title {
+        font-size: 6rem;
+        font-weight: 700;
+        background: linear-gradient(to right, #9c27b0, #673ab7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+        text-shadow: 0 0 15px rgba(138, 43, 226, 0.5);
+    }
+    
+    .error-content h2 {
+        color: #e1bee7;
+        font-size: 2.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .error-content p {
+        color: #d1c4e9;
+        font-size: 1.2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .error-actions {
+        margin-top: 2rem;
+    }
+    
+    .cosmic-btn {
+        background: linear-gradient(135deg, #9c27b0, #673ab7);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(103, 58, 183, 0.4);
+        transition: all 0.3s ease;
+    }
+    
+    .cosmic-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 7px 20px rgba(103, 58, 183, 0.6);
+        background: linear-gradient(135deg, #8e24aa, #5e35b1);
+    }
+    
+    /* Animaciones de estrellas */
+    .stars-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+    
+    .stars, .stars2, .stars3 {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(2px 2px at 20px 30px, #eef, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
+            radial-gradient(1px 1px at 90px 40px, #fff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 160px 120px, #ddf, rgba(0,0,0,0));
+        background-repeat: repeat;
+        background-size: 200px 200px;
+        opacity: 0.5;
+        animation: sparkle 5s linear infinite;
+    }
+    
+    .stars2 {
+        background-image: 
+            radial-gradient(2px 2px at 100px 50px, #eef, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 200px 150px, #fff, rgba(0,0,0,0)),
+            radial-gradient(1px 1px at 300px 200px, #fff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 400px 250px, #ddf, rgba(0,0,0,0));
+        animation-delay: 0.3s;
+    }
+    
+    .stars3 {
+        background-image: 
+            radial-gradient(2px 2px at 50px 160px, #eef, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 150px 230px, #fff, rgba(0,0,0,0)),
+            radial-gradient(1px 1px at 250px 330px, #fff, rgba(0,0,0,0)),
+            radial-gradient(2px 2px at 350px 380px, #ddf, rgba(0,0,0,0));
+        animation-delay: 0.6s;
+    }
+    
+    @keyframes sparkle {
+        0% {
+            transform: translateY(0px);
+        }
+        100% {
+            transform: translateY(-200px);
+        }
+    }
+</style>
+{% endblock %}

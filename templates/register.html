@@ -1,0 +1,342 @@
+{% extends 'layout.html' %}
+
+{% block title %}Registro - Genesis{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card register-card">
+        <div class="auth-header">
+            <h2>Registro en Genesis</h2>
+            <p>Únete a la experiencia cósmica del trading</p>
+        </div>
+        
+        {% if error %}
+        <div class="alert alert-danger" role="alert">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form method="POST" action="{{ url_for('register') }}" class="auth-form">
+            <div class="form-group">
+                <label for="username">Nombre de Usuario</label>
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                    </div>
+                    <input type="text" class="form-control" id="username" name="username" required 
+                           placeholder="Elige un nombre de usuario único">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Correo Electrónico</label>
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                    </div>
+                    <input type="email" class="form-control" id="email" name="email" required 
+                           placeholder="Tu correo electrónico">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Contraseña</label>
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    </div>
+                    <input type="password" class="form-control" id="password" name="password" required 
+                           placeholder="Crea una contraseña segura">
+                </div>
+                <small class="form-text text-muted">Mínimo 8 caracteres, incluyendo letras y números</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirm_password">Confirmar Contraseña</label>
+                <div class="input-group">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    </div>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required 
+                           placeholder="Repite tu contraseña">
+                </div>
+            </div>
+            
+            <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="terms" required>
+                <label class="form-check-label" for="terms">
+                    Acepto los <a href="#" class="cosmic-link">Términos y Condiciones</a>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block cosmic-btn">
+                <i class="fas fa-user-plus"></i> Crear Cuenta
+            </button>
+        </form>
+        
+        <div class="auth-footer">
+            <p>¿Ya tienes una cuenta? <a href="{{ url_for('login') }}" class="cosmic-link">Inicia Sesión</a></p>
+        </div>
+    </div>
+</div>
+
+<!-- Animación de partículas en el fondo -->
+<div id="particles-js" class="particles-container"></div>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .auth-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        position: relative;
+        z-index: 10;
+        padding: 2rem 1rem;
+    }
+    
+    .auth-card {
+        background-color: rgba(25, 10, 41, 0.85);
+        border-radius: 15px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 500px;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .register-card {
+        max-width: 550px;
+    }
+    
+    .auth-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    .auth-header h2 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(to right, #9c27b0, #673ab7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+    }
+    
+    .auth-header p {
+        color: #b39ddb;
+        font-size: 1.1rem;
+    }
+    
+    .auth-form .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .auth-form label {
+        color: #e1bee7;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .auth-form .input-group-text {
+        background-color: #4a148c;
+        border-color: #6a1b9a;
+        color: #e1bee7;
+    }
+    
+    .auth-form .form-control {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-color: #6a1b9a;
+        color: #e1bee7;
+        height: calc(2.5rem + 2px);
+    }
+    
+    .auth-form .form-control:focus {
+        background-color: rgba(255, 255, 255, 0.15);
+        border-color: #9c27b0;
+        box-shadow: 0 0 0 0.2rem rgba(156, 39, 176, 0.25);
+        color: #fff;
+    }
+    
+    .auth-form .form-control::placeholder {
+        color: #9575cd;
+    }
+    
+    .auth-form .form-text {
+        color: #9575cd;
+    }
+    
+    .auth-form .form-check-label {
+        color: #b39ddb;
+    }
+    
+    .cosmic-btn {
+        background: linear-gradient(135deg, #9c27b0, #673ab7);
+        border: none;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+        border-radius: 30px;
+        box-shadow: 0 4px 15px rgba(103, 58, 183, 0.4);
+        transition: all 0.3s ease;
+        margin-top: 1.5rem;
+    }
+    
+    .cosmic-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 7px 20px rgba(103, 58, 183, 0.6);
+        background: linear-gradient(135deg, #8e24aa, #5e35b1);
+    }
+    
+    .auth-footer {
+        text-align: center;
+        margin-top: 2rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 1.5rem;
+    }
+    
+    .auth-footer p {
+        color: #b39ddb;
+    }
+    
+    .cosmic-link {
+        color: #ce93d8;
+        font-weight: 500;
+        text-decoration: none;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    
+    .cosmic-link:hover {
+        color: #e1bee7;
+        text-decoration: none;
+    }
+    
+    .cosmic-link::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 100%;
+        height: 1px;
+        background: linear-gradient(to right, #9c27b0, #673ab7);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.3s ease;
+    }
+    
+    .cosmic-link:hover::after {
+        transform: scaleX(1);
+    }
+    
+    /* Fondo de partículas */
+    .particles-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+    }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Añadir particles.js para el fondo animado -->
+<script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        particlesJS('particles-js', {
+            "particles": {
+                "number": {
+                    "value": 100,
+                    "density": {
+                        "enable": true,
+                        "value_area": 800
+                    }
+                },
+                "color": {
+                    "value": ["#9c27b0", "#673ab7", "#3f51b5", "#e1bee7"]
+                },
+                "shape": {
+                    "type": "circle",
+                    "stroke": {
+                        "width": 0,
+                        "color": "#000000"
+                    }
+                },
+                "opacity": {
+                    "value": 0.5,
+                    "random": true,
+                    "anim": {
+                        "enable": true,
+                        "speed": 1,
+                        "opacity_min": 0.1,
+                        "sync": false
+                    }
+                },
+                "size": {
+                    "value": 3,
+                    "random": true,
+                    "anim": {
+                        "enable": true,
+                        "speed": 2,
+                        "size_min": 0.3,
+                        "sync": false
+                    }
+                },
+                "line_linked": {
+                    "enable": true,
+                    "distance": 150,
+                    "color": "#9c27b0",
+                    "opacity": 0.4,
+                    "width": 1
+                },
+                "move": {
+                    "enable": true,
+                    "speed": 1,
+                    "direction": "none",
+                    "random": true,
+                    "straight": false,
+                    "out_mode": "out",
+                    "bounce": false,
+                    "attract": {
+                        "enable": true,
+                        "rotateX": 600,
+                        "rotateY": 1200
+                    }
+                }
+            },
+            "interactivity": {
+                "detect_on": "canvas",
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "grab"
+                    },
+                    "onclick": {
+                        "enable": true,
+                        "mode": "push"
+                    },
+                    "resize": true
+                },
+                "modes": {
+                    "grab": {
+                        "distance": 140,
+                        "line_linked": {
+                            "opacity": 1
+                        }
+                    },
+                    "push": {
+                        "particles_nb": 4
+                    }
+                }
+            },
+            "retina_detect": true
+        });
+    });
+</script>
+{% endblock %}
