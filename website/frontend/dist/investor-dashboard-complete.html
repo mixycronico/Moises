@@ -630,7 +630,45 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: var(--spacing-lg);
+      padding: var(--spacing-md);
+      border-radius: var(--border-radius-lg);
+      background: rgba(30, 20, 60, 0.15);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(123, 97, 255, 0.2);
+      box-shadow: 0 4px 20px rgba(20, 10, 40, 0.4), 
+                  0 0 15px rgba(123, 97, 255, 0.2),
+                  inset 0 0 8px rgba(123, 97, 255, 0.1);
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+    
+    .chart-container:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 30px rgba(20, 10, 40, 0.5), 
+                  0 0 20px rgba(123, 97, 255, 0.3),
+                  inset 0 0 12px rgba(123, 97, 255, 0.2);
+    }
+    
+    .chart-container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(
+        circle at center,
+        rgba(123, 97, 255, 0.1) 0%,
+        transparent 70%
+      );
+      opacity: 0.5;
+      animation: rotateBg 10s linear infinite;
+      pointer-events: none;
+    }
+    
+    @keyframes rotateBg {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
     
     .chart-label {
@@ -639,17 +677,28 @@
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
+      z-index: 2;
+      width: 100%;
     }
     
     .chart-percentage {
       font-size: 24px;
       font-weight: 700;
+      text-shadow: 0 0 10px rgba(123, 97, 255, 0.8);
+      transition: all 0.3s ease;
+      animation: pulseValue 3s infinite alternate;
+    }
+    
+    @keyframes pulseValue {
+      0% { text-shadow: 0 0 5px rgba(123, 97, 255, 0.5); }
+      100% { text-shadow: 0 0 15px rgba(123, 97, 255, 0.9); }
     }
     
     .chart-description {
       font-size: 12px;
       color: var(--color-text-secondary);
       margin-top: var(--spacing-xs);
+      text-shadow: 0 0 5px rgba(123, 97, 255, 0.5);
     }
     
     /* Sección principal de datos */
@@ -1175,7 +1224,7 @@
       }
       
       .chart-percentage {
-        font-size: 18px;
+        font-size: 16px; /* Más pequeño en móvil */
       }
       
       .date-display {
@@ -1197,7 +1246,22 @@
       }
       
       .chart-container {
-        padding: var(--spacing-sm);
+        padding: var(--spacing-xs); /* Padding más pequeño */
+        max-width: 90%; /* Limitar ancho */
+        margin: 0 auto; /* Centrar */
+      }
+      
+      .chart-description {
+        font-size: 10px; /* Texto descriptivo más pequeño */
+      }
+      
+      canvas {
+        max-height: 110px; /* Altura máxima reducida */
+        max-width: 110px; /* Ancho máximo reducido */
+      }
+      
+      .charts-row {
+        gap: var(--spacing-xs); /* Espacio más pequeño entre gráficos */
       }
     }
     
@@ -1785,15 +1849,37 @@
       // Convertir valor a positivo para propósitos de visualización
       const positiveValue = Math.abs(percentage);
       
+      // Determinar color basado en si es positivo o negativo
+      let actualColor;
+      if (percentage >= 0) {
+        actualColor = 'rgba(46, 204, 113, 0.8)'; // Verde para positivos
+      } else {
+        actualColor = 'rgba(231, 76, 60, 0.8)'; // Rojo para negativos
+      }
+      
+      // Añadir brillo adicional como elemento visual
+      const glowColor = percentage >= 0 ? 
+        'rgba(46, 204, 113, 0.3)' : // Verde para positivo
+        'rgba(231, 76, 60, 0.3)';   // Rojo para negativo
+      
+      // Configuración mejorada para gráfico de dona
       const data = {
         datasets: [{
           data: [positiveValue, 100 - positiveValue],
           backgroundColor: [
-            color,
+            actualColor,
             'rgba(90, 65, 167, 0.1)'
           ],
-          borderWidth: 0,
-          cutout: '75%'
+          borderWidth: 2,
+          borderColor: [
+            percentage >= 0 ? 'rgba(46, 204, 113, 0.9)' : 'rgba(231, 76, 60, 0.9)',
+            'transparent'
+          ],
+          hoverBorderWidth: 3,
+          hoverBorderColor: percentage >= 0 ? 'rgba(46, 204, 113, 1)' : 'rgba(231, 76, 60, 1)',
+          cutout: '75%',
+          borderRadius: 5,
+          hoverOffset: 5
         }]
       };
       
@@ -1810,15 +1896,34 @@
         },
         animation: {
           animateRotate: true,
-          animateScale: true
+          animateScale: true,
+          duration: 1500,
+          easing: 'easeOutQuart'
+        },
+        elements: {
+          arc: {
+            borderWidth: 2,
+          }
         }
       };
       
-      return new Chart(ctx, {
+      // Destruir gráfico anterior si existe
+      if (window.chartInstances && window.chartInstances[canvasId]) {
+        window.chartInstances[canvasId].destroy();
+      }
+      
+      // Crear y guardar nueva instancia
+      if (!window.chartInstances) window.chartInstances = {};
+      window.chartInstances[canvasId] = new Chart(ctx, {
         type: 'doughnut',
         data: data,
         options: options
       });
+      
+      // Agregar brillo visual alrededor del canvas
+      canvas.style.filter = `drop-shadow(0 0 8px ${glowColor})`;
+      
+      return window.chartInstances[canvasId];
     }
     
     // Crear efectos de partículas
