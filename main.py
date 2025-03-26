@@ -66,13 +66,15 @@ def serve(path):
 # Agregar proto_genesis al path de Python para importar endpoints de API
 sys.path.append(os.path.abspath('proto_genesis'))
 
-# Importar rutas de autenticación y de inversionistas
+# Importar rutas de autenticación, inversionistas y préstamos
 from auth_routes import register_auth_routes
 from investor_routes import register_investor_routes
+from loan_routes import register_loan_routes
 
-# Registrar rutas de autenticación y de inversionistas
+# Registrar rutas en la aplicación
 register_auth_routes(app)
 register_investor_routes(app)
+register_loan_routes(app)
 
 # Importar endpoints de API de proto_genesis
 try:
