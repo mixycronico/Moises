@@ -31,18 +31,18 @@ app.secret_key = os.environ.get("SESSION_SECRET", "genesis_dev_key")
 def login_page():
     return send_file(os.path.join(app.static_folder, 'login.html'))
 
-# Rutas para los diferentes roles
+# Rutas para los diferentes roles - todos redirigidos al portafolio morado
 @app.route('/investor')
 def investor_page():
-    return send_file(os.path.join(app.static_folder, 'investor-dashboard.html'))
+    return send_file(os.path.join(app.static_folder, 'investor-dashboard-complete.html'))
 
 @app.route('/admin')
 def admin_page():
-    return send_file(os.path.join(app.static_folder, 'super-admin.html'))
+    return send_file(os.path.join(app.static_folder, 'investor-dashboard-complete.html'))
 
 @app.route('/super-admin')
 def super_admin_page():
-    return send_file(os.path.join(app.static_folder, 'super-admin.html'))
+    return send_file(os.path.join(app.static_folder, 'investor-dashboard-complete.html'))
 
 # Panel de inversionista - accesible para todos los roles
 @app.route('/portfolio')
