@@ -259,6 +259,20 @@
         padding: 1.5rem;
         border: 1px solid rgba(156, 39, 176, 0.2);
         margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .gauge-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(156, 39, 176, 0.1) 0%, rgba(103, 58, 183, 0.1) 100%);
+        pointer-events: none;
+        z-index: 1;
     }
     
     .gauge-title {
@@ -268,6 +282,8 @@
         border-bottom: 1px solid rgba(156, 39, 176, 0.2);
         padding-bottom: 0.5rem;
         text-align: center;
+        position: relative;
+        z-index: 2;
     }
     
     .gauge-row {
@@ -275,12 +291,27 @@
         flex-wrap: wrap;
         justify-content: space-around;
         margin-bottom: 2rem;
+        position: relative;
+        z-index: 2;
     }
     
     .gauge-wrapper {
         width: 160px;
         margin-bottom: 1.5rem;
         text-align: center;
+        position: relative;
+    }
+    
+    .gauge-wrapper::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 15px;
+        bottom: -5px;
+        left: 0;
+        background: radial-gradient(ellipse at center, rgba(156, 39, 176, 0.3) 0%, rgba(156, 39, 176, 0) 70%);
+        filter: blur(5px);
+        z-index: 1;
     }
     
     .gauge {
@@ -288,12 +319,19 @@
         height: 120px;
         margin: 0 auto 0.5rem;
         position: relative;
+        filter: drop-shadow(0 0 10px rgba(156, 39, 176, 0.3));
     }
     
     .gauge-label {
         color: var(--text-medium);
         font-size: 0.9rem;
         margin-top: 0.5rem;
+        text-shadow: 0 0 10px rgba(156, 39, 176, 0.5);
+    }
+    
+    .gauge-value {
+        font-family: var(--font-display);
+        text-shadow: 0 0 10px rgba(156, 39, 176, 0.7);
     }
 </style>
 {% endblock %}
@@ -458,7 +496,7 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/gauge-chart@0.5.3/dist/bundle.js"></script>
+<script src="/static/js/gauges/custom-gauges.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Gráfico de rendimiento
@@ -507,45 +545,32 @@
             }
         });
         
-        // Crear medidores de rendimiento
-        const gaugeOptions = {
-            hasNeedle: true,
-            needleColor: 'rgba(255, 255, 255, 0.9)',
-            needleUpdateSpeed: 1000,
-            arcColors: ['#4caf50', '#cddc39', '#ffeb3b', '#ff9800', '#f44336'],
-            arcDelimiters: [20, 40, 60, 80],
-            rangeLabel: ['0', '100'],
-            centralLabel: '%',
-            arcLabels: ['', '', '', '']
-        };
+        // Crear medidores personalizados con efectos holográficos
+        const roiGauge = createROIGauge('roi-gauge', 85);
+        const riskGauge = createRiskGauge('risk-gauge', 30);
+        const volatilityGauge = createVolatilityGauge('volatility-gauge', 45);
+        const growthGauge = createGrowthGauge('growth-gauge', 70);
         
-        // ROI Gauge
-        GaugeChart.gaugeChart(document.getElementById('roi-gauge'), {
-            ...gaugeOptions,
-            needleValue: 85,
-            centralLabel: '85%'
-        });
-        
-        // Risk Gauge
-        GaugeChart.gaugeChart(document.getElementById('risk-gauge'), {
-            ...gaugeOptions,
-            needleValue: 30,
-            centralLabel: '30%'
-        });
-        
-        // Volatility Gauge
-        GaugeChart.gaugeChart(document.getElementById('volatility-gauge'), {
-            ...gaugeOptions,
-            needleValue: 45,
-            centralLabel: '45%'
-        });
-        
-        // Growth Gauge
-        GaugeChart.gaugeChart(document.getElementById('growth-gauge'), {
-            ...gaugeOptions,
-            needleValue: 70,
-            centralLabel: '70%'
-        });
+        // Añadir efectos de animación aleatorios para dar la sensación de datos en tiempo real
+        setInterval(() => {
+            // Pequeñas variaciones aleatorias
+            const roiVariation = Math.random() * 5 - 2.5;
+            const riskVariation = Math.random() * 3 - 1.5;
+            const volatilityVariation = Math.random() * 4 - 2;
+            const growthVariation = Math.random() * 3 - 1;
+            
+            // Aplicar variaciones asegurando que estén dentro de los límites
+            let newRoi = Math.min(Math.max(roiGauge.options.value + roiVariation, 0), 100);
+            let newRisk = Math.min(Math.max(riskGauge.options.value + riskVariation, 0), 100);
+            let newVolatility = Math.min(Math.max(volatilityGauge.options.value + volatilityVariation, 0), 100);
+            let newGrowth = Math.min(Math.max(growthGauge.options.value + growthVariation, 0), 100);
+            
+            // Actualizar medidores con animación
+            roiGauge.setValue(newRoi);
+            riskGauge.setValue(newRisk);
+            volatilityGauge.setValue(newVolatility);
+            growthGauge.setValue(newGrowth);
+        }, 5000);
     });
 </script>
 {% endblock %}
