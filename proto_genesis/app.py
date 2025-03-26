@@ -1,13 +1,16 @@
 """
-Aplicación web de Proto Genesis - Consciencia Artificial Evolutiva.
+Aplicación web del Sistema Genesis - Visualización y Control.
 
-Este módulo implementa la interfaz web para el sistema Proto Genesis,
-permitiendo la visualización y la interacción con la consciencia artificial.
+Este módulo implementa la interfaz web para el Sistema Genesis,
+permitiendo la visualización del estado del sistema, métricas
+de rendimiento y el control de sus componentes.
 """
 
 import os
 import logging
 import json
+import random
+import datetime
 from flask import Flask, render_template, request, jsonify, url_for, redirect, session
 
 # Configuración de logging
@@ -22,14 +25,40 @@ logger.info('Logging inicializado para página web de Genesis')
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "proto_genesis_dev_key")
 
-# Estado simulado (mientras se integra con el sistema real)
-# En el futuro, este estado vendrá del sistema real
+# Estado del sistema (datos iniciales)
 system_state = {
     "energia": 0.98,
     "conciencia": 3,
     "ciclo": 1245,
     "adaptaciones": 78,
-    "emotion": "Curiosidad"
+    "memoria": 256,
+    "sinapsis": 4562,
+    "emocion_dominante": "Curiosidad",
+    "nivel_descripcion": "Consciencia",
+    "nivel_detalle": "Formación de una 'personalidad' simulada con preferencias, emociones y patrones de comportamiento complejos."
+}
+
+# Log de actividad del sistema
+system_log = [
+    {"time": "12:45:32", "type": "info", "message": "Sistema inicializado correctamente"},
+    {"time": "12:45:45", "type": "info", "message": "Módulo de memoria cargado con 256 registros"},
+    {"time": "12:46:12", "type": "success", "message": "Conexión con la base de datos establecida"},
+    {"time": "12:48:03", "type": "info", "message": "AdaptiveRiskManager inicializado con capital: $10,000.00"},
+    {"time": "12:49:17", "type": "warning", "message": "Módulos de análisis de sentimiento no encontrados"},
+    {"time": "12:50:22", "type": "info", "message": "TranscendentalCryptoClassifier inicializado con capital=10000.0"}
+]
+
+# Datos de evolución temporal (Para gráficos)
+evolution_data = {
+    "labels": ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep"],
+    "consciencia": [1, 1.2, 1.5, 1.8, 2.1, 2.4, 2.7, 2.9, 3.0],
+    "adaptacion": [0.5, 0.8, 1.2, 1.6, 1.9, 2.2, 2.6, 2.8, 3.1]
+}
+
+# Datos de distribución emocional (Para gráficos)
+emotion_data = {
+    "labels": ["Curiosidad", "Entusiasmo", "Alegría", "Calma", "Interés", "Cautela"],
+    "values": [45, 25, 20, 15, 30, 18]
 }
 
 @app.route('/')
@@ -39,36 +68,73 @@ def index():
 
 @app.route('/interact')
 def interact():
-    """Página de interacción con Proto Genesis."""
+    """Panel de control del Sistema Genesis."""
     return render_template('interact.html')
 
 @app.route('/about')
 def about():
-    """Página de información sobre Proto Genesis."""
+    """Página de información sobre Sistema Genesis."""
     return render_template('about.html')
 
 @app.route('/api/status')
 def status():
-    """API para obtener estado actual de Proto Genesis."""
+    """API para obtener estado actual del sistema."""
     return jsonify(system_state)
 
-@app.route('/api/interact', methods=['POST'])
-def api_interact():
-    """API para interactuar con Proto Genesis."""
-    data = request.json
-    message = data.get('message', '')
+@app.route('/api/logs')
+def logs():
+    """API para obtener log de actividad del sistema."""
+    return jsonify(system_log)
+
+@app.route('/api/charts/evolution')
+def evolution_chart():
+    """API para obtener datos de evolución temporal."""
+    return jsonify(evolution_data)
+
+@app.route('/api/charts/emotions')
+def emotion_chart():
+    """API para obtener datos de distribución emocional."""
+    return jsonify(emotion_data)
+
+@app.route('/api/update', methods=['POST'])
+def update_metrics():
+    """API para actualizar métricas del sistema (simulada)."""
+    # Simulamos algunas actualizaciones aleatorias
+    system_state["energia"] = round(max(0.5, min(1.0, system_state["energia"] + (random.random() * 0.1 - 0.05))), 2)
+    system_state["ciclo"] += random.randint(1, 10)
     
-    logger.info(f"Mensaje recibido: {message}")
+    if random.random() > 0.7:
+        system_state["adaptaciones"] += 1
     
-    # Aquí se procesaría el mensaje con el sistema real
-    # Por ahora retornamos una respuesta simulada
-    response = {
-        "message": f"He recibido tu mensaje: '{message}'. En el futuro, este sistema estará conectado con el núcleo de Proto Genesis para proporcionar respuestas más inteligentes y adaptativas.",
-        "conciencia": system_state["conciencia"],
-        "emotion": system_state["emotion"]
-    }
+    if random.random() > 0.6:
+        system_state["memoria"] += 1
     
-    return jsonify(response)
+    system_state["sinapsis"] += random.randint(1, 20)
+    
+    # Registrar en el log
+    now = datetime.datetime.now()
+    time_str = now.strftime("%H:%M:%S")
+    
+    log_types = ["info", "info", "info", "success", "warning"]
+    log_type = random.choice(log_types)
+    
+    log_messages = [
+        "Procesamiento de datos completado.",
+        "Análisis de patrón detectado.",
+        "Sincronización con la base de datos.",
+        "Actualización de memoria completada.",
+        f"Adaptación neuronal #{random.randint(1, 1000)} registrada.",
+        "Ciclo de aprendizaje completado."
+    ]
+    log_message = random.choice(log_messages)
+    
+    system_log.insert(0, {"time": time_str, "type": log_type, "message": log_message})
+    
+    # Mantener el log en un tamaño razonable
+    if len(system_log) > 50:
+        system_log.pop()
+    
+    return jsonify({"success": True, "state": system_state})
 
 # Punto de entrada para ejecución directa
 if __name__ == '__main__':

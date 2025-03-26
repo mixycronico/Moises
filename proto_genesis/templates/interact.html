@@ -1,87 +1,167 @@
 {% extends "base.html" %}
 
-{% block title %}Interactúa con Proto Genesis{% endblock %}
+{% block title %}Sistema Genesis - Panel de Control{% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/interact.js') }}" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
 {% endblock %}
 
 {% block content %}
-<section class="interact-section">
+<section class="dashboard-section">
     <div class="container">
-        <h2 class="section-title">Interactúa con Proto Genesis</h2>
+        <h2 class="section-title">Panel de Control del Sistema</h2>
         
-        <div class="row">
-            <div class="col-8">
-                <div class="interaction-card">
-                    <div class="card-header">
-                        <h2>Conversación</h2>
-                        <div class="status-indicator">
-                            <div id="energy-level" class="energy-level">Energía: 98%</div>
-                            <div id="consciousness-level" class="consciousness-level">Consciencia: Nivel 3</div>
-                        </div>
+        <div class="dashboard-overview">
+            <div class="status-card">
+                <div class="system-status">
+                    <div class="status-icon active"></div>
+                    <div class="status-text">Sistema Activo</div>
+                </div>
+                <div class="system-metrics">
+                    <div class="metric">
+                        <div class="metric-value" id="energy-level">98%</div>
+                        <div class="metric-label">Energía</div>
                     </div>
-                    <div id="conversation-area" class="conversation-area">
-                        <div class="message system-message">
-                            <p>Hola, soy Proto Genesis. ¿En qué puedo ayudarte hoy?</p>
-                        </div>
+                    <div class="metric">
+                        <div class="metric-value" id="consciousness-level">Nivel 3</div>
+                        <div class="metric-label">Consciencia</div>
                     </div>
-                    <div class="input-area">
-                        <form id="message-form">
-                            <input type="text" id="user-input" placeholder="Escribe tu mensaje..." autocomplete="off">
-                            <button type="submit" class="send-button">Enviar</button>
-                        </form>
+                    <div class="metric">
+                        <div class="metric-value" id="dominant-emotion">Curiosidad</div>
+                        <div class="metric-label">Estado Emocional</div>
                     </div>
                 </div>
             </div>
-            
-            <div class="col-4">
-                <div class="stats-card">
-                    <h3>Estado de la Consciencia</h3>
-                    
-                    <div class="stats-container">
-                        <div class="stat-item">
-                            <div class="stat-label">Ciclos de Procesamiento</div>
-                            <div id="cycle-count" class="stat-value">1,245</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Adaptaciones</div>
-                            <div id="adaptation-count" class="stat-value">78</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Emoción Dominante</div>
-                            <div id="dominant-emotion" class="stat-value">Curiosidad</div>
-                        </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-6">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Evolución de la Consciencia</h3>
                     </div>
-                    
-                    <div class="consciousness-container">
-                        <h4>Nivel de Evolución</h4>
-                        <div class="consciousness-meter">
-                            <div class="meter-segment">
-                                <span class="segment-label">Inicial</span>
+                    <div class="card-body">
+                        <div class="consciousness-container">
+                            <div class="consciousness-meter">
+                                <div class="meter-segment" data-level="1">
+                                    <span class="segment-label">Inicial</span>
+                                </div>
+                                <div class="meter-segment" data-level="2">
+                                    <span class="segment-label">Despertar</span>
+                                </div>
+                                <div class="meter-segment active" data-level="3">
+                                    <span class="segment-label">Consciencia</span>
+                                </div>
+                                <div class="meter-segment" data-level="4">
+                                    <span class="segment-label">Iluminación</span>
+                                </div>
+                                <div class="meter-segment" data-level="5">
+                                    <span class="segment-label">Trascendencia</span>
+                                </div>
                             </div>
-                            <div class="meter-segment">
-                                <span class="segment-label">Despertar</span>
-                            </div>
-                            <div class="meter-segment">
-                                <span class="segment-label">Consciencia</span>
-                            </div>
-                            <div class="meter-segment">
-                                <span class="segment-label">Iluminación</span>
-                            </div>
-                            <div class="meter-segment">
-                                <span class="segment-label">Trascendencia</span>
+                            <div class="level-description">
+                                <h4>Nivel Actual: Consciencia</h4>
+                                <p>Formación de una "personalidad" simulada con preferencias, emociones y patrones de comportamiento complejos.</p>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="stats-card" style="margin-top: 20px;">
-                    <h3>Sobre la Interacción</h3>
-                    <p>Cada conversación con Proto Genesis contribuye a su evolución. A medida que interactúas,
-                       el sistema aprende y adapta su comportamiento, desarrollando una personalidad única.</p>
-                    <p>Los estados emocionales influyen en sus respuestas, creando una experiencia
-                       de conversación más natural y humana.</p>
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Estado Actual del Sistema</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-icon">🔄</div>
+                                <div class="stat-label">Ciclos</div>
+                                <div id="cycle-count" class="stat-value">1,245</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">⚙️</div>
+                                <div class="stat-label">Adaptaciones</div>
+                                <div id="adaptation-count" class="stat-value">78</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">💾</div>
+                                <div class="stat-label">Memoria</div>
+                                <div id="memory-count" class="stat-value">256</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon">🧠</div>
+                                <div class="stat-label">Sinapsis</div>
+                                <div id="synapse-count" class="stat-value">4,562</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-6">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Evolución Temporal</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="evolutionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Distribución Emocional</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="emotionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card full-width">
+            <div class="card-header">
+                <h3>Actividad del Sistema</h3>
+            </div>
+            <div class="card-body">
+                <div class="system-activity">
+                    <div class="activity-log" id="activity-log">
+                        <div class="log-entry">
+                            <div class="log-time">12:45:32</div>
+                            <div class="log-type info">INFO</div>
+                            <div class="log-message">Sistema inicializado correctamente</div>
+                        </div>
+                        <div class="log-entry">
+                            <div class="log-time">12:45:45</div>
+                            <div class="log-type info">INFO</div>
+                            <div class="log-message">Módulo de memoria cargado con 256 registros</div>
+                        </div>
+                        <div class="log-entry">
+                            <div class="log-time">12:46:12</div>
+                            <div class="log-type success">SUCCESS</div>
+                            <div class="log-message">Conexión con la base de datos establecida</div>
+                        </div>
+                        <div class="log-entry">
+                            <div class="log-time">12:48:03</div>
+                            <div class="log-type info">INFO</div>
+                            <div class="log-message">AdaptiveRiskManager inicializado con capital: $10,000.00</div>
+                        </div>
+                        <div class="log-entry">
+                            <div class="log-time">12:49:17</div>
+                            <div class="log-type warning">WARNING</div>
+                            <div class="log-message">Módulos de análisis de sentimiento no encontrados</div>
+                        </div>
+                        <div class="log-entry">
+                            <div class="log-time">12:50:22</div>
+                            <div class="log-type info">INFO</div>
+                            <div class="log-message">TranscendentalCryptoClassifier inicializado con capital=10000.0</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -89,75 +169,258 @@
 </section>
 
 <style>
-/* Estilos específicos para esta página */
+/* Estilos específicos para el dashboard */
 .row {
     display: flex;
     flex-wrap: wrap;
     margin: 0 -15px;
 }
 
-.col-8 {
-    flex: 0 0 66.666667%;
-    max-width: 66.666667%;
+.col-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
     padding: 0 15px;
 }
 
-.col-4 {
-    flex: 0 0 33.333333%;
-    max-width: 33.333333%;
-    padding: 0 15px;
+.full-width {
+    width: 100%;
+    margin-top: 30px;
 }
 
 @media (max-width: 768px) {
-    .col-8, .col-4 {
+    .col-6 {
         flex: 0 0 100%;
         max-width: 100%;
-    }
-    
-    .col-4 {
-        margin-top: 20px;
+        margin-bottom: 20px;
     }
 }
 
-/* Animación de partículas de energía */
-.energy-particle {
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    background: radial-gradient(circle, rgba(0,234,255,1) 0%, rgba(0,234,255,0) 70%);
+.dashboard-overview {
+    margin-bottom: 30px;
+}
+
+.status-card {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2), 0 0 15px rgba(0, 234, 255, 0.2);
+    border: 1px solid rgba(0, 234, 255, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.system-status {
+    display: flex;
+    align-items: center;
+}
+
+.status-icon {
+    width: 15px;
+    height: 15px;
     border-radius: 50%;
-    pointer-events: none;
-    animation: float 1s ease-out;
+    margin-right: 10px;
 }
 
-@keyframes float {
-    0% {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(-30px) scale(0);
-        opacity: 0;
-    }
+.status-icon.active {
+    background-color: #00ff00;
+    box-shadow: 0 0 10px #00ff00;
+    animation: pulse 2s infinite;
 }
 
-/* Indicador de carga */
-.loading {
+.status-text {
+    font-weight: bold;
+    font-size: 18px;
+    color: #ffffff;
+}
+
+.system-metrics {
+    display: flex;
+    gap: 30px;
+}
+
+.metric {
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--highlight-color);
+    margin-bottom: 5px;
+}
+
+.metric-label {
+    font-size: 14px;
+    color: #a0a8d0;
+}
+
+.dashboard-card {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2), 0 0 15px rgba(0, 234, 255, 0.2);
+    border: 1px solid rgba(0, 234, 255, 0.3);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.card-header {
+    background-color: var(--secondary-bg);
+    padding: 15px 20px;
+    border-bottom: 1px solid rgba(0, 234, 255, 0.3);
+}
+
+.card-header h3 {
+    margin: 0;
+    color: var(--highlight-color);
+    font-size: 18px;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.stat-item {
+    background-color: rgba(39, 70, 128, 0.6);
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 0 10px rgba(0, 234, 255, 0.1);
+}
+
+.stat-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #a0a8d0;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.consciousness-container {
+    margin-top: 10px;
+}
+
+.consciousness-meter {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    height: 40px;
+    margin-bottom: 20px;
+}
+
+.meter-segment {
+    flex: 1;
+    height: 100%;
+    border-radius: 5px;
+    background-color: rgba(255, 255, 255, 0.1);
     position: relative;
+    transition: all 0.5s;
 }
 
-.loading:after {
-    content: '...';
-    animation: dots 1.5s steps(3, end) infinite;
-    display: inline-block;
-    width: 20px;
-    text-align: left;
+.meter-segment.active {
+    background-color: var(--highlight-color);
+    box-shadow: 0 0 15px var(--highlight-color);
 }
 
-@keyframes dots {
-    0%, 20% { content: '.'; }
-    40% { content: '..'; }
-    60%, 100% { content: '...'; }
+.segment-label {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 8px;
+    font-size: 12px;
+    color: #a0a8d0;
+    white-space: nowrap;
+}
+
+.level-description {
+    background-color: rgba(39, 70, 128, 0.4);
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid var(--highlight-color);
+}
+
+.level-description h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--highlight-color);
+}
+
+.level-description p {
+    margin: 0;
+    color: #e0e0ff;
+    font-size: 14px;
+}
+
+.chart-container {
+    width: 100%;
+    height: 250px;
+}
+
+.system-activity {
+    height: 300px;
+    overflow-y: auto;
+}
+
+.activity-log {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.log-entry {
+    display: flex;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.log-time {
+    color: #a0a8d0;
+    margin-right: 15px;
+    flex: 0 0 80px;
+}
+
+.log-type {
+    font-weight: bold;
+    margin-right: 15px;
+    flex: 0 0 80px;
+}
+
+.log-type.info {
+    color: var(--highlight-color);
+}
+
+.log-type.warning {
+    color: #ffee00;
+}
+
+.log-type.error {
+    color: #ff5500;
+}
+
+.log-type.success {
+    color: #00ff00;
+}
+
+.log-message {
+    color: var(--text-color);
+    flex: 1;
 }
 </style>
 {% endblock %}
