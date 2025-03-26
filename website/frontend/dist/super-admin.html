@@ -516,10 +516,19 @@
         <i class="icon">💰</i>
         <span>Inversiones</span>
       </div>
-      <div class="nav-item" id="portfolioButton">
+      <div class="nav-item" id="portfolioButton" style="background: linear-gradient(135deg, rgba(218, 165, 32, 0.2), rgba(255, 215, 0, 0.4)); border: 1px solid rgba(255, 215, 0, 0.6); position: relative; overflow: hidden;">
         <i class="icon">💼</i>
         <span>Mi Portafolio</span>
+        <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: radial-gradient(ellipse at center, rgba(255, 215, 0, 0.3) 0%, rgba(218, 165, 32, 0) 70%); animation: pulse 2s infinite;"></div>
       </div>
+      
+      <style>
+        @keyframes pulse {
+          0% { opacity: 0.3; }
+          50% { opacity: 0.6; }
+          100% { opacity: 0.3; }
+        }
+      </style>
       <div class="nav-item" id="estrategias">
         <i class="icon">📈</i>
         <span>Estrategias</span>
