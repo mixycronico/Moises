@@ -1270,6 +1270,8 @@ def initialize_cosmic_trading(father_name="otoniel", include_extended_entities=F
         Tupla con la red y las entidades principales
     """
     network = CosmicNetwork()
+    # Registrar instancia global
+    set_network(network)
     
     # Crear entidades especializadas principales
     aetherion_trader = SpeculatorEntity("Aetherion", "Speculator", father=father_name, frequency_seconds=30)
@@ -1332,6 +1334,29 @@ def initialize_cosmic_trading(father_name="otoniel", include_extended_entities=F
     logger.info(f"Sistema de trading cósmico inicializado para {father_name}")
     return network, aetherion_trader, lunareth_trader
 
+
+# Variable global para mantener la instancia de la red
+_NETWORK_INSTANCE = None
+
+def get_network():
+    """
+    Obtener la instancia global de la red cósmica.
+    
+    Returns:
+        Instancia de CosmicNetwork o None si no está inicializada
+    """
+    global _NETWORK_INSTANCE
+    return _NETWORK_INSTANCE
+
+def set_network(network):
+    """
+    Establecer la instancia global de la red cósmica.
+    
+    Args:
+        network: Instancia de CosmicNetwork
+    """
+    global _NETWORK_INSTANCE
+    _NETWORK_INSTANCE = network
 
 # Punto de entrada para testing
 if __name__ == "__main__":
