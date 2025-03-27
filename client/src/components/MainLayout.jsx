@@ -57,7 +57,7 @@ const MainLayout = ({ user }) => {
         <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} user={user} />
         
         {/* Main Content Area */}
-        <main className="flex-1 overflow-auto bg-cosmic-darkest">
+        <main className={`flex-1 overflow-auto bg-cosmic-darkest ${isMobile ? 'pb-20' : ''}`}>
           <Outlet />
         </main>
       </div>

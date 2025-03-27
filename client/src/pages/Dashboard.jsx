@@ -242,7 +242,7 @@ const Dashboard = ({ user }) => {
   
   return (
     <motion.div
-      className="p-4 md:p-6"
+      className="p-4 md:p-6 pb-28 md:pb-6"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
@@ -263,13 +263,14 @@ const Dashboard = ({ user }) => {
         </p>
       </motion.div>
       
-      {/* Tarjetas principales */}
+      {/* Tarjetas principales - optimizadas para móvil con desplazamiento horizontal */}
       <motion.div 
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+        className="mb-6 -mx-4 px-4 overflow-x-auto pb-2 md:pb-0 md:mx-0 md:overflow-visible flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 no-scrollbar"
         variants={itemVariants}
+        style={{ scrollSnapType: 'x mandatory' }}
       >
         {/* Balance */}
-        <div className="cosmic-card p-5">
+        <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0 md:min-w-0 md:flex-shrink-1" style={{ scrollSnapAlign: 'start' }}>
           <h3 className="text-sm text-gray-400 mb-1 flex items-center">
             <FiDollarSign className="mr-1" /> Balance Actual
           </h3>
@@ -295,7 +296,7 @@ const Dashboard = ({ user }) => {
         </div>
         
         {/* Capital */}
-        <div className="cosmic-card p-5">
+        <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0 md:min-w-0 md:flex-shrink-1" style={{ scrollSnapAlign: 'start' }}>
           <h3 className="text-sm text-gray-400 mb-1 flex items-center">
             <FiBarChart className="mr-1" /> Capital Invertido
           </h3>
@@ -308,7 +309,7 @@ const Dashboard = ({ user }) => {
         </div>
         
         {/* Ganancias */}
-        <div className="cosmic-card p-5">
+        <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0 md:min-w-0 md:flex-shrink-1" style={{ scrollSnapAlign: 'start' }}>
           <h3 className="text-sm text-gray-400 mb-1 flex items-center">
             <FiActivity className="mr-1" /> Ganancias Totales
           </h3>
@@ -324,7 +325,7 @@ const Dashboard = ({ user }) => {
         </div>
         
         {/* Próxima predicción */}
-        <div className="cosmic-card p-5">
+        <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0 md:min-w-0 md:flex-shrink-1" style={{ scrollSnapAlign: 'start' }}>
           <h3 className="text-sm text-gray-400 mb-1 flex items-center">
             <FiClock className="mr-1" /> Próxima Predicción
           </h3>
@@ -338,7 +339,7 @@ const Dashboard = ({ user }) => {
       </motion.div>
       
       {/* Gráfico y transacciones */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
         {/* Gráfico de rendimiento */}
         <motion.div 
           className="lg:col-span-2 cosmic-card p-5"
@@ -418,8 +419,8 @@ const Dashboard = ({ user }) => {
         variants={itemVariants}
       >
         <h3 className="text-lg font-semibold mb-4">Activos en Cartera</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-full table-auto">
+        <div className="overflow-x-auto -mx-5 px-5 pb-2">
+          <table className="w-full min-w-[500px] table-auto">
             <thead>
               <tr className="text-left text-gray-400 border-b border-cosmic-primary/20">
                 <th className="px-4 py-2">Activo</th>
@@ -466,8 +467,8 @@ const Dashboard = ({ user }) => {
         className="cosmic-card p-5"
         variants={itemVariants}
       >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">Estado del Sistema</h3>
+        <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
+          <h3 className="text-lg font-semibold mb-2 md:mb-0">Estado del Sistema</h3>
           <div className={`flex items-center ${dashboardData.systemStatus.status === 'online' ? 'text-cosmic-green' : 'text-cosmic-yellow'}`}>
             <span className="inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
             <span>
@@ -476,7 +477,26 @@ const Dashboard = ({ user }) => {
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Versión móvil: desplazamiento horizontal para métricas */}
+        <div className="md:hidden -mx-5 px-5 overflow-x-auto pb-2 flex gap-4 no-scrollbar" style={{ scrollSnapType: 'x mandatory' }}>
+          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg min-w-[200px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <p className="text-sm text-gray-400 mb-1">Precisión de Predicciones</p>
+            <p className="text-xl font-semibold text-cosmic-glow">{dashboardData.systemStatus.predictionAccuracy}%</p>
+          </div>
+          
+          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg min-w-[200px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <p className="text-sm text-gray-400 mb-1">Última Actualización</p>
+            <p className="text-xl font-semibold">{formatTime(dashboardData.systemStatus.lastUpdated)}</p>
+          </div>
+          
+          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg min-w-[200px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <p className="text-sm text-gray-400 mb-1">Modo Sistema</p>
+            <p className="text-xl font-semibold text-cosmic-highlight">Quantum Ultra</p>
+          </div>
+        </div>
+        
+        {/* Versión desktop: rejilla normal */}
+        <div className="hidden md:grid md:grid-cols-3 gap-4">
           <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg">
             <p className="text-sm text-gray-400 mb-1">Precisión de Predicciones</p>
             <p className="text-xl font-semibold text-cosmic-glow">{dashboardData.systemStatus.predictionAccuracy}%</p>

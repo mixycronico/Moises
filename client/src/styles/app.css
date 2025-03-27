@@ -176,4 +176,14 @@
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
   }
+  
+  /* Ocultar barra de desplazamiento pero mantener funcionalidad */
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE y Edge */
+    scrollbar-width: none;     /* Firefox */
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;             /* Chrome, Safari y Opera */
+  }
 }
