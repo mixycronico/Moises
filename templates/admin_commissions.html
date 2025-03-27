@@ -262,19 +262,30 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Cargar inversionistas para el formulario de creación
-        fetch('/api/investors')
-            .then(response => response.json())
-            .then(data => {
-                const investorSelect = document.getElementById('investor_id');
-                data.investors.forEach(investor => {
-                    const option = document.createElement('option');
-                    option.value = investor.id;
-                    option.textContent = `${investor.user.username} - ${investor.category}`;
-                    investorSelect.appendChild(option);
-                });
-            })
-            .catch(error => console.error('Error cargando inversionistas:', error));
+        // Inicializar el formulario sin depender de API externa
+        // Cargaremos los inversionistas directamente desde la plantilla
+        const investorSelect = document.getElementById('investor_id');
+        {% if commissions %}
+            // Si hay comisiones, extraer inversionistas únicos
+            const investors = [];
+            {% for commission in commissions %}
+                if (!investors.some(inv => inv.id === {{ commission.investor_id }})) {
+                    investors.push({
+                        id: {{ commission.investor_id }},
+                        username: '{{ commission.investor.user.username }}',
+                        category: '{{ commission.investor.category }}'
+                    });
+                }
+            {% endfor %}
+            
+            // Agregar opciones al select
+            investors.forEach(investor => {
+                const option = document.createElement('option');
+                option.value = investor.id;
+                option.textContent = `${investor.username} - ${investor.category}`;
+                investorSelect.appendChild(option);
+            });
+        {% endif %}
         
         // Manejar creación de comisión
         document.getElementById('submit-commission').addEventListener('click', function() {
