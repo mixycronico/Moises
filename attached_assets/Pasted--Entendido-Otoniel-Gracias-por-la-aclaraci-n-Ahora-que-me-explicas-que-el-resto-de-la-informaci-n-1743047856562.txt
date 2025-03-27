@@ -1,0 +1,527 @@
+¡Entendido, Otoniel! Gracias por la aclaración. Ahora que me explicas que el resto de la información (como datos dinámicos, transacciones, historiales, etc.) debe sacarse del mismo sistema, y que lo más importante es tener una base sólida bien definida, lo tengo completamente claro. Mi enfoque será proporcionarte un código adecuado y detallado para establecer esa base, con pasos bien definidos para que la IA programadora (o tú mismo, si decides implementarlo) pueda seguirlos sin problemas. Esto asegurará que el desarrollo sea ordenado, que la estructura esté bien hecha desde el principio, y que el resto de la información pueda integrarse fácilmente más adelante.
+
+Voy a proporcionarte el código y los pasos para las primeras tareas del rol de inversionista, siguiendo el plan que ya definimos. Me enfocaré en crear una base sólida (páginas, componentes, diseño responsive, y funcionalidades clave como el chat animado), con instrucciones claras para que todo esté perfecto. Empezaremos con la **Tarea 1.1 (Página de Inicio)** y la **Tarea 1.2 (Página de Login)**, y luego avanzaremos con las demás tareas. También incluiré comentarios en el código para que sea fácil de entender y modificar.
+
+---
+
+### **Tecnologías y Estructura Base**
+Antes de empezar con las tareas, vamos a establecer las tecnologías y la estructura del proyecto para que la base sea sólida:
+
+- **Frontend**: React (con Vite para un setup rápido), Tailwind CSS (para diseño responsive), GSAP (para animaciones), Chart.js (para gráficos).
+- **Backend**: Node.js con Express (para manejar autenticación y WebSockets), WebSockets (para el chat en tiempo real), JWT (para autenticación).
+- **Base de datos**: MongoDB (para almacenar usuarios, transacciones, etc.), pero en esta etapa nos enfocaremos en la estructura frontend y simularemos los datos dinámicos con datos estáticos (puedes integrarlos desde el sistema más adelante).
+- **Estructura del proyecto**:
+  ```
+  genesis-trading-system/
+  ├── client/                     # Frontend (React)
+  │   ├── src/
+  │   │   ├── assets/            # Imágenes, logo, etc.
+  │   │   ├── components/        # Componentes reutilizables (Chat, Menu, etc.)
+  │   │   ├── pages/             # Páginas (Inicio, Login, Dashboard, etc.)
+  │   │   ├── App.jsx            # Componente principal
+  │   │   ├── main.jsx           # Punto de entrada
+  │   │   └── index.css          # Estilos globales
+  ├── server/                     # Backend (Node.js)
+  │   ├── routes/                # Rutas API
+  │   ├── models/                # Modelos de datos (MongoDB)
+  │   ├── index.js               # Servidor principal
+  │   └── websocket.js           # Configuración de WebSockets
+  ├── package.json               # Dependencias del proyecto
+  └── README.md                  # Documentación
+  ```
+
+#### **Paso 0: Configurar el Proyecto**
+1. **Inicializar el proyecto frontend**:
+   - Usa Vite para crear un proyecto React:
+     ```bash
+     npm create vite@latest client -- --template react
+     cd client
+     npm install
+     ```
+   - Instala las dependencias necesarias:
+     ```bash
+     npm install tailwindcss@latest postcss@latest autoprefixer@latest gsap chart.js react-chartjs-2 react-router-dom
+     ```
+   - Configura Tailwind CSS:
+     ```bash
+     npx tailwindcss init -p
+     ```
+     - En `tailwind.config.js`:
+       ```javascript
+       /** @type {import('tailwindcss').Config} */
+       export default {
+         content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+         theme: {
+           extend: {},
+         },
+         plugins: [],
+       };
+       ```
+     - En `src/index.css`:
+       ```css
+       @tailwind base;
+       @tailwind components;
+       @tailwind utilities;
+
+       body {
+         margin: 0;
+         font-family: 'Inter', sans-serif;
+         background: linear-gradient(to bottom right, #4B0082, #0000FF);
+       }
+       ```
+
+2. **Inicializar el proyecto backend**:
+   - Crea una carpeta `server` y configura un servidor básico con Node.js:
+     ```bash
+     mkdir server
+     cd server
+     npm init -y
+     npm install express jsonwebtoken mongoose ws
+     ```
+   - Crea un archivo `server/index.js` con un servidor básico:
+     ```javascript
+     const express = require('express');
+     const mongoose = require('mongoose');
+     const jwt = require('jsonwebtoken');
+     const WebSocket = require('ws');
+
+     const app = express();
+     const port = 5000;
+
+     // Middleware
+     app.use(express.json());
+
+     // Conectar a MongoDB (puedes configurarlo más adelante)
+     mongoose.connect('mongodb://localhost/genesis-trading', {
+       useNewUrlParser: true,
+       useUnifiedTopology: true,
+     }).then(() => console.log('Conectado a MongoDB'));
+
+     // Ruta de prueba
+     app.get('/', (req, res) => {
+       res.send('Servidor de Genesis Trading System');
+     });
+
+     // Iniciar servidor
+     const server = app.listen(port, () => {
+       console.log(`Servidor corriendo en http://localhost:${port}`);
+     });
+
+     // Configurar WebSockets (para el chat)
+     const wss = new WebSocket.Server({ server });
+     wss.on('connection', (ws) => {
+       console.log('Cliente conectado al WebSocket');
+       ws.on('message', (message) => {
+         // Simular respuesta de Aetherion y Lunareth
+         const msg = JSON.parse(message);
+         ws.send(JSON.stringify({ sender: 'Aetherion', message: `¡Hola! ${msg.message}` }));
+         setTimeout(() => {
+           ws.send(JSON.stringify({ sender: 'Lunareth', message: 'Analizando tu mensaje...' }));
+         }, 1000);
+       });
+     });
+     ```
+
+3. **Estructura inicial del frontend**:
+   - Crea las carpetas `src/components` y `src/pages`.
+   - Configura React Router en `src/App.jsx`:
+     ```jsx
+     import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+     import Inicio from './pages/Inicio';
+     import Login from './pages/Login';
+
+     function App() {
+       return (
+         <Router>
+           <Routes>
+             <Route path="/" element={<Inicio />} />
+             <Route path="/login" element={<Login />} />
+           </Routes>
+         </Router>
+       );
+     }
+
+     export default App;
+     ```
+
+---
+
+### **Tarea 1.1: Crear la Página de Inicio (Index)**
+
+#### **Paso 1: Crear el componente de la Página de Inicio**
+- Archivo: `src/pages/Inicio.jsx`
+- Código:
+  ```jsx
+  import { useEffect } from 'react';
+  import { Link } from 'react-router-dom';
+  import gsap from 'gsap';
+  import Chat from '../components/Chat'; // Importaremos este componente en la Tarea 1.3
+  import logo from '../assets/logo-genesis.png'; // Asegúrate de tener el logo en assets
+
+  const Inicio = () => {
+    useEffect(() => {
+      // Animación del logo
+      gsap.fromTo(
+        '.logo',
+        { opacity: 0, scale: 0.8 },
+        { opacity: 1, scale: 1, duration: 1, ease: 'power2.out', repeat: -1, yoyo: true }
+      );
+
+      // Animación del título y subtítulo
+      gsap.fromTo(
+        '.title',
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 1, ease: 'power2.out' }
+      );
+      gsap.fromTo(
+        '.subtitle',
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 1, delay: 1, ease: 'power2.out' }
+      );
+
+      // Animación de partículas (puedes usar una librería como tsparticles o hacerlo con CSS)
+      gsap.to('.particle', {
+        x: 'random(-100, 100)',
+        y: 'random(-100, 100)',
+        opacity: 'random(0.3, 0.8)',
+        duration: 'random(3, 6)',
+        repeat: -1,
+        ease: 'linear',
+      });
+    }, []);
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-blue-900 flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Partículas de fondo */}
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="particle absolute w-2 h-2 bg-cyan-400 rounded-full"
+            style={{
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              opacity: 0.5,
+            }}
+          />
+        ))}
+
+        {/* Logo */}
+        <img src={logo} alt="Genesis Logo" className="logo w-40 md:w-32 sm:w-24 mb-8" />
+
+        {/* Texto */}
+        <h1 className="title text-4xl md:text-3xl sm:text-2xl text-white font-bold text-center mb-4">
+          Bienvenido a Genesis Trading System
+        </h1>
+        <p className="subtitle text-xl md:text-lg sm:text-base text-gray-300 text-center mb-8">
+          Tu plataforma de trading guiada por Aetherion y Lunareth, las IAs cósmicas con doble opinión.
+        </p>
+
+        {/* Botones */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <Link
+            to="/login"
+            className="border-2 border-cyan-400 bg-white bg-opacity-20 backdrop-blur-md text-white rounded-lg px-6 py-3 md:px-4 md:py-2 hover:bg-opacity-30 transition"
+          >
+            Iniciar Sesión
+          </Link>
+          <button className="border-2 border-cyan-400 bg-white bg-opacity-20 backdrop-blur-md text-white rounded-lg px-6 py-3 md:px-4 md:py-2 hover:bg-opacity-30 transition">
+            Registrarse
+          </button>
+        </div>
+
+        {/* Chat (teaser) */}
+        <Chat isTeaser={true} />
+      </div>
+    );
+  };
+
+  export default Inicio;
+  ```
+
+#### **Paso 2: Asegurar el diseño responsive**
+- El código ya incluye clases de Tailwind CSS para responsive:
+  - Logo: `w-40 md:w-32 sm:w-24` (40 en PC, 32 en tablet, 24 en teléfono).
+  - Texto: `text-4xl md:text-3xl sm:text-2xl` para el título, `text-xl md:text-lg sm:text-base` para el subtítulo.
+  - Botones: `flex-col md:flex-row` para apilarlos verticalmente en teléfono y mostrarlos en línea en tablet/PC.
+
+#### **Paso 3: Revisar y probar**
+- Ejecuta el proyecto frontend:
+  ```bash
+  cd client
+  npm run dev
+  ```
+- Abre `http://localhost:5173` y verifica que:
+  - El logo esté centrado y animado.
+  - El título y subtítulo aparezcan con un efecto de "fade-in".
+  - Los botones sean clicables y tengan el estilo futurista.
+  - Las partículas se muevan en el fondo.
+  - El diseño sea responsive (prueba en diferentes tamaños de pantalla).
+
+---
+
+### **Tarea 1.2: Crear la Página de Login**
+
+#### **Paso 1: Crear el componente de la Página de Login**
+- Archivo: `src/pages/Login.jsx`
+- Código:
+  ```jsx
+  import { useState, useEffect } from 'react';
+  import { Link } from 'react-router-dom';
+  import gsap from 'gsap';
+  import logo from '../assets/logo-genesis.png';
+
+  const Login = () => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    useEffect(() => {
+      // Animación del logo
+      gsap.fromTo(
+        '.logo',
+        { opacity: 0, scale: 0.8 },
+        { opacity: 1, scale: 1, duration: 1, ease: 'power2.out' }
+      );
+
+      // Animación del formulario
+      gsap.fromTo(
+        '.form',
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 1, delay: 0.5, ease: 'power2.out' }
+      );
+    }, []);
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      // Aquí puedes implementar la lógica de autenticación con JWT
+      console.log('Iniciar sesión:', { email, password });
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 to-blue-900 flex items-center justify-center">
+        <div className="form w-96 md:w-80 sm:w-64 bg-white bg-opacity-20 backdrop-blur-md rounded-lg p-6 md:p-4">
+          {/* Logo */}
+          <img src={logo} alt="Genesis Logo" className="logo w-32 md:w-24 sm:w-20 mx-auto mb-6" />
+
+          {/* Formulario */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-white text-sm mb-1">
+                Correo Electrónico
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Correo electrónico"
+                className="w-full bg-white bg-opacity-20 backdrop-blur-md border border-gray-300 rounded-lg p-3 text-white placeholder-gray-300 focus:outline-none focus:border-cyan-400"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-white text-sm mb-1">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Contraseña"
+                className="w-full bg-white bg-opacity-20 backdrop-blur-md border border-gray-300 rounded-lg p-3 text-white placeholder-gray-300 focus:outline-none focus:border-cyan-400"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full border-2 border-cyan-400 bg-white bg-opacity-20 backdrop-blur-md text-white rounded-lg px-6 py-3 hover:bg-opacity-30 transition"
+            >
+              Iniciar Sesión
+            </button>
+          </form>
+
+          {/* Enlaces */}
+          <div className="mt-4 text-center space-y-2">
+            <Link to="/register" className="block text-cyan-400 hover:underline text-sm">
+              Registrarse
+            </Link>
+            <Link to="/forgot-password" className="block text-cyan-400 hover:underline text-sm">
+              Olvidé mi contraseña
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  export default Login;
+  ```
+
+#### **Paso 2: Asegurar el diseño responsive**
+- Clases de Tailwind CSS para responsive:
+  - Contenedor: `w-96 md:w-80 sm:w-64` (96 en PC, 80 en tablet, 64 en teléfono).
+  - Logo: `w-32 md:w-24 sm:w-20`.
+  - Padding: `p-6 md:p-4`.
+
+#### **Paso 3: Revisar y probar**
+- Verifica que:
+  - El logo esté centrado y animado.
+  - El formulario aparezca con un efecto de "fade-in".
+  - Los campos y el botón tengan el estilo futurista.
+  - Los enlaces sean clicables.
+  - El diseño sea responsive.
+
+---
+
+### **Tarea 1.3: Crear el Componente de la IA Guía Animada (Chat)**
+
+#### **Paso 1: Crear el componente Chat**
+- Archivo: `src/components/Chat.jsx`
+- Código:
+  ```jsx
+  import { useState, useEffect } from 'react';
+  import gsap from 'gsap';
+
+  const Chat = ({ isTeaser = false }) => {
+    const [messages, setMessages] = useState([]);
+    const [input, setInput] = useState('');
+    const [isMinimized, setIsMinimized] = useState(false);
+    const [ws, setWs] = useState(null);
+
+    useEffect(() => {
+      // Animación de la moneda
+      gsap.to('.chat-icon', {
+        y: -10,
+        repeat: -1,
+        yoyo: true,
+        duration: 1,
+        ease: 'power1.inOut',
+      });
+
+      // Conectar a WebSocket
+      const websocket = new WebSocket('ws://localhost:5000');
+      setWs(websocket);
+
+      websocket.onopen = () => {
+        console.log('Conectado al WebSocket');
+        if (isTeaser) {
+          setMessages([
+            { sender: 'Aetherion', message: '¡Bienvenido! Estoy aquí para guiarte con emoción y sabiduría.' },
+            { sender: 'Lunareth', message: 'Y yo con análisis lógico. ¿Listo para empezar?' },
+          ]);
+        }
+      };
+
+      websocket.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        setMessages((prev) => [...prev, msg]);
+      };
+
+      return () => websocket.close();
+    }, [isTeaser]);
+
+    const handleSend = (e) => {
+      e.preventDefault();
+      if (!input.trim()) return;
+
+      // Enviar mensaje del usuario
+      setMessages((prev) => [...prev, { sender: 'User', message: input }]);
+      ws.send(JSON.stringify({ message: input }));
+      setInput('');
+    };
+
+    return (
+      <div
+        className={`fixed bottom-4 right-4 w-80 md:w-64 sm:w-56 h-96 md:h-80 sm:h-72 bg-white bg-opacity-20 backdrop-blur-md rounded-lg shadow-lg transition-all ${
+          isMinimized ? 'h-12' : ''
+        }`}
+      >
+        {/* Encabezado del chat */}
+        <div className="flex items-center justify-between p-3 border-b border-gray-300">
+          <div className="flex items-center gap-2">
+            <div className="chat-icon w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+              {/* Aquí puedes agregar una imagen de la moneda de BTC con ojos */}
+              <span className="text-white">₿</span>
+            </div>
+            <h3 className="text-white text-lg">Chat Cósmico</h3>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setIsMinimized(!isMinimized)} className="text-white">
+              {isMinimized ? '⬆️' : '⬇️'}
+            </button>
+            <button onClick={() => setMessages([])} className="text-white">❌</button>
+          </div>
+        </div>
+
+        {/* Mensajes */}
+        {!isMinimized && (
+          <div className="p-3 h-72 md:h-60 sm:h-52 overflow-y-auto">
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                className={`mb-2 p-2 rounded-lg ${
+                  msg.sender === 'User'
+                    ? 'bg-gray-200 text-black ml-auto'
+                    : `bg-white bg-opacity-20 backdrop-blur-md text-${
+                        msg.sender === 'Aetherion' ? 'cyan-400' : 'purple-400'
+                      } border-${msg.sender === 'Aetherion' ? 'cyan-400' : 'purple-400'}`
+                } max-w-[80%]`}
+              >
+                <span className="font-bold">{msg.sender === 'User' ? 'Tú' : `[${msg.sender}]`}: </span>
+                {msg.message}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Entrada de mensaje */}
+        {!isMinimized && !isTeaser && (
+          <form onSubmit={handleSend} className="p-3 border-t border-gray-300">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Escribe un mensaje..."
+              className="w-full bg-white bg-opacity-20 backdrop-blur-md border border-gray-300 rounded-lg p-2 text-white placeholder-gray-300 focus:outline-none focus:border-cyan-400"
+            />
+          </form>
+        )}
+      </div>
+    );
+  };
+
+  export default Chat;
+  ```
+
+#### **Paso 2: Asegurar el diseño responsive**
+- Clases de Tailwind CSS para responsive:
+  - Chat: `w-80 md:w-64 sm:w-56 h-96 md:h-80 sm:h-72`.
+  - Altura de mensajes: `h-72 md:h-60 sm:h-52`.
+
+#### **Paso 3: Revisar y probar**
+- Asegúrate de que el servidor backend esté corriendo (`cd server && node index.js`).
+- Verifica que:
+  - La moneda de BTC esté animada (flotando).
+  - Los mensajes de Aetherion y Lunareth aparezcan en el teaser.
+  - El chat sea funcional (puedes enviar mensajes y recibir respuestas simuladas).
+  - El diseño sea responsive.
+
+---
+
+### **Siguientes Pasos**
+Una vez que estas tareas estén completas y aprobadas, pasaremos a:
+- **Tarea 1.4: Crear el Menú para Inversionistas**.
+- **Tarea 1.5: Crear el Dashboard** (usando el estilo de la imagen de referencia).
+- Y así sucesivamente, siguiendo el plan.
+
+#### **Integración de datos dinámicos**
+- En esta etapa, estamos usando datos estáticos (por ejemplo, mensajes simulados en el chat, valores fijos en el Dashboard). Más adelante, puedes conectar el frontend con el backend para obtener datos dinámicos del sistema (transacciones, precios en tiempo real, etc.).
+- Ejemplo: Para el Dashboard, puedes crear una ruta en el backend (`/api/finances`) que devuelva los datos del usuario (balance, capital gestionado), y usar `fetch` o `axios` en el frontend para obtenerlos.
+
+---
+
+### **Conclusión**
+
+Te he proporcionado el código para las primeras tareas (Página de Inicio, Página de Login, y el componente Chat), con pasos claros y un diseño responsive. La base está bien estructurada, y el resto de la información (datos dinámicos) puede integrarse fácilmente más adelante conectando el frontend con el backend.
+
+¿Te parece bien este código y los pasos? ¿Quieres que sigamos con la Tarea 1.4 (Menú para Inversionistas) o prefieres ajustar algo antes de continuar? ¡Estoy aquí para ayudarte!

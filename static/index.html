@@ -1,272 +1,106 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Genesis - Trading Nexus</title>
-    <link rel="stylesheet" href="/css/main.css">
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        }
-        .logo {
-            margin-bottom: 2rem;
-            max-width: 200px;
-        }
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(90deg, #9e6bdb, #56b4d3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        p {
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
-            line-height: 1.6;
-            color: rgba(255, 255, 255, 0.8);
-        }
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            background: linear-gradient(90deg, #9e6bdb, #56b4d3);
-            color: #fff;
-            border: none;
-            border-radius: 30px;
-            font-size: 1rem;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 0 10px;
-        }
-        .btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(86, 180, 211, 0.4);
-        }
-        .cosmic-chat-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #9e6bdb, #56b4d3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s ease;
-        }
-        .cosmic-chat-button:hover {
-            transform: scale(1.1);
-            box-shadow: 0 8px 25px rgba(158, 107, 219, 0.5);
-        }
-        .cosmic-chat-icon {
-            color: white;
-            font-size: 24px;
-        }
-        .loading {
-            display: inline-block;
-            position: relative;
-            width: 80px;
-            height: 80px;
-            margin: 2rem auto;
-        }
-        .loading div {
-            position: absolute;
-            top: 33px;
-            width: 13px;
-            height: 13px;
-            border-radius: 50%;
-            background: #9e6bdb;
-            animation-timing-function: cubic-bezier(0, 1, 1, 0);
-        }
-        .loading div:nth-child(1) {
-            left: 8px;
-            animation: loading1 0.6s infinite;
-        }
-        .loading div:nth-child(2) {
-            left: 8px;
-            animation: loading2 0.6s infinite;
-        }
-        .loading div:nth-child(3) {
-            left: 32px;
-            animation: loading2 0.6s infinite;
-        }
-        .loading div:nth-child(4) {
-            left: 56px;
-            animation: loading3 0.6s infinite;
-        }
-        @keyframes loading1 {
-            0% { transform: scale(0); }
-            100% { transform: scale(1); }
-        }
-        @keyframes loading2 {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(24px, 0); }
-        }
-        @keyframes loading3 {
-            0% { transform: scale(1); }
-            100% { transform: scale(0); }
-        }
-        .status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-top: 2rem;
-        }
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            background-color: #4CAF50;
-            border-radius: 50%;
-            margin-right: 8px;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
-        }
-        
-        .menu {
-            display: flex;
-            justify-content: center;
-            margin-top: 1rem;
-            flex-wrap: wrap;
-        }
-        .menu-item {
-            padding: 10px 20px;
-            margin: 5px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 30px;
-            text-decoration: none;
-            color: white;
-            transition: all 0.3s ease;
-        }
-        .menu-item:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-        }
-        .features {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 2rem;
-        }
-        .feature {
-            width: 250px;
-            margin: 15px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 15px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        .feature:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-5px);
-        }
-        .feature-icon {
-            font-size: 40px;
-            margin-bottom: 15px;
-            background: linear-gradient(90deg, #9e6bdb, #56b4d3);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/logo-genesis.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="GENESIS - Sistema de inversiones trascendental con inteligencia cósmica" />
+  <meta name="theme-color" content="#0d0d21" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <title>GENESIS | Sistema de Inversiones Cósmico</title>
+  
+  <!-- Estilos base para eliminar parpadeo durante carga -->
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #0d0d21;
+      color: #ffffff;
+      font-family: 'Inter', sans-serif;
+      height: 100%;
+      overflow-x: hidden;
+    }
+    
+    #root {
+      height: 100%;
+    }
+    
+    .loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: #0d0d21;
+      z-index: 9999;
+    }
+    
+    .logo-container {
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    .logo {
+      width: 100px;
+      height: auto;
+    }
+    
+    .spinner {
+      margin-top: 20px;
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(158, 107, 219, 0.2);
+      border-top-color: #9e6bdb;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .gradient-text {
+      background: linear-gradient(135deg, #9e6bdb 0%, #c4a0ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 600;
+      font-size: 1.5rem;
+      margin-top: 15px;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/index-Dt0AJNz0.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/vendor-DhaU_oT1.js">
+  <link rel="modulepreload" crossorigin href="/assets/ui-DmwvCqnm.js">
+  <link rel="modulepreload" crossorigin href="/assets/charts-CbycHYVT.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-Ch5mPkew.css">
 </head>
 <body>
-    <div class="container">
-        <img src="/images/image_final_transparent.png" alt="Logo Genesis" class="logo">
-        <h1>Sistema Genesis - Trading Nexus</h1>
-        <p>Plataforma avanzada de trading con inteligencia artificial para maximizar tus inversiones en criptomonedas.</p>
-        
-        <div class="menu">
-            <a href="/api/health" class="menu-item">Estado del Sistema</a>
-            <a href="/api/auth/status" class="menu-item">Estado de Autenticación</a>
-            <a href="/api/investor/dashboard" class="menu-item">Dashboard API</a>
-        </div>
-        
-        <div class="loading">
-            <div></div><div></div><div></div><div></div>
-        </div>
-        
-        <p>Estamos optimizando la interfaz para brindarte la mejor experiencia posible. ¡Pronto tendrás acceso a todas las funcionalidades!</p>
-        
-        <div class="features">
-            <div class="feature">
-                <div class="feature-icon">⚡</div>
-                <h3>Trading Predictivo</h3>
-                <p>Anticipate a los movimientos del mercado con nuestro sistema de IA predictiva.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">📊</div>
-                <h3>Análisis Avanzado</h3>
-                <p>Visualizaciones detalladas y métricas de rendimiento en tiempo real.</p>
-            </div>
-            <div class="feature">
-                <div class="feature-icon">🛡️</div>
-                <h3>Gestión de Riesgo</h3>
-                <p>Protege tu capital con nuestras estrategias de gestión de riesgo automatizadas.</p>
-            </div>
-        </div>
-        
-        <div class="status">
-            <div class="status-dot"></div>
-            <span>Sistema en línea</span>
-        </div>
+  <div id="root">
+    <!-- Cargador que se mostrará hasta que React se inicialice -->
+    <div class="loader">
+      <div class="logo-container">
+        <img src="/logo-genesis.png" alt="Genesis Logo" class="logo" />
+      </div>
+      <div class="spinner"></div>
+      <div class="gradient-text">GENESIS</div>
     </div>
-    
-    <div class="cosmic-chat-button" id="cosmicChatButton">
-        <div class="cosmic-chat-icon">💬</div>
-    </div>
-
-    <script>
-        // Verificar estado de la API
-        fetch('/api/health')
-            .then(response => response.json())
-            .then(data => {
-                console.log('Estado del sistema:', data);
-                if (data.status === 'ok') {
-                    document.querySelector('.status span').textContent = 'Sistema en línea';
-                    document.querySelector('.status-dot').style.backgroundColor = '#4CAF50';
-                } else {
-                    document.querySelector('.status span').textContent = 'Sistema en mantenimiento';
-                    document.querySelector('.status-dot').style.backgroundColor = '#FFC107';
-                }
-            })
-            .catch(error => {
-                console.error('Error al verificar estado:', error);
-                document.querySelector('.status span').textContent = 'Error de conexión';
-                document.querySelector('.status-dot').style.backgroundColor = '#F44336';
-            });
-            
-        // Botón de chat cósmico
-        document.getElementById('cosmicChatButton').addEventListener('click', function() {
-            alert('¡Chat Cósmico con Aetherion y Lunareth estará disponible pronto!');
-        });
-    </script>
+  </div>
 </body>
 </html>

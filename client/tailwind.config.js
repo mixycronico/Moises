@@ -4,6 +4,15 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    { pattern: /^bg-cosmic-/ },
+    { pattern: /^text-cosmic-/ },
+    { pattern: /^border-cosmic-/ },
+    { pattern: /^from-cosmic-/ },
+    { pattern: /^to-cosmic-/ },
+    { pattern: /^via-cosmic-/ },
+    'opacity-10', 'opacity-20', 'opacity-30', 'opacity-40', 'opacity-50', 'opacity-60', 'opacity-70', 'opacity-80', 'opacity-90'
+  ],
   theme: {
     extend: {
       fontFamily: {
@@ -15,6 +24,10 @@ export default {
           dark: 'var(--cosmic-dark)',
           darkest: 'var(--cosmic-darkest)',
           primary: 'var(--cosmic-primary)',
+          'primary-10': 'rgba(42, 42, 74, 0.1)',
+          'primary-20': 'rgba(42, 42, 74, 0.2)',
+          'primary-30': 'rgba(42, 42, 74, 0.3)',
+          'primary-50': 'rgba(42, 42, 74, 0.5)',
           secondary: 'var(--cosmic-secondary)',
           accent: 'var(--cosmic-accent)',
           highlight: 'var(--cosmic-highlight)',

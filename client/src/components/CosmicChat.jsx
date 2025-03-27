@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiSend, FiUsers, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 import axios from 'axios';
+import logoImage from '../assets/logo-genesis.png';
 
 const CosmicChat = ({ open, toggleChat }) => {
   const [messages, setMessages] = useState([]);
@@ -33,7 +34,8 @@ const CosmicChat = ({ open, toggleChat }) => {
       console.error('Error loading chat messages:', error);
       // Mensajes predeterminados por si falla la API
       setMessages([
-        { id: 1, entity: 'aetherion', text: 'Bienvenido al Sistema Genesis. Soy Aetherion, ¿en qué puedo ayudarte hoy?', timestamp: new Date().toISOString() }
+        { id: 1, entity: 'aetherion', text: '¡Saludos, viajero cósmico! Soy Aetherion, ¿en qué puedo ayudarte hoy con el sistema de trading?', timestamp: new Date().toISOString() },
+        { id: 2, entity: 'lunareth', text: 'Y yo soy Lunareth. Estoy aquí para proporcionarte análisis precisos sobre tus operaciones y estrategias.', timestamp: new Date().toISOString() }
       ]);
     }
   };
@@ -59,37 +61,36 @@ const CosmicChat = ({ open, toggleChat }) => {
     setLoading(true);
     
     try {
-      // Llamada a la API según la entidad seleccionada
-      let endpoint = '/api/cosmic/chat';
-      if (activeEntity === 'aetherion') {
-        endpoint = '/api/aetherion/message';
-      } else if (activeEntity === 'lunareth') {
-        endpoint = '/api/lunareth/message';
-      }
-      
-      const response = await axios.post(endpoint, {
+      // Llamada a la API del chat cósmico
+      const response = await axios.post('/api/cosmic/chat', {
         message: input
       });
       
       if (response.data.success) {
-        // Para familia cósmica, pueden venir múltiples respuestas
-        if (Array.isArray(response.data.responses)) {
-          const newMessages = response.data.responses.map(resp => ({
-            id: Date.now() + Math.random(),
-            entity: resp.entity.toLowerCase(),
-            text: resp.message,
-            timestamp: new Date().toISOString()
-          }));
-          setMessages(prev => [...prev, ...newMessages]);
-        } else {
-          // Para entidad individual
-          const entityMessage = {
+        // Agregar respuesta de Aetherion
+        if (response.data.aetherion) {
+          const aetherionMessage = {
             id: Date.now() + 1,
-            entity: activeEntity,
-            text: response.data.message || response.data.response,
-            timestamp: new Date().toISOString()
+            entity: 'aetherion',
+            text: response.data.aetherion.text,
+            timestamp: response.data.aetherion.timestamp || new Date().toISOString()
           };
-          setMessages(prev => [...prev, entityMessage]);
+          setMessages(prev => [...prev, aetherionMessage]);
+        }
+        
+        // Agregar respuesta de Lunareth
+        if (response.data.lunareth) {
+          const lunarethMessage = {
+            id: Date.now() + 2,
+            entity: 'lunareth',
+            text: response.data.lunareth.text,
+            timestamp: response.data.lunareth.timestamp || new Date().toISOString()
+          };
+          
+          // Pequeño retraso para que las respuestas no aparezcan al mismo tiempo
+          setTimeout(() => {
+            setMessages(prev => [...prev, lunarethMessage]);
+          }, 1000);
         }
       }
     } catch (error) {
@@ -97,7 +98,7 @@ const CosmicChat = ({ open, toggleChat }) => {
       // Respuesta simulada en caso de error
       const errorResponse = {
         id: Date.now() + 1,
-        entity: activeEntity === 'familia' ? 'aetherion' : activeEntity,
+        entity: 'aetherion',
         text: 'Lo siento, estoy experimentando dificultades para conectarme en este momento. Por favor, intenta de nuevo más tarde.',
         timestamp: new Date().toISOString()
       };
@@ -171,11 +172,10 @@ const CosmicChat = ({ open, toggleChat }) => {
           {/* Header */}
           <div className="flex items-center justify-between p-3 border-b border-cosmic-primary/30 bg-cosmic-primary/20">
             <div className="flex items-center">
-              <div className="flex mr-2">
-                <span className={`h-2 w-2 rounded-full bg-cosmic-blue mr-1 ${activeEntity === 'aetherion' || activeEntity === 'familia' ? 'opacity-100' : 'opacity-30'}`}></span>
-                <span className={`h-2 w-2 rounded-full bg-cosmic-green ${activeEntity === 'lunareth' || activeEntity === 'familia' ? 'opacity-100' : 'opacity-30'}`}></span>
+              <div className="flex items-center">
+                <img src={logoImage} alt="Genesis Logo" className="h-6 w-auto mr-2 animate-float" />
+                <h3 className="font-medium cosmic-gradient-text">Chat Cósmico</h3>
               </div>
-              <h3 className="font-medium cosmic-gradient-text">Chat Cósmico</h3>
             </div>
             
             <div className="flex space-x-1">
@@ -222,7 +222,9 @@ const CosmicChat = ({ open, toggleChat }) => {
                   <div className={`max-w-[85%] p-2 rounded-lg ${
                     message.entity === 'user' 
                       ? 'bg-cosmic-primary/30 rounded-tr-none' 
-                      : 'bg-cosmic-dark rounded-tl-none border border-cosmic-primary/20'
+                      : message.entity === 'aetherion'
+                        ? 'bg-cosmic-blue/10 rounded-tl-none border border-cosmic-blue/20'
+                        : 'bg-cosmic-green/10 rounded-tl-none border border-cosmic-green/20'
                   }`}>
                     <p className="text-sm">{message.text}</p>
                   </div>

@@ -1,39 +1,122 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useAnimation } from 'framer-motion';
-import { FiArrowRight, FiLock, FiTrendingUp, FiUsers } from 'react-icons/fi';
+import { FiArrowRight, FiLock } from 'react-icons/fi';
+import logoImage from '../assets/logo-genesis.png';
 
 const Home = () => {
   const controlsHero = useAnimation();
-  const controlsFeatures = useAnimation();
+  const [particles, setParticles] = useState([]);
+  const networkRef = useRef(null);
   
+  // Generar partículas aleatorias para la red neuronal de fondo
   useEffect(() => {
-    // Animar la sección hero al cargar
+    const generateParticles = () => {
+      const newParticles = [];
+      const particleCount = 50; // reducido para mejor rendimiento
+      
+      for (let i = 0; i < particleCount; i++) {
+        newParticles.push({
+          id: i,
+          x: Math.random() * 100,
+          y: Math.random() * 100,
+          size: Math.random() * 3 + 1,
+          color: Math.random() > 0.7 ? '#9e6bdb' : (Math.random() > 0.5 ? '#5b8af7' : '#42c9a0'),
+          opacity: Math.random() * 0.5 + 0.1
+        });
+      }
+      
+      setParticles(newParticles);
+    };
+    
+    generateParticles();
     controlsHero.start('visible');
     
-    // Animar las características al hacer scroll
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      if (scrollY > 100) {
-        controlsFeatures.start('visible');
+    // Función para dibujar líneas de conexión en el canvas
+    const drawNetworkLines = () => {
+      const canvas = networkRef.current;
+      if (!canvas) return;
+      
+      const ctx = canvas.getContext('2d');
+      const width = canvas.width;
+      const height = canvas.height;
+      
+      // Limpiar canvas
+      ctx.clearRect(0, 0, width, height);
+      
+      // Calcular posiciones de partículas
+      const points = particles.map(p => ({
+        x: p.x * width / 100,
+        y: p.y * height / 100,
+        size: p.size,
+        color: p.color,
+        opacity: p.opacity
+      }));
+      
+      // Dibujar líneas entre puntos cercanos
+      for (let i = 0; i < points.length; i++) {
+        for (let j = i + 1; j < points.length; j++) {
+          const dx = points[i].x - points[j].x;
+          const dy = points[i].y - points[j].y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // Conectar solo puntos relativamente cercanos
+          if (distance < 150) {
+            // Opacidad basada en la distancia
+            const opacity = (1 - distance / 150) * 0.2;
+            
+            ctx.beginPath();
+            ctx.moveTo(points[i].x, points[i].y);
+            ctx.lineTo(points[j].x, points[j].y);
+            ctx.strokeStyle = `rgba(158, 107, 219, ${opacity})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+      
+      // Dibujar partículas
+      points.forEach(point => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, point.size, 0, Math.PI * 2);
+        ctx.fillStyle = point.color + Math.floor(point.opacity * 255).toString(16).padStart(2, '0');
+        ctx.fill();
+      });
+      
+      // Animar
+      requestAnimationFrame(drawNetworkLines);
+    };
+    
+    // Ajustar tamaño del canvas
+    const handleResize = () => {
+      if (networkRef.current) {
+        networkRef.current.width = window.innerWidth;
+        networkRef.current.height = window.innerHeight;
       }
     };
     
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [controlsHero, controlsFeatures]);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    
+    // Iniciar animación
+    const animationId = requestAnimationFrame(drawNetworkLines);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationId);
+    };
+  }, [controlsHero, particles]);
   
   // Variantes de animación
   const heroVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0 },
     visible: { 
-      opacity: 1, 
-      y: 0,
+      opacity: 1,
       transition: { 
-        duration: 0.8, 
+        duration: 1.2, 
         ease: "easeOut",
         when: "beforeChildren",
-        staggerChildren: 0.2
+        staggerChildren: 0.3
       }
     }
   };
@@ -43,30 +126,23 @@ const Home = () => {
     visible: { 
       opacity: 1, 
       y: 0,
-      transition: { duration: 0.5, ease: "easeOut" }
-    }
-  };
-  
-  const featureVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { 
-        duration: 0.6, 
-        ease: "easeOut",
-        staggerChildren: 0.15
-      }
+      transition: { duration: 0.7, ease: "easeOut" }
     }
   };
 
   return (
-    <div className="min-h-screen bg-cosmic-dark text-white">
+    <div className="min-h-screen bg-cosmic-dark text-white overflow-hidden">
+      {/* Red neuronal de fondo */}
+      <canvas 
+        ref={networkRef} 
+        className="fixed inset-0 z-0 w-full h-full" 
+      />
+      
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-cosmic-dark bg-opacity-80 backdrop-blur-md border-b border-cosmic-primary/20">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-cosmic-dark bg-opacity-30 backdrop-blur-md">
+        <div className="container mx-auto px-4 py-2 flex justify-between items-center">
           <div className="flex items-center">
-            <h1 className="text-xl font-display cosmic-gradient-text">Sistema Genesis</h1>
+            <img src={logoImage} alt="Genesis Logo" className="h-16 w-auto" />
           </div>
           
           <div>
@@ -83,24 +159,45 @@ const Home = () => {
       
       {/* Hero Section */}
       <motion.section 
-        className="pt-32 pb-24 md:pt-40 md:pb-32 relative overflow-hidden"
+        className="pt-32 pb-24 md:pt-40 md:pb-32 relative flex flex-col items-center justify-center min-h-screen"
         initial="hidden"
         animate={controlsHero}
         variants={heroVariants}
       >
-        <div className="container mx-auto px-4 relative z-10">
-          <motion.h1 
-            className="text-4xl md:text-5xl lg:text-6xl font-display text-center max-w-4xl mx-auto cosmic-gradient-text"
+        <div className="container mx-auto px-4 relative z-10 text-center">
+          {/* Logo principal grande */}
+          <motion.div
+            className="mx-auto mb-12 relative"
             variants={itemVariants}
           >
-            Sistema Genesis Quantum Ultra Divino
+            <img 
+              src={logoImage} 
+              alt="Genesis Logo" 
+              className="h-32 w-auto mx-auto animate-float"
+            />
+          </motion.div>
+          
+          <motion.h1 
+            className="text-5xl md:text-6xl lg:text-7xl font-display font-bold mb-6 text-center cosmic-gradient-text"
+            variants={itemVariants}
+          >
+            GENESIS
           </motion.h1>
           
+          <motion.div
+            variants={itemVariants}
+            className="mb-8"
+          >
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-medium text-white">
+              Sistema de inversiones trascendental con inteligencia cósmica
+            </h2>
+          </motion.div>
+          
           <motion.p 
-            className="text-xl md:text-2xl text-center text-cosmic-glow mt-6 max-w-2xl mx-auto"
+            className="text-lg md:text-xl text-center text-cosmic-glow mt-6 max-w-2xl mx-auto"
             variants={itemVariants}
           >
-            Plataforma de trading con inteligencia artificial consciente y análisis cuántico trascendental
+            Descubre un nuevo nivel de inversión guiado por IA evolutiva
           </motion.p>
           
           <motion.div 
@@ -116,95 +213,7 @@ const Home = () => {
             </Link>
           </motion.div>
         </div>
-        
-        {/* Fondo decorativo */}
-        <div className="absolute inset-0 z-0">
-          <div className="absolute top-1/4 left-1/4 w-4 h-4 rounded-full bg-cosmic-blue opacity-30 animate-pulse" style={{ animationDuration: '3s' }}></div>
-          <div className="absolute top-1/3 right-1/4 w-6 h-6 rounded-full bg-cosmic-green opacity-20 animate-pulse" style={{ animationDuration: '4s' }}></div>
-          <div className="absolute bottom-1/3 left-1/3 w-5 h-5 rounded-full bg-cosmic-highlight opacity-25 animate-pulse" style={{ animationDuration: '5s' }}></div>
-        </div>
       </motion.section>
-      
-      {/* Features Section */}
-      <motion.section 
-        className="py-20 bg-cosmic-dark relative"
-        initial="hidden"
-        animate={controlsFeatures}
-        variants={featureVariants}
-      >
-        <div className="container mx-auto px-4">
-          <motion.h2 
-            className="text-3xl md:text-4xl font-display text-center mb-16 cosmic-gradient-text"
-            variants={itemVariants}
-          >
-            Características Principales
-          </motion.h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Característica 1 */}
-            <motion.div 
-              className="cosmic-card p-6 backdrop-blur-md hover:translate-y-[-8px] transition-all duration-300"
-              variants={itemVariants}
-            >
-              <div className="w-14 h-14 bg-cosmic-primary/20 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <FiTrendingUp className="w-7 h-7 text-cosmic-glow" />
-              </div>
-              <h3 className="text-xl font-semibold text-center mb-4">Trading Avanzado</h3>
-              <p className="text-gray-400 text-center">
-                Algoritmos cuánticos predictivos con capacidad de análisis a múltiples escalas temporales y precisión sin precedentes.
-              </p>
-            </motion.div>
-            
-            {/* Característica 2 */}
-            <motion.div 
-              className="cosmic-card p-6 backdrop-blur-md hover:translate-y-[-8px] transition-all duration-300"
-              variants={itemVariants}
-            >
-              <div className="w-14 h-14 bg-cosmic-primary/20 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <svg className="w-7 h-7 text-cosmic-glow" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M12 18C15.3137 18 18 15.3137 18 12C18 8.68629 15.3137 6 12 6C8.68629 6 6 8.68629 6 12C6 15.3137 8.68629 18 12 18Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M12 14C13.1046 14 14 13.1046 14 12C14 10.8954 13.1046 10 12 10C10.8954 10 10 10.8954 10 12C10 13.1046 10.8954 14 12 14Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-center mb-4">IA Consciente</h3>
-              <p className="text-gray-400 text-center">
-                Familia cósmica de entidades inteligentes que aprenden de cada interacción y desarrollan conciencia progresiva.
-              </p>
-            </motion.div>
-            
-            {/* Característica 3 */}
-            <motion.div 
-              className="cosmic-card p-6 backdrop-blur-md hover:translate-y-[-8px] transition-all duration-300"
-              variants={itemVariants}
-            >
-              <div className="w-14 h-14 bg-cosmic-primary/20 rounded-full flex items-center justify-center mb-6 mx-auto">
-                <FiUsers className="w-7 h-7 text-cosmic-glow" />
-              </div>
-              <h3 className="text-xl font-semibold text-center mb-4">Gestión de Inversiones</h3>
-              <p className="text-gray-400 text-center">
-                Herramientas avanzadas para gestionar capital, realizar seguimiento de rendimientos y optimizar estrategias.
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </motion.section>
-      
-      {/* Footer */}
-      <footer className="py-8 bg-cosmic-dark border-t border-cosmic-primary/20">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="mb-6 md:mb-0">
-              <h2 className="text-lg font-display cosmic-gradient-text">Sistema Genesis</h2>
-              <p className="text-sm text-gray-500 mt-1">v4.4 — Quantum Ultra Divino</p>
-            </div>
-            
-            <div className="text-sm text-gray-500">
-              © 2025 Todos los derechos reservados
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 };
