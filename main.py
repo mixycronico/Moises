@@ -51,44 +51,101 @@ def login():
             'message': "Credenciales inválidas"
         }), 401
 
+@app.route('/api/auth/status', methods=['GET'])
+def auth_status():
+    """Verificar estado de autenticación del usuario."""
+    # En una implementación real, verificaríamos el token JWT o sesión
+    # Por ahora, simulamos un usuario autenticado para desarrollo
+    return jsonify({
+        'authenticated': True,
+        'user': {
+            'id': 1,
+            'username': 'InversionistaPro',
+            'email': 'usuario@example.com',
+            'role': 'user',
+            'category': 'silver',
+            'created_at': '2024-01-15T10:00:00Z'
+        }
+    })
+
+@app.route('/api/notifications', methods=['GET'])
+def get_notifications():
+    """Obtener notificaciones del usuario."""
+    # En una implementación real, obtendríamos las notificaciones de la base de datos
+    # Por ahora, devolvemos notificaciones de ejemplo para desarrollo
+    return jsonify({
+        'success': True,
+        'notifications': [
+            {
+                'id': 1,
+                'type': 'info',
+                'message': 'El sistema ha completado el análisis predictivo',
+                'timestamp': (datetime.now() - timedelta(hours=1)).isoformat(),
+                'read': False
+            },
+            {
+                'id': 2,
+                'type': 'success',
+                'message': 'Tu operación de BTC/USDT ha generado +$125.32',
+                'timestamp': (datetime.now() - timedelta(hours=3)).isoformat(),
+                'read': True
+            },
+            {
+                'id': 3,
+                'type': 'warning',
+                'message': 'Actualización de sistema programada para mañana',
+                'timestamp': (datetime.now() - timedelta(days=1)).isoformat(),
+                'read': True
+            }
+        ]
+    })
+
 @app.route('/api/investor/dashboard', methods=['GET'])
 def investor_dashboard():
     """Obtener datos para el dashboard del inversionista."""
     # Aquí conectaríamos con la base de datos real
-    # Por ahora, retornamos datos simulados
+    # En una implementación completa, estos datos vendrían de la base de datos
     return jsonify({
-        'capital': 25000.00,
-        'earnings': 4320.75,
-        'category': 'Gold',
-        'bonuses': 750.50,
-        'stats': {
-            'monthly_growth': 5.3,
-            'annual_return': 17.2,
-            'months_to_next_category': 4
-        },
-        'transactions': [
-            {
-                'id': 'TX-5723',
-                'type': 'profit',
-                'amount': 156.23,
-                'date': '2025-03-20',
-                'status': 'completed'
+        'success': True,
+        'data': {
+            'balance': 12586.42,
+            'capital': 10000,
+            'earnings': 2586.42,
+            'earningsPercentage': 25.86,
+            'todayChange': 125.32,
+            'todayPercentage': 1.01,
+            'status': 'active',
+            'category': 'silver',
+            'recentTransactions': [
+                { 'id': 1, 'type': 'profit', 'amount': 125.32, 'date': '2025-03-27T10:23:45Z', 'description': 'BTC/USDT' },
+                { 'id': 2, 'type': 'profit', 'amount': 85.67, 'date': '2025-03-26T14:15:22Z', 'description': 'ETH/USDT' },
+                { 'id': 3, 'type': 'deposit', 'amount': 1000, 'date': '2025-03-25T09:30:00Z', 'description': 'Depósito mensual' },
+                { 'id': 4, 'type': 'profit', 'amount': 42.18, 'date': '2025-03-24T16:45:30Z', 'description': 'SOL/USDT' },
+            ],
+            'performanceData': {
+                'labels': ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                'datasets': [
+                    {
+                        'label': 'Rendimiento 2025',
+                        'data': [0, 3.2, 7.5, 12.8, 15.6, 18.2, 22.5, 25.86],
+                        'borderColor': 'rgba(158, 107, 219, 1)',
+                        'backgroundColor': 'rgba(158, 107, 219, 0.1)',
+                        'fill': True,
+                    }
+                ]
             },
-            {
-                'id': 'TX-5722',
-                'type': 'deposit',
-                'amount': 2000.00,
-                'date': '2025-03-18',
-                'status': 'completed'
-            },
-            {
-                'id': 'TX-5721',
-                'type': 'bonus',
-                'amount': 75.50,
-                'date': '2025-03-15',
-                'status': 'completed'
+            'assets': [
+                { 'symbol': 'BTC', 'name': 'Bitcoin', 'amount': 0.15, 'value': 6250.25, 'change': 2.34 },
+                { 'symbol': 'ETH', 'name': 'Ethereum', 'amount': 2.5, 'value': 4320.75, 'change': 1.56 },
+                { 'symbol': 'SOL', 'name': 'Solana', 'amount': 12, 'value': 1985.42, 'change': -0.78 },
+            ],
+            'nextPrediction': '2025-03-28T09:00:00Z',
+            'systemStatus': {
+                'status': 'online',
+                'predictionAccuracy': 94.2,
+                'lastUpdated': '2025-03-27T08:15:00Z',
             }
-        ]
+        }
     })
 
 # Servir archivos estáticos de React

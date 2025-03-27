@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import { useAuth } from '../utils/AuthContext';
 
-const Login = ({ setUser }) => {
+const Login = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
   });
-  const [loading, setLoading] = useState(false);
+  const { login, error: authError, isLoading } = useAuth();
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
@@ -22,17 +22,14 @@ const Login = ({ setUser }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     try {
-      const response = await axios.post('/api/auth/login', formData);
-      
-      if (response.data.success) {
-        setUser(response.data.user);
+      const result = await login(formData);
+      if (result.success) {
         navigate('/dashboard');
       } else {
-        setError(response.data.message || 'Ha ocurrido un error durante el inicio de sesión.');
+        setError(result.error || 'Ha ocurrido un error durante el inicio de sesión.');
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -40,8 +37,6 @@ const Login = ({ setUser }) => {
         error.response?.data?.message || 
         'No se pudo conectar con el servidor. Por favor, intenta de nuevo más tarde.'
       );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -136,7 +131,7 @@ const Login = ({ setUser }) => {
                   onChange={handleChange}
                   className="cosmic-input"
                   placeholder="Ingresa tu nombre de usuario"
-                  disabled={loading}
+                  disabled={isLoading}
                 />
               </div>
               
@@ -153,16 +148,16 @@ const Login = ({ setUser }) => {
                   onChange={handleChange}
                   className="cosmic-input"
                   placeholder="Ingresa tu contraseña"
-                  disabled={loading}
+                  disabled={isLoading}
                 />
               </div>
               
               <button
                 type="submit"
                 className="w-full cosmic-button py-2.5"
-                disabled={loading}
+                disabled={isLoading}
               >
-                {loading ? (
+                {isLoading ? (
                   <div className="flex justify-center items-center">
                     <div className="spinner h-5 w-5 border-2 border-transparent border-t-white rounded-full animate-spin"></div>
                     <span className="ml-2">Iniciando sesión...</span>

@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import axios from 'axios';
+import { AuthProvider, useAuth } from './utils/AuthContext';
 
 // Layouts
 import MainLayout from './components/MainLayout';
@@ -14,72 +13,57 @@ import NotFound from './pages/NotFound';
 // CSS
 import './styles/app.css';
 
-const App = () => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+// Componente para rutas protegidas
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
   
-  // Verificar sesión
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const response = await axios.get('/api/auth/status');
-        if (response.data.authenticated) {
-          setUser(response.data.user);
-        }
-      } catch (error) {
-        console.error('Error checking session:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkSession();
-  }, []);
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-cosmic-dark">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cosmic-accent"></div>
+      </div>
+    );
+  }
   
-  // Rutas protegidas
-  const ProtectedRoute = ({ children }) => {
-    if (loading) {
-      return (
-        <div className="h-screen w-screen flex items-center justify-center bg-cosmic-dark">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cosmic-accent"></div>
-        </div>
-      );
-    }
-    
-    if (!user) {
-      return <Navigate to="/login" />;
-    }
-    
-    return children;
-  };
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
   
-  // Rutas públicas (redirigen al dashboard si ya está autenticado)
-  const PublicRoute = ({ children }) => {
-    if (loading) {
-      return (
-        <div className="h-screen w-screen flex items-center justify-center bg-cosmic-dark">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cosmic-accent"></div>
-        </div>
-      );
-    }
-    
-    if (user) {
-      return <Navigate to="/dashboard" />;
-    }
-    
-    return children;
-  };
+  return children;
+};
+
+// Componente para rutas públicas (redirigen al dashboard si ya está autenticado)
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-cosmic-dark">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cosmic-accent"></div>
+      </div>
+    );
+  }
+  
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  return children;
+};
+
+const AppRoutes = () => {
+  const { user } = useAuth();
 
   return (
     <Router>
       <Routes>
         {/* Rutas públicas */}
         <Route path="/" element={<PublicRoute><Home /></PublicRoute>} />
-        <Route path="/login" element={<PublicRoute><Login setUser={setUser} /></PublicRoute>} />
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
         
         {/* Rutas protegidas */}
         <Route path="/" element={<ProtectedRoute><MainLayout user={user} /></ProtectedRoute>}>
-          <Route path="/dashboard" element={<Dashboard user={user} />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/trading" element={<div className="p-6">Página de Trading (En desarrollo)</div>} />
           <Route path="/investments" element={<div className="p-6">Página de Inversiones (En desarrollo)</div>} />
           <Route path="/history" element={<div className="p-6">Página de Historial (En desarrollo)</div>} />
@@ -103,6 +87,15 @@ const App = () => {
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
+  );
+};
+
+// Componente principal que envuelve toda la aplicación con el proveedor de autenticación
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 };
 

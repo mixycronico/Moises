@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Genesis - Plataforma de Trading</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        .logo {
+            margin-bottom: 2rem;
+            max-width: 200px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(90deg, #9e6bdb, #56b4d3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(90deg, #9e6bdb, #56b4d3);
+            color: #fff;
+            border: none;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(86, 180, 211, 0.4);
+        }
+        .loading {
+            display: inline-block;
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin: 2rem auto;
+        }
+        .loading div {
+            position: absolute;
+            top: 33px;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: #9e6bdb;
+            animation-timing-function: cubic-bezier(0, 1, 1, 0);
+        }
+        .loading div:nth-child(1) {
+            left: 8px;
+            animation: loading1 0.6s infinite;
+        }
+        .loading div:nth-child(2) {
+            left: 8px;
+            animation: loading2 0.6s infinite;
+        }
+        .loading div:nth-child(3) {
+            left: 32px;
+            animation: loading2 0.6s infinite;
+        }
+        .loading div:nth-child(4) {
+            left: 56px;
+            animation: loading3 0.6s infinite;
+        }
+        @keyframes loading1 {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+        @keyframes loading2 {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(24px, 0); }
+        }
+        @keyframes loading3 {
+            0% { transform: scale(1); }
+            100% { transform: scale(0); }
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            background-color: #4CAF50;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="/images/image_final_transparent.png" alt="Logo Genesis" class="logo">
+        <h1>Sistema Genesis - Trading Nexus</h1>
+        <p>Plataforma avanzada de trading con inteligencia artificial para maximizar tus inversiones en criptomonedas.</p>
+        
+        <div class="loading">
+            <div></div><div></div><div></div><div></div>
+        </div>
+        
+        <p>Estamos construyendo la interfaz de usuario. Pronto tendrás acceso a toda la experiencia de Genesis Trading Nexus.</p>
+        
+        <a href="/api/health" class="btn">Verificar API</a>
+        <a href="mailto:soporte@genesis-trading.com" class="btn">Contacto</a>
+        
+        <div class="status">
+            <div class="status-dot"></div>
+            <span>Sistema en línea</span>
+        </div>
+    </div>
+
+    <script>
+        // Verificar estado de la API
+        fetch('/api/health')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Estado del sistema:', data);
+                if (data.status === 'ok') {
+                    document.querySelector('.status span').textContent = 'Sistema en línea';
+                    document.querySelector('.status-dot').style.backgroundColor = '#4CAF50';
+                } else {
+                    document.querySelector('.status span').textContent = 'Sistema en mantenimiento';
+                    document.querySelector('.status-dot').style.backgroundColor = '#FFC107';
+                }
+            })
+            .catch(error => {
+                console.error('Error al verificar estado:', error);
+                document.querySelector('.status span').textContent = 'Error de conexión';
+                document.querySelector('.status-dot').style.backgroundColor = '#F44336';
+            });
+    </script>
+</body>
+</html>

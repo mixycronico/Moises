@@ -5,7 +5,8 @@ import {
   FiMenu, FiX, FiUser, FiSettings, FiLogOut, 
   FiBell, FiHelpCircle, FiChevronDown 
 } from 'react-icons/fi';
-import axios from 'axios';
+import { useAuth } from '../utils/AuthContext';
+import { getNotifications } from '../services/api';
 
 const Header = ({ toggleSidebar, sidebarOpen, user }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -14,41 +15,18 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
   const navigate = useNavigate();
+  const { logout } = useAuth();
   
-  // Cargar notificaciones (simulado)
+  // Cargar notificaciones
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await axios.get('/api/notifications');
-        if (response.data.success) {
-          setNotifications(response.data.notifications);
+        const data = await getNotifications();
+        if (data.success) {
+          setNotifications(data.notifications);
         }
       } catch (error) {
         console.error('Error loading notifications:', error);
-        // Notificaciones de prueba en caso de error
-        setNotifications([
-          {
-            id: 1,
-            type: 'info',
-            message: 'El sistema ha completado el análisis predictivo',
-            timestamp: '2025-03-27T10:30:00Z',
-            read: false
-          },
-          {
-            id: 2,
-            type: 'success',
-            message: 'Tu operación de BTC/USDT ha generado +$125.32',
-            timestamp: '2025-03-27T09:15:00Z',
-            read: true
-          },
-          {
-            id: 3,
-            type: 'warning',
-            message: 'Actualización de sistema programada para mañana',
-            timestamp: '2025-03-26T16:45:00Z',
-            read: true
-          }
-        ]);
       }
     };
     
@@ -75,11 +53,10 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
   // Logout
   const handleLogout = async () => {
     try {
-      await axios.post('/api/auth/logout');
+      await logout();
       navigate('/login');
     } catch (error) {
       console.error('Error during logout:', error);
-      // Navegación de emergencia
       navigate('/login');
     }
   };
@@ -87,7 +64,10 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
   // Marcar notificación como leída
   const markAsRead = async (id) => {
     try {
-      await axios.post(`/api/notifications/${id}/read`);
+      // En una implementación real, usaríamos una API
+      // await markNotificationAsRead(id);
+      
+      // Por ahora, actualizamos el estado directamente
       setNotifications(prev => 
         prev.map(notif => 
           notif.id === id ? { ...notif, read: true } : notif
@@ -95,12 +75,6 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
       );
     } catch (error) {
       console.error('Error marking notification as read:', error);
-      // Actualización optimista en caso de error
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif.id === id ? { ...notif, read: true } : notif
-        )
-      );
     }
   };
   
