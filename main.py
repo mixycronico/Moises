@@ -6,6 +6,13 @@ import json
 import logging
 from datetime import datetime, timedelta
 
+# Importar módulos del sistema
+try:
+    from cosmic_family import CosmicEntity
+    from cosmic_trading_api import register_trading_routes
+except ImportError as e:
+    logging.error(f"Error al importar módulos del sistema: {e}")
+
 # Configuración de logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -199,6 +206,13 @@ def serve(path):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
+
+# Registrar rutas de trading
+try:
+    register_trading_routes(app)
+    logging.info("Rutas de trading registradas correctamente")
+except Exception as e:
+    logging.error(f"Error al registrar rutas de trading: {e}")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
