@@ -1,77 +1,53 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import Header from './Header';
+import Sidebar from './Sidebar';
 import CosmicChat from './CosmicChat';
-import gsap from 'gsap';
+import { FiMessageCircle } from 'react-icons/fi';
 
-const MainLayout = ({ children, title = 'Dashboard' }) => {
-  const navigate = useNavigate();
-
-  // Comprobar autenticación al cargar
-  useEffect(() => {
-    const token = localStorage.getItem('userToken');
-    if (!token) {
-      // Redirigir a login si no hay token
-      navigate('/login');
-    }
-  }, [navigate]);
-
-  // Animaciones GSAP para el contenido
-  useEffect(() => {
-    // Animación del contenido principal
-    gsap.fromTo(
-      '.main-content',
-      { opacity: 0 },
-      { opacity: 1, duration: 0.8, ease: 'power2.out' }
-    );
-    
-    // Animación de las partículas de fondo
-    const particles = document.querySelectorAll('.bg-particle');
-    particles.forEach((particle) => {
-      gsap.to(particle, {
-        x: 'random(-100, 100)',
-        y: 'random(-100, 100)',
-        opacity: 'random(0.1, 0.5)',
-        duration: 'random(15, 30)',
-        repeat: -1,
-        yoyo: true,
-        ease: 'none',
-      });
-    });
-  }, []);
+const MainLayout = ({ user }) => {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
+  
+  const toggleSidebar = () => {
+    setSidebarOpen(prev => !prev);
+  };
+  
+  const toggleChat = () => {
+    setChatOpen(prev => !prev);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-primary-dark flex">
-      {/* Partículas de fondo */}
-      {Array.from({ length: 15 }).map((_, i) => (
-        <div
-          key={i}
-          className="bg-particle absolute opacity-20 dark:opacity-30"
-          style={{
-            top: `${Math.random() * 100}%`,
-            left: `${Math.random() * 100}%`,
-            width: `${Math.random() * 10 + 5}px`,
-            height: `${Math.random() * 10 + 5}px`,
-            borderRadius: '50%',
-            background: `radial-gradient(circle, rgba(140,82,255,1) 0%, rgba(99,102,241,0) 70%)`,
-          }}
-        />
-      ))}
+    <div className="flex h-screen bg-cosmic-dark text-white overflow-hidden">
+      {/* Sidebar */}
+      <Sidebar open={sidebarOpen} user={user} />
       
-      {/* Barra lateral */}
-      <Sidebar />
-      
-      {/* Contenido principal */}
-      <div className="flex-1 ml-64 flex flex-col relative">
-        <Header title={title} />
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} user={user} />
         
-        <main className="main-content flex-1 p-4 overflow-auto">
-          {children}
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-auto bg-cosmic-darkest">
+          <Outlet />
         </main>
-        
-        {/* Componente de chat flotante */}
-        <CosmicChat />
+      </div>
+      
+      {/* Chat Button */}
+      <button
+        className="fixed bottom-4 right-4 z-30 cosmic-button-floating w-12 h-12 flex items-center justify-center text-xl shadow-lg"
+        onClick={toggleChat}
+      >
+        <FiMessageCircle />
+      </button>
+      
+      {/* Cosmic Chat */}
+      <CosmicChat open={chatOpen} toggleChat={toggleChat} />
+      
+      {/* Radial gradients for cosmic effect */}
+      <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-0 left-0 w-1/3 h-1/3 bg-cosmic-blue opacity-5 rounded-full filter blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-1/2 h-1/2 bg-cosmic-highlight opacity-5 rounded-full filter blur-3xl"></div>
+        <div className="absolute top-1/3 right-1/4 w-1/4 h-1/4 bg-cosmic-green opacity-5 rounded-full filter blur-3xl"></div>
       </div>
     </div>
   );

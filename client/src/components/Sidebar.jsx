@@ -1,158 +1,257 @@
-import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-import logoGenesis from '../assets/logo-genesis.svg';
-import { FiHome, FiPieChart, FiDollarSign, FiMessageCircle, FiSettings, FiLogOut, FiMenu, FiX } from 'react-icons/fi';
-import gsap from 'gsap';
+import { NavLink } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { 
+  FiHome, FiTrendingUp, FiDollarSign, FiUsers, 
+  FiActivity, FiSettings, FiHelpCircle, FiClock,
+  FiLayers, FiShield, FiDatabase
+} from 'react-icons/fi';
 
-const Sidebar = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const [isOpen, setIsOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-
-  // Detectar cambio de tamaño de ventana para modo responsive
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth >= 768) {
-        setIsOpen(true);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Manejo de animaciones GSAP
-  useEffect(() => {
-    // Animación del logo
-    gsap.fromTo(
-      '.sidebar-logo',
-      { rotation: 0 },
-      { rotation: 360, duration: 30, repeat: -1, ease: 'linear' }
-    );
-    
-    // Animación de los enlaces
-    gsap.fromTo(
-      '.nav-link',
-      { opacity: 0, x: -20 },
-      { opacity: 1, x: 0, duration: 0.5, stagger: 0.1, ease: 'power2.out' }
-    );
-  }, [isOpen]);
-
-  // Navegación
-  const handleLogout = () => {
-    // Eliminar token y datos de usuario
-    localStorage.removeItem('userToken');
-    localStorage.removeItem('userData');
-    // Redirigir al login
-    navigate('/login');
-  };
-
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
-
-  // Array de enlaces para el menú
-  const navItems = [
-    { path: '/dashboard', icon: <FiHome size={20} />, label: 'Inicio' },
-    { path: '/stats', icon: <FiPieChart size={20} />, label: 'Estadísticas' },
-    { path: '/investments', icon: <FiDollarSign size={20} />, label: 'Inversiones' },
-    { path: '/chat', icon: <FiMessageCircle size={20} />, label: 'Chat Cósmico' },
-    { path: '/settings', icon: <FiSettings size={20} />, label: 'Configuración' },
+const Sidebar = ({ open, user }) => {
+  const userRole = user?.role || 'user';
+  
+  // Menú básico para todos los usuarios
+  const baseMenu = [
+    { 
+      path: '/dashboard', 
+      label: 'Dashboard', 
+      icon: <FiHome />,
+      roles: ['user', 'admin', 'super_admin', 'creator'] 
+    },
+    { 
+      path: '/trading', 
+      label: 'Trading', 
+      icon: <FiTrendingUp />,
+      roles: ['user', 'admin', 'super_admin', 'creator'] 
+    },
+    { 
+      path: '/investments', 
+      label: 'Inversiones', 
+      icon: <FiDollarSign />,
+      roles: ['user', 'admin', 'super_admin', 'creator'] 
+    },
+    { 
+      path: '/history', 
+      label: 'Historial', 
+      icon: <FiClock />,
+      roles: ['user', 'admin', 'super_admin', 'creator'] 
+    },
+    { 
+      path: '/performance', 
+      label: 'Rendimiento', 
+      icon: <FiActivity />,
+      roles: ['user', 'admin', 'super_admin', 'creator'] 
+    },
   ];
+  
+  // Menú para administradores
+  const adminMenu = [
+    { 
+      path: '/investors', 
+      label: 'Inversionistas', 
+      icon: <FiUsers />,
+      roles: ['admin', 'super_admin', 'creator'] 
+    },
+    { 
+      path: '/commissions', 
+      label: 'Comisiones', 
+      icon: <FiLayers />,
+      roles: ['admin', 'super_admin', 'creator'] 
+    }
+  ];
+  
+  // Menú para super administradores
+  const superAdminMenu = [
+    { 
+      path: '/system', 
+      label: 'Sistema', 
+      icon: <FiShield />,
+      roles: ['super_admin', 'creator'] 
+    },
+    { 
+      path: '/database', 
+      label: 'Base de Datos', 
+      icon: <FiDatabase />,
+      roles: ['super_admin', 'creator'] 
+    }
+  ];
+  
+  // Menú de configuración para todos
+  const settingsMenu = [
+    { 
+      path: '/settings', 
+      label: 'Configuración', 
+      icon: <FiSettings />,
+      roles: ['user', 'admin', 'super_admin', 'creator'] 
+    },
+    { 
+      path: '/help', 
+      label: 'Ayuda', 
+      icon: <FiHelpCircle />,
+      roles: ['user', 'admin', 'super_admin', 'creator'] 
+    }
+  ];
+  
+  // Filtrar menú según rol del usuario
+  const filterMenuByRole = (menuItems) => {
+    return menuItems.filter(item => item.roles.includes(userRole));
+  };
+  
+  // Obtener todos los elementos del menú filtrados por rol
+  const allMenuItems = [
+    ...filterMenuByRole(baseMenu),
+    ...filterMenuByRole(adminMenu),
+    ...filterMenuByRole(superAdminMenu)
+  ];
+  
+  const settingsItems = filterMenuByRole(settingsMenu);
+  
+  // Variantes para animaciones
+  const sidebarVariants = {
+    open: {
+      width: '240px',
+      transition: {
+        type: 'spring',
+        stiffness: 300,
+        damping: 24
+      }
+    },
+    closed: {
+      width: '68px',
+      transition: {
+        type: 'spring',
+        stiffness: 300,
+        damping: 24
+      }
+    }
+  };
+  
+  const menuLabelVariants = {
+    open: {
+      opacity: 1,
+      x: 0,
+      display: 'block',
+      transition: {
+        delay: 0.1,
+        duration: 0.2
+      }
+    },
+    closed: {
+      opacity: 0,
+      x: -10,
+      transitionEnd: {
+        display: 'none'
+      },
+      transition: {
+        duration: 0.2
+      }
+    }
+  };
 
   return (
-    <>
-      {/* Botón de hamburguesa para móvil */}
-      {isMobile && (
-        <button
-          className="fixed top-4 left-4 z-30 p-2 rounded-full bg-primary-dark text-white"
-          onClick={toggleSidebar}
-        >
-          {isOpen ? <FiX size={24} /> : <FiMenu size={24} />}
-        </button>
-      )}
-
-      {/* Barra lateral */}
-      <div
-        className={`fixed inset-y-0 left-0 z-20 w-64 bg-primary-dark text-white transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${isMobile ? 'shadow-lg' : ''}`}
-      >
-        <div className="p-4 space-y-6">
-          {/* Logo y título */}
-          <div className="flex items-center justify-center py-2">
-            <img
-              src={logoGenesis}
-              alt="Genesis Logo"
-              className="sidebar-logo w-12 h-12 mr-2"
-            />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">
-              Genesis
-            </span>
-          </div>
-
-          {/* Menú de navegación */}
-          <nav className="mt-8 space-y-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`nav-link flex items-center p-2 rounded-lg transition-colors duration-200 ${
-                  location.pathname === item.path
-                    ? 'bg-secondary/30 text-white'
-                    : 'text-gray-300 hover:bg-secondary/20'
-                }`}
-              >
-                <span className="mr-3">{item.icon}</span>
-                <span>{item.label}</span>
-                
-                {/* Indicador de selección activa */}
-                {location.pathname === item.path && (
-                  <span className="ml-auto w-1.5 h-5 rounded-full bg-secondary"></span>
-                )}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Cerrar sesión */}
-          <div className="pt-8">
-            <button
-              onClick={handleLogout}
-              className="flex items-center w-full p-2 rounded-lg text-gray-300 hover:bg-red-800/30 transition-colors duration-200"
-            >
-              <span className="mr-3">
-                <FiLogOut size={20} />
-              </span>
-              <span>Cerrar Sesión</span>
-            </button>
-          </div>
+    <motion.nav
+      className="h-screen fixed top-0 left-0 bg-cosmic-primary/20 backdrop-blur-md border-r border-cosmic-primary/30 flex flex-col z-20"
+      initial={open ? 'open' : 'closed'}
+      animate={open ? 'open' : 'closed'}
+      variants={sidebarVariants}
+    >
+      {/* Logo */}
+      <div className={`h-16 flex items-center px-4 border-b border-cosmic-primary/30 ${!open && 'justify-center'}`}>
+        <div className="w-8 h-8 bg-cosmic-gradient rounded-full flex items-center justify-center">
+          <span className="text-white font-bold">G</span>
         </div>
-
-        {/* Sección de información del usuario */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="flex items-center bg-primary-light/30 rounded-lg p-2">
-            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-white font-bold">
-              U
-            </div>
-            <div className="ml-2">
-              <div className="text-sm font-medium">Usuario</div>
-              <div className="text-xs text-gray-400">Inversionista</div>
-            </div>
+        <motion.span 
+          className="ml-2 text-lg font-semibold cosmic-gradient-text overflow-hidden whitespace-nowrap"
+          variants={menuLabelVariants}
+        >
+          Genesis
+        </motion.span>
+      </div>
+      
+      {/* Categoría de usuario */}
+      <div className="mt-4 px-4 mb-6">
+        <div className={`py-2 px-3 bg-cosmic-primary/20 rounded-md border border-cosmic-primary/30 ${!open ? 'justify-center' : ''} flex items-center`}>
+          <div className="w-6 h-6 rounded-full bg-cosmic-highlight/30 flex items-center justify-center text-cosmic-highlight text-xs">
+            {userRole === 'admin' ? 'A' : userRole === 'super_admin' ? 'S' : userRole === 'creator' ? 'C' : 'U'}
           </div>
+          <motion.div 
+            className="ml-2 overflow-hidden whitespace-nowrap"
+            variants={menuLabelVariants}
+          >
+            <p className="text-sm font-medium capitalize text-white">
+              {userRole === 'super_admin' ? 'Super Admin' : userRole}
+            </p>
+            <p className="text-xs text-cosmic-glow uppercase">
+              {user?.category || 'silver'}
+            </p>
+          </motion.div>
         </div>
       </div>
-
-      {/* Overlay para móvil cuando el sidebar está abierto */}
-      {isMobile && isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-10"
-          onClick={toggleSidebar}
-        ></div>
-      )}
-    </>
+      
+      {/* Main Menu */}
+      <div className="flex-1 px-2 overflow-y-auto">
+        <ul className="space-y-1">
+          {allMenuItems.map((item) => (
+            <li key={item.path}>
+              <NavLink
+                to={item.path}
+                className={({ isActive }) => `
+                  flex items-center py-2 px-3 rounded-md
+                  ${isActive 
+                    ? 'bg-cosmic-primary/40 text-white font-medium' 
+                    : 'hover:bg-cosmic-primary/20 text-gray-300'
+                  }
+                  transition-colors
+                `}
+              >
+                <span className="text-xl">{item.icon}</span>
+                <motion.span 
+                  className="ml-3 overflow-hidden whitespace-nowrap"
+                  variants={menuLabelVariants}
+                >
+                  {item.label}
+                </motion.span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </div>
+      
+      {/* Settings Menu */}
+      <div className="px-2 py-4 border-t border-cosmic-primary/30">
+        <ul className="space-y-1">
+          {settingsItems.map((item) => (
+            <li key={item.path}>
+              <NavLink
+                to={item.path}
+                className={({ isActive }) => `
+                  flex items-center py-2 px-3 rounded-md
+                  ${isActive 
+                    ? 'bg-cosmic-primary/40 text-white font-medium' 
+                    : 'hover:bg-cosmic-primary/20 text-gray-300'
+                  }
+                  transition-colors
+                `}
+              >
+                <span className="text-xl">{item.icon}</span>
+                <motion.span 
+                  className="ml-3 overflow-hidden whitespace-nowrap"
+                  variants={menuLabelVariants}
+                >
+                  {item.label}
+                </motion.span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </div>
+      
+      {/* Version number */}
+      <div className="px-4 py-2 text-xs text-gray-500 text-center">
+        <motion.p variants={menuLabelVariants}>
+          v4.4 Quantum Ultra Divino
+        </motion.p>
+      </div>
+    </motion.nav>
   );
 };
 

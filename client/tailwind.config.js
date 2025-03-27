@@ -4,43 +4,37 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
-      colors: {
-        primary: {
-          DEFAULT: '#6A11CB',
-          light: '#8A64FF',
-          dark: '#4B0F91'
-        },
-        secondary: {
-          DEFAULT: '#4FFBDF',
-          light: '#7DFFED',
-          dark: '#30C5B1'
-        }
-      },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
+        display: ['Orbitron', 'sans-serif'],
       },
-      boxShadow: {
-        'cosmic': '0 0 20px rgba(138, 100, 255, 0.3)',
-        'neon': '0 0 10px rgba(79, 251, 223, 0.5)',
-      },
-      animation: {
-        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'float': 'float 6s ease-in-out infinite',
-      },
-      keyframes: {
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' },
-        }
+      colors: {
+        cosmic: {
+          dark: 'var(--cosmic-dark)',
+          darkest: 'var(--cosmic-darkest)',
+          primary: 'var(--cosmic-primary)',
+          secondary: 'var(--cosmic-secondary)',
+          accent: 'var(--cosmic-accent)',
+          highlight: 'var(--cosmic-highlight)',
+          glow: 'var(--cosmic-glow)',
+          blue: 'var(--cosmic-blue)',
+          green: 'var(--cosmic-green)',
+          yellow: 'var(--cosmic-yellow)',
+          red: 'var(--cosmic-red)',
+        },
       },
       backgroundImage: {
-        'cosmic-gradient': 'linear-gradient(to right bottom, #6A11CB, #2575FC)',
-        'secondary-gradient': 'linear-gradient(to right, #4FFBDF, #00CCCB)',
-      }
+        'cosmic-gradient': 'linear-gradient(135deg, var(--cosmic-darkest) 0%, var(--cosmic-dark) 100%)',
+        'cosmic-accent-gradient': 'linear-gradient(90deg, var(--cosmic-accent) 0%, var(--cosmic-highlight) 100%)',
+      },
+      animation: {
+        'float': 'float 6s ease-in-out infinite',
+        'ping-slow': 'ping 3s cubic-bezier(0, 0, 0.2, 1) infinite',
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      },
     },
   },
   plugins: [],
-}
+};

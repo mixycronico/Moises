@@ -1,317 +1,288 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiSend, FiMinimize2, FiMaximize2, FiX } from 'react-icons/fi';
-import gsap from 'gsap';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FiX, FiSend, FiUsers, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
+import axios from 'axios';
 
-const CosmicChat = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+const CosmicChat = ({ open, toggleChat }) => {
   const [messages, setMessages] = useState([]);
-  const [inputValue, setInputValue] = useState('');
-  const [isConnected, setIsConnected] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [activeEntity, setActiveEntity] = useState('familia'); // familia, aetherion, lunareth
+  const [expanded, setExpanded] = useState(false);
   const messagesEndRef = useRef(null);
-  const wsRef = useRef(null);
-
-  // Conectar al WebSocket al abrir el chat
+  
+  // Gestión de scroll al recibir nuevos mensajes
   useEffect(() => {
-    if (isOpen && !wsRef.current) {
-      // Intentar conectar al WebSocket
-      console.log('Conectando al WebSocket...');
-      const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
-      
-      try {
-        wsRef.current = new WebSocket(wsUrl);
-        
-        wsRef.current.onopen = () => {
-          console.log('WebSocket conectado');
-          setIsConnected(true);
-          
-          // Animar entrada de mensajes iniciales
-          gsap.fromTo(
-            '.message',
-            { opacity: 0, y: 20 },
-            { opacity: 1, y: 0, duration: 0.5, stagger: 0.2, ease: 'power2.out' }
-          );
-        };
-        
-        wsRef.current.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          console.log('Mensaje recibido:', data);
-          
-          // Mostrar animación de escritura antes de recibir mensaje
-          setIsTyping(true);
-          
-          // Simular delay de escritura
-          setTimeout(() => {
-            setIsTyping(false);
-            setMessages((prev) => [...prev, { 
-              id: Date.now(), 
-              entity: data.entity, 
-              text: data.message,
-              isUser: false
-            }]);
-          }, 1000);
-        };
-        
-        wsRef.current.onerror = (error) => {
-          console.error('Error de WebSocket:', error);
-          setIsConnected(false);
-        };
-        
-        wsRef.current.onclose = () => {
-          console.log('WebSocket desconectado');
-          setIsConnected(false);
-          wsRef.current = null;
-        };
-      } catch (error) {
-        console.error('Error al crear WebSocket:', error);
-      }
+    scrollToBottom();
+  }, [messages]);
+  
+  // Cargar mensajes al abrir el chat
+  useEffect(() => {
+    if (open) {
+      loadInitialMessages();
     }
-    
-    // Limpiar conexión al cerrar
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-    };
-  }, [isOpen]);
+  }, [open]);
 
-  // Hacer scroll al fondo del chat cuando hay nuevos mensajes
-  useEffect(() => {
+  const loadInitialMessages = async () => {
+    try {
+      const response = await axios.get('/api/cosmic/messages');
+      if (response.data.success) {
+        setMessages(response.data.messages);
+      }
+    } catch (error) {
+      console.error('Error loading chat messages:', error);
+      // Mensajes predeterminados por si falla la API
+      setMessages([
+        { id: 1, entity: 'aetherion', text: 'Bienvenido al Sistema Genesis. Soy Aetherion, ¿en qué puedo ayudarte hoy?', timestamp: new Date().toISOString() }
+      ]);
+    }
+  };
+
+  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  };
 
-  // Animar apertura/cierre del chat
-  useEffect(() => {
-    if (isOpen) {
-      gsap.fromTo(
-        '.chat-container',
-        { scale: 0.9, opacity: 0 },
-        { scale: 1, opacity: 1, duration: 0.3, ease: 'power2.out' }
-      );
-    }
-  }, [isOpen]);
-
-  const handleSendMessage = () => {
-    if (inputValue.trim() === '') return;
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
     
+    // Agregar mensaje del usuario
     const userMessage = {
       id: Date.now(),
-      entity: 'User',
-      text: inputValue,
-      isUser: true
+      entity: 'user',
+      text: input,
+      timestamp: new Date().toISOString()
     };
     
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
     
-    // Enviar mensaje al WebSocket si está conectado
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ message: inputValue }));
-    } else {
-      console.log('WebSocket no conectado, no se puede enviar mensaje');
-      // Simular respuesta de Aetherion si no hay conexión WebSocket
-      setTimeout(() => {
-        setMessages((prev) => [...prev, {
-          id: Date.now() + 1,
-          entity: 'Aetherion',
-          text: 'Parece que estoy teniendo problemas para conectarme. ¿Podrías intentar más tarde?',
-          isUser: false
-        }]);
-      }, 1000);
+    try {
+      // Llamada a la API según la entidad seleccionada
+      let endpoint = '/api/cosmic/chat';
+      if (activeEntity === 'aetherion') {
+        endpoint = '/api/aetherion/message';
+      } else if (activeEntity === 'lunareth') {
+        endpoint = '/api/lunareth/message';
+      }
+      
+      const response = await axios.post(endpoint, {
+        message: input
+      });
+      
+      if (response.data.success) {
+        // Para familia cósmica, pueden venir múltiples respuestas
+        if (Array.isArray(response.data.responses)) {
+          const newMessages = response.data.responses.map(resp => ({
+            id: Date.now() + Math.random(),
+            entity: resp.entity.toLowerCase(),
+            text: resp.message,
+            timestamp: new Date().toISOString()
+          }));
+          setMessages(prev => [...prev, ...newMessages]);
+        } else {
+          // Para entidad individual
+          const entityMessage = {
+            id: Date.now() + 1,
+            entity: activeEntity,
+            text: response.data.message || response.data.response,
+            timestamp: new Date().toISOString()
+          };
+          setMessages(prev => [...prev, entityMessage]);
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // Respuesta simulada en caso de error
+      const errorResponse = {
+        id: Date.now() + 1,
+        entity: activeEntity === 'familia' ? 'aetherion' : activeEntity,
+        text: 'Lo siento, estoy experimentando dificultades para conectarme en este momento. Por favor, intenta de nuevo más tarde.',
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
+      setLoading(false);
     }
-    
-    setInputValue('');
   };
 
-  const toggleChat = () => {
-    if (isMinimized) {
-      setIsMinimized(false);
-    } else {
-      setIsOpen(!isOpen);
+  // Variantes para animaciones
+  const chatPanelVariants = {
+    hidden: { opacity: 0, x: 300 },
+    visible: { 
+      opacity: 1, 
+      x: 0,
+      transition: { type: 'spring', damping: 25, stiffness: 300 }
+    },
+    exit: { 
+      opacity: 0, 
+      x: 300,
+      transition: { duration: 0.2 } 
     }
   };
-  
-  const minimizeChat = () => {
-    setIsMinimized(true);
-  };
-  
-  const closeChat = () => {
-    setIsOpen(false);
-    setIsMinimized(false);
+
+  const messageVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { type: 'spring', damping: 25, stiffness: 300 }
+    }
   };
 
-  // Determinar el color y estilo basado en la entidad
-  const getEntityStyle = (entity) => {
-    switch (entity.toLowerCase()) {
+  // Obtener el color y nombre según la entidad
+  const getEntityColor = (entity) => {
+    switch (entity) {
       case 'aetherion':
-        return {
-          backgroundColor: 'bg-gradient-to-r from-purple-600 to-indigo-600',
-          textColor: 'text-white',
-          iconColor: 'text-purple-300',
-          gradientText: 'bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-indigo-300'
-        };
+        return 'text-cosmic-blue';
       case 'lunareth':
-        return {
-          backgroundColor: 'bg-gradient-to-r from-blue-600 to-cyan-600',
-          textColor: 'text-white',
-          iconColor: 'text-blue-300',
-          gradientText: 'bg-clip-text text-transparent bg-gradient-to-r from-blue-300 to-cyan-300'
-        };
+        return 'text-cosmic-green';
+      case 'user':
+        return 'text-cosmic-yellow';
       default:
-        return {
-          backgroundColor: 'bg-gray-200 dark:bg-gray-700',
-          textColor: 'text-gray-800 dark:text-white',
-          iconColor: 'text-gray-500 dark:text-gray-400',
-          gradientText: 'text-gray-800 dark:text-white'
-        };
+        return 'text-cosmic-glow';
     }
   };
 
-  if (!isOpen && !isMinimized) {
-    return (
-      <button
-        onClick={toggleChat}
-        className="fixed bottom-4 right-4 z-50 p-4 rounded-full bg-primary shadow-lg text-white hover:bg-primary-dark transition-colors duration-300"
-      >
-        <span className="flex items-center gap-2">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 5C13.66 5 15 6.34 15 8C15 9.66 13.66 11 12 11C10.34 11 9 9.66 9 8C9 6.34 10.34 5 12 5ZM12 19.2C9.5 19.2 7.29 17.92 6 15.98C6.03 13.99 10 12.9 12 12.9C13.99 12.9 17.97 13.99 18 15.98C16.71 17.92 14.5 19.2 12 19.2Z" fill="currentColor"/>
-          </svg>
-          Chat Cósmico
-        </span>
-      </button>
-    );
-  }
+  const getEntityName = (entity) => {
+    switch (entity) {
+      case 'aetherion':
+        return 'Aetherion';
+      case 'lunareth':
+        return 'Lunareth';
+      case 'user':
+        return 'Tú';
+      default:
+        return 'Sistema';
+    }
+  };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
-      {isMinimized ? (
-        <button
-          onClick={toggleChat}
-          className="p-4 rounded-full bg-primary shadow-lg text-white hover:bg-primary-dark transition-colors duration-300"
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className={`fixed ${expanded ? 'inset-4' : 'bottom-4 right-4 w-80 h-96'} z-40 flex flex-col cosmic-card overflow-hidden shadow-lg transition-all duration-300`}
+          variants={chatPanelVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
         >
-          <span className="flex items-center gap-2">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 5C13.66 5 15 6.34 15 8C15 9.66 13.66 11 12 11C10.34 11 9 9.66 9 8C9 6.34 10.34 5 12 5ZM12 19.2C9.5 19.2 7.29 17.92 6 15.98C6.03 13.99 10 12.9 12 12.9C13.99 12.9 17.97 13.99 18 15.98C16.71 17.92 14.5 19.2 12 19.2Z" fill="currentColor"/>
-            </svg>
-            Chat
-          </span>
-        </button>
-      ) : (
-        <div className="chat-container w-80 sm:w-96 h-96 bg-white dark:bg-primary-dark/95 rounded-lg shadow-2xl backdrop-blur-md overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col">
-          {/* Cabecera del chat */}
-          <div className="flex justify-between items-center px-4 py-3 bg-primary text-white">
-            <h3 className="font-medium">Chat Cósmico</h3>
-            <div className="flex space-x-2">
-              <button
-                onClick={minimizeChat}
-                className="hover:bg-white/20 p-1 rounded"
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 border-b border-cosmic-primary/30 bg-cosmic-primary/20">
+            <div className="flex items-center">
+              <div className="flex mr-2">
+                <span className={`h-2 w-2 rounded-full bg-cosmic-blue mr-1 ${activeEntity === 'aetherion' || activeEntity === 'familia' ? 'opacity-100' : 'opacity-30'}`}></span>
+                <span className={`h-2 w-2 rounded-full bg-cosmic-green ${activeEntity === 'lunareth' || activeEntity === 'familia' ? 'opacity-100' : 'opacity-30'}`}></span>
+              </div>
+              <h3 className="font-medium cosmic-gradient-text">Chat Cósmico</h3>
+            </div>
+            
+            <div className="flex space-x-1">
+              {/* Selector de entidad */}
+              <button 
+                onClick={() => setActiveEntity(activeEntity === 'familia' ? 'aetherion' : (activeEntity === 'aetherion' ? 'lunareth' : 'familia'))}
+                className="p-1.5 rounded-full hover:bg-cosmic-primary/20 text-cosmic-glow"
+                title={activeEntity === 'familia' ? 'Hablar solo con Aetherion' : (activeEntity === 'aetherion' ? 'Hablar solo con Lunareth' : 'Hablar con la Familia Cósmica')}
               >
-                <FiMinimize2 size={16} />
+                <FiUsers className="h-4 w-4" />
               </button>
-              <button
-                onClick={closeChat}
-                className="hover:bg-white/20 p-1 rounded"
+              
+              {/* Botón expandir/contraer */}
+              <button 
+                onClick={() => setExpanded(!expanded)}
+                className="p-1.5 rounded-full hover:bg-cosmic-primary/20 text-cosmic-glow"
+                title={expanded ? 'Contraer' : 'Expandir'}
               >
-                <FiX size={16} />
+                {expanded ? <FiMinimize2 className="h-4 w-4" /> : <FiMaximize2 className="h-4 w-4" />}
+              </button>
+              
+              {/* Botón cerrar */}
+              <button 
+                onClick={toggleChat}
+                className="p-1.5 rounded-full hover:bg-cosmic-primary/20 text-cosmic-glow"
+                title="Cerrar chat"
+              >
+                <FiX className="h-4 w-4" />
               </button>
             </div>
           </div>
           
-          {/* Área de mensajes */}
-          <div className="flex-1 p-3 overflow-y-auto bg-gray-50 dark:bg-primary-dark/50">
-            {messages.length === 0 ? (
-              <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-                <p>Inicia una conversación con Aetherion y Lunareth</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {messages.map((msg) => {
-                  const style = getEntityStyle(msg.entity);
-                  
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`message flex ${
-                        msg.isUser ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
-                      <div
-                        className={`max-w-[80%] rounded-lg px-3 py-2 ${
-                          msg.isUser
-                            ? 'bg-primary text-white'
-                            : style.backgroundColor
-                        }`}
-                      >
-                        {!msg.isUser && (
-                          <div className={`text-xs font-bold mb-1 ${style.gradientText}`}>
-                            {msg.entity}
-                          </div>
-                        )}
-                        <p className={msg.isUser ? 'text-white' : style.textColor}>
-                          {msg.text}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-                
-                {/* Indicador de escritura */}
-                {isTyping && (
-                  <div className="message flex justify-start">
-                    <div className="max-w-[80%] rounded-lg px-3 py-2 bg-gray-200 dark:bg-gray-700">
-                      <div className="flex space-x-1">
-                        <div className="typing-dot w-2 h-2 rounded-full bg-gray-600 dark:bg-gray-400 animate-bounce"></div>
-                        <div className="typing-dot w-2 h-2 rounded-full bg-gray-600 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        <div className="typing-dot w-2 h-2 rounded-full bg-gray-600 dark:bg-gray-400 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                      </div>
+          {/* Mensajes */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-cosmic-dark/70">
+            <AnimatePresence initial={false}>
+              {messages.map((message) => (
+                <motion.div
+                  key={message.id}
+                  className={`flex flex-col ${message.entity === 'user' ? 'items-end' : 'items-start'}`}
+                  variants={messageVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <div className={`max-w-[85%] p-2 rounded-lg ${
+                    message.entity === 'user' 
+                      ? 'bg-cosmic-primary/30 rounded-tr-none' 
+                      : 'bg-cosmic-dark rounded-tl-none border border-cosmic-primary/20'
+                  }`}>
+                    <p className="text-sm">{message.text}</p>
+                  </div>
+                  <div className="flex items-center mt-1 text-xs text-gray-400">
+                    <span className={`mr-1 font-semibold ${getEntityColor(message.entity)}`}>
+                      {getEntityName(message.entity)}
+                    </span>
+                    <span>
+                      {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </motion.div>
+              ))}
+              
+              {/* Indicador de escritura */}
+              {loading && (
+                <motion.div
+                  className="flex items-start"
+                  variants={messageVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <div className="max-w-[85%] p-2 rounded-lg bg-cosmic-dark rounded-tl-none border border-cosmic-primary/20">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 rounded-full bg-cosmic-glow animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 rounded-full bg-cosmic-glow animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 rounded-full bg-cosmic-glow animate-bounce" style={{ animationDelay: '300ms' }}></div>
                     </div>
                   </div>
-                )}
-                
-                <div ref={messagesEndRef} />
-              </div>
-            )}
+                </motion.div>
+              )}
+              
+              {/* Referencia para scroll automático */}
+              <div ref={messagesEndRef} />
+            </AnimatePresence>
           </div>
           
-          {/* Área de entrada */}
-          <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+          {/* Input */}
+          <form onSubmit={handleSendMessage} className="p-3 border-t border-cosmic-primary/30 bg-cosmic-dark">
             <div className="flex items-center">
               <input
                 type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder="Escribe un mensaje..."
-                className="flex-1 py-2 px-3 rounded-l-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={`Mensaje para ${activeEntity === 'familia' ? 'la Familia Cósmica' : (activeEntity === 'aetherion' ? 'Aetherion' : 'Lunareth')}...`}
+                className="cosmic-input py-1.5 flex-1 text-sm"
+                disabled={loading}
               />
               <button
-                onClick={handleSendMessage}
-                className="py-2 px-4 rounded-r-lg bg-primary text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary transition-colors duration-200"
+                type="submit"
+                className="p-2 ml-2 rounded-full bg-cosmic-primary text-white hover:bg-cosmic-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!input.trim() || loading}
               >
-                <FiSend />
+                <FiSend className="h-4 w-4" />
               </button>
             </div>
-            
-            {/* Indicador de estado */}
-            <div className="text-xs mt-1 text-right">
-              {isConnected ? (
-                <span className="text-green-500 flex items-center justify-end gap-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                  Conectado
-                </span>
-              ) : (
-                <span className="text-red-500 flex items-center justify-end gap-1">
-                  <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                  Desconectado
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+          </form>
+        </motion.div>
       )}
-    </div>
+    </AnimatePresence>
   );
 };
 

@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cosmic-dark: #0d0d21;
+  --cosmic-darkest: #090915;
+  --cosmic-primary: #2a2a4a;
+  --cosmic-secondary: #444489;
+  --cosmic-accent: #6548bf;
+  --cosmic-highlight: #9e6bdb;
+  --cosmic-glow: #b299e1;
+  --cosmic-blue: #5b8af7;
+  --cosmic-green: #42c9a0;
+  --cosmic-yellow: #ffc857;
+  --cosmic-red: #ff6b6b;
+}
+
+@layer base {
+  body {
+    @apply bg-cosmic-dark text-white font-sans antialiased;
+  }
+  
+  /* Scrollbar personalizado */
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-cosmic-primary/50 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-cosmic-primary;
+  }
+}
+
+@layer components {
+  .cosmic-card {
+    @apply bg-cosmic-primary/10 backdrop-blur-md border border-cosmic-primary/30 rounded-lg text-white;
+  }
+  
+  .cosmic-button {
+    @apply px-4 py-2 rounded-md bg-gradient-to-r from-cosmic-accent to-cosmic-highlight text-white font-medium
+           hover:from-cosmic-highlight hover:to-cosmic-accent transition-all duration-300
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .cosmic-button-secondary {
+    @apply px-4 py-2 rounded-md bg-cosmic-primary/30 border border-cosmic-primary text-white
+           hover:bg-cosmic-primary/50 transition-colors duration-300
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .cosmic-button-floating {
+    @apply rounded-full bg-cosmic-accent hover:bg-cosmic-highlight transition-colors;
+  }
+  
+  .cosmic-input {
+    @apply w-full px-3 py-2 bg-cosmic-primary/20 border border-cosmic-primary/50 rounded-md text-white
+           focus:outline-none focus:border-cosmic-highlight/70 placeholder-gray-500 placeholder-opacity-50
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .cosmic-gradient-text {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-cosmic-blue via-cosmic-highlight to-cosmic-accent;
+  }
+  
+  .cosmic-glow-text {
+    @apply text-cosmic-glow;
+  }
+}
+
+@layer utilities {
+  .bg-cosmic-gradient {
+    background: linear-gradient(135deg, var(--cosmic-darkest) 0%, var(--cosmic-dark) 100%);
+  }
+  
+  .border-cosmic-glow {
+    border-color: var(--cosmic-glow);
+  }
+  
+  .stars-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 50%, rgba(30, 30, 60, 0.2), rgba(13, 13, 33, 0.3));
+  }
+  
+  .stars-container::before,
+  .stars-container::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-image: radial-gradient(2px 2px at calc(100% * var(--x, 0)) calc(100% * var(--y, 0)), white, transparent);
+    background-size: 200px 200px;
+    opacity: 0.2;
+  }
+  
+  .stars-container::before {
+    --x: 0.8;
+    --y: 0.3;
+    animation: stars-move 100s linear infinite;
+  }
+  
+  .stars-container::after {
+    --x: 0.2;
+    --y: 0.9;
+    background-size: 300px 300px;
+    opacity: 0.1;
+    animation: stars-move 150s linear infinite reverse;
+  }
+  
+  @keyframes stars-move {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(-2000px);
+    }
+  }
+  
+  /* Animación para partículas flotantes */
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-20px);
+    }
+  }
+  
+  .animate-float {
+    animation: float 5s ease-in-out infinite;
+  }
+  
+  /* Spinner */
+  .spinner {
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  /* Text shimmer */
+  @keyframes shimmer {
+    0% {
+      background-position: -100% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  .shimmer-text {
+    background: linear-gradient(90deg, 
+      rgba(255,255,255,0) 0%, 
+      rgba(255,255,255,0.3) 50%, 
+      rgba(255,255,255,0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+}

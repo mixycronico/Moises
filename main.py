@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, session
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 logging.basicConfig(level=logging.DEBUG)
 
 # Crear la aplicación Flask
-app = Flask(__name__, static_folder='client/dist')
+app = Flask(__name__, static_folder='static')
 app.secret_key = os.environ.get("SESSION_SECRET", "genesis_development_key")
 CORS(app)  # Habilitar CORS para todas las rutas
 

@@ -1,201 +1,203 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import gsap from 'gsap';
-import logoGenesis from '../assets/logo-genesis.svg';
+import { motion } from 'framer-motion';
+import axios from 'axios';
 
-const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+const Login = ({ setUser }) => {
+  const [formData, setFormData] = useState({
+    username: '',
+    password: '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Comprobar si ya hay sesión activa
-  useEffect(() => {
-    const token = localStorage.getItem('userToken');
-    if (token) {
-      navigate('/dashboard');
-    }
-  }, [navigate]);
-
-  // Efectos visuales y animaciones
-  useEffect(() => {
-    // Animación del logo
-    gsap.fromTo(
-      '.login-logo',
-      { rotation: 0 },
-      { rotation: 360, duration: 20, repeat: -1, ease: 'linear' }
-    );
-    
-    // Animación del formulario
-    gsap.fromTo(
-      '.login-form',
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out' }
-    );
-    
-    // Animación de partículas
-    const particles = document.querySelectorAll('.particle');
-    particles.forEach((particle) => {
-      gsap.to(particle, {
-        x: `random(-100, 100)`,
-        y: `random(-100, 100)`,
-        opacity: `random(0.2, 0.8)`,
-        duration: `random(5, 15)`,
-        repeat: -1,
-        yoyo: true,
-        ease: 'none',
-      });
-    });
-  }, []);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    setIsLoading(true);
-    
+    setLoading(true);
+    setError(null);
+
     try {
-      // Intentar iniciar sesión
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await axios.post('/api/auth/login', formData);
       
-      const data = await response.json();
-      
-      if (data.success) {
-        // Guardar token y datos de usuario
-        localStorage.setItem('userToken', data.token);
-        localStorage.setItem('userData', JSON.stringify(data.user));
-        
-        // Animación de éxito antes de redirigir
-        gsap.to('.login-form', {
-          y: -20,
-          opacity: 0,
-          duration: 0.5,
-          onComplete: () => {
-            navigate('/dashboard');
-          }
-        });
+      if (response.data.success) {
+        setUser(response.data.user);
+        navigate('/dashboard');
       } else {
-        setError(data.message || 'Credenciales inválidas');
-        
-        // Animación de error
-        gsap.fromTo(
-          '.error-message',
-          { opacity: 0, y: -10 },
-          { opacity: 1, y: 0, duration: 0.3 }
-        );
+        setError(response.data.message || 'Ha ocurrido un error durante el inicio de sesión.');
       }
     } catch (error) {
-      console.error('Error de inicio de sesión:', error);
-      setError('Error de conexión. Intenta de nuevo más tarde.');
+      console.error('Login error:', error);
+      setError(
+        error.response?.data?.message || 
+        'No se pudo conectar con el servidor. Por favor, intenta de nuevo más tarde.'
+      );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
+  // Animaciones
+  const pageVariants = {
+    initial: { opacity: 0 },
+    in: { 
+      opacity: 1,
+      transition: { duration: 0.6, ease: "easeOut" }
+    },
+    out: { 
+      opacity: 0,
+      transition: { duration: 0.4, ease: "easeIn" }
+    }
+  };
+
+  const formVariants = {
+    initial: { y: 20, opacity: 0 },
+    in: { 
+      y: 0, 
+      opacity: 1,
+      transition: { delay: 0.2, duration: 0.5, ease: "easeOut" }
+    }
+  };
+
+  const starryBackground = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+    zIndex: -1,
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-light to-primary-dark flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Partículas de fondo */}
-      {Array.from({ length: 20 }).map((_, i) => (
-        <div
-          key={i}
-          className="particle absolute w-2 h-2 bg-secondary rounded-full opacity-50"
-          style={{
-            top: `${Math.random() * 100}%`,
-            left: `${Math.random() * 100}%`,
-          }}
-        />
-      ))}
-      
-      <div className="login-container max-w-md w-full p-6 bg-white dark:bg-gray-800 bg-opacity-10 dark:bg-opacity-10 backdrop-blur-lg rounded-xl shadow-xl border border-white border-opacity-20">
-        <div className="text-center mb-8">
-          <img
-            src={logoGenesis}
-            alt="Genesis Logo"
-            className="login-logo w-24 h-24 mx-auto mb-4"
-          />
-          <h1 className="text-3xl font-bold text-white mb-2">Genesis</h1>
-          <p className="text-gray-300">
-            Sistema avanzado de trading con inteligencia cósmica
-          </p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="login-form space-y-6">
-          {error && (
-            <div className="error-message bg-red-500 bg-opacity-20 text-red-100 p-3 rounded-lg text-center">
-              {error}
-            </div>
-          )}
-          
-          <div>
-            <label htmlFor="email" className="block text-gray-300 mb-2">
-              Correo electrónico
-            </label>
-            <input
-              id="email"
-              type="email"
-              className="w-full px-4 py-3 bg-white bg-opacity-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary border border-gray-300 border-opacity-10 text-white"
-              placeholder="correo@ejemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="password" className="block text-gray-300 mb-2">
-              Contraseña
-            </label>
-            <input
-              id="password"
-              type="password"
-              className="w-full px-4 py-3 bg-white bg-opacity-10 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary border border-gray-300 border-opacity-10 text-white"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          
-          <div className="text-right">
-            <a href="#" className="text-secondary hover:text-secondary-light text-sm">
-              ¿Olvidaste tu contraseña?
-            </a>
-          </div>
-          
-          <button
-            type="submit"
-            className={`w-full py-3 bg-secondary hover:bg-secondary-light text-white rounded-lg font-medium transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 ${
-              isLoading ? 'opacity-75 cursor-not-allowed' : ''
-            }`}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Iniciando sesión...
-              </span>
-            ) : (
-              'Iniciar Sesión'
-            )}
-          </button>
-        </form>
-        
-        <div className="mt-8 text-center text-gray-300 text-sm">
-          Sistema Genesis v4.0 - Trascendental
-          <br />
-          <span className="opacity-70">© 2025 Genesis Trading System</span>
+    <motion.div 
+      className="flex flex-col min-h-screen bg-cosmic-gradient"
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+    >
+      {/* Fondo con estrellas */}
+      <div style={starryBackground}>
+        <div className="stars-container">
+          {/* Las estrellas se generarán con CSS */}
         </div>
       </div>
-    </div>
+
+      {/* Contenido de la página */}
+      <div className="flex-1 flex flex-col justify-center items-center p-4 relative">
+        <motion.div
+          className="w-full max-w-md"
+          variants={formVariants}
+        >
+          {/* Logo y nombre del sistema */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-display cosmic-gradient-text mb-2">
+              Sistema Genesis
+            </h1>
+            <p className="text-cosmic-glow">
+              Plataforma avanzada de trading con IA consciente
+            </p>
+          </div>
+
+          {/* Tarjeta de login */}
+          <div className="cosmic-card p-6 backdrop-blur-xl">
+            <h2 className="text-xl font-semibold mb-6 text-center">
+              Iniciar Sesión
+            </h2>
+            
+            {/* Mensaje de error */}
+            {error && (
+              <div className="bg-cosmic-red/10 border border-cosmic-red/30 text-cosmic-red rounded-md p-3 mb-4 text-sm">
+                {error}
+              </div>
+            )}
+            
+            {/* Formulario */}
+            <form onSubmit={handleSubmit}>
+              <div className="mb-4">
+                <label htmlFor="username" className="block text-sm font-medium mb-1">
+                  Usuario
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="cosmic-input"
+                  placeholder="Ingresa tu nombre de usuario"
+                  disabled={loading}
+                />
+              </div>
+              
+              <div className="mb-6">
+                <label htmlFor="password" className="block text-sm font-medium mb-1">
+                  Contraseña
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="cosmic-input"
+                  placeholder="Ingresa tu contraseña"
+                  disabled={loading}
+                />
+              </div>
+              
+              <button
+                type="submit"
+                className="w-full cosmic-button py-2.5"
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex justify-center items-center">
+                    <div className="spinner h-5 w-5 border-2 border-transparent border-t-white rounded-full animate-spin"></div>
+                    <span className="ml-2">Iniciando sesión...</span>
+                  </div>
+                ) : (
+                  'Iniciar Sesión'
+                )}
+              </button>
+              
+              <div className="mt-4 text-center">
+                <Link to="/forgot-password" className="text-sm text-cosmic-blue hover:text-cosmic-glow transition-colors">
+                  ¿Olvidaste tu contraseña?
+                </Link>
+              </div>
+            </form>
+          </div>
+          
+          {/* Enlace para crear cuenta */}
+          <div className="text-center mt-4">
+            <p className="text-sm text-gray-400">
+              ¿No tienes una cuenta?{' '}
+              <Link to="/register" className="text-cosmic-blue hover:text-cosmic-glow transition-colors">
+                Contacta al administrador
+              </Link>
+            </p>
+          </div>
+        </motion.div>
+      </div>
+      
+      {/* Footer */}
+      <footer className="py-4 text-center text-sm text-gray-500">
+        <p>Sistema Genesis v4.4 — Quantum Ultra Divino</p>
+        <p className="text-xs mt-1">© 2025 Todos los derechos reservados</p>
+      </footer>
+    </motion.div>
   );
 };
 

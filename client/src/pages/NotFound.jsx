@@ -1,69 +1,86 @@
 import { Link } from 'react-router-dom';
-import { useEffect } from 'react';
-import gsap from 'gsap';
-import logoGenesis from '../assets/logo-genesis.svg';
+import { motion } from 'framer-motion';
+import { FiArrowLeft } from 'react-icons/fi';
 
 const NotFound = () => {
-  useEffect(() => {
-    // Animación del contenido
-    gsap.fromTo(
-      '.content',
-      { opacity: 0, y: 20 },
-      { opacity: 1, y: 0, duration: 0.8, ease: 'power2.out' }
-    );
-    
-    // Animación del logo
-    gsap.fromTo(
-      '.logo',
-      { rotation: 0 },
-      { rotation: 360, duration: 20, repeat: -1, ease: 'linear' }
-    );
-    
-    // Animación de partículas
-    const particles = document.querySelectorAll('.particle');
-    particles.forEach((particle) => {
-      gsap.to(particle, {
-        x: `random(-100, 100)`,
-        y: `random(-100, 100)`,
-        opacity: `random(0.3, 0.8)`,
-        duration: `random(3, 6)`,
-        repeat: -1,
-        yoyo: true,
-        ease: 'none',
-      });
-    });
-  }, []);
+  const containerVariants = {
+    initial: { opacity: 0 },
+    animate: { 
+      opacity: 1,
+      transition: { duration: 0.5 }
+    }
+  };
+  
+  const textVariants = {
+    initial: { y: 20, opacity: 0 },
+    animate: { 
+      y: 0, 
+      opacity: 1,
+      transition: { delay: 0.2, duration: 0.5 }
+    }
+  };
+  
+  const errorCodeVariants = {
+    initial: { scale: 0.8, opacity: 0 },
+    animate: { 
+      scale: 1, 
+      opacity: 1,
+      transition: { 
+        delay: 0.3, 
+        duration: 0.6,
+        type: "spring",
+        stiffness: 100
+      }
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-light to-blue-900 flex items-center justify-center relative px-4">
-      {/* Partículas de fondo */}
-      {Array.from({ length: 15 }).map((_, i) => (
-        <div
-          key={i}
-          className="particle absolute w-2 h-2 bg-secondary rounded-full"
-          style={{
-            top: `${Math.random() * 100}%`,
-            left: `${Math.random() * 100}%`,
-            opacity: 0.5,
-          }}
-        />
-      ))}
-
-      <div className="content text-center">
-        <img src={logoGenesis} alt="Genesis Logo" className="logo w-32 mx-auto mb-8" />
-        
-        <h1 className="text-6xl font-bold text-white mb-4">404</h1>
-        <h2 className="text-2xl text-gray-300 mb-6">Página no encontrada</h2>
-        <p className="text-gray-400 mb-8 max-w-md">
-          La ruta que buscas no existe en esta dimensión del sistema Genesis. 
-          Aetherion y Lunareth no pudieron encontrar este recurso.
+    <motion.div 
+      className="min-h-screen bg-cosmic-gradient flex flex-col items-center justify-center p-4 text-center"
+      variants={containerVariants}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.div
+        className="text-9xl font-display font-bold cosmic-gradient-text"
+        variants={errorCodeVariants}
+      >
+        404
+      </motion.div>
+      
+      <motion.div
+        className="mt-6 mb-8 max-w-md"
+        variants={textVariants}
+      >
+        <h1 className="text-2xl font-semibold mb-2">
+          Página no encontrada
+        </h1>
+        <p className="text-gray-400">
+          La página que estás buscando parece haberse perdido en el cosmos. 
+          Puede que haya sido absorbida por un agujero negro o simplemente no exista.
         </p>
-        
-        <Link to="/" className="neon-button inline-block">
-          Volver al Inicio
+      </motion.div>
+      
+      <motion.div
+        variants={textVariants}
+      >
+        <Link 
+          to="/"
+          className="cosmic-button flex items-center justify-center"
+        >
+          <FiArrowLeft className="mr-2" />
+          Volver al inicio
         </Link>
+      </motion.div>
+      
+      {/* Elementos decorativos flotando */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-2 h-2 rounded-full bg-cosmic-blue opacity-70 animate-ping" style={{ animationDuration: '3s', animationDelay: '0.5s' }}></div>
+        <div className="absolute top-1/3 right-1/4 w-3 h-3 rounded-full bg-cosmic-green opacity-60 animate-ping" style={{ animationDuration: '4s', animationDelay: '1s' }}></div>
+        <div className="absolute bottom-1/4 left-1/3 w-2 h-2 rounded-full bg-cosmic-highlight opacity-50 animate-ping" style={{ animationDuration: '5s', animationDelay: '1.5s' }}></div>
+        <div className="absolute top-2/3 right-1/3 w-1 h-1 rounded-full bg-cosmic-yellow opacity-70 animate-ping" style={{ animationDuration: '2.5s' }}></div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

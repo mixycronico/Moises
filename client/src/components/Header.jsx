@@ -1,158 +1,321 @@
-import { useState, useEffect } from 'react';
-import { FiBell, FiSearch, FiMoon, FiSun } from 'react-icons/fi';
-import gsap from 'gsap';
+import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  FiMenu, FiX, FiUser, FiSettings, FiLogOut, 
+  FiBell, FiHelpCircle, FiChevronDown 
+} from 'react-icons/fi';
+import axios from 'axios';
 
-const Header = ({ title }) => {
-  const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: 'Bono aplicado: +$75.50', time: '10 min', read: false },
-    { id: 2, text: 'Nuevo rendimiento registrado', time: '1 hora', read: false },
-    { id: 3, text: 'Actualización de categoría disponible', time: '2 días', read: true }
-  ]);
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  // Manejo del tema oscuro/claro
+const Header = ({ toggleSidebar, sidebarOpen, user }) => {
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const userMenuRef = useRef(null);
+  const notificationRef = useRef(null);
+  const navigate = useNavigate();
+  
+  // Cargar notificaciones (simulado)
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('darkMode', darkMode);
-  }, [darkMode]);
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
-
-  // Animación del título
-  useEffect(() => {
-    gsap.fromTo(
-      '.page-title',
-      { opacity: 0, y: -20 },
-      { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }
-    );
-  }, [title]);
-
-  // Manejo de notificaciones
-  const toggleNotifications = () => {
-    setShowNotifications(!showNotifications);
+    const fetchNotifications = async () => {
+      try {
+        const response = await axios.get('/api/notifications');
+        if (response.data.success) {
+          setNotifications(response.data.notifications);
+        }
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+        // Notificaciones de prueba en caso de error
+        setNotifications([
+          {
+            id: 1,
+            type: 'info',
+            message: 'El sistema ha completado el análisis predictivo',
+            timestamp: '2025-03-27T10:30:00Z',
+            read: false
+          },
+          {
+            id: 2,
+            type: 'success',
+            message: 'Tu operación de BTC/USDT ha generado +$125.32',
+            timestamp: '2025-03-27T09:15:00Z',
+            read: true
+          },
+          {
+            id: 3,
+            type: 'warning',
+            message: 'Actualización de sistema programada para mañana',
+            timestamp: '2025-03-26T16:45:00Z',
+            read: true
+          }
+        ]);
+      }
+    };
     
-    if (!showNotifications) {
-      // Animar entrada de notificaciones
-      gsap.fromTo(
-        '.notification-panel',
-        { opacity: 0, y: -10 },
-        { opacity: 1, y: 0, duration: 0.3, ease: 'power2.out' }
+    fetchNotifications();
+  }, []);
+  
+  // Cerrar menús al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+  
+  // Logout
+  const handleLogout = async () => {
+    try {
+      await axios.post('/api/auth/logout');
+      navigate('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Navegación de emergencia
+      navigate('/login');
+    }
+  };
+  
+  // Marcar notificación como leída
+  const markAsRead = async (id) => {
+    try {
+      await axios.post(`/api/notifications/${id}/read`);
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === id ? { ...notif, read: true } : notif
+        )
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      // Actualización optimista en caso de error
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === id ? { ...notif, read: true } : notif
+        )
       );
     }
   };
-
-  const markAsRead = (id) => {
-    setNotifications(
-      notifications.map(notification =>
-        notification.id === id
-          ? { ...notification, read: true }
-          : notification
-      )
-    );
+  
+  // Variantes para animaciones
+  const menuVariants = {
+    hidden: { opacity: 0, y: -5 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.2 }
+    },
+    exit: { 
+      opacity: 0,
+      y: -5,
+      transition: { duration: 0.2 }
+    }
   };
-
-  const unreadCount = notifications.filter(n => !n.read).length;
+  
+  // Formatear fecha de notificaciones
+  const formatNotificationTime = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffMinutes < 60) {
+      return `Hace ${diffMinutes} min`;
+    } else if (diffMinutes < 24 * 60) {
+      const hours = Math.floor(diffMinutes / 60);
+      return `Hace ${hours} ${hours === 1 ? 'hora' : 'horas'}`;
+    } else {
+      return date.toLocaleDateString('es-ES', { 
+        day: '2-digit', 
+        month: '2-digit'
+      });
+    }
+  };
+  
+  // Obtener color según tipo de notificación
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'success':
+        return 'bg-cosmic-green/20 text-cosmic-green border-cosmic-green/30';
+      case 'warning':
+        return 'bg-cosmic-yellow/20 text-cosmic-yellow border-cosmic-yellow/30';
+      case 'error':
+        return 'bg-cosmic-red/20 text-cosmic-red border-cosmic-red/30';
+      case 'info':
+      default:
+        return 'bg-cosmic-blue/20 text-cosmic-blue border-cosmic-blue/30';
+    }
+  };
+  
+  // Contar notificaciones no leídas
+  const unreadCount = notifications.filter(notif => !notif.read).length;
 
   return (
-    <div className="z-10 px-4 py-3 flex justify-between items-center bg-white/10 dark:bg-primary-dark/20 backdrop-blur-md shadow-sm">
-      {/* Título de la página */}
-      <h1 className="page-title text-2xl font-bold text-primary-dark dark:text-white">{title}</h1>
-      
-      {/* Grupo derecho */}
-      <div className="flex items-center space-x-4">
-        {/* Barra de búsqueda */}
-        <div className="hidden md:flex items-center relative">
-          <input
-            type="text"
-            placeholder="Buscar..."
-            className="pl-9 pr-4 py-2 rounded-full bg-gray-100 dark:bg-primary-light/20 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-secondary/50 w-48"
-          />
-          <FiSearch className="absolute left-3 text-gray-500 dark:text-gray-400" />
-        </div>
-        
-        {/* Toggle de tema oscuro/claro */}
-        <button
-          onClick={toggleDarkMode}
-          className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-primary-light/20 transition-colors duration-200"
+    <header className="h-16 bg-cosmic-primary/20 backdrop-blur-md border-b border-cosmic-primary/30 flex items-center justify-between px-4 relative z-10">
+      {/* Left section with toggle and title */}
+      <div className="flex items-center">
+        <button 
+          onClick={toggleSidebar}
+          className="p-2 mr-4 rounded-full hover:bg-cosmic-primary/30 text-cosmic-glow transition-colors"
+          aria-label={sidebarOpen ? 'Ocultar menú' : 'Mostrar menú'}
         >
-          {darkMode ? (
-            <FiSun className="text-yellow-400" size={20} />
-          ) : (
-            <FiMoon className="text-primary-dark" size={20} />
-          )}
+          {sidebarOpen ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
         </button>
         
-        {/* Notificaciones */}
-        <div className="relative">
-          <button
-            onClick={toggleNotifications}
-            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-primary-light/20 transition-colors duration-200 relative"
+        <h1 className="text-lg font-semibold cosmic-gradient-text hidden sm:block">
+          Sistema Genesis
+        </h1>
+      </div>
+      
+      {/* Right section with user info and notifications */}
+      <div className="flex items-center space-x-3">
+        {/* Notification bell */}
+        <div className="relative" ref={notificationRef}>
+          <button 
+            className="p-2 rounded-full hover:bg-cosmic-primary/30 relative"
+            onClick={() => setNotificationsOpen(!notificationsOpen)}
           >
-            <FiBell className="text-primary-dark dark:text-white" size={20} />
+            <FiBell className="h-5 w-5 text-cosmic-glow" />
             {unreadCount > 0 && (
-              <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
-                {unreadCount}
-              </span>
+              <span className="absolute top-1 right-1 w-2 h-2 bg-cosmic-red rounded-full"></span>
             )}
           </button>
           
-          {/* Panel de notificaciones */}
-          {showNotifications && (
-            <div className="notification-panel absolute right-0 mt-2 w-72 bg-white dark:bg-primary-dark shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-primary-light/20 z-30">
-              <div className="p-3 border-b border-gray-200 dark:border-primary-light/20 flex justify-between items-center">
-                <h3 className="font-medium text-primary-dark dark:text-white">Notificaciones</h3>
-                <span className="text-xs text-blue-500 cursor-pointer hover:text-blue-700">
-                  Marcar todas como leídas
-                </span>
-              </div>
-              
-              <div className="max-h-96 overflow-y-auto">
-                {notifications.length > 0 ? (
-                  notifications.map(notification => (
-                    <div
-                      key={notification.id}
-                      className={`p-3 border-b border-gray-100 dark:border-primary-light/10 hover:bg-gray-50 dark:hover:bg-primary-light/10 transition-colors duration-150 cursor-pointer ${
-                        !notification.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                      }`}
-                      onClick={() => markAsRead(notification.id)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <p className="text-sm text-gray-800 dark:text-gray-200">
-                          {notification.text}
-                        </p>
-                        {!notification.read && (
-                          <span className="w-2 h-2 rounded-full bg-blue-500 mt-1"></span>
-                        )}
+          {/* Notifications dropdown */}
+          <AnimatePresence>
+            {notificationsOpen && (
+              <motion.div
+                className="absolute right-0 mt-2 w-80 cosmic-card border border-cosmic-primary/30 shadow-xl z-30"
+                variants={menuVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <div className="p-3 border-b border-cosmic-primary/30 flex justify-between items-center">
+                  <h3 className="font-medium">Notificaciones</h3>
+                  {unreadCount > 0 && (
+                    <span className="text-xs bg-cosmic-primary/20 px-2 py-1 rounded-full">
+                      {unreadCount} no {unreadCount === 1 ? 'leída' : 'leídas'}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="max-h-80 overflow-y-auto p-1">
+                  {notifications.length > 0 ? (
+                    notifications.map((notification) => (
+                      <div 
+                        key={notification.id} 
+                        className={`p-3 mb-1 rounded border ${getNotificationColor(notification.type)} ${!notification.read ? 'bg-opacity-30' : 'opacity-75'}`}
+                        onClick={() => markAsRead(notification.id)}
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <p className="font-medium text-sm">
+                            {notification.message}
+                          </p>
+                          {!notification.read && (
+                            <span className="w-2 h-2 rounded-full bg-current"></span>
+                          )}
+                        </div>
+                        <div className="text-xs opacity-80">
+                          {formatNotificationTime(notification.timestamp)}
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Hace {notification.time}
-                      </p>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-gray-400">
+                      No hay notificaciones
                     </div>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                    No hay notificaciones
-                  </div>
-                )}
-              </div>
-              
-              <div className="p-2 text-center border-t border-gray-200 dark:border-primary-light/20">
-                <button className="text-sm text-blue-500 hover:text-blue-700">
-                  Ver todas
-                </button>
-              </div>
+                  )}
+                </div>
+                
+                <div className="p-2 border-t border-cosmic-primary/30 text-center">
+                  <button className="text-sm text-cosmic-blue hover:text-cosmic-glow transition-colors">
+                    Ver todas las notificaciones
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        
+        {/* User menu */}
+        <div className="relative" ref={userMenuRef}>
+          <button 
+            className="flex items-center space-x-2 p-1 rounded-full hover:bg-cosmic-primary/30 transition-colors"
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+          >
+            <div className="w-8 h-8 bg-cosmic-primary/30 rounded-full flex items-center justify-center text-cosmic-glow">
+              {user?.username?.charAt(0).toUpperCase() || 'U'}
             </div>
-          )}
+            <span className="hidden md:block text-sm">{user?.username || 'Usuario'}</span>
+            <FiChevronDown className={`h-4 w-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          {/* User dropdown menu */}
+          <AnimatePresence>
+            {userMenuOpen && (
+              <motion.div
+                className="absolute right-0 mt-2 w-48 cosmic-card border border-cosmic-primary/30 shadow-xl z-30"
+                variants={menuVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <div className="p-3 border-b border-cosmic-primary/30">
+                  <p className="font-medium">{user?.username || 'Usuario'}</p>
+                  <p className="text-xs text-gray-400">{user?.email || 'usuario@email.com'}</p>
+                </div>
+                
+                <div className="py-1">
+                  <Link 
+                    to="/profile" 
+                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary/20 transition-colors"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <FiUser className="mr-2 h-4 w-4" />
+                    <span>Mi Perfil</span>
+                  </Link>
+                  
+                  <Link 
+                    to="/settings" 
+                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary/20 transition-colors"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <FiSettings className="mr-2 h-4 w-4" />
+                    <span>Configuración</span>
+                  </Link>
+                  
+                  <Link 
+                    to="/help" 
+                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary/20 transition-colors"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <FiHelpCircle className="mr-2 h-4 w-4" />
+                    <span>Ayuda</span>
+                  </Link>
+                </div>
+                
+                <div className="py-1 border-t border-cosmic-primary/30">
+                  <button 
+                    className="flex items-center w-full text-left px-4 py-2 text-cosmic-red hover:bg-cosmic-primary/20 transition-colors"
+                    onClick={handleLogout}
+                  >
+                    <FiLogOut className="mr-2 h-4 w-4" />
+                    <span>Cerrar Sesión</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 
