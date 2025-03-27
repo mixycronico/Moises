@@ -1,0 +1,73 @@
+{% extends 'simple_layout.html' %}
+
+{% block title %}Detalles de Entidad{% endblock %}
+
+{% block additional_styles %}
+.entity-card { background: rgba(30, 30, 80, 0.7); border-radius: 10px; padding: 20px; margin-top: 20px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+.stat { background: rgba(40, 40, 100, 0.7); padding: 10px; border-radius: 5px; text-align: center; }
+.stat-label { font-size: 12px; opacity: 0.7; }
+.stat-value { font-size: 18px; font-weight: bold; margin-top: 5px; }
+.personality { margin-top: 20px; }
+.trait { display: inline-block; background: rgba(80, 80, 150, 0.7); padding: 5px 10px; 
+        border-radius: 20px; margin-right: 5px; margin-bottom: 5px; }
+.messages { margin-top: 20px; height: 200px; overflow-y: auto; 
+           background: rgba(20, 20, 50, 0.7); padding: 10px; border-radius: 5px; }
+.message { padding: 8px; border-bottom: 1px solid rgba(100,100,200,0.2); }
+.back-link { display: inline-block; margin-top: 20px; }
+{% endblock %}
+
+{% block content %}
+<div class="entity-detail">
+    <h2>{{ entity.name }} <span class="role">({{ entity.role }})</span></h2>
+    
+    <div class="entity-card">
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-label">Nivel</div>
+                <div class="stat-value">{{ entity.level|round(1) }}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Energía</div>
+                <div class="stat-value">{{ entity.energy|round(1) }}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Evolución</div>
+                <div class="stat-value">{{ entity.evolution_path }}</div>
+            </div>
+            <div class="stat">
+                <div class="stat-label">Inteligencia</div>
+                <div class="stat-value">{{ entity.intelligence|round(1) }}</div>
+            </div>
+        </div>
+        
+        <div class="personality">
+            <h3>Rasgos de Personalidad</h3>
+            {% for trait in entity.traits.split(', ') %}
+                <span class="trait">{{ trait }}</span>
+            {% endfor %}
+        </div>
+        
+        <div class="emotion">
+            <h3>Estado Emocional</h3>
+            <p>{{ entity.emotion }}</p>
+        </div>
+        
+        {% if entity.recent_messages %}
+            <div class="messages-section">
+                <h3>Mensajes Recientes</h3>
+                <div class="messages">
+                    {% for msg in entity.recent_messages %}
+                        <div class="message">
+                            <span class="time">{{ msg.timestamp }}</span>
+                            <p>{{ msg.message }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    
+    <a href="{{ url_for('dashboard') }}" class="nav-link back-link">Volver al Dashboard</a>
+</div>
+{% endblock %}

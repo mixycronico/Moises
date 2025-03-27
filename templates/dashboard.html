@@ -1,0 +1,127 @@
+{% extends 'simple_layout.html' %}
+
+{% block title %}Dashboard - Sistema de Trading Cósmico{% endblock %}
+
+{% block additional_styles %}
+.card { background: rgba(30, 30, 80, 0.7); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+.stat { background: rgba(40, 40, 100, 0.7); padding: 15px; border-radius: 5px; text-align: center; }
+.stat-value { font-size: 24px; font-weight: bold; color: #b0b0ff; }
+.entities { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
+.entity { background: rgba(30, 30, 80, 0.7); border-radius: 8px; padding: 15px; transition: all 0.3s; }
+.entity:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+.messages { height: 200px; overflow-y: auto; background: rgba(20, 20, 50, 0.7); padding: 10px; border-radius: 5px; }
+.message { padding: 8px; border-bottom: 1px solid rgba(100,100,200,0.2); }
+.sender { font-weight: bold; color: #a0a0ff; }
+button { background: linear-gradient(45deg, #3030a0, #5050c0); color: white; border: none; padding: 8px 16px; 
+       border-radius: 4px; cursor: pointer; margin-right: 10px; margin-top: 10px; }
+button:hover { background: linear-gradient(45deg, #4040b0, #6060d0); }
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h2>Dashboard del Sistema de Trading Cósmico</h2>
+    
+    <div class="card">
+        <h3>Estado del Sistema</h3>
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-value" id="entityCount">0</div>
+                <div>Entidades</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="knowledgePool">0</div>
+                <div>Conocimiento Colectivo</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="avgLevel">0</div>
+                <div>Nivel Promedio</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="avgEnergy">0</div>
+                <div>Energía Promedio</div>
+            </div>
+        </div>
+        
+        <div>
+            <button onclick="collaborate()">Simular Colaboración</button>
+            <button onclick="refreshStatus()">Actualizar Estado</button>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h3>Comunicación Reciente</h3>
+        <div class="messages" id="messages"></div>
+    </div>
+    
+    <h3>Entidades Cósmicas</h3>
+    <div class="entities" id="entities"></div>
+</div>
+
+<script>
+    // Actualizar estado periódicamente
+    function refreshStatus() {
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('entityCount').textContent = data.entity_count;
+                document.getElementById('knowledgePool').textContent = data.knowledge_pool.toFixed(1);
+                document.getElementById('avgLevel').textContent = data.avg_level.toFixed(1);
+                document.getElementById('avgEnergy').textContent = data.avg_energy.toFixed(1);
+                
+                // Actualizar entidades
+                const entitiesContainer = document.getElementById('entities');
+                entitiesContainer.innerHTML = '';
+                
+                data.entities.forEach(entity => {
+                    const entityCard = document.createElement('div');
+                    entityCard.className = 'entity';
+                    entityCard.innerHTML = `
+                        <h3>${entity.name} (${entity.role})</h3>
+                        <p>Nivel: ${entity.level.toFixed(1)} | Energía: ${entity.energy.toFixed(1)}</p>
+                        <p>Evolución: ${entity.evolution_path}</p>
+                        <p>Emoción: ${entity.emotion}</p>
+                        <p>Rasgos: ${entity.traits}</p>
+                        <a href="/entity/${entity.name}" class="nav-link">Ver detalles</a>
+                    `;
+                    entitiesContainer.appendChild(entityCard);
+                });
+                
+                // Actualizar mensajes
+                const messagesContainer = document.getElementById('messages');
+                messagesContainer.innerHTML = '';
+                
+                data.recent_messages.forEach(msg => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message';
+                    messageDiv.innerHTML = `
+                        <span class="sender">${msg.sender}:</span> ${msg.message}
+                    `;
+                    messagesContainer.appendChild(messageDiv);
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    }
+    
+    // Ejecutar colaboración
+    function collaborate() {
+        fetch('/api/collaborate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('Colaboración completada con éxito');
+            refreshStatus();
+        })
+        .catch(error => console.error('Error:', error));
+    }
+    
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshStatus();
+        // Actualizar cada 5 segundos
+        setInterval(refreshStatus, 5000);
+    });
+</script>
+{% endblock %}

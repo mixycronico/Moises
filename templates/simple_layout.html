@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Trading Cósmico{% endblock %}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #050520; color: #e0e0ff; }
+        h1, h2 { color: #a0a0ff; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .nav-link { display: inline-block; margin-right: 10px; padding: 5px 10px; 
+                    background: linear-gradient(45deg, #3030a0, #5050c0); 
+                    color: white; text-decoration: none; border-radius: 5px; }
+        .cosmic-bg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: -1;
+                    background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%); }
+        .content { padding: 20px; }
+        {% block additional_styles %}{% endblock %}
+    </style>
+</head>
+<body>
+    <div class="cosmic-bg"></div>
+    <div class="container">
+        <header>
+            <h1>Sistema de Trading Cósmico</h1>
+            <nav>
+                <a href="{{ url_for('index') }}" class="nav-link">Inicio</a>
+                <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+                <a href="{{ url_for('status') }}" class="nav-link">Estado</a>
+            </nav>
+        </header>
+        
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+</body>
+</html>

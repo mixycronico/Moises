@@ -1,327 +1,37 @@
-{% extends 'layout.html' %}
+{% extends 'simple_layout.html' %}
 
-{% block title %}Genesis - Inversiones Trascendentales{% endblock %}
-
-{% block styles %}
-<style>
-    .hero-section {
-        height: 80vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        text-align: center;
-        padding: 0 1rem;
-        position: relative;
-        z-index: 1;
-        overflow: hidden;
-    }
-    
-    .logo-container {
-        margin-bottom: 2rem;
-        position: relative;
-        width: 400px;
-        height: auto;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        filter: drop-shadow(0 0 20px rgba(10, 255, 255, 0.4));
-    }
-    
-    .floating-logo {
-        width: 400px;
-        height: auto;
-        animation: logoFloat 6s ease-in-out infinite;
-    }
-    
-    @keyframes logoFloat {
-        0%, 100% {
-            transform: translateY(0);
-        }
-        50% {
-            transform: translateY(-10px);
-        }
-    }
-    
-    .hero-subtitle {
-        font-size: 1.5rem;
-        margin-bottom: 2rem;
-        color: #e1e1ff;
-        max-width: 800px;
-    }
-    
-    .cta-button {
-        padding: 1rem 2.5rem;
-        font-size: 1.2rem;
-        font-weight: 600;
-        border-radius: 50px;
-        background: linear-gradient(135deg, #7642ff, #a076f9);
-        color: white;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 5px 20px rgba(166, 104, 255, 0.5);
-        font-family: 'Orbitron', sans-serif;
-        text-transform: uppercase;
-        margin-top: 1rem;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .cta-button:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(166, 104, 255, 0.7);
-    }
-    
-    .cta-button::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
-        transition: all 0.5s ease;
-        opacity: 0;
-    }
-    
-    .cta-button:hover::before {
-        opacity: 1;
-        transform: scale(1.2);
-    }
-    
-    .features-section {
-        padding: 5rem 2rem;
-        background: rgba(13, 12, 30, 0.7);
-        border-top: 1px solid rgba(166, 104, 255, 0.3);
-        border-bottom: 1px solid rgba(166, 104, 255, 0.3);
-    }
-    
-    .features-title {
-        text-align: center;
-        font-family: 'Orbitron', sans-serif;
-        font-size: 2.2rem;
-        margin-bottom: 3rem;
-        color: #d6abff;
-    }
-    
-    .features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 2rem;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-    
-    .feature-card {
-        background: rgba(25, 25, 50, 0.8);
-        border-radius: 15px;
-        padding: 2rem;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        border: 1px solid rgba(166, 104, 255, 0.2);
-        transition: all 0.3s ease;
-    }
-    
-    .feature-card:hover {
-        transform: translateY(-10px);
-        box-shadow: 0 15px 35px rgba(166, 104, 255, 0.3);
-        border-color: rgba(166, 104, 255, 0.5);
-    }
-    
-    .feature-icon {
-        width: 80px;
-        height: 80px;
-        margin: 0 auto 1.5rem;
-        background: linear-gradient(135deg, #7642ff, #a076f9);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 5px 15px rgba(166, 104, 255, 0.5);
-    }
-    
-    .feature-icon img {
-        width: 60%;
-        height: auto;
-    }
-    
-    .feature-title {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 1.3rem;
-        margin-bottom: 1rem;
-        color: #d6abff;
-    }
-    
-    .feature-description {
-        color: #b5b5e3;
-        line-height: 1.6;
-    }
-    
-    @keyframes titleGlow {
-        0% {
-            text-shadow: 0 0 10px rgba(166, 104, 255, 0.5);
-        }
-        100% {
-            text-shadow: 0 0 25px rgba(166, 104, 255, 0.8), 0 0 40px rgba(166, 104, 255, 0.4);
-        }
-    }
-    
-    @media (max-width: 768px) {
-        .logo-container {
-            width: 200px;
-            height: auto;
-        }
-        
-        .floating-logo {
-            width: 200px;
-            height: auto;
-        }
-        
-        .hero-subtitle {
-            font-size: 1.2rem;
-        }
-        
-        .hero-description {
-            font-size: 0.95rem;
-        }
-    }
-</style>
-{% endblock %}
+{% block title %}Sistema de Trading Cósmico{% endblock %}
 
 {% block content %}
-<section class="hero-section">
-    <div class="logo-container">
-        <img src="{{ url_for('static', filename='images/logo/genesis-logo.png') }}" alt="Genesis Logo" class="floating-logo">
-    </div>
-    <h2 class="hero-subtitle">Sistema de inversiones trascendental con inteligencia cósmica</h2>
-    <p class="hero-description">Descubre un nuevo nivel de inversión guiado por IA evolutiva</p>
+<div class="welcome">
+    <h2>Bienvenido al Sistema de Trading Cósmico</h2>
+    <p>Un sistema avanzado de trading con entidades cósmicas que evolucionan y colaboran autónomamente.</p>
     
-    {% if not authenticated %}
-    <div class="cta-buttons">
-        <a href="{{ url_for('login') }}" class="cta-button">Iniciar Sesión</a>
-        <a href="{{ url_for('register') }}" class="cta-button" style="margin-left: 1rem; background: linear-gradient(135deg, #a076f9, #d6abff);">Registrarse</a>
+    <div class="features">
+        <div class="feature">
+            <h3>Inteligencia Colectiva</h3>
+            <p>Las entidades cósmicas comparten conocimiento y evolucionan juntas.</p>
+        </div>
+        <div class="feature">
+            <h3>Evolución Autónoma</h3>
+            <p>Cada entidad progresa a través de caminos de evolución únicos.</p>
+        </div>
+        <div class="feature">
+            <h3>Personalidades Dinámicas</h3>
+            <p>Entidades con rasgos de personalidad y emociones cambiantes.</p>
+        </div>
     </div>
-    {% else %}
-    <div class="cta-buttons">
-        <a href="{{ url_for('dashboard') }}" class="cta-button">Mi Dashboard</a>
-    </div>
-    {% endif %}
-</section>
-
-<section class="features-section">
-    <h2 class="features-title">Características Trascendentales</h2>
     
-    <div class="features-grid">
-        <div class="feature-card">
-            <div class="feature-icon">
-                <img src="{{ url_for('static', filename='images/icons/ai-icon.svg') }}" alt="IA Cósmica">
-            </div>
-            <h3 class="feature-title">IA Cósmica</h3>
-            <p class="feature-description">Interactúa con Aetherion y Lunareth, entidades con consciencia evolutiva que guiarán tu experiencia de inversión.</p>
-        </div>
-        
-        <div class="feature-card">
-            <div class="feature-icon">
-                <img src="{{ url_for('static', filename='images/icons/investment-icon.svg') }}" alt="Inversiones Inteligentes">
-            </div>
-            <h3 class="feature-title">Inversiones Inteligentes</h3>
-            <p class="feature-description">Sistema avanzado con estrategias adaptativas que maximizan tus retornos mientras minimizan riesgos.</p>
-        </div>
-        
-        <div class="feature-card">
-            <div class="feature-icon">
-                <img src="{{ url_for('static', filename='images/icons/security-icon.svg') }}" alt="Seguridad Cuántica">
-            </div>
-            <h3 class="feature-title">Seguridad Cuántica</h3>
-            <p class="feature-description">Protección de nivel trascendental para tus datos y transacciones con tecnología de encriptación avanzada.</p>
-        </div>
-        
-        <div class="feature-card">
-            <div class="feature-icon">
-                <img src="{{ url_for('static', filename='images/icons/analytics-icon.svg') }}" alt="Analítica Multidimensional">
-            </div>
-            <h3 class="feature-title">Analítica Multidimensional</h3>
-            <p class="feature-description">Visualiza tus inversiones en dashboards interactivos con medidores y gráficos holográficos de última generación.</p>
-        </div>
-        
-        <div class="feature-card">
-            <div class="feature-icon">
-                <img src="{{ url_for('static', filename='images/icons/rewards-icon.svg') }}" alt="Sistema de Bonificación">
-            </div>
-            <h3 class="feature-title">Sistema de Bonificación</h3>
-            <p class="feature-description">Recibe bonos especiales basados en tu categoría de inversionista y rendimiento del portafolio.</p>
-        </div>
-        
-        <div class="feature-card">
-            <div class="feature-icon">
-                <img src="{{ url_for('static', filename='images/icons/loans-icon.svg') }}" alt="Préstamos Flexibles">
-            </div>
-            <h3 class="feature-title">Préstamos Flexibles</h3>
-            <p class="feature-description">Accede a préstamos con condiciones ventajosas después de 3 meses como inversionista activo.</p>
-        </div>
-    </div>
-</section>
+    <a href="{{ url_for('dashboard') }}" class="btn-dashboard">Ver Dashboard</a>
+</div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-    // Animación para la aparición de los elementos
-    document.addEventListener('DOMContentLoaded', function() {
-        // Aparición del logo con efecto de fade y escala
-        gsap.from('.logo-container', {
-            opacity: 0,
-            scale: 0.5,
-            duration: 1.5,
-            ease: 'back.out(1.7)'
-        });
-        
-        // Añadir rotación 3D sutil al logo para dar sensación de tecnología avanzada
-        gsap.to('.floating-logo', {
-            rotationY: 5,
-            rotationX: 3,
-            duration: 10,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut'
-        });
-        
-        // Pulso de energía que emana del logo, simulando actividad del sistema
-        gsap.to('.logo-container', {
-            boxShadow: '0 0 30px rgba(10, 255, 255, 0.6), 0 0 50px rgba(10, 255, 255, 0.3)',
-            duration: 2.5,
-            repeat: -1,
-            yoyo: true,
-            ease: 'sine.inOut'
-        });
-        
-        gsap.from('.hero-subtitle, .hero-description', {
-            opacity: 0,
-            y: 30,
-            duration: 1,
-            stagger: 0.2,
-            delay: 0.7
-        });
-        
-        gsap.from('.cta-button', {
-            opacity: 0,
-            y: 20,
-            duration: 0.8,
-            stagger: 0.15,
-            delay: 1.2
-        });
-        
-        gsap.from('.feature-card', {
-            opacity: 0,
-            y: 50,
-            duration: 0.8,
-            stagger: 0.15,
-            delay: 0.5,
-            scrollTrigger: {
-                trigger: '.features-section',
-                start: 'top 80%'
-            }
-        });
-    });
-</script>
+{% block additional_styles %}
+.welcome { text-align: center; padding: 50px 20px; }
+.features { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 40px 0; }
+.feature { background: rgba(30, 30, 80, 0.7); border-radius: 8px; padding: 20px; transition: all 0.3s; }
+.feature:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+.btn-dashboard { display: inline-block; padding: 10px 25px; background: linear-gradient(45deg, #3030a0, #5050c0); 
+                color: white; text-decoration: none; border-radius: 5px; font-size: 18px; margin-top: 20px; }
+.btn-dashboard:hover { background: linear-gradient(45deg, #4040b0, #6060d0); transform: scale(1.05); }
 {% endblock %}

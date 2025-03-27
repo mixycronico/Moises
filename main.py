@@ -55,13 +55,13 @@ def status():
     initialize_system()
     return jsonify(cosmic_network.get_network_status())
 
-@app.route('/entity/<name>')
-def entity_details(name):
+@app.route("/entity/<name>")
+def entity_details(n):
     """Mostrar detalles de una entidad específica."""
     initialize_system()
     
     # Buscar entidad por nombre
-    entity = next((e for e in cosmic_network.entities if e.name == name), None)
+    entity = next((e for e in cosmic_network.entities if e.name == n), None)
     
     if entity:
         return render_template('entity.html', entity=entity.get_status())
