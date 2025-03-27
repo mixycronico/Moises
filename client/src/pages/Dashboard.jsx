@@ -267,7 +267,45 @@ const Dashboard = ({ user }) => {
   
   // Función para alternar el modo de edición
   const toggleEditMode = () => {
-    setIsEditMode(!isEditMode);
+    const newEditMode = !isEditMode;
+    setIsEditMode(newEditMode);
+    
+    // En móvil, mostrar instrucciones cuando se activa el modo edición
+    if (newEditMode && window.innerWidth < 768) {
+      // Pequeña vibración para feedback táctil si está disponible
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+      
+      // Mostrar toast o alerta con instrucciones - Esto es muy básico, idealmente usarías un componente Toast
+      const toast = document.createElement('div');
+      toast.className = 'fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-cosmic-primary-50 text-white px-4 py-3 rounded-lg shadow-lg z-50 text-sm flex items-center';
+      toast.style.maxWidth = '90%';
+      toast.style.width = '320px';
+      toast.innerHTML = `
+        <div class="mr-3 text-cosmic-accent">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </div>
+        <div>
+          Arrastra los paneles desde los iconos <span class="text-cosmic-accent">⋮⋮</span> para reordenarlos
+        </div>
+      `;
+      
+      document.body.appendChild(toast);
+      
+      // Eliminar después de 4 segundos
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.5s';
+        setTimeout(() => {
+          document.body.removeChild(toast);
+        }, 500);
+      }, 4000);
+    }
   };
   
   // Cargar layouts guardados al iniciar
@@ -527,25 +565,24 @@ const Dashboard = ({ user }) => {
         </button>
       </motion.div>
       
-      {/* Funciones para el manejo de eventos táctiles de larga duración */}
       {/* Versión móvil: carruseles desplazables y reorganizables */}
       <div className={`md:hidden mb-6 ${isEditMode ? 'edit-mode' : ''}`}>
         <div className="flex justify-between items-center mb-3">
           <h2 className="text-lg font-semibold">Resumen</h2>
-          {isEditMode ? (
-            <div className="text-xs text-cosmic-glow">
-              <span className="flex items-center">
-                <FiMove className="mr-1" /> Arrastra para reordenar
-              </span>
-            </div>
-          ) : (
-            <button 
-              onClick={toggleEditMode}
-              className="text-xs flex items-center cosmic-button-secondary py-1 px-2"
-            >
-              <FiUnlock className="mr-1" /> Personalizar
-            </button>
-          )}
+          <button 
+            onClick={toggleEditMode}
+            className={`text-xs flex items-center py-1.5 px-3 rounded-full ${isEditMode ? 'bg-cosmic-accent text-white' : 'bg-cosmic-primary-50 text-cosmic-glow border border-cosmic-accent/30'}`}
+          >
+            {isEditMode ? (
+              <>
+                <FiLock className="mr-1" /> Guardar
+              </>
+            ) : (
+              <>
+                <FiUnlock className="mr-1" /> Personalizar
+              </>
+            )}
+          </button>
         </div>
         
         <ResponsiveGridLayout
@@ -556,6 +593,7 @@ const Dashboard = ({ user }) => {
           rowHeight={150}
           isDraggable={isEditMode}
           isResizable={false}
+          draggableHandle=".mobile-drag-handle"
           onLayoutChange={(layout, allLayouts) => {
             if (isEditMode && layout) {
               const newLayouts = { ...layouts, xs: layout };
@@ -563,15 +601,15 @@ const Dashboard = ({ user }) => {
               localStorage.setItem('dashboardLayouts', JSON.stringify(newLayouts));
             }
           }}
-          margin={[10, 10]}
-          containerPadding={[0, 0]}
+          margin={[10, 15]}
+          containerPadding={[0, 5]}
           useCSSTransforms={true}
         >
           <div key="balance" className="min-h-[120px]">
             <div className="cosmic-card p-5 h-full relative">
               {isEditMode && (
-                <div className="mobile-drag-handle">
-                  <FiMove size={14} className="text-cosmic-glow" />
+                <div className="mobile-drag-handle flex items-center justify-center">
+                  <FiMove size={16} className="text-white" />
                 </div>
               )}
               <h3 className="text-sm text-gray-400 mb-1 flex items-center">
@@ -584,8 +622,8 @@ const Dashboard = ({ user }) => {
           <div key="performance" className="min-h-[200px]">
             <div className="cosmic-card p-5 h-full relative">
               {isEditMode && (
-                <div className="mobile-drag-handle">
-                  <FiMove size={14} className="text-cosmic-glow" />
+                <div className="mobile-drag-handle flex items-center justify-center">
+                  <FiMove size={16} className="text-white" />
                 </div>
               )}
               <h3 className="text-sm text-gray-400 mb-1 flex items-center">
@@ -600,8 +638,8 @@ const Dashboard = ({ user }) => {
           <div key="system" className="min-h-[200px]">
             <div className="cosmic-card p-5 h-full relative">
               {isEditMode && (
-                <div className="mobile-drag-handle">
-                  <FiMove size={14} className="text-cosmic-glow" />
+                <div className="mobile-drag-handle flex items-center justify-center">
+                  <FiMove size={16} className="text-white" />
                 </div>
               )}
               <h3 className="text-sm text-gray-400 mb-1 flex items-center">
@@ -614,8 +652,8 @@ const Dashboard = ({ user }) => {
           <div key="transactions" className="min-h-[300px]">
             <div className="cosmic-card p-5 h-full relative">
               {isEditMode && (
-                <div className="mobile-drag-handle">
-                  <FiMove size={14} className="text-cosmic-glow" />
+                <div className="mobile-drag-handle flex items-center justify-center">
+                  <FiMove size={16} className="text-white" />
                 </div>
               )}
               <h3 className="text-sm text-gray-400 mb-1 flex items-center">
@@ -630,8 +668,8 @@ const Dashboard = ({ user }) => {
           <div key="assets" className="min-h-[250px]">
             <div className="cosmic-card p-5 h-full relative">
               {isEditMode && (
-                <div className="mobile-drag-handle">
-                  <FiMove size={14} className="text-cosmic-glow" />
+                <div className="mobile-drag-handle flex items-center justify-center">
+                  <FiMove size={16} className="text-white" />
                 </div>
               )}
               <h3 className="text-sm text-gray-400 mb-1 flex items-center">
