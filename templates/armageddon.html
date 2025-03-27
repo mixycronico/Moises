@@ -1,452 +1,811 @@
-{% extends 'simple_layout.html' %}
-
-{% block title %}Prueba ARMAGEDÓN - Sistema de Trading Cósmico{% endblock %}
-
-{% block additional_styles %}
-.container { max-width: 90%; margin: 0 auto; }
-.panel { background: rgba(30, 30, 80, 0.7); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
-.status { font-size: 18px; margin: 15px 0; }
-.status.running { color: #70e0ff; }
-.status.complete { color: #70ff70; }
-.status.error { color: #ff7070; }
-.controls { display: flex; gap: 10px; margin-bottom: 20px; }
-.btn { background: linear-gradient(45deg, #3030a0, #5050c0); color: white; border: none; padding: 12px 20px; 
-      border-radius: 6px; cursor: pointer; font-size: 16px; }
-.btn.danger { background: linear-gradient(45deg, #a03030, #c05050); }
-.btn:hover { filter: brightness(1.2); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.progress-container { height: 30px; background: rgba(20, 20, 50, 0.8); border-radius: 15px; margin: 15px 0; position: relative; overflow: hidden; }
-.progress-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #3050e0, #50a0ff); border-radius: 15px; transition: width 0.3s; }
-.progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; }
-.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
-.metric { background: rgba(40, 40, 100, 0.7); padding: 15px; border-radius: 5px; text-align: center; }
-.metric-value { font-size: 24px; font-weight: bold; color: #b0b0ff; }
-.patterns { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 20px 0; }
-.pattern { padding: 10px; border-radius: 5px; text-align: center; background: rgba(40, 40, 100, 0.5); }
-.pattern.active { background: linear-gradient(45deg, #3050c0, #5080e0); }
-.pattern-name { font-weight: bold; }
-.log-container { height: 300px; overflow-y: auto; background: rgba(20, 20, 50, 0.7); padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; margin-top: 20px; }
-.log-line { margin-bottom: 3px; }
-.log-line.error { color: #ff7070; }
-.log-line.warning { color: #ffaa50; }
-.log-line.success { color: #70ff70; }
-{% endblock %}
-
-{% block content %}
-<div class="container">
-    <h2>Prueba ARMAGEDÓN - Sistema de Trading Cósmico</h2>
-    
-    <div class="panel">
-        <h3>Control de Prueba</h3>
-        <div id="statusDisplay" class="status">Estado: No inicializado</div>
-        
-        <div class="controls">
-            <button id="btnInitialize" class="btn">Inicializar</button>
-            <button id="btnPrepareDB" class="btn" disabled>Preparar Base de Datos</button>
-            <button id="btnStart" class="btn" disabled>Iniciar Prueba</button>
-            <button id="btnStop" class="btn danger" disabled>Detener Prueba</button>
-        </div>
-        
-        <div class="progress-container">
-            <div id="progressBar" class="progress-bar"></div>
-            <div id="progressText" class="progress-text">0%</div>
-        </div>
-    </div>
-    
-    <div class="panel">
-        <h3>Métricas en Tiempo Real</h3>
-        <div class="metrics">
-            <div class="metric">
-                <div id="testDuration" class="metric-value">0</div>
-                <div>Duración (s)</div>
-            </div>
-            <div class="metric">
-                <div id="operationsTotal" class="metric-value">0</div>
-                <div>Operaciones</div>
-            </div>
-            <div class="metric">
-                <div id="operationsPerSecond" class="metric-value">0</div>
-                <div>Ops/seg</div>
-            </div>
-            <div class="metric">
-                <div id="patternProgress" class="metric-value">0/8</div>
-                <div>Patrón actual</div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="panel">
-        <h3>Patrones de Prueba ARMAGEDÓN</h3>
-        <div class="patterns" id="patternsContainer">
-            <div class="pattern" data-pattern="1">
-                <div class="pattern-name">DEVASTADOR TOTAL</div>
-                <div class="pattern-status">Pendiente</div>
-            </div>
-            <div class="pattern" data-pattern="2">
-                <div class="pattern-name">AVALANCHA CONEXIONES</div>
-                <div class="pattern-status">Pendiente</div>
-            </div>
-            <div class="pattern" data-pattern="3">
-                <div class="pattern-name">TSUNAMI OPERACIONES</div>
-                <div class="pattern-status">Pendiente</div>
-            </div>
-            <div class="pattern" data-pattern="4">
-                <div class="pattern-name">SOBRECARGA MEMORIA</div>
-                <div class="pattern-status">Pendiente</div>
-            </div>
-            <div class="pattern" data-pattern="5">
-                <div class="pattern-name">INYECCIÓN CAOS</div>
-                <div class="pattern-status">Pendiente</div>
-            </div>
-            <div class="pattern" data-pattern="6">
-                <div class="pattern-name">OSCILACIÓN EXTREMA</div>
-                <div class="pattern-status">Pendiente</div>
-            </div>
-            <div class="pattern" data-pattern="7">
-                <div class="pattern-name">INTERMITENCIA BRUTAL</div>
-                <div class="pattern-status">Pendiente</div>
-            </div>
-            <div class="pattern" data-pattern="8">
-                <div class="pattern-name">APOCALIPSIS FINAL</div>
-                <div class="pattern-status">Pendiente</div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="panel">
-        <h3>Resultados y Logs</h3>
-        <div id="logContainer" class="log-container"></div>
-        <div id="resultContainer" style="margin-top: 20px;">
-            <div id="noResults">No hay resultados disponibles aún.</div>
-            <div id="results" style="display: none;"></div>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Estado de la prueba
-    let testState = {
-        initialized: false,
-        dbPrepared: false,
-        running: false,
-        complete: false,
-        pattern: 0
-    };
-    
-    // Referencias a elementos
-    const btnInitialize = document.getElementById('btnInitialize');
-    const btnPrepareDB = document.getElementById('btnPrepareDB');
-    const btnStart = document.getElementById('btnStart');
-    const btnStop = document.getElementById('btnStop');
-    const statusDisplay = document.getElementById('statusDisplay');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    const testDuration = document.getElementById('testDuration');
-    const operationsTotal = document.getElementById('operationsTotal');
-    const operationsPerSecond = document.getElementById('operationsPerSecond');
-    const patternProgress = document.getElementById('patternProgress');
-    const logContainer = document.getElementById('logContainer');
-    const patternsContainer = document.getElementById('patternsContainer');
-    const noResults = document.getElementById('noResults');
-    const results = document.getElementById('results');
-    
-    // Variables de control
-    let updateInterval = null;
-    let startTime = null;
-    
-    // Funciones de la API
-    async function apiInitialize() {
-        try {
-            const response = await fetch('/armageddon/initialize', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Error:', error);
-            return { success: false, error: error.message };
-        }
-    }
-    
-    async function apiPrepareDB() {
-        try {
-            const response = await fetch('/armageddon/prepare_db', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Error:', error);
-            return { success: false, error: error.message };
-        }
-    }
-    
-    async function apiStart() {
-        try {
-            const response = await fetch('/armageddon/start', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Error:', error);
-            return { success: false, error: error.message };
-        }
-    }
-    
-    async function apiStop() {
-        try {
-            const response = await fetch('/armageddon/stop', { 
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-            return await response.json();
-        } catch (error) {
-            console.error('Error:', error);
-            return { success: false, error: error.message };
-        }
-    }
-    
-    async function apiStatus() {
-        try {
-            const response = await fetch('/armageddon/status');
-            return await response.json();
-        } catch (error) {
-            console.error('Error:', error);
-            return { success: false, error: error.message };
-        }
-    }
-    
-    async function apiResults() {
-        try {
-            const response = await fetch('/armageddon/results');
-            return await response.json();
-        } catch (error) {
-            console.error('Error:', error);
-            return { success: false, error: error.message };
-        }
-    }
-    
-    // Función para actualizar la interfaz según el estado
-    function updateUI() {
-        // Actualizar botones
-        btnInitialize.disabled = testState.initialized;
-        btnPrepareDB.disabled = !testState.initialized || testState.dbPrepared;
-        btnStart.disabled = !testState.dbPrepared || testState.running;
-        btnStop.disabled = !testState.running;
-        
-        // Actualizar estado
-        if (testState.error) {
-            statusDisplay.textContent = `Error: ${testState.error}`;
-            statusDisplay.className = 'status error';
-        } else if (testState.complete) {
-            statusDisplay.textContent = 'Estado: Prueba completada';
-            statusDisplay.className = 'status complete';
-        } else if (testState.running) {
-            statusDisplay.textContent = 'Estado: Prueba en ejecución';
-            statusDisplay.className = 'status running';
-        } else if (testState.dbPrepared) {
-            statusDisplay.textContent = 'Estado: Base de datos preparada';
-            statusDisplay.className = 'status';
-        } else if (testState.initialized) {
-            statusDisplay.textContent = 'Estado: Inicializado, esperando preparación DB';
-            statusDisplay.className = 'status';
-        } else {
-            statusDisplay.textContent = 'Estado: No inicializado';
-            statusDisplay.className = 'status';
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Prueba ARMAGEDÓN - Sistema de Trading Cósmico</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Estilos globales */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #050520;
+            color: #e0e0ff;
+            line-height: 1.6;
         }
         
-        // Actualizar progreso
-        if (testState.pattern > 0) {
-            const progress = (testState.pattern / 8) * 100;
-            progressBar.style.width = `${progress}%`;
-            progressText.textContent = `${progress.toFixed(1)}%`;
+        /* Fondo cósmico con estrellas */
+        .cosmic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+            overflow: hidden;
         }
         
-        // Actualizar patrones
-        const patterns = patternsContainer.querySelectorAll('.pattern');
-        patterns.forEach(pattern => {
-            const patternNumber = parseInt(pattern.getAttribute('data-pattern'));
+        .star {
+            position: absolute;
+            background: #FFF;
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0.8;
+        }
+        
+        /* Contenedor principal */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* Encabezados */
+        h1, h2, h3 {
+            color: #a0a0ff;
+            text-shadow: 0 0 10px rgba(160, 160, 255, 0.5);
+            margin-top: 0;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+            background: linear-gradient(45deg, #3030a0, #7070c0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(100, 100, 200, 0.7));
+        }
+        
+        /* Tarjetas */
+        .card {
+            background: rgba(20, 20, 50, 0.7);
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 100, 200, 0.3);
+            backdrop-filter: blur(5px);
+        }
+        
+        /* Botones */
+        button {
+            background: linear-gradient(45deg, #3030a0, #5050c0);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: linear-gradient(45deg, #4040b0, #6060d0);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        button.danger {
+            background: linear-gradient(45deg, #a03030, #c05050);
+        }
+        
+        button.danger:hover {
+            background: linear-gradient(45deg, #b04040, #d06060);
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        /* Formularios */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #a0a0ff;
+        }
+        
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid rgba(100, 100, 200, 0.5);
+            background: rgba(30, 30, 60, 0.5);
+            color: #e0e0ff;
+        }
+        
+        /* Grid para configuración */
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        /* Indicadores de estado */
+        .status-indicators {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .indicator {
+            text-align: center;
+            padding: 15px;
+            border-radius: 5px;
+            background: rgba(30, 30, 70, 0.7);
+        }
+        
+        .indicator-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #b0b0ff;
+            margin: 5px 0;
+        }
+        
+        /* Estados de prueba */
+        .test-not-running {
+            background: rgba(100, 100, 200, 0.2);
+            border-left: 5px solid #6060c0;
+        }
+        
+        .test-preparing {
+            background: rgba(100, 150, 200, 0.2);
+            border-left: 5px solid #60a0c0;
+        }
+        
+        .test-running {
+            background: rgba(100, 200, 100, 0.2);
+            border-left: 5px solid #60c060;
+        }
+        
+        .test-error {
+            background: rgba(200, 100, 100, 0.2);
+            border-left: 5px solid #c06060;
+        }
+        
+        .test-completed {
+            background: rgba(150, 150, 100, 0.2);
+            border-left: 5px solid #c0c060;
+        }
+        
+        /* Consola de salida */
+        .console {
+            background: rgba(10, 10, 30, 0.8);
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            color: #b0e0ff;
+            margin-top: 20px;
+        }
+        
+        .console-info {
+            color: #90c0ff;
+        }
+        
+        .console-warning {
+            color: #ffcf60;
+        }
+        
+        .console-error {
+            color: #ff7070;
+        }
+        
+        /* Progreso */
+        .progress-container {
+            background: rgba(20, 20, 50, 0.5);
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+            height: 25px;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(45deg, #3030a0, #5050c0);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* Navegación */
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .nav-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background: rgba(30, 30, 70, 0.7);
+            color: #a0a0ff;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 0 10px;
+            transition: all 0.3s;
+        }
+        
+        .nav-link:hover {
+            background: rgba(40, 40, 90, 0.7);
+            transform: translateY(-2px);
+        }
+        
+        /* Animaciones */
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+        
+        .pulsating {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="cosmic-bg" id="stars"></div>
+    
+    <div class="container">
+        <h1>PRUEBA ARMAGEDÓN - Sistema de Trading Cósmico</h1>
+        
+        <div class="nav-links">
+            <a href="/" class="nav-link">Inicio</a>
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/armageddon_test" class="nav-link">Prueba Armagedón</a>
+        </div>
+        
+        <div class="card">
+            <h2>Configuración de la Prueba</h2>
+            <p>Configure los parámetros para la prueba de resistencia extrema del sistema.</p>
             
-            if (patternNumber < testState.pattern) {
-                pattern.classList.remove('active');
-                pattern.querySelector('.pattern-status').textContent = 'Completado';
-            } else if (patternNumber === testState.pattern) {
-                pattern.classList.add('active');
-                pattern.querySelector('.pattern-status').textContent = 'En Proceso';
-            } else {
-                pattern.classList.remove('active');
-                pattern.querySelector('.pattern-status').textContent = 'Pendiente';
-            }
-        });
-        
-        // Actualizar métricas
-        patternProgress.textContent = `${testState.pattern}/8`;
-    }
-    
-    // Función para actualizar estado desde API
-    async function updateStatusFromAPI() {
-        try {
-            const data = await apiStatus();
-            
-            if (data.success) {
-                // Actualizar estado local
-                testState.initialized = data.state.initialized;
-                testState.dbPrepared = data.state.db_prepared;
-                testState.running = data.state.test_running;
-                testState.complete = data.state.test_complete;
-                testState.error = data.state.error;
-                testState.pattern = data.state.current_pattern_index;
+            <div class="config-grid">
+                <div class="form-group">
+                    <label for="entity-count">Número de Entidades:</label>
+                    <input type="number" id="entity-count" value="20" min="5" max="100">
+                </div>
                 
-                // Actualizar métricas
-                if (data.state.start_time) {
-                    const now = new Date();
-                    const startTime = new Date(data.state.start_time);
-                    const duration = (now - startTime) / 1000;
-                    testDuration.textContent = duration.toFixed(0);
+                <div class="form-group">
+                    <label for="test-duration">Duración (segundos):</label>
+                    <input type="number" id="test-duration" value="60" min="10" max="300">
+                </div>
+                
+                <div class="form-group">
+                    <label for="volatility-factor">Factor de Volatilidad:</label>
+                    <input type="number" id="volatility-factor" value="10" min="1" max="50">
+                </div>
+                
+                <div class="form-group">
+                    <label for="energy-factor">Factor Drenaje Energía:</label>
+                    <input type="number" id="energy-factor" value="5" min="1" max="20">
+                </div>
+                
+                <div class="form-group">
+                    <label for="communication-factor">Factor Comunicación:</label>
+                    <input type="number" id="communication-factor" value="8" min="1" max="20">
+                </div>
+                
+                <div class="form-group">
+                    <label for="db-stress-factor">Factor Estrés DB:</label>
+                    <input type="number" id="db-stress-factor" value="10" min="1" max="30">
+                </div>
+                
+                <div class="form-group">
+                    <label for="fail-probability">Prob. de Fallos (%):</label>
+                    <input type="number" id="fail-probability" value="15" min="0" max="50">
+                </div>
+                
+                <div class="form-group">
+                    <label for="test-type">Tipo de Prueba:</label>
+                    <select id="test-type">
+                        <option value="basic">Básica</option>
+                        <option value="extreme">Extrema</option>
+                        <option value="ultra" selected>Ultra</option>
+                        <option value="divine">Divina</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button id="initialize-btn">Inicializar Sistema</button>
+                <button id="prepare-db-btn" disabled>Preparar Base de Datos</button>
+                <button id="start-test-btn" disabled>Iniciar Prueba</button>
+                <button id="stop-test-btn" class="danger" disabled>Detener Prueba</button>
+            </div>
+        </div>
+        
+        <div class="card" id="status-card">
+            <h2>Estado de la Prueba</h2>
+            <div id="test-status" class="test-not-running">
+                <p>La prueba no está en ejecución.</p>
+            </div>
+            
+            <div class="progress-container">
+                <div id="progress-bar" class="progress-bar" style="width: 0%">0%</div>
+            </div>
+            
+            <div class="status-indicators">
+                <div class="indicator">
+                    <div>Entidades</div>
+                    <div id="entity-count-value" class="indicator-value">0</div>
+                </div>
+                
+                <div class="indicator">
+                    <div>Operaciones</div>
+                    <div id="operations-value" class="indicator-value">0</div>
+                </div>
+                
+                <div class="indicator">
+                    <div>Operaciones/s</div>
+                    <div id="ops-per-second-value" class="indicator-value">0</div>
+                </div>
+                
+                <div class="indicator">
+                    <div>Fallos</div>
+                    <div id="failures-value" class="indicator-value">0</div>
+                </div>
+                
+                <div class="indicator">
+                    <div>Recuperaciones</div>
+                    <div id="recoveries-value" class="indicator-value">0</div>
+                </div>
+                
+                <div class="indicator">
+                    <div>Tiempo Restante</div>
+                    <div id="time-remaining-value" class="indicator-value">--:--</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Consola de Salida</h2>
+            <div id="console" class="console">
+                <div class="console-info">Sistema listo para prueba ARMAGEDÓN.</div>
+            </div>
+        </div>
+        
+        <div class="card" id="results-card" style="display:none;">
+            <h2>Resultados de la Prueba</h2>
+            <div id="results-content">
+                <p>Los resultados se mostrarán aquí cuando la prueba finalice.</p>
+            </div>
+            
+            <button id="download-report-btn">Descargar Reporte Completo</button>
+        </div>
+    </div>
+    
+    <script>
+        // Estado global
+        const state = {
+            testRunning: false,
+            testPreparing: false,
+            startTime: null,
+            endTime: null,
+            duration: 60,
+            progress: 0,
+            entityCount: 0,
+            operations: 0,
+            opsPerSecond: 0,
+            failures: 0,
+            recoveries: 0,
+            intervalId: null
+        };
+        
+        // Referencias DOM
+        const initializeBtn = document.getElementById('initialize-btn');
+        const prepareDbBtn = document.getElementById('prepare-db-btn');
+        const startTestBtn = document.getElementById('start-test-btn');
+        const stopTestBtn = document.getElementById('stop-test-btn');
+        const testStatus = document.getElementById('test-status');
+        const progressBar = document.getElementById('progress-bar');
+        const consoleOutput = document.getElementById('console');
+        const resultsCard = document.getElementById('results-card');
+        const resultsContent = document.getElementById('results-content');
+        const downloadReportBtn = document.getElementById('download-report-btn');
+        
+        // Indicadores
+        const entityCountValue = document.getElementById('entity-count-value');
+        const operationsValue = document.getElementById('operations-value');
+        const opsPerSecondValue = document.getElementById('ops-per-second-value');
+        const failuresValue = document.getElementById('failures-value');
+        const recoveriesValue = document.getElementById('recoveries-value');
+        const timeRemainingValue = document.getElementById('time-remaining-value');
+        
+        // Campos de configuración
+        const entityCountInput = document.getElementById('entity-count');
+        const testDurationInput = document.getElementById('test-duration');
+        const volatilityFactorInput = document.getElementById('volatility-factor');
+        const energyFactorInput = document.getElementById('energy-factor');
+        const communicationFactorInput = document.getElementById('communication-factor');
+        const dbStressFactorInput = document.getElementById('db-stress-factor');
+        const failProbabilityInput = document.getElementById('fail-probability');
+        const testTypeSelect = document.getElementById('test-type');
+        
+        // Funciones auxiliares
+        function addConsoleMessage(message, type = 'info') {
+            const div = document.createElement('div');
+            div.classList.add(`console-${type}`);
+            div.textContent = message;
+            consoleOutput.appendChild(div);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        function updateStatus(status, message) {
+            testStatus.className = `test-${status}`;
+            testStatus.innerHTML = `<p>${message}</p>`;
+        }
+        
+        function updateProgressBar(percentage) {
+            progressBar.style.width = `${percentage}%`;
+            progressBar.textContent = `${Math.round(percentage)}%`;
+        }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function updateTimeRemaining() {
+            if (!state.testRunning || !state.startTime) {
+                timeRemainingValue.textContent = '--:--';
+                return;
+            }
+            
+            const elapsedSeconds = (Date.now() - state.startTime) / 1000;
+            const remainingSeconds = Math.max(0, state.duration - elapsedSeconds);
+            
+            timeRemainingValue.textContent = formatTime(remainingSeconds);
+            
+            // Actualizar progreso
+            state.progress = Math.min(100, (elapsedSeconds / state.duration) * 100);
+            updateProgressBar(state.progress);
+            
+            // Verificar si terminó
+            if (remainingSeconds <= 0 && state.testRunning) {
+                stopTest();
+            }
+        }
+        
+        // Crear estrellas de fondo
+        function createStars() {
+            const starsContainer = document.getElementById('stars');
+            
+            for (let i = 0; i < 200; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                
+                const size = Math.random() * 3;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.top = `${Math.random() * 100}vh`;
+                star.style.left = `${Math.random() * 100}vw`;
+                
+                // Animación de pulso aleatoria
+                if (Math.random() > 0.7) {
+                    star.classList.add('pulsating');
                 }
                 
-                operationsTotal.textContent = data.state.operations_total;
-                operationsPerSecond.textContent = data.state.operations_per_second.toFixed(1);
+                starsContainer.appendChild(star);
+            }
+        }
+        
+        // Función para inicializar el sistema
+        function initializeSystem() {
+            state.testPreparing = true;
+            updateStatus('preparing', 'Inicializando componentes del sistema...');
+            prepareDbBtn.disabled = true;
+            initializeBtn.disabled = true;
+            
+            addConsoleMessage('Inicializando componentes del sistema para prueba ARMAGEDÓN...');
+            
+            // Simulación de API para inicializar componentes
+            fetch('/armageddon/api/initialize', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addConsoleMessage('Sistema inicializado correctamente.', 'info');
+                    prepareDbBtn.disabled = false;
+                    updateStatus('preparing', 'Sistema inicializado. Prepare la base de datos.');
+                } else {
+                    addConsoleMessage(`Error al inicializar: ${data.message}`, 'error');
+                    updateStatus('error', 'Error al inicializar sistema.');
+                    initializeBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                addConsoleMessage(`Error de comunicación: ${error}`, 'error');
+                updateStatus('error', 'Error de comunicación.');
+                initializeBtn.disabled = false;
+                state.testPreparing = false;
+            });
+        }
+        
+        // Función para preparar la base de datos
+        function prepareDatabase() {
+            updateStatus('preparing', 'Preparando base de datos...');
+            prepareDbBtn.disabled = true;
+            
+            addConsoleMessage('Preparando base de datos para prueba ARMAGEDÓN...');
+            
+            // Simulación de API para preparar base de datos
+            fetch('/armageddon/api/prepare_database', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addConsoleMessage('Base de datos preparada correctamente.', 'info');
+                    startTestBtn.disabled = false;
+                    updateStatus('preparing', 'Sistema listo para iniciar prueba.');
+                } else {
+                    addConsoleMessage(`Error al preparar DB: ${data.message}`, 'error');
+                    updateStatus('error', 'Error al preparar la base de datos.');
+                    prepareDbBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                addConsoleMessage(`Error de comunicación: ${error}`, 'error');
+                updateStatus('error', 'Error de comunicación.');
+                prepareDbBtn.disabled = false;
+            });
+        }
+        
+        // Función para iniciar la prueba
+        function startTest() {
+            // Obtener configuración
+            const config = {
+                entity_count: parseInt(entityCountInput.value, 10),
+                duration: parseInt(testDurationInput.value, 10),
+                volatility_factor: parseInt(volatilityFactorInput.value, 10),
+                energy_factor: parseInt(energyFactorInput.value, 10),
+                communication_factor: parseInt(communicationFactorInput.value, 10),
+                db_stress_factor: parseInt(dbStressFactorInput.value, 10),
+                fail_probability: parseInt(failProbabilityInput.value, 10) / 100,
+                test_type: testTypeSelect.value
+            };
+            
+            // Guardar duración para cálculos
+            state.duration = config.duration;
+            
+            updateStatus('running', 'Ejecutando prueba ARMAGEDÓN...');
+            startTestBtn.disabled = true;
+            stopTestBtn.disabled = false;
+            prepareDbBtn.disabled = true;
+            initializeBtn.disabled = true;
+            
+            // Mostrar configuración en consola
+            addConsoleMessage('\n============ CONFIGURACIÓN DE PRUEBA ============', 'info');
+            addConsoleMessage(`Entidades: ${config.entity_count}`, 'info');
+            addConsoleMessage(`Duración: ${config.duration} segundos`, 'info');
+            addConsoleMessage(`Volatilidad: ${config.volatility_factor}x`, 'info');
+            addConsoleMessage(`Drenaje Energía: ${config.energy_factor}x`, 'info');
+            addConsoleMessage(`Comunicación: ${config.communication_factor}x`, 'info');
+            addConsoleMessage(`Estrés DB: ${config.db_stress_factor}x`, 'info');
+            addConsoleMessage(`Probabilidad Fallos: ${(config.fail_probability * 100).toFixed(1)}%`, 'info');
+            addConsoleMessage(`Tipo: ${config.test_type.toUpperCase()}`, 'info');
+            addConsoleMessage('==============================================\n', 'info');
+            
+            addConsoleMessage('Iniciando prueba ARMAGEDÓN...', 'info');
+            
+            // Iniciar monitoreo
+            state.testRunning = true;
+            state.startTime = Date.now();
+            
+            // Configurar actualización periódica
+            state.intervalId = setInterval(() => {
+                updateStatus();
+                updateTestStatus();
+            }, 1000);
+            
+            // Simulación de API para iniciar prueba
+            fetch('/armageddon/api/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addConsoleMessage('Prueba iniciada correctamente.', 'info');
+                } else {
+                    addConsoleMessage(`Error al iniciar prueba: ${data.message}`, 'error');
+                    stopTest();
+                }
+            })
+            .catch(error => {
+                addConsoleMessage(`Error de comunicación: ${error}`, 'error');
+                stopTest();
+            });
+        }
+        
+        // Función para detener la prueba
+        function stopTest() {
+            if (!state.testRunning) return;
+            
+            addConsoleMessage('Deteniendo prueba ARMAGEDÓN...', 'warning');
+            
+            // Simulación de API para detener prueba
+            fetch('/armageddon/api/stop', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    addConsoleMessage('Prueba detenida correctamente.', 'info');
+                } else {
+                    addConsoleMessage(`Error al detener prueba: ${data.message}`, 'error');
+                }
                 
-                // Actualizar logs (si hay nuevos)
-                if (data.state.recent_log_lines) {
-                    data.state.recent_log_lines.forEach(line => {
-                        addLogLine(line);
+                // Independientemente del resultado, limpiar estado
+                finishTest();
+            })
+            .catch(error => {
+                addConsoleMessage(`Error de comunicación: ${error}`, 'error');
+                finishTest();
+            });
+        }
+        
+        // Función para obtener el estado de la prueba
+        function updateTestStatus() {
+            if (!state.testRunning) return;
+            
+            fetch('/armageddon/api/status')
+            .then(response => response.json())
+            .then(data => {
+                // Actualizar estado
+                entityCountValue.textContent = data.entity_count || 0;
+                operationsValue.textContent = data.operations || 0;
+                opsPerSecondValue.textContent = (data.ops_per_second || 0).toFixed(1);
+                failuresValue.textContent = data.failures || 0;
+                recoveriesValue.textContent = data.recoveries || 0;
+                
+                // Guardar para cálculos
+                state.operations = data.operations || 0;
+                state.opsPerSecond = data.ops_per_second || 0;
+                state.failures = data.failures || 0;
+                state.recoveries = data.recoveries || 0;
+                state.entityCount = data.entity_count || 0;
+                
+                // Actualizar consola con eventos importantes
+                if (data.events && data.events.length > 0) {
+                    data.events.forEach(event => {
+                        let type = 'info';
+                        if (event.type === 'error') type = 'error';
+                        if (event.type === 'warning') type = 'warning';
+                        
+                        addConsoleMessage(event.message, type);
                     });
                 }
                 
-                // Verificar si la prueba ha terminado
-                if (data.state.test_complete && !testState.resultsShown) {
-                    await loadResults();
-                    testState.resultsShown = true;
+                // Verificar si la prueba terminó
+                if (data.status === 'completed') {
+                    finishTest(true);
                 }
-                
-                // Actualizar UI
-                updateUI();
-            }
-        } catch (error) {
-            console.error('Error al actualizar estado:', error);
-        }
-    }
-    
-    // Función para añadir una línea de log
-    function addLogLine(text) {
-        const line = document.createElement('div');
-        line.className = 'log-line';
-        
-        // Colorear según tipo
-        if (text.includes('ERROR') || text.includes('FALLO')) {
-            line.classList.add('error');
-        } else if (text.includes('ADVERTENCIA') || text.includes('WARNING')) {
-            line.classList.add('warning');
-        } else if (text.includes('ÉXITO') || text.includes('completada')) {
-            line.classList.add('success');
+            })
+            .catch(error => {
+                console.error('Error al actualizar estado:', error);
+            });
         }
         
-        line.textContent = text;
-        logContainer.appendChild(line);
-        logContainer.scrollTop = logContainer.scrollHeight;
-    }
-    
-    // Función para cargar resultados
-    async function loadResults() {
-        try {
-            const data = await apiResults();
+        // Función para finalizar la prueba y mostrar resultados
+        function finishTest(completed = false) {
+            state.testRunning = false;
+            state.endTime = Date.now();
             
-            if (data.success && data.results) {
-                noResults.style.display = 'none';
-                results.style.display = 'block';
-                
-                // Formatear resultados
-                let resultsHTML = '<h3>Resultados Finales</h3>';
-                
-                if (data.results.metrics_summary) {
-                    const summary = data.results.metrics_summary;
-                    resultsHTML += `
-                        <div style="margin: 15px 0;">
-                            <p><strong>Tasa de Éxito:</strong> ${summary.success_rate.toFixed(2)}%</p>
-                        </div>
-                    `;
-                }
-                
-                if (data.results.detailed_metrics) {
-                    const metrics = data.results.detailed_metrics;
-                    resultsHTML += `
-                        <div style="margin: 15px 0;">
-                            <h4>Métricas Detalladas</h4>
-                            <p><strong>Operaciones Totales:</strong> ${metrics.operations_total}</p>
-                            <p><strong>Fallos Detectados:</strong> ${metrics.failure_count}</p>
-                            <p><strong>Recuperaciones:</strong> ${metrics.recovery_count}</p>
-                            <p><strong>Puntuación ARMAGEDÓN:</strong> ${metrics.final_score.toFixed(2)}/100</p>
-                        </div>
-                    `;
-                }
-                
-                results.innerHTML = resultsHTML;
+            // Limpiar intervalo
+            if (state.intervalId) {
+                clearInterval(state.intervalId);
+                state.intervalId = null;
             }
-        } catch (error) {
-            console.error('Error al cargar resultados:', error);
-        }
-    }
-    
-    // Registrar manejadores de eventos
-    btnInitialize.addEventListener('click', async () => {
-        const response = await apiInitialize();
-        if (response.success) {
-            addLogLine('Sistema inicializado para prueba ARMAGEDÓN');
-            testState.initialized = true;
-            updateUI();
-        } else {
-            addLogLine(`ERROR: No se pudo inicializar: ${response.error}`);
-        }
-    });
-    
-    btnPrepareDB.addEventListener('click', async () => {
-        addLogLine('Preparando base de datos...');
-        const response = await apiPrepareDB();
-        if (response.success) {
-            addLogLine('Base de datos preparada para prueba ARMAGEDÓN');
-            testState.dbPrepared = true;
-            updateUI();
-        } else {
-            addLogLine(`ERROR: No se pudo preparar la base de datos: ${response.error}`);
-        }
-    });
-    
-    btnStart.addEventListener('click', async () => {
-        addLogLine('Iniciando prueba ARMAGEDÓN...');
-        const response = await apiStart();
-        if (response.success) {
-            addLogLine('Prueba ARMAGEDÓN iniciada');
-            testState.running = true;
-            startTime = new Date();
-            updateUI();
             
-            // Iniciar actualización periódica
-            if (!updateInterval) {
-                updateInterval = setInterval(updateStatusFromAPI, 1000);
+            // Actualizar interfaz
+            updateProgressBar(100);
+            updateStatus(completed ? 'completed' : 'not-running', 
+                         completed ? 'Prueba completada.' : 'Prueba detenida.');
+            
+            stopTestBtn.disabled = true;
+            initializeBtn.disabled = false;
+            
+            // Si se completó, obtener resultados
+            if (completed) {
+                addConsoleMessage('\n============ PRUEBA COMPLETADA ============', 'info');
+                
+                // Mostrar tarjeta de resultados
+                getTestResults();
             }
-        } else {
-            addLogLine(`ERROR: No se pudo iniciar la prueba: ${response.error}`);
         }
-    });
-    
-    btnStop.addEventListener('click', async () => {
-        addLogLine('Deteniendo prueba ARMAGEDÓN...');
-        const response = await apiStop();
-        if (response.success) {
-            addLogLine('Prueba ARMAGEDÓN detenida');
-            testState.running = false;
-            updateUI();
-        } else {
-            addLogLine(`ERROR: No se pudo detener la prueba: ${response.error}`);
+        
+        // Obtener resultados de la prueba
+        function getTestResults() {
+            fetch('/armageddon/api/results')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Calcular estadísticas finales
+                    const elapsedSeconds = (state.endTime - state.startTime) / 1000;
+                    
+                    // Crear y mostrar resumen
+                    let resultsHTML = `
+                        <h3>Resumen de Prueba ARMAGEDÓN</h3>
+                        <p>Duración real: ${elapsedSeconds.toFixed(1)} segundos</p>
+                        <p>Entidades probadas: ${state.entityCount}</p>
+                        <p>Total operaciones: ${state.operations}</p>
+                        <p>Rendimiento: ${state.opsPerSecond.toFixed(1)} ops/s</p>
+                        <p>Fallos inducidos: ${state.failures}</p>
+                        <p>Recuperaciones: ${state.recoveries}</p>
+                        <p>Tasa recuperación: ${state.failures > 0 ? ((state.recoveries / state.failures) * 100).toFixed(1) : 0}%</p>
+                    `;
+                    
+                    // Mostrar resultados adicionales
+                    if (data.metrics) {
+                        resultsHTML += `
+                            <h3>Métricas de Rendimiento</h3>
+                            <p>Uso máximo CPU: ${data.metrics.max_cpu_usage || 'N/A'}%</p>
+                            <p>Uso máximo memoria: ${data.metrics.max_memory_usage || 'N/A'} MB</p>
+                            <p>Uso máximo disco: ${data.metrics.max_disk_usage || 'N/A'} MB/s</p>
+                            <p>Pico operaciones: ${data.metrics.peak_operations || 'N/A'} ops/s</p>
+                        `;
+                    }
+                    
+                    // Mostrar resultados
+                    resultsContent.innerHTML = resultsHTML;
+                    resultsCard.style.display = 'block';
+                    
+                    // Añadir evento para descargar reporte
+                    downloadReportBtn.onclick = () => {
+                        window.location.href = '/armageddon/api/report';
+                    };
+                    
+                    addConsoleMessage('Resultados de prueba cargados correctamente.', 'info');
+                } else {
+                    addConsoleMessage(`Error al obtener resultados: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                addConsoleMessage(`Error de comunicación al obtener resultados: ${error}`, 'error');
+            });
         }
-    });
-    
-    // Iniciar actualización de estado
-    updateStatusFromAPI();
-    // Configurar actualización periódica
-    updateInterval = setInterval(updateStatusFromAPI, 2000);
-</script>
-{% endblock %}
+        
+        // Configurar eventos
+        initializeBtn.addEventListener('click', initializeSystem);
+        prepareDbBtn.addEventListener('click', prepareDatabase);
+        startTestBtn.addEventListener('click', startTest);
+        stopTestBtn.addEventListener('click', stopTest);
+        
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            createStars();
+            addConsoleMessage('Sistema ARMAGEDÓN listo para inicialización.', 'info');
+            
+            // Actualizar tiempo restante periódicamente
+            setInterval(updateTimeRemaining, 1000);
+        });
+    </script>
+</body>
+</html>
