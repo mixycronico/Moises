@@ -84,6 +84,26 @@ Impacto esperado: neutral.
 Recomendación: Mantener exposición bajo monitoreo continuo.
 ```
 
+#### 7. CUSTODIUS (SecurityGuardian)
+**Rol**: Seguridad y protección contra amenazas en trading
+**Enfoque**: Detección de amenazas, monitoreo de superficie de ataque y protección de activos
+**Pensamiento característico**:
+```
+Sistemas seguros. Nivel de amenaza general: moderado. Protección activa para otoniel.
+Superficie de ataque 'billeteras': bajo monitoreo.
+Recomendación: Verificar configuración 2FA en exchanges principales.
+```
+
+#### 8. OPTIMIUS (ResourceManager)
+**Rol**: Gestión eficiente de recursos y liquidez
+**Enfoque**: Optimización de asignación de capital y aprovechamiento de oportunidades de rendimiento
+**Pensamiento característico**:
+```
+Optimización de liquidez: diversificación de ETH hacia Aave con APY 4.8%. Eficiencia +12% para otoniel.
+Asignación de capital ajustada con ratio 60/40 entre activos volátiles/estables.
+Recomendación: Consolidar posiciones pequeñas para reducir costos operativos.
+```
+
 ## CAPACIDADES DEL SISTEMA
 
 1. **Auto-evolución**: Las entidades mejoran automáticamente con cada operación realizada:

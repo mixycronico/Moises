@@ -186,34 +186,17 @@ def run_quick_test(use_extended_entities=True, num_operations=50, role_focus=Non
                     success_count += 1
                     print(f"{C.GREEN}✓{C.END} {entity.name} ({entity.role}) operó {symbol} exitosamente")
                     
-                    # Dividir el pensamiento en múltiples líneas para evitar truncamiento
+                    # Mostrar pensamiento completo de forma directa sin formato elaborado
                     print(f"  {C.CYAN}Pensamiento:{C.END}")
                     
-                    # Primero intentar dividir por frases
-                    try:
-                        sentences = re.split(r'([.!?])\s+', thought)
-                        current_sentence = ""
-                        
-                        # Reagrupar las frases correctamente (el split separa los signos de puntuación)
-                        for i in range(0, len(sentences), 2):
-                            if i + 1 < len(sentences):
-                                current_sentence = sentences[i] + sentences[i+1]
-                            else:
-                                current_sentence = sentences[i]
-                            
-                            # Imprimir cada frase en una línea separada
-                            if current_sentence.strip():
-                                print(f"    {current_sentence.strip()}")
-                    except Exception as e:
-                        # En caso de error, simplemente dividir por longitud manualmente
-                        max_line_length = 30  # Línea extremadamente corta para evitar truncamiento
-                        for i in range(0, len(thought), max_line_length):
-                            segment = thought[i:i+max_line_length]
-                            if segment.strip():
-                                print(f"    {segment.strip()}")
-                                
-                        # Añadir mensaje informativo al final para verificar que no hay truncamiento
-                        print(f"    [Longitud total: {len(thought)} caracteres]")
+                    # Dividir el pensamiento manualmente en fragmentos muy pequeños
+                    max_length = 35  # Longitud muy pequeña para evitar truncamiento
+                    for i in range(0, len(thought), max_length):
+                        segment = thought[i:i+max_length]
+                        print(f"    {segment}")
+                    
+                    # Añadir longitud total como verificación
+                    print(f"    {C.YELLOW}[Pensamiento completo: {len(thought)} caracteres]{C.END}")
                     
                     # Simular aumento de conocimiento y nivel
                     entity.knowledge += random.uniform(0.01, 0.03)
@@ -305,7 +288,8 @@ def main():
                      help='Modo de prueba: basic (solo Aetherion/Lunareth), extended (todas las entidades)')
     parser.add_argument('--operations', type=int, default=50,
                      help='Número de operaciones a simular')
-    parser.add_argument('--focus', type=str, default=None, choices=['speculator', 'strategist', 'risk', 'arbitrage', 'pattern', 'macro'],
+    parser.add_argument('--focus', type=str, default=None, 
+                     choices=['speculator', 'strategist', 'risk', 'arbitrage', 'pattern', 'macro', 'security', 'resource'],
                      help='Enfoque en un tipo específico de entidad')
     parser.add_argument('--detail', action='store_true',
                      help='Mostrar salida detallada para cada operación')
@@ -321,14 +305,20 @@ def main():
             'risk': 'RiskManager',
             'arbitrage': 'Arbitrageur',
             'pattern': 'PatternRecognizer',
-            'macro': 'MacroAnalyst'
+            'macro': 'MacroAnalyst',
+            'security': 'SecurityGuardian',
+            'resource': 'ResourceManager'
         }
         role_focus = role_map.get(args.focus)
         print(f"Enfocando análisis en el rol: {role_focus}")
     
-    # Deshabilitar logging de "Esperando datos" para evitar ruido
+    # Deshabilitar logging de "Esperando datos" para evitar ruido y aumentar el nivel para reducir salida
     for handler in logging.getLogger().handlers:
         handler.addFilter(lambda record: "Esperando datos" not in record.getMessage())
+    
+    # Aumentar el nivel de registro para reducir la cantidad de salida truncada
+    logging.getLogger().setLevel(logging.WARNING)
+    logging.getLogger('cosmic_trading').setLevel(logging.WARNING)
     
     run_quick_test(
         use_extended_entities=(args.mode == 'extended'),

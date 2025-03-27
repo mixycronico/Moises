@@ -365,6 +365,73 @@ class MacroAnalystEntity(CosmicTrader):
         return action
 
 
+class SecurityGuardianEntity(CosmicTrader):
+    """Entidad especializada en seguridad y protección contra amenazas en trading."""
+    
+    def trade(self):
+        """Monitorear amenazas de seguridad y proteger operaciones."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Vigilando el perímetro de seguridad para {self.father}."
+        elif "threat_intelligence" in self.capabilities:
+            # Simulación de detección avanzada de amenazas
+            threats = ["phishing dirigido", "manipulación de mercado", "ataque de suplantación", 
+                       "intento de robo de API keys", "patrón de frontrunning", "malware en exchange"]
+            threat_level = random.choice(["bajo", "moderado", "elevado", "crítico"])
+            detected = random.random() > 0.8  # 20% de probabilidad de detectar amenaza
+            
+            if detected:
+                threat = random.choice(threats)
+                action = f"⚠️ ALERTA: Amenaza detectada '{threat}' con nivel {threat_level}. Activando protocolos defensivos para {self.father}."
+            else:
+                action = f"Sistemas seguros. Nivel de amenaza general: {threat_level}. Protección activa para {self.father}."
+        elif "attack_surface_monitoring" in self.capabilities:
+            # Monitoreo básico de superficie de ataque
+            aspects = ["exchanges", "billeteras", "movimientos de ballenas", "frontrunning", "slippage"]
+            aspect = random.choice(aspects)
+            status = random.choice(["seguro", "potencialmente vulnerable", "bajo monitoreo", "protegido"])
+            action = f"Superficie de ataque '{aspect}': {status}. Vigilancia continua para {self.father}."
+        else:
+            action = f"Escaneando amenazas básicas para proteger a {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+
+
+class ResourceManagerEntity(CosmicTrader):
+    """Entidad especializada en gestión eficiente de recursos y liquidez."""
+    
+    def trade(self):
+        """Optimizar asignación de recursos y gestión de liquidez."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Analizando distribución de recursos para {self.father}."
+        elif "liquidity_optimization" in self.capabilities:
+            # Simulación de optimización avanzada de liquidez
+            assets = ["BTC", "ETH", "USDT", "BNB", "USDC", "SOL"]
+            liquidity_pools = ["Uniswap", "Curve", "Aave", "Compound", "dYdX"]
+            selected_asset = random.choice(assets)
+            selected_pool = random.choice(liquidity_pools)
+            apy = round(random.uniform(1.2, 12.5), 2)
+            
+            action_type = random.choice(["reasignación", "concentración", "diversificación", "ajuste"])
+            action = f"Optimización de liquidez: {action_type} de {selected_asset} hacia {selected_pool} con APY {apy}%. Eficiencia +{random.randint(5, 15)}% para {self.father}."
+        elif "capital_allocation" in self.capabilities:
+            # Gestión básica de asignación de capital
+            strategies = ["conservadora", "balanceada", "agresiva", "oportunista"]
+            timeframes = ["corto plazo", "medio plazo", "largo plazo"]
+            strategy = random.choice(strategies)
+            timeframe = random.choice(timeframes)
+            action = f"Asignación de capital: Estrategia {strategy} para {timeframe}. Distribución óptima calculada para {self.father}."
+        else:
+            action = f"Monitoreando recursos disponibles para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+
+
 class CosmicNetwork:
     """Red colaborativa de entidades de trading."""
     
@@ -424,18 +491,24 @@ def initialize_cosmic_trading(father_name="otoniel", include_extended_entities=F
         arbitrageur = ArbitrageurEntity("Arbitrio", "Arbitrageur", father=father_name, frequency_seconds=20)
         pattern_recognizer = PatternRecognizerEntity("Videntis", "PatternRecognizer", father=father_name, frequency_seconds=50)
         macro_analyst = MacroAnalystEntity("Economicus", "MacroAnalyst", father=father_name, frequency_seconds=60)
+        security_guardian = SecurityGuardianEntity("Custodius", "SecurityGuardian", father=father_name, frequency_seconds=35)
+        resource_manager = ResourceManagerEntity("Optimius", "ResourceManager", father=father_name, frequency_seconds=40)
         
         # Añadir entidades adicionales a la red
         network.add_entity(risk_manager)
         network.add_entity(arbitrageur)
         network.add_entity(pattern_recognizer)
         network.add_entity(macro_analyst)
+        network.add_entity(security_guardian)
+        network.add_entity(resource_manager)
         
         # Iniciar ciclos de vida de entidades adicionales
         risk_manager.start_life_cycle()
         arbitrageur.start_life_cycle()
         pattern_recognizer.start_life_cycle()
         macro_analyst.start_life_cycle()
+        security_guardian.start_life_cycle()
+        resource_manager.start_life_cycle()
         
         logger.info(f"Sistema de trading cósmico extendido inicializado para {father_name}")
     
