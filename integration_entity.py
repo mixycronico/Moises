@@ -16,6 +16,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 
 from enhanced_simple_cosmic_trader import EnhancedCosmicTrader
+from enhanced_cosmic_entity_mixin import EnhancedCosmicEntityMixin
 
 # Configuración de logging
 logging.basicConfig(
@@ -24,7 +25,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class IntegrationEntity(EnhancedCosmicTrader):
+class IntegrationEntity(EnhancedCosmicTrader, EnhancedCosmicEntityMixin):
     """
     Entidad especializada en integración, coordinación y balance del sistema.
     Proporciona capacidades de integración con APIs externas y balanceo de carga.

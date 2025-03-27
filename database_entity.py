@@ -17,6 +17,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 
 from enhanced_simple_cosmic_trader import EnhancedCosmicTrader
+from enhanced_cosmic_entity_mixin import EnhancedCosmicEntityMixin
 
 # Configuración de logging
 logging.basicConfig(
@@ -25,7 +26,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class DatabaseEntity(EnhancedCosmicTrader):
+class DatabaseEntity(EnhancedCosmicTrader, EnhancedCosmicEntityMixin):
     """
     Entidad especializada en la gestión y optimización de bases de datos.
     Extiende las capacidades de la entidad de trading para enfocarse en 
@@ -323,6 +324,29 @@ class DatabaseEntity(EnhancedCosmicTrader):
             logger.error(f"[{self.name}] Error monitoreando rendimiento: {str(e)}")
             return metrics
     
+    def trade(self):
+        """
+        Implementar método trade requerido por la clase base abstracta.
+        Para la entidad de base de datos, esto representa optimizar consultas
+        y gestionar eficientemente la base de datos.
+        """
+        # Simular análisis de consultas y optimización
+        trade_result = {
+            "action": "optimize",
+            "target": "database",
+            "metrics": {
+                "queries_optimized": self.stats.get("queries_executed", 0) * 0.1,
+                "performance_gain": random.uniform(0.5, 5.0),
+                "space_saved_kb": random.uniform(10, 100)
+            }
+        }
+        
+        # Registrar actividad de trading
+        self.last_trade_time = time.time()
+        self.trades_count += 1
+        
+        return trade_result
+        
     def process_cycle(self):
         """
         Procesar ciclo de vida de la entidad de base de datos.

@@ -18,6 +18,7 @@ from typing import Dict, Any, List, Optional, Tuple, Set
 from concurrent.futures import ThreadPoolExecutor
 
 from enhanced_simple_cosmic_trader import EnhancedCosmicTrader
+from enhanced_cosmic_entity_mixin import EnhancedCosmicEntityMixin
 
 # Configuración de logging
 logging.basicConfig(

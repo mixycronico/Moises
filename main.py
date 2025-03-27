@@ -11,6 +11,7 @@ from armageddon_api import register_armageddon_routes
 from database_entity import create_database_entity
 from websocket_entity import create_local_websocket_entity, create_external_websocket_entity
 from integration_entity import create_integration_entity
+from alert_entity import create_alert_entity
 
 # Configuración de logging
 logging.basicConfig(
@@ -34,6 +35,7 @@ kronos = None  # Entidad de base de datos
 hermes = None  # Entidad WebSocket local
 apollo = None  # Entidad WebSocket externo
 harmonia = None  # Entidad de integración
+sentinel = None  # Entidad de alertas
 
 def initialize_system():
     """Inicializar el sistema de trading cósmico."""
