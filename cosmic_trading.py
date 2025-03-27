@@ -15,7 +15,6 @@ import os
 import json
 import time
 import random
-import sqlite3
 import logging
 import requests
 import threading
@@ -24,11 +23,33 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple, Union
 from collections import deque
 from abc import ABC, abstractmethod
+import psycopg2
+from psycopg2 import pool
+from psycopg2.extras import DictCursor
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, 
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Pool de conexiones PostgreSQL
+postgresql_pool = None
+
+def get_db_pool():
+    """Obtener pool de conexiones a PostgreSQL."""
+    global postgresql_pool
+    if postgresql_pool is None:
+        try:
+            postgresql_pool = pool.ThreadedConnectionPool(
+                minconn=1,
+                maxconn=10,
+                dsn=os.environ.get("DATABASE_URL")
+            )
+            logger.info("Pool de conexiones PostgreSQL inicializado")
+        except Exception as e:
+            logger.error(f"Error al inicializar pool PostgreSQL: {e}")
+            raise
+    return postgresql_pool
 
 class CosmicTrader(ABC):
     """Base para entidades con capacidades de trading y vida simulada."""
@@ -64,55 +85,96 @@ class CosmicTrader(ABC):
         logger.info(f"[{self.name}] Inicialización completa como {self.role}")
         
     def init_db(self):
-        """Inicializar tablas en la base de datos."""
-        conn = sqlite3.connect("cosmic_trading.db")
-        c = conn.cursor()
-        c.execute(f'''CREATE TABLE IF NOT EXISTS {self.name}_life (
-            timestamp TEXT, level REAL, energy REAL, knowledge REAL, capabilities TEXT, log TEXT
-        )''')
-        c.execute(f'''CREATE TABLE IF NOT EXISTS {self.name}_trades (
-            timestamp TEXT, symbol TEXT, action TEXT, price REAL, success INTEGER
-        )''')
-        conn.commit()
-        conn.close()
-        logger.info(f"[{self.name}] Base de datos inicializada")
+        """Inicializar tablas en la base de datos PostgreSQL."""
+        try:
+            pool = get_db_pool()
+            conn = pool.getconn()
+            with conn.cursor() as c:
+                # Crear tabla para datos de vida
+                c.execute(f'''
+                    CREATE TABLE IF NOT EXISTS {self.name}_life (
+                        id SERIAL PRIMARY KEY,
+                        timestamp TIMESTAMP, 
+                        level REAL, 
+                        energy REAL, 
+                        knowledge REAL, 
+                        capabilities TEXT, 
+                        log TEXT
+                    )
+                ''')
+                
+                # Crear tabla para transacciones de trading
+                c.execute(f'''
+                    CREATE TABLE IF NOT EXISTS {self.name}_trades (
+                        id SERIAL PRIMARY KEY,
+                        timestamp TIMESTAMP, 
+                        symbol TEXT, 
+                        action TEXT, 
+                        price REAL, 
+                        success BOOLEAN
+                    )
+                ''')
+                conn.commit()
+            pool.putconn(conn)
+            logger.info(f"[{self.name}] Tablas PostgreSQL inicializadas")
+        except Exception as e:
+            logger.error(f"[{self.name}] Error al inicializar tablas PostgreSQL: {e}")
+            raise
 
     def log_state(self, log_message):
-        """Registrar estado actual en la base de datos."""
-        timestamp = datetime.now().isoformat()
+        """Registrar estado actual en la base de datos PostgreSQL."""
+        timestamp = datetime.now()
         capabilities_str = ",".join(self.capabilities)
-        conn = sqlite3.connect("cosmic_trading.db")
-        c = conn.cursor()
-        c.execute(f"INSERT INTO {self.name}_life VALUES (?, ?, ?, ?, ?, ?)",
-                  (timestamp, self.level, self.energy, self.knowledge, capabilities_str, log_message))
-        conn.commit()
-        conn.close()
-        self.memory.append({
-            "timestamp": timestamp, 
-            "level": self.level, 
-            "energy": self.energy, 
-            "knowledge": self.knowledge,
-            "log": log_message
-        })
-        logger.debug(f"[{self.name}] Estado registrado: {log_message}")
+        try:
+            pool = get_db_pool()
+            conn = pool.getconn()
+            with conn.cursor() as c:
+                c.execute(f'''
+                    INSERT INTO {self.name}_life 
+                    (timestamp, level, energy, knowledge, capabilities, log) 
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                ''', (timestamp, self.level, self.energy, self.knowledge, capabilities_str, log_message))
+                conn.commit()
+            pool.putconn(conn)
+            
+            # Mantener memoria local para rendimiento
+            self.memory.append({
+                "timestamp": timestamp.isoformat(), 
+                "level": self.level, 
+                "energy": self.energy, 
+                "knowledge": self.knowledge,
+                "log": log_message
+            })
+            logger.debug(f"[{self.name}] Estado registrado: {log_message}")
+        except Exception as e:
+            logger.error(f"[{self.name}] Error al registrar estado: {e}")
 
     def log_trade(self, symbol, action, price, success):
-        """Registrar operación de trading."""
-        timestamp = datetime.now().isoformat()
-        conn = sqlite3.connect("cosmic_trading.db")
-        c = conn.cursor()
-        c.execute(f"INSERT INTO {self.name}_trades VALUES (?, ?, ?, ?, ?)",
-                  (timestamp, symbol, action, price, 1 if success else 0))
-        conn.commit()
-        conn.close()
-        self.trading_history.append({
-            "timestamp": timestamp,
-            "symbol": symbol, 
-            "action": action, 
-            "price": price, 
-            "success": success
-        })
-        logger.info(f"[{self.name}] Trade registrado: {action} {symbol} a {price}")
+        """Registrar operación de trading en PostgreSQL."""
+        timestamp = datetime.now()
+        try:
+            pool = get_db_pool()
+            conn = pool.getconn()
+            with conn.cursor() as c:
+                c.execute(f'''
+                    INSERT INTO {self.name}_trades 
+                    (timestamp, symbol, action, price, success) 
+                    VALUES (%s, %s, %s, %s, %s)
+                ''', (timestamp, symbol, action, price, success))
+                conn.commit()
+            pool.putconn(conn)
+            
+            # Mantener historia local para rendimiento
+            self.trading_history.append({
+                "timestamp": timestamp.isoformat(),
+                "symbol": symbol, 
+                "action": action, 
+                "price": price, 
+                "success": success
+            })
+            logger.info(f"[{self.name}] Trade registrado: {action} {symbol} a {price}")
+        except Exception as e:
+            logger.error(f"[{self.name}] Error al registrar trade: {e}")
 
     def metabolize(self):
         """Gestionar ciclo de energía vital."""
@@ -179,13 +241,99 @@ class CosmicTrader(ABC):
 
     def collaborate(self):
         """Colaborar con otras entidades en la red."""
-        if self.network and "strategy_optimization" in self.capabilities:
+        if not self.network:
+            return
+            
+        # Compartir conocimiento proactivamente
+        shared_knowledge = {}
+        collaboration_messages = []
+        
+        # Fase 1: Recolectar conocimiento para compartir
+        if self.level >= 10:  # Solo compartir si tiene nivel mínimo
+            specialty_data = self._generate_specialty_data()
+            if specialty_data:
+                shared_knowledge[self.name] = {
+                    "role": self.role,
+                    "level": self.level,
+                    "data": specialty_data
+                }
+                
+        # Fase 2: Intercambiar conocimiento con otras entidades
+        if self.network.entities:
             for peer in self.network.entities:
-                if peer != self and "market_analysis" in peer.capabilities:
-                    self.knowledge += random.uniform(0.1, 1.0)
-                    peer.knowledge += random.uniform(0.1, 1.0)
-                    logger.info(f"[{self.name}] Colaborando con {peer.name}")
-                    self.log_state(f"Colaboración con {peer.name} para mejorar conocimiento mutuo.")
+                if peer != self:
+                    # Compartir mi conocimiento con ellos
+                    if shared_knowledge.get(self.name):
+                        # Determinar qué tan útil es mi conocimiento para este peer
+                        synergy = self._calculate_synergy(peer)
+                        if synergy > 0.2:  # Si hay buena sinergia
+                            knowledge_gain = random.uniform(0.2, 1.0) * synergy
+                            peer.knowledge += knowledge_gain
+                            collaboration_messages.append(
+                                f"Compartí conocimiento especializado de {self.role} con {peer.name} "
+                                f"({peer.role}), ganancia: {knowledge_gain:.2f}"
+                            )
+                    
+                    # Obtener conocimiento de ellos
+                    peer_data = peer._generate_specialty_data()
+                    if peer_data:
+                        synergy = peer._calculate_synergy(self)
+                        if synergy > 0.2:
+                            knowledge_gain = random.uniform(0.2, 1.0) * synergy
+                            self.knowledge += knowledge_gain
+                            collaboration_messages.append(
+                                f"Recibí conocimiento especializado de {peer.name} ({peer.role}), "
+                                f"ganancia: {knowledge_gain:.2f}"
+                            )
+        
+        # Registrar las colaboraciones importantes
+        if collaboration_messages:
+            message = "Colaboración en red: " + " | ".join(collaboration_messages[:3])
+            logger.info(f"[{self.name}] {message}")
+            self.log_state(message)
+    
+    def _calculate_synergy(self, peer):
+        """Calcular la sinergia con otra entidad basado en roles y capacidades."""
+        # Definir sinergias entre roles
+        role_synergies = {
+            "Speculator": {"Strategist": 0.8, "RiskManager": 0.7, "PatternRecognizer": 0.6},
+            "Strategist": {"Speculator": 0.6, "MacroAnalyst": 0.9, "RiskManager": 0.7},
+            "RiskManager": {"Speculator": 0.8, "Strategist": 0.7, "ResourceManager": 0.8},
+            "Arbitrageur": {"Speculator": 0.7, "PatternRecognizer": 0.6, "ResourceManager": 0.7},
+            "PatternRecognizer": {"Speculator": 0.8, "Arbitrageur": 0.6, "Strategist": 0.7},
+            "MacroAnalyst": {"Strategist": 0.9, "RiskManager": 0.7, "SentimentAnalyst": 0.8},
+            "SecurityGuardian": {"ResourceManager": 0.8, "RiskManager": 0.7, "DataScientist": 0.6},
+            "ResourceManager": {"Strategist": 0.7, "SecurityGuardian": 0.7, "RiskManager": 0.8},
+            "SentimentAnalyst": {"MacroAnalyst": 0.8, "Strategist": 0.7, "NewsAnalyst": 0.9},
+            "DataScientist": {"PatternRecognizer": 0.8, "MacroAnalyst": 0.7, "Quantitative": 0.9},
+            "Quantitative": {"DataScientist": 0.9, "Strategist": 0.8, "RiskManager": 0.7},
+            "NewsAnalyst": {"SentimentAnalyst": 0.9, "MacroAnalyst": 0.8, "Strategist": 0.7}
+        }
+        
+        # Obtener sinergia base por rol
+        base_synergy = role_synergies.get(self.role, {}).get(peer.role, 0.3)
+        
+        # Ajustar por nivel y capacidades compartidas
+        level_factor = min(1.0, (self.level + peer.level) / 100.0)
+        
+        # Contar capacidades compartidas
+        shared_capabilities = set(self.capabilities).intersection(set(peer.capabilities))
+        capability_factor = len(shared_capabilities) / max(1, len(self.capabilities))
+        
+        return base_synergy * (0.5 + 0.5 * level_factor) * (0.5 + 0.5 * capability_factor)
+    
+    def _generate_specialty_data(self):
+        """Generar datos especializados según el rol de la entidad."""
+        # Implementación básica que será sobrescrita por cada entidad especializada
+        if self.level < 10:
+            return None
+            
+        return {
+            "level": self.level,
+            "knowledge": self.knowledge,
+            "capabilities": self.capabilities,
+            "timestamp": datetime.now().isoformat()
+        }
 
     def start_life_cycle(self):
         """Iniciar ciclo de vida en un hilo separado."""
@@ -430,6 +578,249 @@ class ResourceManagerEntity(CosmicTrader):
         logger.info(f"[{self.name}] {action}")
         self.log_state(action)
         return action
+    
+    def _generate_specialty_data(self):
+        """Generar datos especializados de gestión de recursos."""
+        if self.level < 10:
+            return None
+            
+        if "liquidity_optimization" in self.capabilities:
+            return {
+                "optimal_allocations": {
+                    "high_risk": {"BTC": 0.3, "ETH": 0.3, "SOL": 0.2, "USDT": 0.2},
+                    "moderate_risk": {"BTC": 0.2, "ETH": 0.2, "SOL": 0.1, "USDT": 0.5},
+                    "low_risk": {"BTC": 0.1, "ETH": 0.1, "SOL": 0.05, "USDT": 0.75},
+                },
+                "gas_efficiency_score": min(1.0, self.level / 100.0),
+                "protocol_recommendations": ["Aave", "Compound", "Curve"],
+                "timestamp": datetime.now().isoformat()
+            }
+        return super()._generate_specialty_data()
+
+
+class SentimentAnalystEntity(CosmicTrader):
+    """Entidad especializada en análisis de sentimiento social y su influencia en precios."""
+    
+    def __init__(self, name: str = "Sentimentus", **kwargs):
+        super().__init__(name=name, role="SentimentAnalyst", **kwargs)
+        
+    def trade(self):
+        """Analizar sentimiento social y su influencia en precios."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Explorando redes sociales para {self.father}."
+        elif "social_pulse_detection" in self.capabilities:
+            # Simulación de análisis avanzado de sentimiento
+            networks = ["Twitter", "Reddit", "Discord", "Telegram", "YouTube"]
+            network = random.choice(networks)
+            sentiment = random.choice(["extremadamente positivo", "positivo", "neutral", "negativo", "extremadamente negativo"])
+            sentiment_score = round(random.uniform(-1.0, 1.0), 2)
+            action = f"Sentimiento en {network}: {sentiment} ({sentiment_score:+.2f}) para BTCUSD. Tendencia de 24h para {self.father}."
+        elif "influencer_tracking" in self.capabilities:
+            influencers = ["Elon Musk", "Michael Saylor", "Vitalik Buterin", "CZ Binance", "Cathie Wood"]
+            influencer = random.choice(influencers)
+            impact = random.choice(["fuerte positivo", "ligero positivo", "neutro", "ligero negativo", "fuerte negativo"])
+            action = f"Impacto de {influencer}: {impact} en BTCUSD. Monitoreando para {self.father}."
+        else:
+            action = f"Analizando menciones sociales de BTCUSD para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+        
+    def _generate_specialty_data(self):
+        """Generar datos especializados de análisis de sentimiento."""
+        if self.level < 10:
+            return None
+            
+        if "social_pulse_detection" in self.capabilities:
+            return {
+                "sentiment_scores": {
+                    "twitter": random.uniform(-1.0, 1.0),
+                    "reddit": random.uniform(-1.0, 1.0),
+                    "discord": random.uniform(-1.0, 1.0),
+                    "telegram": random.uniform(-1.0, 1.0)
+                },
+                "influencer_impact": {
+                    "positive": ["Elon Musk", "Michael Saylor"],
+                    "negative": ["Peter Schiff", "Nouriel Roubini"],
+                },
+                "trending_topics": ["NFT", "DeFi", "Metaverse", "Layer2"],
+                "timestamp": datetime.now().isoformat()
+            }
+        return super()._generate_specialty_data()
+
+
+class DataScientistEntity(CosmicTrader):
+    """Entidad especializada en análisis de datos y machine learning para trading."""
+    
+    def __init__(self, name: str = "Datarius", **kwargs):
+        super().__init__(name=name, role="DataScientist", **kwargs)
+        
+    def trade(self):
+        """Realizar análisis de datos y predicciones con machine learning."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Recopilando datos para modelos predictivos para {self.father}."
+        elif "ml_price_prediction" in self.capabilities:
+            # Simulación de predicciones con ML
+            timeframes = ["1 hora", "4 horas", "1 día", "1 semana"]
+            timeframe = random.choice(timeframes)
+            prediction_change = random.uniform(-5.0, 5.0)
+            confidence = random.uniform(60.0, 95.0)
+            direction = "alza" if prediction_change > 0 else "baja"
+            action = f"Predicción ML para {timeframe}: {direction} de {abs(prediction_change):.2f}% con {confidence:.1f}% de confianza para {self.father}."
+        elif "feature_engineering" in self.capabilities:
+            features = ["volumen", "volatilidad", "correlación con S&P500", "flujo de exchanges", "interés abierto"]
+            feature = random.choice(features)
+            insight = random.choice(["significativo aumento", "ligero aumento", "sin cambios", "ligera disminución", "significativa disminución"])
+            action = f"Análisis de feature '{feature}': {insight} detectado. Implicación para {self.father}: vigilar BTCUSD."
+        else:
+            action = f"Procesando datos históricos de BTCUSD para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+        
+    def _generate_specialty_data(self):
+        """Generar datos especializados de ciencia de datos."""
+        if self.level < 10:
+            return None
+            
+        if "ml_price_prediction" in self.capabilities:
+            return {
+                "model_metrics": {
+                    "accuracy": random.uniform(0.6, 0.85),
+                    "precision": random.uniform(0.6, 0.85),
+                    "recall": random.uniform(0.6, 0.85),
+                    "f1_score": random.uniform(0.6, 0.85)
+                },
+                "feature_importance": {
+                    "volume": random.uniform(0.1, 0.3),
+                    "volatility": random.uniform(0.1, 0.3),
+                    "market_sentiment": random.uniform(0.1, 0.3),
+                    "technical_indicators": random.uniform(0.1, 0.3)
+                },
+                "prediction_horizon": random.choice(["1h", "4h", "1d", "1w"]),
+                "timestamp": datetime.now().isoformat()
+            }
+        return super()._generate_specialty_data()
+
+
+class QuantitativeAnalystEntity(CosmicTrader):
+    """Entidad especializada en análisis cuantitativos y modelos matemáticos para trading."""
+    
+    def __init__(self, name: str = "Quantium", **kwargs):
+        super().__init__(name=name, role="Quantitative", **kwargs)
+        
+    def trade(self):
+        """Realizar análisis cuantitativos y modelos matemáticos."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Calibrando modelos estadísticos para {self.father}."
+        elif "statistical_arbitrage" in self.capabilities:
+            # Simulación de análisis estadístico avanzado
+            pairs = ["BTC-ETH", "BTC-BNB", "ETH-SOL", "BTC-S&P500", "BTC-Gold"]
+            pair = random.choice(pairs)
+            z_score = round(random.uniform(-3.0, 3.0), 2)
+            trade_signal = "comprar" if z_score < -2.0 else "vender" if z_score > 2.0 else "mantener"
+            action = f"Par {pair}: Z-score {z_score}, señal: {trade_signal}. Análisis para {self.father}."
+        elif "option_pricing" in self.capabilities:
+            expiry = random.choice(["1 semana", "2 semanas", "1 mes", "3 meses"])
+            volatility = round(random.uniform(40.0, 120.0), 1)
+            action = f"Volatilidad implícita para opciones BTC ({expiry}): {volatility}%. Derivados en revisión para {self.father}."
+        else:
+            action = f"Analizando series temporales de BTCUSD para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+        
+    def _generate_specialty_data(self):
+        """Generar datos especializados de análisis cuantitativo."""
+        if self.level < 10:
+            return None
+            
+        if "statistical_arbitrage" in self.capabilities:
+            return {
+                "correlation_matrix": {
+                    "BTC-ETH": random.uniform(0.7, 0.95),
+                    "BTC-BNB": random.uniform(0.6, 0.9),
+                    "BTC-SOL": random.uniform(0.5, 0.85),
+                    "BTC-Gold": random.uniform(-0.2, 0.4),
+                    "BTC-S&P500": random.uniform(0.1, 0.6)
+                },
+                "volatility_surface": {
+                    "10d": random.uniform(40, 100),
+                    "30d": random.uniform(35, 90),
+                    "90d": random.uniform(30, 80)
+                },
+                "mean_reversion_pairs": ["BTC-ETH", "BTC-BNB"],
+                "timestamp": datetime.now().isoformat()
+            }
+        return super()._generate_specialty_data()
+
+
+class NewsAnalystEntity(CosmicTrader):
+    """Entidad especializada en análisis de noticias y eventos mediáticos que impactan precios."""
+    
+    def __init__(self, name: str = "Newsius", **kwargs):
+        super().__init__(name=name, role="NewsAnalyst", **kwargs)
+        
+    def trade(self):
+        """Analizar noticias y eventos mediáticos que impactan precios."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Monitoreando fuentes de noticias para {self.father}."
+        elif "breaking_news_impact" in self.capabilities:
+            # Simulación de análisis de noticias de última hora
+            sources = ["Bloomberg", "Reuters", "CNBC", "CoinDesk", "Cointelegraph"]
+            source = random.choice(sources)
+            headlines = [
+                "SEC aprueba ETFs de Bitcoin para ofertas al por menor",
+                "Gran banco central anuncia integración de stablecoins",
+                "País emergente adopta Bitcoin como moneda de curso legal",
+                "Hackeo masivo en exchange importante",
+                "Desarrollador principal abandona proyecto blockchain"
+            ]
+            headline = random.choice(headlines)
+            impact = random.choice(["altamente positivo", "positivo", "neutral", "negativo", "altamente negativo"])
+            action = f"ÚLTIMA HORA [{source}]: '{headline}' - Impacto potencial: {impact}. Alerta para {self.father}."
+        elif "news_sentiment_analysis" in self.capabilities:
+            topics = ["regulación", "adopción institucional", "innovación tecnológica", "seguridad", "sostenibilidad"]
+            topic = random.choice(topics)
+            sentiment = round(random.uniform(-1.0, 1.0), 2)
+            sentiment_text = "positivo" if sentiment > 0.3 else "negativo" if sentiment < -0.3 else "neutral"
+            action = f"Análisis de noticias sobre '{topic}': sentimiento {sentiment_text} ({sentiment:+.2f}). Resumen para {self.father}."
+        else:
+            action = f"Compilando titulares relevantes para BTCUSD para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+        
+    def _generate_specialty_data(self):
+        """Generar datos especializados de análisis de noticias."""
+        if self.level < 10:
+            return None
+            
+        if "breaking_news_impact" in self.capabilities:
+            return {
+                "trending_headlines": [
+                    {"title": "SEC aprueba ETFs de Bitcoin", "sentiment": random.uniform(0.3, 1.0)},
+                    {"title": "China refuerza prohibición cripto", "sentiment": random.uniform(-1.0, -0.3)},
+                    {"title": "PayPal expande servicios crypto", "sentiment": random.uniform(0.3, 1.0)},
+                ],
+                "topic_sentiment": {
+                    "regulación": random.uniform(-1.0, 1.0),
+                    "adopción": random.uniform(-1.0, 1.0),
+                    "tecnología": random.uniform(-1.0, 1.0),
+                    "seguridad": random.uniform(-1.0, 1.0)
+                },
+                "media_coverage_intensity": random.uniform(0.1, 1.0),
+                "timestamp": datetime.now().isoformat()
+            }
+        return super()._generate_specialty_data()
 
 
 class CosmicNetwork:
@@ -494,6 +885,12 @@ def initialize_cosmic_trading(father_name="otoniel", include_extended_entities=F
         security_guardian = SecurityGuardianEntity("Custodius", "SecurityGuardian", father=father_name, frequency_seconds=35)
         resource_manager = ResourceManagerEntity("Optimius", "ResourceManager", father=father_name, frequency_seconds=40)
         
+        # Crear nuevas entidades especializadas
+        sentiment_analyst = SentimentAnalystEntity(father=father_name, frequency_seconds=55)
+        data_scientist = DataScientistEntity(father=father_name, frequency_seconds=65)
+        quantitative_analyst = QuantitativeAnalystEntity(father=father_name, frequency_seconds=70)
+        news_analyst = NewsAnalystEntity(father=father_name, frequency_seconds=40)
+        
         # Añadir entidades adicionales a la red
         network.add_entity(risk_manager)
         network.add_entity(arbitrageur)
@@ -502,6 +899,12 @@ def initialize_cosmic_trading(father_name="otoniel", include_extended_entities=F
         network.add_entity(security_guardian)
         network.add_entity(resource_manager)
         
+        # Añadir nuevas entidades especializadas a la red
+        network.add_entity(sentiment_analyst)
+        network.add_entity(data_scientist)
+        network.add_entity(quantitative_analyst)
+        network.add_entity(news_analyst)
+        
         # Iniciar ciclos de vida de entidades adicionales
         risk_manager.start_life_cycle()
         arbitrageur.start_life_cycle()
@@ -509,6 +912,12 @@ def initialize_cosmic_trading(father_name="otoniel", include_extended_entities=F
         macro_analyst.start_life_cycle()
         security_guardian.start_life_cycle()
         resource_manager.start_life_cycle()
+        
+        # Iniciar ciclos de vida de nuevas entidades
+        sentiment_analyst.start_life_cycle()
+        data_scientist.start_life_cycle()
+        quantitative_analyst.start_life_cycle()
+        news_analyst.start_life_cycle()
         
         logger.info(f"Sistema de trading cósmico extendido inicializado para {father_name}")
     
