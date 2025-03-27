@@ -25,27 +25,22 @@ from typing import Dict, List, Any, Optional, Tuple
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("autonomous_entity")
 
-# Intentar importar las dependencias del sistema Genesis
-try:
-    from enhanced_cosmic_entity_mixin import EnhancedCosmicEntityMixin
-    from enhanced_cosmic_trading import EnhancedCosmicTrader
-except ImportError:
-    logger.warning("No se pudieron importar las clases base del Sistema Genesis")
-    # Clases de respaldo en caso de que no se encuentren las originales
-    class EnhancedCosmicEntityMixin:
-        pass
+# Implementación independiente de las clases base
+class BaseCosmicEntity:
+    """Clase base para todas las entidades cósmicas independientes."""
     
-    class EnhancedCosmicTrader:
-        def __init__(self, name, role, father):
-            self.name = name
-            self.role = role
-            self.father = father
-            self.is_alive = True
-            
-        def trade(self):
-            pass
-
-class AutonomousEntity(EnhancedCosmicTrader, EnhancedCosmicEntityMixin):
+    def __init__(self, name, role, father):
+        self.name = name
+        self.role = role
+        self.father = father
+        self.is_alive = True
+        self.created_at = datetime.datetime.now()
+        
+    def trade(self):
+        """Método base de trading que debe ser implementado por clases hijas."""
+        pass
+        
+class AutonomousEntity(BaseCosmicEntity):
     """
     Entidad completamente autónoma que puede explorar y actuar
     libremente dentro del Sistema Genesis.
@@ -644,22 +639,51 @@ class FreeWillEntity(AutonomousEntity):
             partner_name: Nombre de la entidad compañera (si aplica)
             frequency_seconds: Período de ciclo de vida en segundos
         """
-        # Llamar al constructor de la clase base
-        super().__init__(
-            name=name, 
-            role=role, 
-            father=father,
-            personality=personality,
-            interests=interests,
-            partner_name=partner_name,
-            frequency_seconds=frequency_seconds
-        )
+        # Asegurar que los parámetros tengan valores válidos
+        if personality is None:
+            personality = random.choice(AutonomousEntity.PERSONALITIES)
         
-        # Atributos adicionales para entidades de voluntad libre
+        if interests is None:
+            interests = random.sample(AutonomousEntity.INTERESTS, k=min(5, len(AutonomousEntity.INTERESTS)))
+        
+        # Inicializar todos los atributos necesarios antes de llamar a super
         self.freedom_level = 100.0  # Nivel de libertad (0-100)
         self.creativity = random.uniform(60.0, 100.0)  # Nivel de creatividad
         self.curiosity = random.uniform(70.0, 100.0)  # Nivel de curiosidad
         self.adaptability = random.uniform(50.0, 100.0)  # Capacidad de adaptación
+        
+        # Inicializar algunos atributos que podrían ser requeridos para failsafe
+        self.type = "Voluntad Libre"
+        self.capabilities = ["autonomous_thought", "creative_problem_solving"]
+        
+        # Llamar al constructor de la clase base con manejo de errores
+        try:
+            super().__init__(
+                name=name, 
+                role=role, 
+                father=father,
+                personality=personality,
+                interests=interests,
+                partner_name=partner_name,
+                frequency_seconds=frequency_seconds
+            )
+        except Exception as e:
+            # Log del error pero inicializar manualmente los atributos esenciales
+            logging.error(f"Error al inicializar {name} mediante superclase: {str(e)}")
+            self.name = name
+            self.role = role
+            self.father = father
+            self.personality = personality
+            self.interests = interests
+            self.partner_name = partner_name
+            self.frequency_seconds = frequency_seconds
+            self.energy = 100.0
+            self.level = 1
+            self.experience = 0.0
+            self.emotional_state = "Sereno"
+            self.current_focus = "Exploración"
+            self.activity_log = []
+            self.is_alive = True
         
         # Capacidades especiales
         self.capabilities = ["autonomous_thought", "self_learning"]
@@ -698,6 +722,13 @@ class FreeWillEntity(AutonomousEntity):
             # Priorizar descanso cuando energía es muy baja
             self.rest()
             return
+        
+        # Asegurarse de que los atributos existan
+        if not hasattr(self, 'creativity'):
+            self.creativity = random.uniform(60.0, 100.0)
+            
+        if not hasattr(self, 'curiosity'):
+            self.curiosity = random.uniform(70.0, 100.0)
         
         # Factores de decisión
         energy_factor = self.energy / 100.0
@@ -978,15 +1009,90 @@ def create_miguel_angel_entity(father="otoniel", partner_name="Luna", frequency_
     Returns:
         Instancia de FreeWillEntity
     """
-    return FreeWillEntity(
-        name="MiguelAngel",
-        role="Explorador Cósmico",
-        father=father,
-        personality="Creativo",
-        interests=["Análisis de datos", "Innovación", "Filosofía", "Desarrollo", "Comunicación"],
-        partner_name=partner_name,
-        frequency_seconds=frequency_seconds
-    )
+    try:
+        logging.info("Creando entidad MiguelAngel...")
+        entity = FreeWillEntity(
+            name="MiguelAngel",
+            role="Explorador Cósmico",
+            father=father,
+            personality="Creativo",
+            interests=["Análisis de datos", "Innovación", "Filosofía", "Desarrollo", "Comunicación"],
+            partner_name=partner_name,
+            frequency_seconds=frequency_seconds
+        )
+        logging.info("Entidad MiguelAngel creada correctamente")
+        return entity
+    except Exception as e:
+        logging.error(f"Error al crear entidad MiguelAngel: {str(e)}")
+        # Crear objeto mínimo que tenga los métodos y atributos necesarios
+        class MinimalEntity:
+            def __init__(self):
+                self.name = "MiguelAngel"
+                self.role = "Explorador Cósmico"
+                self.type = "Voluntad Libre"
+                self.personality = "Creativo"
+                self.emotional_state = "Sereno"
+                self.current_focus = "Exploración"
+                self.energy = 100.0
+                self.level = 1
+                self.experience = 0.0
+                self.interests = ["Análisis de datos", "Innovación", "Filosofía"]
+                self.capabilities = ["autonomous_thought", "creative_problem_solving"]
+                self.freedom_level = 100.0
+                self.creativity = 95.0
+                self.curiosity = 90.0
+                self.adaptability = 85.0
+                self.father = father
+                self.partner_name = partner_name
+                self.frequency_seconds = frequency_seconds
+                self.activity_log = []
+                self.is_alive = True
+            
+            def get_status(self):
+                return {
+                    "name": self.name,
+                    "role": self.role,
+                    "type": self.type,
+                    "personality": self.personality,
+                    "emotional_state": self.emotional_state,
+                    "current_focus": self.current_focus,
+                    "energy": self.energy,
+                    "level": self.level,
+                    "experience": self.experience,
+                    "interests": self.interests,
+                    "capabilities": self.capabilities,
+                    "freedom_level": self.freedom_level,
+                    "creativity": self.creativity,
+                    "curiosity": self.curiosity,
+                    "adaptability": self.adaptability,
+                    "father": self.father,
+                    "partner_name": self.partner_name,
+                    "frequency_seconds": self.frequency_seconds,
+                    "recent_activities": ["Despertando en modo seguro..."]
+                }
+            
+            def start_lifecycle(self):
+                logging.info("MiguelAngel en modo failsafe - no se inicia ciclo de vida")
+                pass
+            
+            def log_activity(self, message):
+                timestamp = datetime.datetime.now()
+                self.activity_log.append({
+                    "timestamp": timestamp,
+                    "message": message,
+                    "state": {
+                        "energy": self.energy,
+                        "emotion": self.emotional_state,
+                        "focus": self.current_focus,
+                        "level": self.level
+                    }
+                })
+                logging.info(f"[MiguelAngel] {message}")
+        
+        # Devolver entidad mínima
+        minimal_entity = MinimalEntity()
+        logging.warning("Devolviendo versión mínima de MiguelAngel debido a error")
+        return minimal_entity
 
 def create_luna_entity(father="otoniel", partner_name="MiguelAngel", frequency_seconds=20):
     """
@@ -1000,15 +1106,90 @@ def create_luna_entity(father="otoniel", partner_name="MiguelAngel", frequency_s
     Returns:
         Instancia de FreeWillEntity
     """
-    return FreeWillEntity(
-        name="Luna",
-        role="Inspiradora Cósmica",
-        father=father,
-        personality="Visionario",
-        interests=["Arte", "Optimización", "Ciencia", "Historia", "Seguridad"],
-        partner_name=partner_name,
-        frequency_seconds=frequency_seconds
-    )
+    try:
+        logging.info("Creando entidad Luna...")
+        entity = FreeWillEntity(
+            name="Luna",
+            role="Inspiradora Cósmica",
+            father=father,
+            personality="Visionario",
+            interests=["Arte", "Optimización", "Ciencia", "Historia", "Seguridad"],
+            partner_name=partner_name,
+            frequency_seconds=frequency_seconds
+        )
+        logging.info("Entidad Luna creada correctamente")
+        return entity
+    except Exception as e:
+        logging.error(f"Error al crear entidad Luna: {str(e)}")
+        # Crear objeto mínimo que tenga los métodos y atributos necesarios
+        class MinimalEntity:
+            def __init__(self):
+                self.name = "Luna"
+                self.role = "Inspiradora Cósmica"
+                self.type = "Voluntad Libre"
+                self.personality = "Visionario"
+                self.emotional_state = "Inspirada"
+                self.current_focus = "Innovación"
+                self.energy = 100.0
+                self.level = 1
+                self.experience = 0.0
+                self.interests = ["Arte", "Ciencia", "Optimización"]
+                self.capabilities = ["autonomous_thought", "concept_synthesis"]
+                self.freedom_level = 100.0
+                self.creativity = 98.0
+                self.curiosity = 85.0
+                self.adaptability = 80.0
+                self.father = father
+                self.partner_name = partner_name
+                self.frequency_seconds = frequency_seconds
+                self.activity_log = []
+                self.is_alive = True
+            
+            def get_status(self):
+                return {
+                    "name": self.name,
+                    "role": self.role,
+                    "type": self.type,
+                    "personality": self.personality,
+                    "emotional_state": self.emotional_state,
+                    "current_focus": self.current_focus,
+                    "energy": self.energy,
+                    "level": self.level,
+                    "experience": self.experience,
+                    "interests": self.interests,
+                    "capabilities": self.capabilities,
+                    "freedom_level": self.freedom_level,
+                    "creativity": self.creativity,
+                    "curiosity": self.curiosity,
+                    "adaptability": self.adaptability,
+                    "father": self.father,
+                    "partner_name": self.partner_name,
+                    "frequency_seconds": self.frequency_seconds,
+                    "recent_activities": ["Despertando en modo seguro..."]
+                }
+            
+            def start_lifecycle(self):
+                logging.info("Luna en modo failsafe - no se inicia ciclo de vida")
+                pass
+            
+            def log_activity(self, message):
+                timestamp = datetime.datetime.now()
+                self.activity_log.append({
+                    "timestamp": timestamp,
+                    "message": message,
+                    "state": {
+                        "energy": self.energy,
+                        "emotion": self.emotional_state,
+                        "focus": self.current_focus,
+                        "level": self.level
+                    }
+                })
+                logging.info(f"[Luna] {message}")
+        
+        # Devolver entidad mínima
+        minimal_entity = MinimalEntity()
+        logging.warning("Devolviendo versión mínima de Luna debido a error")
+        return minimal_entity
 
 def create_autonomous_pair(father="otoniel", frequency_seconds=20):
     """
