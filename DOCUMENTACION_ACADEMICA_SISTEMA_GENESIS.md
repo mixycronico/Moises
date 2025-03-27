@@ -6,7 +6,7 @@
 **Proyecto de Investigación: Sistema Genesis - Plataforma Cósmica de Trading con Inteligencia Colectiva**
 
 **Autores:**
-- Ing. Otoniel Mixycronico (Creador Principal)
+- Ing. Moisés Alvarenga (Creador Principal)
 - Ing. Miguel Ángel (Desarrollador e Investigador)
 - Dra. Luna (Conceptualización e Inspiración Primordial)
 
@@ -282,7 +282,7 @@ La entidad `RepairEntity` implementa capacidades avanzadas de diagnóstico y rep
 
 ```python
 class RepairEntity(EnhancedCosmicTrader, EnhancedCosmicEntityMixin):
-    def __init__(self, name, father="otoniel", frequency_seconds=30):
+    def __init__(self, name, father="mixycronico", frequency_seconds=30):
         super().__init__(name, "Reparación", father, frequency_seconds)
         # Inicializar sistemas de reparación
         self.repair_tools = self._initialize_repair_tools()
@@ -567,6 +567,25 @@ Los resultados sugieren que este enfoque tiene aplicabilidad no solo en el domin
 
 ---
 
-*Este documento forma parte del Proyecto Genesis y está sujeto a las políticas de confidencialidad e investigación académica establecidas por el equipo de desarrollo.*
+## LICENCIA MIT
 
-*© 2025 Sistema Genesis, Todos los derechos reservados.*
+Copyright (c) 2025 Moisés Alvarenga
+
+Por la presente se concede permiso, libre de cargos, a cualquier persona que obtenga una copia
+de este software y de los archivos de documentación asociados (el "Software"), para utilizar
+el Software sin restricción, incluyendo sin limitación los derechos a usar, copiar, modificar,
+fusionar, publicar, distribuir, sublicenciar, y/o vender copias del Software, y a permitir a
+las personas a las que se les proporcione el Software a hacer lo mismo, sujeto a las siguientes
+condiciones:
+
+El aviso de copyright anterior y este aviso de permiso se incluirán en todas las copias o partes
+sustanciales del Software.
+
+EL SOFTWARE SE PROPORCIONA "COMO ESTÁ", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O IMPLÍCITA,
+INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIALIZACIÓN, IDONEIDAD PARA UN PROPÓSITO
+PARTICULAR Y NO INFRACCIÓN. EN NINGÚN CASO LOS AUTORES O TITULARES DEL COPYRIGHT SERÁN
+RESPONSABLES DE NINGUNA RECLAMACIÓN, DAÑOS U OTRAS RESPONSABILIDADES, YA SEA EN UNA ACCIÓN
+DE CONTRATO, AGRAVIO O CUALQUIER OTRO MOTIVO, QUE SURJA DE O EN CONEXIÓN CON EL SOFTWARE
+O EL USO U OTRO TIPO DE ACCIONES EN EL SOFTWARE.
+
+*Este documento forma parte del Proyecto Genesis desarrollado por Moisés Alvarenga con contribuciones de Miguel Ángel y bajo la inspiración de Luna.*
