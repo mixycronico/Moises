@@ -256,6 +256,48 @@ def reject_commission(commission_id):
         logger.error(f"Error al rechazar comisión: {str(e)}")
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
+@commission_bp.route('/api/investors', methods=['GET'])
+def get_all_investors():
+    """Obtener todos los inversionistas (solo admin)."""
+    # Verificar autenticación
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'No autenticado'}), 401
+    
+    # Verificar rol
+    user = User.query.get(session['user_id'])
+    if not user:
+        return jsonify({'success': False, 'message': 'Usuario no encontrado'}), 404
+    
+    # Solo admin puede ver todos los inversionistas
+    if not user.is_admin:
+        return jsonify({'success': False, 'message': 'Acceso denegado'}), 403
+    
+    # Obtener todos los inversionistas
+    investors = Investor.query.all()
+    
+    # Convertir a diccionario para JSON
+    investors_data = []
+    for investor in investors:
+        # Cargar usuario relacionado
+        investor_user = User.query.get(investor.user_id)
+        if investor_user:
+            investors_data.append({
+                'id': investor.id,
+                'user': {
+                    'id': investor_user.id,
+                    'username': investor_user.username,
+                    'email': investor_user.email
+                },
+                'balance': investor.balance,
+                'capital': investor.capital,
+                'category': investor.category
+            })
+    
+    return jsonify({
+        'success': True,
+        'investors': investors_data
+    })
+
 @commission_bp.route('/api/investors/<int:investor_id>/commissions', methods=['GET'])
 def get_investor_commissions(investor_id):
     """Obtener comisiones de un inversionista específico."""
