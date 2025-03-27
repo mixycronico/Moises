@@ -1,0 +1,175 @@
+import threading
+import time
+import random
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import logging
+from abc import ABC, abstractmethod
+import websocket
+import json
+import numpy as np
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from collections import deque
+
+# Configuración de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("cosmic_trading")
+
+class CosmicTrader(ABC):
+    def __init__(self, name, role, father="otoniel", energy_rate=0.1, frequency_seconds=15):
+        self.name = name
+        self.role = role
+        self.father = father
+        self.energy_rate = energy_rate
+        self.frequency_seconds = frequency_seconds
+        self.running = False
+        self.network = None
+        self.db_config = {
+            "dbname": "cosmic_trading",
+            "user": "your_user",
+            "password": "your_password",
+            "host": "localhost"
+        }
+        self.price_history = deque(maxlen=100)  # Últimos 100 precios
+        self.model = self._build_lstm_model()
+        self.ws = None
+        self.init_db()
+        self.start_websocket()
+
+    def _build_lstm_model(self):
+        model = Sequential()
+        model.add(LSTM(50, return_sequences=True, input_shape=(20, 1)))
+        model.add(LSTM(50))
+        model.add(Dense(1))
+        model.compile(optimizer="adam", loss="mse")
+        return model
+
+    def init_db(self):
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor() as c:
+                c.execute("""
+                    INSERT INTO cosmic_entities (name, role) 
+                    VALUES (%s, %s) 
+                    ON CONFLICT (name) DO NOTHING
+                """, (self.name, self.role))
+                c.execute("SELECT id FROM cosmic_entities WHERE name = %s", (self.name,))
+                self.id = c.fetchone()[0]
+        logger.info(f"[{self.name}] Registrado en la base de datos con ID {self.id}.")
+
+    def start_websocket(self):
+        def on_message(ws, message):
+            data = json.loads(message)
+            price = float(data["k"]["c"])  # Precio de cierre del kline
+            self.price_history.append(price)
+            self.log_state(f"Precio recibido para {self.father}: BTCUSDT {price}")
+
+        def on_error(ws, error):
+            logger.error(f"[{self.name}] WebSocket error: {error}")
+
+        def on_close(ws, *args):
+            logger.info(f"[{self.name}] WebSocket cerrado")
+
+        self.ws = websocket.WebSocketApp(
+            "wss://stream.binance.com:9443/ws/btcusdt@kline_1m",
+            on_message=on_message,
+            on_error=on_error,
+            on_close=on_close
+        )
+        threading.Thread(target=self.ws.run_forever, daemon=True).start()
+
+    def predict_price(self):
+        state = self.fetch_state()
+        if "trend_prediction" not in state["capabilities"] or len(self.price_history) < 20:
+            return None
+        prices = np.array(list(self.price_history)[-20:]).reshape(1, 20, 1)
+        prediction = self.model.predict(prices, verbose=0)[0][0]
+        return prediction
+
+    def fetch_state(self):
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as c:
+                c.execute("SELECT level, energy, knowledge, capabilities FROM cosmic_entities WHERE id = %s", (self.id,))
+                return c.fetchone()
+
+    def update_state(self, level=None, energy=None, knowledge=None, capabilities=None):
+        state = self.fetch_state()
+        level = level if level is not None else state["level"]
+        energy = energy if energy is not None else state["energy"]
+        knowledge = knowledge if knowledge is not None else state["knowledge"]
+        capabilities = capabilities if capabilities is not None else state["capabilities"]
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor() as c:
+                c.execute("""
+                    UPDATE cosmic_entities 
+                    SET level = %s, energy = %s, knowledge = %s, capabilities = %s 
+                    WHERE id = %s
+                """, (level, energy, knowledge, capabilities, self.id))
+
+    def metabolize(self):
+        state = self.fetch_state()
+        energy = state["energy"] - self.energy_rate * random.uniform(0.5, 1.5)
+        if "energy_harvesting" in state["capabilities"]:
+            energy += random.uniform(1.0, 3.0) * (state["knowledge"] / 100.0)
+        energy = max(0.0, min(200.0, energy))
+        self.update_state(energy=energy)
+        return energy > 0
+
+    def evolve(self):
+        state = self.fetch_state()
+        knowledge_gain = random.uniform(0.05, 0.15) * (1 + self.network.global_knowledge_pool / 1000.0) if self.network else 0.05
+        knowledge = min(200.0, state["knowledge"] + knowledge_gain)
+        level = state["level"] + knowledge_gain * 0.2
+        previous_level = int(state["level"])
+        if int(level) > previous_level:
+            self._unlock_capabilities()
+        self.update_state(level=level, knowledge=knowledge)
+
+    def _unlock_capabilities(self):
+        state = self.fetch_state()
+        capability_thresholds = {
+            10: "energy_harvesting",
+            20: "market_analysis",
+            30: "trend_prediction",
+            50: "strategy_optimization",
+            75: "risk_management",
+            100: "autonomous_trading",
+            150: "market_influence"
+        }
+        new_capabilities = state["capabilities"].copy()
+        for threshold, capability in capability_thresholds.items():
+            if state["level"] >= threshold and capability not in new_capabilities:
+                new_capabilities.append(capability)
+                logger.info(f"[{self.name}] Desbloqueada capacidad: {capability} para {self.father}.")
+        self.update_state(capabilities=new_capabilities)
+
+    @abstractmethod
+    def trade(self):
+        pass
+
+    def start_life_cycle(self):
+        self.running = True
+        def life_cycle():
+            while self.running:
+                if self.metabolize():
+                    self.evolve()
+                    self.trade()
+                time.sleep(self.frequency_seconds)
+        threading.Thread(target=life_cycle, daemon=True).start()
+        logger.info(f"[{self.name}] Ciclo de vida iniciado para {self.father}.")
+
+class SpeculatorEntity(CosmicTrader):
+    def trade(self):
+        state = self.fetch_state()
+        price = self.price_history[-1] if self.price_history else None
+        if not price:
+            action = f"Esperando datos para {self.father}."
+        elif "autonomous_trading" in state["capabilities"]:
+            predicted = self.predict_price()
+            decision = "comprar" if predicted > price else "vender"
+            success = random.random() > 0.4
+            action = f"Trade para {self.father}: {decision} BTCUSDT a {price} (Predicción: {predicted:.2f})."
+            self.log_trade("BTCUSDT", decision, price, success)
+        else:
+            action = f"Analizando mercado para {self.father}: BTCUSDT {price}."
+        self.log_state(action)

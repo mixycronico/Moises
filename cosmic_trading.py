@@ -240,57 +240,184 @@ class CosmicTrader(ABC):
         pass
 
     def collaborate(self):
-        """Colaborar con otras entidades en la red."""
-        if not self.network:
-            return
+        """
+        Colaborar con otras entidades en la red intercambiando conocimiento.
+        Implementa un sistema avanzado de comunicación entre entidades
+        basado en PostgreSQL para compartir análisis y aprender de los demás.
+        
+        Returns:
+            Resultado de la colaboración o None
+        """
+        if not hasattr(self, 'network') or not self.network:
+            logger.debug(f"[{self.name}] Sin conexión a la red cósmica para colaborar")
+            return None
             
-        # Compartir conocimiento proactivamente
-        shared_knowledge = {}
+        # Verificar si tenemos capacidades de colaboración
+        collaboration_capability = self.level >= 8 or "network_collaboration" in self.capabilities
+        if not collaboration_capability and random.random() > 0.3:
+            # Solo hay 30% de probabilidad de intentar colaborar sin la capacidad específica
+            return None
+            
+        # Determinar tipo de conocimiento a compartir según rol y nivel
+        knowledge_types = {
+            "Speculator": ["market_sentiment", "price_prediction", "trend_analysis"],
+            "Strategist": ["technical_pattern", "strategy_suggestion", "risk_assessment"],
+            "RiskManager": ["risk_analysis", "exposure_evaluation", "hedge_recommendation"],
+            "Arbitrageur": ["price_discrepancy", "arbitrage_opportunity", "exchange_efficiency"],
+            "PatternRecognizer": ["chart_pattern", "indicator_signal", "pattern_prediction"],
+            "MacroAnalyst": ["economic_impact", "global_trend", "sector_rotation"],
+            "SecurityGuardian": ["security_alert", "fraud_detection", "vulnerability_assessment"],
+            "ResourceManager": ["resource_allocation", "efficiency_optimization", "cost_analysis"],
+            "SentimentAnalyst": ["social_sentiment", "news_impact", "media_tone"],
+            "DataScientist": ["correlation_analysis", "statistical_insight", "model_prediction"],
+            "QuantitativeAnalyst": ["market_model", "quantitative_signal", "statistical_arbitrage"],
+            "NewsAnalyst": ["breaking_news", "market_impact", "news_sentiment"]
+        }
+        
+        # Si no tenemos un rol específico en el diccionario, usar lista genérica
+        my_knowledge_types = knowledge_types.get(self.role, ["market_analysis", "price_prediction"])
+        knowledge_type = random.choice(my_knowledge_types)
+        
         collaboration_messages = []
         
-        # Fase 1: Recolectar conocimiento para compartir
-        if self.level >= 10:  # Solo compartir si tiene nivel mínimo
+        # 1. Compartir conocimiento con la red (si tiene nivel suficiente)
+        if self.level >= 10 and self._should_share_knowledge():
+            # Generar conocimiento especializado según rol
             specialty_data = self._generate_specialty_data()
             if specialty_data:
-                shared_knowledge[self.name] = {
-                    "role": self.role,
-                    "level": self.level,
-                    "data": specialty_data
+                knowledge = {
+                    "source": self.name,
+                    "level": float(self.level),
+                    "data": specialty_data,
+                    "confidence": float(0.5 + (self.level / 20)),  # Mayor nivel, mayor confianza
+                    "timestamp": datetime.now().isoformat()
                 }
                 
-        # Fase 2: Intercambiar conocimiento con otras entidades
-        if self.network.entities:
-            for peer in self.network.entities:
-                if peer != self:
-                    # Compartir mi conocimiento con ellos
-                    if shared_knowledge.get(self.name):
-                        # Determinar qué tan útil es mi conocimiento para este peer
-                        synergy = self._calculate_synergy(peer)
-                        if synergy > 0.2:  # Si hay buena sinergia
-                            knowledge_gain = random.uniform(0.2, 1.0) * synergy
-                            peer.knowledge += knowledge_gain
-                            collaboration_messages.append(
-                                f"Compartí conocimiento especializado de {self.role} con {peer.name} "
-                                f"({peer.role}), ganancia: {knowledge_gain:.2f}"
-                            )
+                # Compartir en la red
+                success = self.network.share_knowledge(
+                    self.name, 
+                    self.role, 
+                    knowledge_type,
+                    knowledge
+                )
+                
+                if success:
+                    self.energy -= 0.02  # Compartir conocimiento consume energía
+                    logger.debug(f"[{self.name}] Compartió conocimiento: {knowledge_type}")
+                    collaboration_messages.append(f"Compartí análisis de {knowledge_type}")
+        
+        # 2. Buscar conocimiento de otros en la red
+        if self._should_seek_knowledge():
+            # Elegir un tipo de conocimiento a buscar (puede ser diferente al compartido)
+            all_knowledge_types = list(set(sum(knowledge_types.values(), [])))
+            interest_type = random.choice(all_knowledge_types)
+            
+            # Consultar la red
+            results = self.network.fetch_knowledge(self.name, interest_type, limit=3)
+            
+            if results and len(results) > 0:
+                # Procesar el conocimiento obtenido
+                knowledge_value = 0
+                knowledge_sources = []
+                
+                for result in results:
+                    # Calcular sinergía con la entidad que compartió
+                    synergy = self._calculate_synergy(result["entity_role"])
                     
-                    # Obtener conocimiento de ellos
-                    peer_data = peer._generate_specialty_data()
-                    if peer_data:
-                        synergy = peer._calculate_synergy(self)
-                        if synergy > 0.2:
-                            knowledge_gain = random.uniform(0.2, 1.0) * synergy
-                            self.knowledge += knowledge_gain
-                            collaboration_messages.append(
-                                f"Recibí conocimiento especializado de {peer.name} ({peer.role}), "
-                                f"ganancia: {knowledge_gain:.2f}"
-                            )
+                    # Registrar la colaboración
+                    self.network.register_collaboration(
+                        self.name, 
+                        result["entity_name"],
+                        interest_type,
+                        synergy
+                    )
+                    
+                    # Cuánto aprendemos depende de la sinergia y nuestro nivel actual
+                    knowledge_boost = synergy * (0.5 + random.random()) * min(1.0, 10.0/self.level)
+                    knowledge_value += knowledge_boost
+                    knowledge_sources.append(result["entity_name"])
+                    
+                    message = f"Aprendí de {result['entity_name']} sobre {interest_type}"
+                    logger.debug(f"[{self.name}] {message}")
+                    collaboration_messages.append(message)
+                
+                # Aplicar el conocimiento adquirido
+                if knowledge_value > 0:
+                    # Aumentar la experiencia
+                    self.experience += knowledge_value
+                    # También aumentar el conocimiento
+                    if hasattr(self, 'knowledge'):
+                        self.knowledge += knowledge_value * 2
+                    
+                    # Probabilidad de desbloquear una capacidad mediante colaboración
+                    if random.random() < 0.05 and len(self.capabilities) < 10:
+                        possible_capabilities = [
+                            "price_prediction", "trend_analysis", "pattern_recognition",
+                            "risk_assessment", "arbitrage_detection", "sentiment_analysis",
+                            "news_evaluation", "statistical_modeling", "market_simulation",
+                            "strategy_optimization", "portfolio_balancing", "liquidity_analysis",
+                            "network_collaboration", "knowledge_integration", "cross_entity_learning"
+                        ]
+                        
+                        # Filtrar capacidades que ya tenemos
+                        available = [c for c in possible_capabilities if c not in self.capabilities]
+                        
+                        if available:
+                            new_capability = random.choice(available)
+                            self.capabilities.append(new_capability)
+                            logger.info(f"[{self.name}] ¡Nueva capacidad desbloqueada por colaboración! {new_capability}")
+                            collaboration_messages.append(f"Desbloqué {new_capability} mediante colaboración")
         
         # Registrar las colaboraciones importantes
         if collaboration_messages:
             message = "Colaboración en red: " + " | ".join(collaboration_messages[:3])
             logger.info(f"[{self.name}] {message}")
             self.log_state(message)
+            
+            return {
+                "messages": collaboration_messages,
+                "summary": message
+            }
+        
+        return None
+        
+    def _should_share_knowledge(self):
+        """
+        Determinar si la entidad debe compartir conocimiento.
+        
+        Returns:
+            bool: True si debe compartir
+        """
+        # Factores que determinan si compartimos conocimiento:
+        # 1. Energía disponible (necesitamos al menos 30%)
+        # 2. Nivel (entidades más avanzadas comparten más)
+        # 3. Probabilidad base (50% + bonificación por nivel)
+        
+        if self.energy < 0.3:
+            return False
+            
+        # Más nivel = más probabilidad de compartir
+        share_probability = 0.5 + min(0.4, self.level / 25.0)
+        return random.random() < share_probability
+        
+    def _should_seek_knowledge(self):
+        """
+        Determinar si la entidad debe buscar conocimiento.
+        
+        Returns:
+            bool: True si debe buscar
+        """
+        # Factores que determinan si buscamos conocimiento:
+        # 1. Energía (incluso con poca energía, podemos buscar)
+        # 2. Nivel (entidades nuevas buscan más que las avanzadas)
+        # 3. Probabilidad base (70% + penalización por nivel)
+        
+        if self.energy < 0.1:
+            return False
+            
+        # Menos nivel = más probabilidad de buscar
+        seek_probability = 0.7 - min(0.3, self.level / 30.0)
+        return random.random() < seek_probability
     
     def _calculate_synergy(self, peer):
         """Calcular la sinergia con otra entidad basado en roles y capacidades."""
@@ -824,33 +951,246 @@ class NewsAnalystEntity(CosmicTrader):
 
 
 class CosmicNetwork:
-    """Red colaborativa de entidades de trading."""
+    """Red colaborativa de entidades de trading con intercambio de conocimiento."""
     
-    def __init__(self):
-        """Inicializar red cósmica."""
+    def __init__(self, father="otoniel"):
+        """
+        Inicializar red cósmica con capacidades avanzadas de colaboración.
+        
+        Args:
+            father: Nombre del creador/dueño del sistema
+        """
+        self.father = father
         self.entities = []
+        self.pool = get_db_pool()  # Usar el pool de conexiones de PostgreSQL existente
+        
+        # Asegurar que tenemos las tablas necesarias para el intercambio de conocimiento
+        self._init_knowledge_tables()
         logger.info("Red cósmica de trading inicializada")
+    
+    def _init_knowledge_tables(self):
+        """Inicializar tablas para el intercambio de conocimiento."""
+        try:
+            conn = self.pool.getconn()
+            with conn.cursor() as c:
+                # Crear tabla para el pool de conocimiento compartido
+                c.execute('''
+                    CREATE TABLE IF NOT EXISTS knowledge_pool (
+                        id SERIAL PRIMARY KEY,
+                        entity_name TEXT NOT NULL,
+                        entity_role TEXT NOT NULL,
+                        knowledge_type TEXT NOT NULL,
+                        knowledge_value JSONB NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Crear tabla para métricas de colaboración
+                c.execute('''
+                    CREATE TABLE IF NOT EXISTS collaboration_metrics (
+                        id SERIAL PRIMARY KEY,
+                        source_entity TEXT NOT NULL,
+                        target_entity TEXT NOT NULL,
+                        knowledge_type TEXT NOT NULL,
+                        synergy_value FLOAT NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                conn.commit()
+            self.pool.putconn(conn)
+            logger.info("Tablas de conocimiento inicializadas")
+        except Exception as e:
+            logger.error(f"Error al inicializar tablas de conocimiento: {e}")
         
     def add_entity(self, entity):
-        """Añadir entidad a la red."""
+        """
+        Añadir entidad a la red.
+        
+        Args:
+            entity: Entidad a añadir a la red
+        """
         entity.network = self
         self.entities.append(entity)
-        logger.info(f"[{entity.name}] Unido a la red cósmica para {entity.father}")
+        logger.info(f"[{entity.name}] Unido a la red cósmica para {self.father}")
+    
+    def share_knowledge(self, entity_name, entity_role, knowledge_type, knowledge_value):
+        """
+        Compartir conocimiento en el pool colectivo.
         
+        Args:
+            entity_name: Nombre de la entidad que comparte
+            entity_role: Rol de la entidad que comparte
+            knowledge_type: Tipo de conocimiento (análisis, predicción, etc.)
+            knowledge_value: Valor del conocimiento (formato JSON)
+            
+        Returns:
+            bool: True si se compartió correctamente
+        """
+        try:
+            conn = self.pool.getconn()
+            with conn.cursor() as c:
+                c.execute('''
+                    INSERT INTO knowledge_pool 
+                    (entity_name, entity_role, knowledge_type, knowledge_value) 
+                    VALUES (%s, %s, %s, %s)
+                ''', (entity_name, entity_role, knowledge_type, knowledge_value))
+                conn.commit()
+            self.pool.putconn(conn)
+            logger.debug(f"[{entity_name}] Conocimiento compartido: {knowledge_type}")
+            return True
+        except Exception as e:
+            logger.error(f"Error al compartir conocimiento: {e}")
+            return False
+    
+    def fetch_knowledge(self, entity_name, knowledge_type, limit=1):
+        """
+        Obtener conocimiento del pool colectivo.
+        
+        Args:
+            entity_name: Nombre de la entidad que consulta
+            knowledge_type: Tipo de conocimiento a buscar
+            limit: Número máximo de registros a retornar
+            
+        Returns:
+            Lista de conocimientos o None
+        """
+        try:
+            conn = self.pool.getconn()
+            with conn.cursor() as c:
+                c.execute('''
+                    SELECT entity_name, entity_role, knowledge_value, timestamp 
+                    FROM knowledge_pool 
+                    WHERE knowledge_type = %s AND entity_name != %s 
+                    ORDER BY timestamp DESC LIMIT %s
+                ''', (knowledge_type, entity_name, limit))
+                
+                results = []
+                for row in c.fetchall():
+                    results.append({
+                        "entity_name": row[0],
+                        "entity_role": row[1],
+                        "knowledge_value": row[2],
+                        "timestamp": row[3].isoformat() if row[3] else None
+                    })
+            self.pool.putconn(conn)
+            return results
+        except Exception as e:
+            logger.error(f"Error al obtener conocimiento: {e}")
+            return None
+    
+    def register_collaboration(self, source, target, knowledge_type, synergy):
+        """
+        Registrar una colaboración entre entidades.
+        
+        Args:
+            source: Entidad origen
+            target: Entidad destino
+            knowledge_type: Tipo de conocimiento compartido
+            synergy: Valor de sinergia (0-1)
+            
+        Returns:
+            bool: True si se registró correctamente
+        """
+        try:
+            conn = self.pool.getconn()
+            with conn.cursor() as c:
+                c.execute('''
+                    INSERT INTO collaboration_metrics 
+                    (source_entity, target_entity, knowledge_type, synergy_value) 
+                    VALUES (%s, %s, %s, %s)
+                ''', (source, target, knowledge_type, synergy))
+                conn.commit()
+            self.pool.putconn(conn)
+            return True
+        except Exception as e:
+            logger.error(f"Error al registrar colaboración: {e}")
+            return False
+    
     def simulate(self):
-        """Ejecutar una ronda de simulación para todas las entidades."""
+        """
+        Ejecutar una ronda de simulación para todas las entidades.
+        
+        Returns:
+            Lista de resultados de la simulación
+        """
         logger.info(f"Simulando colectivo con {len(self.entities)} traders")
         results = []
         for entity in self.entities:
             results.append(entity.trade())
         return results
-        
+    
     def get_network_status(self):
-        """Obtener estado global de la red."""
+        """
+        Obtener estado global de la red.
+        
+        Returns:
+            Dict con información del estado
+        """
         return {
+            "father": self.father,
             "entity_count": len(self.entities),
-            "entities": [entity.get_status() for entity in self.entities]
+            "entities": [entity.get_status() for entity in self.entities],
+            "timestamp": datetime.now().isoformat()
         }
+        
+    def get_collaboration_metrics(self):
+        """
+        Obtener métricas de colaboración de la red.
+        
+        Returns:
+            Dict con métricas de colaboración
+        """
+        try:
+            conn = self.pool.getconn()
+            with conn.cursor() as c:
+                # Obtener total de colaboraciones
+                c.execute("SELECT COUNT(*) FROM collaboration_metrics")
+                total_count = c.fetchone()[0]
+                
+                # Obtener promedio de sinergia
+                c.execute("SELECT AVG(synergy_value) FROM collaboration_metrics")
+                avg_synergy = c.fetchone()[0]
+                
+                # Obtener colaboraciones por entidad
+                c.execute('''
+                    SELECT source_entity, COUNT(*) 
+                    FROM collaboration_metrics 
+                    GROUP BY source_entity 
+                    ORDER BY COUNT(*) DESC
+                ''')
+                entity_stats = {}
+                for row in c.fetchall():
+                    entity_stats[row[0]] = row[1]
+                
+                # Obtener tipos de conocimiento más compartidos
+                c.execute('''
+                    SELECT knowledge_type, COUNT(*) 
+                    FROM collaboration_metrics 
+                    GROUP BY knowledge_type 
+                    ORDER BY COUNT(*) DESC
+                ''')
+                knowledge_stats = {}
+                for row in c.fetchall():
+                    knowledge_stats[row[0]] = row[1]
+                
+            self.pool.putconn(conn)
+            
+            return {
+                "total_collaborations": total_count,
+                "average_synergy": float(avg_synergy) if avg_synergy else 0.0,
+                "entity_stats": entity_stats,
+                "knowledge_stats": knowledge_stats,
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error al obtener métricas de colaboración: {e}")
+            return {
+                "error": str(e),
+                "total_collaborations": 0,
+                "average_synergy": 0.0,
+                "entity_stats": {},
+                "knowledge_stats": {}
+            }
 
 
 # Interfaz para conectar con el sistema existente

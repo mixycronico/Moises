@@ -1,8 +1,9 @@
 """
 API para integrar el sistema de trading cósmico con el Sistema Genesis.
 
-Este módulo permite que las entidades Aetherion y Lunareth del Sistema Genesis
-utilicen las capacidades avanzadas de trading definidas en cosmic_trading.py.
+Este módulo permite que todas las entidades del Sistema Genesis
+utilicen las capacidades avanzadas de trading definidas en cosmic_trading.py,
+incluyendo la colaboración avanzada y el intercambio de conocimiento entre entidades.
 """
 
 import os
@@ -10,8 +11,8 @@ import time
 import logging
 import random
 from datetime import datetime
-from flask import jsonify
-from cosmic_trading import initialize_cosmic_trading
+from flask import jsonify, request
+from cosmic_trading import initialize_cosmic_trading, get_db_pool
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO, 
@@ -183,6 +184,123 @@ def request_market_analysis(symbol="BTCUSD"):
         return {"error": "Lunareth no disponible"}
     except Exception as e:
         logger.error(f"Error al solicitar análisis de mercado: {e}")
+        return {"error": str(e)}
+
+def get_collaboration_metrics():
+    """
+    Obtener métricas de colaboración de la red de trading.
+    
+    Returns:
+        Dict con métricas de colaboración
+    """
+    if not is_initialized():
+        return {"error": "Sistema no inicializado"}
+    
+    try:
+        return cosmic_network.get_collaboration_metrics()
+    except Exception as e:
+        logger.error(f"Error al obtener métricas de colaboración: {e}")
+        return {"error": str(e)}
+
+def get_knowledge_pool(knowledge_type=None, limit=10):
+    """
+    Obtener conocimiento compartido en el pool colectivo.
+    
+    Args:
+        knowledge_type: Tipo de conocimiento a filtrar (opcional)
+        limit: Número máximo de registros a retornar
+        
+    Returns:
+        Lista de conocimientos compartidos
+    """
+    if not is_initialized():
+        return {"error": "Sistema no inicializado"}
+    
+    try:
+        pool = get_db_pool()
+        conn = pool.getconn()
+        results = []
+        
+        with conn.cursor() as c:
+            if knowledge_type:
+                c.execute('''
+                    SELECT id, entity_name, entity_role, knowledge_type, 
+                           knowledge_value, timestamp 
+                    FROM knowledge_pool 
+                    WHERE knowledge_type = %s
+                    ORDER BY timestamp DESC LIMIT %s
+                ''', (knowledge_type, limit))
+            else:
+                c.execute('''
+                    SELECT id, entity_name, entity_role, knowledge_type, 
+                           knowledge_value, timestamp 
+                    FROM knowledge_pool 
+                    ORDER BY timestamp DESC LIMIT %s
+                ''', (limit,))
+                
+            for row in c.fetchall():
+                results.append({
+                    "id": row[0],
+                    "entity_name": row[1],
+                    "entity_role": row[2],
+                    "knowledge_type": row[3],
+                    "knowledge_value": row[4],
+                    "timestamp": row[5].isoformat() if row[5] else None
+                })
+        
+        pool.putconn(conn)
+        return results
+    except Exception as e:
+        logger.error(f"Error al obtener pool de conocimiento: {e}")
+        return {"error": str(e)}
+
+def trigger_network_collaboration(entity_name=None):
+    """
+    Disparar colaboración proactiva en la red.
+    
+    Args:
+        entity_name: Nombre de entidad específica o None para colaboración global
+        
+    Returns:
+        Resultados de la colaboración
+    """
+    if not is_initialized():
+        return {"error": "Sistema no inicializado"}
+    
+    try:
+        results = []
+        
+        if entity_name:
+            # Buscar entidad específica
+            found = False
+            for entity in cosmic_network.entities:
+                if entity.name.lower() == entity_name.lower():
+                    result = entity.collaborate()
+                    results.append({
+                        "entity_name": entity.name,
+                        "result": result
+                    })
+                    found = True
+                    break
+            
+            if not found:
+                return {"error": f"Entidad {entity_name} no encontrada"}
+        else:
+            # Colaboración de toda la red
+            for entity in cosmic_network.entities:
+                result = entity.collaborate()
+                results.append({
+                    "entity_name": entity.name,
+                    "result": result
+                })
+        
+        return {
+            "collaboration_count": len([r for r in results if r["result"] is not None]),
+            "results": results,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Error al disparar colaboración: {e}")
         return {"error": str(e)}
 
 def register_trading_routes(app):
