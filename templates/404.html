@@ -1,50 +1,131 @@
-{% extends 'simple_layout.html' %}
-
-{% block title %}404 - Página No Encontrada{% endblock %}
-
-{% block additional_styles %}
-.error-container { text-align: center; padding: 50px 20px; }
-.error-code { font-size: 120px; color: #5050a0; text-shadow: 0 0 15px rgba(80, 80, 220, 0.7); margin-bottom: 10px; }
-.error-message { font-size: 24px; margin-bottom: 30px; }
-.error-image { width: 300px; max-width: 100%; margin: 30px auto; opacity: 0.7; }
-.home-link { display: inline-block; padding: 12px 25px; background: linear-gradient(45deg, #3030a0, #5050c0); 
-            color: white; text-decoration: none; border-radius: 5px; font-size: 18px; margin-top: 20px; }
-{% endblock %}
-
-{% block content %}
-<div class="error-container">
-    <div class="error-code">404</div>
-    <div class="error-message">La entidad cósmica que buscas no existe en esta dimensión</div>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Página no encontrada - Sistema de Trading Cósmico</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #050520;
+            color: #e0e0ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .error-container {
+            width: 80%;
+            max-width: 600px;
+            background: rgba(30, 30, 70, 0.7);
+            border-radius: 10px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            border: 1px solid rgba(100, 100, 200, 0.3);
+        }
+        
+        h1 {
+            color: #70a0ff;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        
+        p {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #3030a0, #5050c0);
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        
+        .btn:hover {
+            background: linear-gradient(45deg, #4040b0, #6060d0);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .cosmic-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
+            overflow: hidden;
+        }
+        
+        .error-icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+        
+        .error-icon svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .star {
+            position: absolute;
+            background: #FFF;
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="cosmic-bg" id="stars"></div>
     
-    <!-- Simulación de planeta/estrella usando CSS -->
-    <div class="error-image">
-        <svg width="300" height="300" viewBox="0 0 300 300">
-            <defs>
-                <radialGradient id="planetGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                    <stop offset="0%" style="stop-color:#3030a0; stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:#101040; stop-opacity:1" />
-                </radialGradient>
-                <filter id="glow">
-                    <feGaussianBlur stdDeviation="5" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                </filter>
-            </defs>
-            <circle cx="150" cy="150" r="80" fill="url(#planetGradient)" filter="url(#glow)" />
-            <ellipse cx="150" cy="150" rx="120" ry="20" opacity="0.3" fill="#5050a0" />
-            
-            <!-- Estrellas de fondo -->
-            {% for i in range(30) %}
-                <circle cx="{{ range(10, 290)|random }}" cy="{{ range(10, 290)|random }}" r="{{ range(1, 3)|random }}" fill="white" opacity="{{ range(3, 9)|random/10 }}" />
-            {% endfor %}
-            
-            <!-- Cráter -->
-            <circle cx="180" cy="130" r="20" fill="#202060" opacity="0.7" />
-            
-            <!-- Texto -->
-            <text x="150" y="160" fill="white" font-size="16" text-anchor="middle" filter="url(#glow)">NOT FOUND</text>
-        </svg>
+    <div class="error-container">
+        <div class="error-icon">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="#70a0ff" stroke-width="2"/>
+                <path d="M12 8V13" stroke="#70a0ff" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="16" r="1" fill="#70a0ff" stroke="#70a0ff" stroke-width="1"/>
+            </svg>
+        </div>
+        
+        <h1>404 - Página No Encontrada</h1>
+        <p>La página que estás buscando parece haberse perdido en el cosmos.</p>
+        <p>Es posible que haya sido absorbida por un agujero negro o que viajó a otra dimensión.</p>
+        
+        <a href="/" class="btn">Volver al Inicio</a>
     </div>
     
-    <a href="{{ url_for('index') }}" class="home-link">Volver al Inicio</a>
-</div>
-{% endblock %}
+    <script>
+        // Crear estrellas de fondo
+        document.addEventListener('DOMContentLoaded', () => {
+            const starsContainer = document.getElementById('stars');
+            
+            for (let i = 0; i < 200; i++) {
+                const star = document.createElement('div');
+                star.className = 'star';
+                
+                const size = Math.random() * 3;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.top = `${Math.random() * 100}vh`;
+                star.style.left = `${Math.random() * 100}vw`;
+                
+                starsContainer.appendChild(star);
+            }
+        });
+    </script>
+</body>
+</html>

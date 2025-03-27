@@ -351,7 +351,12 @@ def get_status():
         config_duration = TEST_STATUS.get('duration', 60)
         TEST_STATUS['progress'] = min(100, (elapsed / config_duration) * 100)
     
-    return jsonify(TEST_STATUS)
+    # Crear copia del estado sin el proceso (no serializable)
+    status_copy = dict(TEST_STATUS)
+    if 'test_process' in status_copy:
+        del status_copy['test_process']
+    
+    return jsonify(status_copy)
 
 @armageddon_bp.route('/api/initialize', methods=['POST'])
 def initialize_components():
@@ -493,10 +498,15 @@ def get_results():
         "peak_operations": round(TEST_STATUS.get('ops_per_second', 0) * 1.5, 1)
     }
     
+    # Crear copia del estado sin el proceso (no serializable)
+    status_copy = dict(TEST_STATUS)
+    if 'test_process' in status_copy:
+        del status_copy['test_process']
+    
     return jsonify({
         "status": "success",
         "message": "Resultados obtenidos correctamente",
-        "data": TEST_STATUS,
+        "data": status_copy,
         "metrics": metrics
     })
 

@@ -36,14 +36,14 @@ from enhanced_simple_cosmic_trader import (
 )
 
 # Ajustar configuración para prueba ultra extrema
-MAX_ENTITIES = 50             # Número de entidades a crear
+MAX_ENTITIES = 30             # Número de entidades a crear
 THREADS = 8                   # Número de hilos para procesamiento paralelo
-TEST_DURATION = 60            # Duración en segundos
-VOLATILITY_FACTOR = 30        # Multiplicador de volatilidad
-ENERGY_DRAIN_FACTOR = 10      # Factor de drenaje de energía
-COMMUNICATION_FACTOR = 15     # Factor de intensidad de comunicación
-DATABASE_STRESS_FACTOR = 20   # Intensidad de operaciones de base de datos
-FAILURE_PROBABILITY = 0.25    # Probabilidad de fallo inducido (0-1)
+TEST_DURATION = 45            # Duración en segundos
+VOLATILITY_FACTOR = 25        # Multiplicador de volatilidad
+ENERGY_DRAIN_FACTOR = 8      # Factor de drenaje de energía
+COMMUNICATION_FACTOR = 12     # Factor de intensidad de comunicación
+DATABASE_STRESS_FACTOR = 15   # Intensidad de operaciones de base de datos
+FAILURE_PROBABILITY = 0.2    # Probabilidad de fallo inducido (0-1)
 
 # Configuración de logging
 LOG_FILE = "armageddon_ultra_direct_report.log"
