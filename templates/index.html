@@ -20,17 +20,21 @@
     .logo-container {
         margin-bottom: 2rem;
         position: relative;
-        width: 160px;
-        height: 160px;
+        width: 220px;
+        height: 220px;
         display: flex;
         justify-content: center;
         align-items: center;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(0, 20, 40, 0.4) 0%, rgba(0, 20, 40, 0) 70%);
+        box-shadow: 0 0 20px rgba(10, 255, 255, 0.2), 0 0 40px rgba(255, 215, 0, 0.1);
+        transition: box-shadow 0.5s ease;
     }
     
     .floating-logo {
-        width: 160px;
-        height: 160px;
-        filter: drop-shadow(0 0 15px rgba(166, 104, 255, 0.6));
+        width: 220px;
+        height: 220px;
+        filter: drop-shadow(0 0 15px rgba(10, 255, 255, 0.6)) drop-shadow(0 0 10px rgba(255, 215, 0, 0.4));
         animation: logoFloat 6s ease-in-out infinite, logoGlow 4s infinite alternate;
     }
     
@@ -45,10 +49,10 @@
     
     @keyframes logoGlow {
         0% {
-            filter: drop-shadow(0 0 15px rgba(166, 104, 255, 0.5));
+            filter: drop-shadow(0 0 15px rgba(10, 255, 255, 0.5)) drop-shadow(0 0 8px rgba(255, 215, 0, 0.4));
         }
         100% {
-            filter: drop-shadow(0 0 25px rgba(166, 104, 255, 0.8));
+            filter: drop-shadow(0 0 25px rgba(10, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
         }
     }
     
@@ -201,7 +205,7 @@
 {% block content %}
 <section class="hero-section">
     <div class="logo-container">
-        <img src="{{ url_for('static', filename='images/logo/genesis-logo.svg') }}" alt="Genesis Logo" class="floating-logo">
+        <img src="{{ url_for('static', filename='images/logo/genesis-logo-original.svg') }}" alt="Genesis Logo" class="floating-logo">
     </div>
     <h2 class="hero-subtitle">Sistema de inversiones trascendental con inteligencia cósmica</h2>
     <p class="hero-description">Descubre un nuevo nivel de inversión guiado por IA evolutiva</p>
@@ -285,11 +289,20 @@
             ease: 'back.out(1.7)'
         });
         
-        // Añadir rotación 3D sutil al logo (opcional, complementa la animación CSS)
+        // Añadir rotación 3D sutil al logo para dar sensación de tecnología avanzada
         gsap.to('.floating-logo', {
-            rotationY: 15,
-            rotationX: 10,
-            duration: 8,
+            rotationY: 5,
+            rotationX: 3,
+            duration: 10,
+            repeat: -1,
+            yoyo: true,
+            ease: 'sine.inOut'
+        });
+        
+        // Pulso de energía que emana del logo, simulando actividad del sistema
+        gsap.to('.logo-container', {
+            boxShadow: '0 0 30px rgba(10, 255, 255, 0.6), 0 0 50px rgba(10, 255, 255, 0.3)',
+            duration: 2.5,
             repeat: -1,
             yoyo: true,
             ease: 'sine.inOut'
