@@ -17,42 +17,40 @@
         overflow: hidden;
     }
     
-    .logo-container {
+    .dollar-symbol-container {
         margin-bottom: 2rem;
         position: relative;
-        width: 220px;
-        height: 220px;
+        width: 180px;
+        height: 180px;
         display: flex;
         justify-content: center;
         align-items: center;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(0, 20, 40, 0.4) 0%, rgba(0, 20, 40, 0) 70%);
-        box-shadow: 0 0 20px rgba(10, 255, 255, 0.2), 0 0 40px rgba(255, 215, 0, 0.1);
-        transition: box-shadow 0.5s ease;
+        background: rgba(26, 26, 46, 0.2);
+        box-shadow: 0 0 40px rgba(10, 255, 255, 0.3), 0 0 60px rgba(10, 255, 255, 0.1);
     }
     
-    .floating-logo {
-        width: 220px;
-        height: 220px;
-        filter: drop-shadow(0 0 15px rgba(10, 255, 255, 0.6)) drop-shadow(0 0 10px rgba(255, 215, 0, 0.4));
-        animation: logoFloat 6s ease-in-out infinite, logoGlow 4s infinite alternate;
+    .floating-dollar {
+        width: 160px;
+        height: 160px;
+        animation: dollarFloat 6s ease-in-out infinite, dollarGlow 4s infinite alternate;
     }
     
-    @keyframes logoFloat {
+    @keyframes dollarFloat {
         0%, 100% {
             transform: translateY(0);
         }
         50% {
-            transform: translateY(-15px);
+            transform: translateY(-8px);
         }
     }
     
-    @keyframes logoGlow {
+    @keyframes dollarGlow {
         0% {
-            filter: drop-shadow(0 0 15px rgba(10, 255, 255, 0.5)) drop-shadow(0 0 8px rgba(255, 215, 0, 0.4));
+            filter: drop-shadow(0 0 10px rgba(10, 255, 255, 0.5));
         }
         100% {
-            filter: drop-shadow(0 0 25px rgba(10, 255, 255, 0.8)) drop-shadow(0 0 15px rgba(255, 215, 0, 0.6));
+            filter: drop-shadow(0 0 20px rgba(10, 255, 255, 0.8));
         }
     }
     
@@ -204,8 +202,8 @@
 
 {% block content %}
 <section class="hero-section">
-    <div class="logo-container">
-        <img src="{{ url_for('static', filename='images/logo/genesis-logo-original.svg') }}" alt="Genesis Logo" class="floating-logo">
+    <div class="dollar-symbol-container">
+        <img src="{{ url_for('static', filename='images/dollar-symbol.svg') }}" alt="Símbolo de Inversión" class="floating-dollar">
     </div>
     <h2 class="hero-subtitle">Sistema de inversiones trascendental con inteligencia cósmica</h2>
     <p class="hero-description">Descubre un nuevo nivel de inversión guiado por IA evolutiva</p>
@@ -281,16 +279,16 @@
 <script>
     // Animación para la aparición de los elementos
     document.addEventListener('DOMContentLoaded', function() {
-        // Aparición del logo con efecto de fade y escala
-        gsap.from('.logo-container', {
+        // Aparición del símbolo del dólar con efecto de fade y escala
+        gsap.from('.dollar-symbol-container', {
             opacity: 0,
             scale: 0.5,
             duration: 1.5,
             ease: 'back.out(1.7)'
         });
         
-        // Añadir rotación 3D sutil al logo para dar sensación de tecnología avanzada
-        gsap.to('.floating-logo', {
+        // Añadir rotación 3D sutil al símbolo de dólar
+        gsap.to('.floating-dollar', {
             rotationY: 5,
             rotationX: 3,
             duration: 10,
@@ -299,8 +297,8 @@
             ease: 'sine.inOut'
         });
         
-        // Pulso de energía que emana del logo, simulando actividad del sistema
-        gsap.to('.logo-container', {
+        // Pulso de energía que emana del símbolo de dólar
+        gsap.to('.dollar-symbol-container', {
             boxShadow: '0 0 30px rgba(10, 255, 255, 0.6), 0 0 50px rgba(10, 255, 255, 0.3)',
             duration: 2.5,
             repeat: -1,
