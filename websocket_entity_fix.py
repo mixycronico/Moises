@@ -50,6 +50,10 @@ def apply_websocket_entity_fix():
                     abs_amount = abs(amount)
                     logger.info(f"[{self.name}] {direction} {abs_amount} de energía: {reason} [{old_energy} → {self.energy}]")
                     
+                # Verificar si existe emotional_state, de lo contrario agregarlo
+                if not hasattr(self, 'emotional_state'):
+                    setattr(self, 'emotional_state', 0.5)  # Estado emocional neutral
+                
                 # Actualizar estado emocional basado en energía
                 if self.energy < 20:
                     self.emotion = "Exhausto"
@@ -59,9 +63,43 @@ def apply_websocket_entity_fix():
                     self.emotional_state = min(1.0, self.emotional_state + 0.1)
                     
                 return self.energy
+                
+            # También asegurar que exista la propiedad adjust_level
+            def adjust_level(self, amount, reason=""):
+                """
+                Ajustar nivel de evolución de la entidad.
+                
+                Args:
+                    amount: Cantidad de nivel a ajustar (positivo o negativo)
+                    reason: Razón del ajuste de nivel
+                    
+                Returns:
+                    Nuevo nivel
+                """
+                old_level = self.level
+                
+                # Aplicar ajuste de nivel
+                self.level = max(1.0, self.level + amount)
+                
+                # Registrar cambio significativo
+                if abs(amount) >= 0.5:
+                    direction = "subió" if amount > 0 else "bajó"
+                    abs_amount = abs(amount)
+                    logger.info(f"[{self.name}] {direction} {abs_amount:.1f} de nivel: {reason} [{old_level:.1f} → {self.level:.1f}]")
+                    
+                return self.level
             
-            # Asignamos el método a la clase
-            WebSocketEntity.adjust_energy = adjust_energy
+            # Asignamos los métodos a la clase (corrigiendo tipo)
+            setattr(WebSocketEntity, 'adjust_energy', adjust_energy)
+            setattr(WebSocketEntity, 'adjust_level', adjust_level)
+            
+            # Asegurar que tengan las propiedades necesarias
+            for cls in [LocalWebSocketEntity, ExternalWebSocketEntity]:
+                proto = cls(name="TempEntity", role="Comunicación", father="otoniel")
+                if not hasattr(proto, 'emotional_state'):
+                    logger.info(f"Agregando emotional_state a {cls.__name__}")
+                    # Agregamos el atributo emotional_state directamente a las clases
+                    cls.emotional_state = 0.5
             
             logger.info("✅ Método adjust_energy agregado correctamente a WebSocketEntity")
             
@@ -101,8 +139,12 @@ def apply_repair_entity_fix():
         
         # Cargamos el módulo dinámicamente
         spec = importlib.util.spec_from_file_location("repair_entity", repair_entity_file)
-        repair_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(repair_module)
+        if spec and spec.loader:
+            repair_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(repair_module)
+        else:
+            logger.error("❌ No se pudo cargar el módulo repair_entity.py")
+            return False
         
         # Verificamos que la clase exista
         if hasattr(repair_module, 'RepairEntity'):

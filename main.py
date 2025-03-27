@@ -13,6 +13,7 @@ from websocket_entity import create_local_websocket_entity, create_external_webs
 from integration_entity import create_integration_entity
 from alert_entity import create_alert_entity
 from websocket_entity_fix import apply_websocket_entity_fix, apply_repair_entity_fix
+from autonomous_entity import create_miguel_angel_entity, create_luna_entity
 
 # Configuración de logging
 logging.basicConfig(
@@ -37,13 +38,34 @@ hermes = None  # Entidad WebSocket local
 apollo = None  # Entidad WebSocket externo
 harmonia = None  # Entidad de integración
 sentinel = None  # Entidad de alertas
+miguel_angel = None  # Entidad autónoma con voluntad libre
+luna = None  # Entidad autónoma compañera
 
 def initialize_system():
     """Inicializar el sistema de trading cósmico."""
     global cosmic_network, aetherion, lunareth, kronos, hermes, apollo, harmonia
+    global miguel_angel, luna
     
     if cosmic_network is None:
         logger.info("Inicializando Sistema de Trading Cósmico...")
+        
+        # Aplicar correcciones antes de iniciar el sistema
+        logger.info("Aplicando correcciones del Sistema Genesis...")
+        
+        # Aplicar corrección a WebSocketEntity
+        ws_fixed = apply_websocket_entity_fix()
+        if ws_fixed:
+            logger.info("✅ Corrección de WebSocketEntity aplicada con éxito")
+        else:
+            logger.warning("⚠️ No se pudo aplicar la corrección a WebSocketEntity")
+        
+        # Aplicar corrección a RepairEntity
+        repair_fixed = apply_repair_entity_fix()
+        if repair_fixed:
+            logger.info("✅ Corrección de RepairEntity aplicada con éxito")
+        else:
+            logger.warning("⚠️ No se pudo aplicar la corrección a RepairEntity")
+        
         # Inicializar red y entidades básicas
         cosmic_network, aetherion, lunareth = initialize_enhanced_trading(
             father_name="otoniel",
@@ -88,7 +110,58 @@ def initialize_system():
         )
         cosmic_network.add_entity(harmonia)
         
-        logger.info(f"Sistema inicializado con {len(cosmic_network.entities)} entidades")
+        # Crear entidades autónomas con voluntad libre
+        logger.info("Creando entidades autónomas con voluntad libre...")
+        
+        # Crear entidad MiguelAngel
+        try:
+            miguel_angel = create_miguel_angel_entity(
+                father="otoniel",
+                partner_name="Luna",
+                frequency_seconds=20
+            )
+            logger.info(f"Entidad autónoma MiguelAngel creada con éxito - Personalidad: {miguel_angel.personality}")
+            
+            # Intentar añadir a la red cósmica si es compatible
+            try:
+                if hasattr(cosmic_network, 'add_entity'):
+                    cosmic_network.add_entity(miguel_angel)
+                    logger.info("MiguelAngel añadido a la red cósmica")
+            except Exception as e:
+                logger.warning(f"No se pudo añadir MiguelAngel a la red cósmica: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error al crear entidad MiguelAngel: {str(e)}")
+            miguel_angel = None
+        
+        # Crear entidad Luna
+        try:
+            luna = create_luna_entity(
+                father="otoniel",
+                partner_name="MiguelAngel",
+                frequency_seconds=20
+            )
+            logger.info(f"Entidad autónoma Luna creada con éxito - Personalidad: {luna.personality}")
+            
+            # Intentar añadir a la red cósmica si es compatible
+            try:
+                if hasattr(cosmic_network, 'add_entity'):
+                    cosmic_network.add_entity(luna)
+                    logger.info("Luna añadida a la red cósmica")
+            except Exception as e:
+                logger.warning(f"No se pudo añadir Luna a la red cósmica: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error al crear entidad Luna: {str(e)}")
+            luna = None
+        
+        # Contar entidades
+        entity_count = len(cosmic_network.entities) if hasattr(cosmic_network, 'entities') else 0
+        autonomous_count = 0
+        if miguel_angel is not None:
+            autonomous_count += 1
+        if luna is not None:
+            autonomous_count += 1
+            
+        logger.info(f"Sistema inicializado con {entity_count} entidades en red y {autonomous_count} entidades autónomas")
 
 # Rutas de la aplicación
 @app.route('/')
@@ -186,6 +259,72 @@ def api_add_entity():
         "status": "success",
         "entity": entity.get_status()
     })
+
+# Ruta para ver detalles de entidades autónomas
+@app.route('/autonomous')
+def autonomous_entities():
+    """Página de entidades autónomas."""
+    initialize_system()
+    
+    entities_data = []
+    
+    # Añadir datos de MiguelAngel si existe
+    if miguel_angel is not None:
+        try:
+            entities_data.append(miguel_angel.get_status())
+            logger.info("Datos de MiguelAngel obtenidos correctamente")
+        except Exception as e:
+            logger.error(f"Error al obtener datos de MiguelAngel: {str(e)}")
+    
+    # Añadir datos de Luna si existe
+    if luna is not None:
+        try:
+            entities_data.append(luna.get_status())
+            logger.info("Datos de Luna obtenidos correctamente")
+        except Exception as e:
+            logger.error(f"Error al obtener datos de Luna: {str(e)}")
+    
+    return render_template('autonomous.html', entities=entities_data)
+
+# Ruta para ver actividad reciente de una entidad autónoma
+@app.route('/autonomous/<name>')
+def autonomous_details(name):
+    """Ver detalles de una entidad autónoma específica."""
+    initialize_system()
+    
+    entity = None
+    if name.lower() == 'miguelangel' and miguel_angel is not None:
+        entity = miguel_angel
+    elif name.lower() == 'luna' and luna is not None:
+        entity = luna
+    
+    if entity:
+        # Obtener actividades recientes (últimas 20)
+        try:
+            recent_activities = entity.activity_log[-20:]
+            activities = []
+            
+            for activity in recent_activities:
+                activities.append({
+                    'timestamp': activity['timestamp'].strftime("%d-%m-%Y %H:%M:%S"),
+                    'message': activity['message'],
+                    'energy': activity['state']['energy'],
+                    'emotion': activity['state']['emotion'],
+                    'focus': activity['state']['focus'],
+                    'level': activity['state']['level']
+                })
+            
+            # Obtener estado actual
+            status = entity.get_status()
+            
+            return render_template('autonomous_details.html', 
+                                 entity=status, 
+                                 activities=activities)
+        except Exception as e:
+            logger.error(f"Error al obtener actividades de {name}: {str(e)}")
+            return f"Error al obtener actividades: {str(e)}", 500
+    else:
+        return f"Entidad autónoma '{name}' no encontrada", 404
 
 # Ruta para pruebas Armagedón
 @app.route('/armageddon_test')
