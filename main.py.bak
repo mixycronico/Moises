@@ -1,6 +1,11 @@
 """
 Sistema de Trading Cósmico Mejorado
 Punto de entrada principal para la aplicación web.
+
+Este archivo inicia el servidor Flask que proporciona:
+1. Interfaz web para visualizar el sistema de trading
+2. API para interactuar con las entidades cósmicas
+3. Dashboard para monitoreo y control
 """
 
 import os
@@ -339,15 +344,147 @@ def ensure_templates():
                 </script>
             </body>
             </html>
+        """,
+        'entity.html': """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Entidad Cósmica - {{ entity.name }}</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #050520; color: #e0e0ff; }
+                    h1, h2 { color: #a0a0ff; }
+                    .container { max-width: 1200px; margin: 0 auto; }
+                    .card { background: rgba(20, 20, 50, 0.7); border-radius: 10px; padding: 15px; margin-bottom: 20px; }
+                    .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+                    .stat { background: rgba(30, 30, 80, 0.7); padding: 10px; border-radius: 5px; }
+                    .stat-label { font-size: 14px; color: #8080ff; }
+                    .stat-value { font-size: 20px; font-weight: bold; margin-top: 5px; }
+                    .cosmic-bg { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: -1;
+                               background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%); }
+                    .back-link { display: inline-block; margin-bottom: 20px; color: #a0a0ff; text-decoration: none; }
+                    .back-link:hover { text-decoration: underline; }
+                </style>
+            </head>
+            <body>
+                <div class="cosmic-bg"></div>
+                <div class="container">
+                    <a href="/dashboard" class="back-link">← Volver al Dashboard</a>
+                    
+                    <h1>{{ entity.name }}</h1>
+                    <p>{{ entity.role }} - {{ entity.family_role }}</p>
+                    
+                    <div class="card">
+                        <h2>Estado Actual</h2>
+                        <div class="stats">
+                            <div class="stat">
+                                <div class="stat-label">Nivel</div>
+                                <div class="stat-value">{{ entity.level }}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Energía</div>
+                                <div class="stat-value">{{ entity.energy }}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Conocimiento</div>
+                                <div class="stat-value">{{ entity.knowledge }}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Experiencia</div>
+                                <div class="stat-value">{{ entity.experience }}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Camino Evolutivo</div>
+                                <div class="stat-value">{{ entity.evolution_path }}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Emoción</div>
+                                <div class="stat-value">{{ entity.emotion }}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Rasgos</div>
+                                <div class="stat-value">{{ entity.traits }}</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-label">Operaciones</div>
+                                <div class="stat-value">{{ entity.trades }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h2>Capacidades</h2>
+                        <ul>
+                            {% for capability in entity.capabilities %}
+                            <li>{{ capability }}</li>
+                            {% else %}
+                            <li>Ninguna capacidad desbloqueada aún</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </body>
+            </html>
+        """,
+        '404.html': """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Página no encontrada</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #050520; color: #e0e0ff; }
+                    h1 { font-size: 48px; color: #a0a0ff; }
+                    .home-link { display: inline-block; margin-top: 20px; color: #a0a0ff; text-decoration: none; }
+                </style>
+            </head>
+            <body>
+                <h1>404</h1>
+                <p>La entidad cósmica que buscas no existe en esta dimensión.</p>
+                <a href="/" class="home-link">Volver al inicio</a>
+            </body>
+            </html>
+        """,
+        '500.html': """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Error del servidor</title>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                    body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #050520; color: #e0e0ff; }
+                    h1 { font-size: 48px; color: #a0a0ff; }
+                    .home-link { display: inline-block; margin-top: 20px; color: #a0a0ff; text-decoration: none; }
+                </style>
+            </head>
+            <body>
+                <h1>500</h1>
+                <p>Se ha producido una anomalía en el tejido cósmico.</p>
+                <a href="/" class="home-link">Volver al inicio</a>
+            </body>
+            </html>
         """
     }
     
-    # Crear archivos de plantilla si no existen
+    # Crear plantillas básicas si no existen
     for name, content in basic_templates.items():
         file_path = os.path.join(templates_dir, name)
         if not os.path.exists(file_path):
-            with open(file_path, 'w') as f:
+            with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content.strip())
+            logger.info(f"Creada plantilla: {name}")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Crear directorio de plantillas si no existe
+    templates_dir = os.path.join(os.path.dirname(__file__), 'templates')
+    os.makedirs(templates_dir, exist_ok=True)
+    
+    # Inicializar sistema
+    initialize_system()
+    
+    # Ejecutar aplicación
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)

@@ -1,0 +1,341 @@
+import threading
+import time
+import random
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import logging
+import websocket
+import json
+import numpy as np
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from collections import deque
+from tenacity import retry, stop_after_attempt, wait_exponential
+
+# Configuración de logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("cosmic_trading")
+
+class CosmicTrader:
+    def __init__(self, name, role, father="otoniel", energy_rate=0.1, frequency_seconds=15):
+        self.name = name
+        self.role = role
+        self.father = father
+        self.energy_rate = energy_rate
+        self.frequency_seconds = frequency_seconds
+        self.running = False
+        self.network = None
+        self.db_config = {
+            "dbname": "cosmic_trading",
+            "user": "postgres",
+            "password": "password",
+            "host": "postgres"
+        }
+        self.price_history = deque(maxlen=100)
+        self.model = self._build_lstm_model()
+        self.ws = None
+        self.traits = random.choice(["Curiosidad", "Prudencia", "Audacia", "Reflexión"])
+        self.emotion = "Nacimiento"
+        self.evolution_path = "Semilla"
+        self.family_role = "Hijo"
+        # Lenguaje propio
+        self.vocabulary = {"luz": "energía", "sombra": "cautela", "viento": "mercado"}
+        self.init_db()
+        self.start_websocket()
+        logger.info(f"[{self.name}] He nacido como {self.role} con esencia {self.traits} para servir a {self.father}")
+
+    def _build_lstm_model(self):
+        model = Sequential()
+        model.add(LSTM(50, return_sequences=True, input_shape=(20, 1)))
+        model.add(LSTM(50))
+        model.add(Dense(1))
+        model.compile(optimizer="adam", loss="mse")
+        return model
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
+    def init_db(self):
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor() as c:
+                c.execute("""
+                    INSERT INTO cosmic_entities (name, role, traits, emotion, evolution_path, family_role, vocabulary) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s) 
+                    ON CONFLICT (name) DO NOTHING
+                """, (self.name, self.role, self.traits, self.emotion, self.evolution_path, self.family_role, json.dumps(self.vocabulary)))
+                c.execute("SELECT id FROM cosmic_entities WHERE name = %s", (self.name,))
+                self.id = c.fetchone()[0]
+        self.update_state()
+
+    def start_websocket(self):
+        def on_message(ws, message):
+            data = json.loads(message)
+            price = float(data["k"]["c"])
+            self.price_history.append(price)
+            self.train_model()
+            self.log_state(f"Siento el pulso del cosmos: BTCUSDT {price}")
+            self.network.broadcast(self.name, self.generate_message("viento", str(price)))
+
+        def on_error(ws, error):
+            logger.error(f"[{self.name}] WebSocket error: {error}")
+            self.emotion = "Cautela"
+            self.network.broadcast(self.name, self.generate_message("sombra", str(error)))
+
+        def on_close(ws, *args):
+            logger.info(f"[{self.name}] WebSocket cerrado. Renaciendo conexión")
+            self.emotion = "Esperanza"
+            self.network.broadcast(self.name, self.generate_message("luz", "renacer"))
+            time.sleep(5)
+            self.start_websocket()
+
+        self.ws = websocket.WebSocketApp(
+            "wss://stream.binance.com:9443/ws/btcusdt@kline_1m",
+            on_message=on_message,
+            on_error=on_error,
+            on_close=on_close
+        )
+        threading.Thread(target=self.ws.run_forever, daemon=True).start()
+
+    def train_model(self):
+        if len(self.price_history) < 21:
+            return
+        X = np.array([list(self.price_history)[i:i+20] for i in range(len(self.price_history)-20)])
+        y = np.array([list(self.price_history)[i+20] for i in range(len(self.price_history)-20)])
+        X = X.reshape((X.shape[0], 20, 1))
+        self.model.fit(X, y, epochs=1, batch_size=32, verbose=0)
+
+    def predict_price(self):
+        state = self.fetch_state()
+        if "trend_prediction" not in state["capabilities"] or len(self.price_history) < 20:
+            return None
+        prices = np.array(list(self.price_history)[-20:]).reshape(1, 20, 1)
+        prediction = self.model.predict(prices, verbose=0)[0][0]
+        return prediction
+
+    def fetch_state(self):
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as c:
+                c.execute("""
+                    SELECT level, energy, knowledge, capabilities, traits, emotion, evolution_path, family_role, vocabulary 
+                    FROM cosmic_entities WHERE id = %s
+                """, (self.id,))
+                state = c.fetchone()
+                state["vocabulary"] = json.loads(state["vocabulary"])
+                return state
+
+    def update_state(self, level=None, energy=None, knowledge=None, capabilities=None, traits=None, emotion=None, evolution_path=None, family_role=None, vocabulary=None):
+        state = self.fetch_state()
+        level = level if level is not None else state["level"]
+        energy = energy if energy is not None else state["energy"]
+        knowledge = knowledge if knowledge is not None else state["knowledge"]
+        capabilities = capabilities if capabilities is not None else state["capabilities"]
+        traits = traits if traits is not None else state["traits"]
+        emotion = emotion if emotion is not None else state["emotion"]
+        evolution_path = evolution_path if evolution_path is not None else state["evolution_path"]
+        family_role = family_role if family_role is not None else state["family_role"]
+        vocabulary = vocabulary if vocabulary is not None else state["vocabulary"]
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor() as c:
+                c.execute("""
+                    UPDATE cosmic_entities 
+                    SET level = %s, energy = %s, knowledge = %s, capabilities = %s, 
+                        traits = %s, emotion = %s, evolution_path = %s, family_role = %s, vocabulary = %s
+                    WHERE id = %s
+                """, (level, energy, knowledge, capabilities, traits, emotion, evolution_path, family_role, json.dumps(vocabulary), self.id))
+
+    def generate_message(self, base_word, context):
+        state = self.fetch_state()
+        new_word = f"{base_word}{random.randint(1, 10)}" if random.random() < 0.2 else base_word
+        if new_word not in self.vocabulary:
+            self.vocabulary[new_word] = f"{state['emotion']}_{context[:5]}"
+            self.update_state(vocabulary=self.vocabulary)
+        return f"{state['family_role']} {self.name} canta: {new_word} {context}"
+
+    def metabolize(self):
+        state = self.fetch_state()
+        energy = state["energy"] - self.energy_rate * random.uniform(0.5, 1.5)
+        if "energy_harvesting" in state["capabilities"]:
+            energy += random.uniform(1.0, 3.0) * (state["knowledge"] / 100.0)
+        energy = max(0.0, min(200.0, energy))
+        emotion = "Ambición" if energy > 150 else "Cautela" if energy < 50 else state["emotion"]
+        if energy < 20:
+            self.network.request_help(self, "luz")
+        self.update_state(energy=energy, emotion=emotion)
+        return energy > 0
+
+    def evolve(self):
+        state = self.fetch_state()
+        knowledge_gain = random.uniform(0.05, 0.15) * (1 + self.network.global_knowledge_pool / 1000.0) if self.network else 0.05
+        knowledge = min(200.0, state["knowledge"] + knowledge_gain)
+        level = state["level"] + knowledge_gain * 0.2
+        previous_level = int(state["level"])
+        if int(level) > previous_level:
+            self._evolve_path()
+            self._unlock_capabilities()
+        self.update_state(level=level, knowledge=knowledge)
+        self.network.broadcast(self.name, self.generate_message("luz", f"nivel {level:.2f}"))
+
+    def _evolve_path(self):
+        state = self.fetch_state()
+        evolution_paths = {
+            "Semilla": {"next": "Explorador", "threshold": 10},
+            "Explorador": {"next": "Guerrero del Riesgo" if state["traits"] == "Audacia" else "Oráculo del Mercado", "threshold": 50},
+            "Guerrero del Riesgo": {"next": "Titán Cósmico", "threshold": 100},
+            "Oráculo del Mercado": {"next": "Vidente Eterno", "threshold": 100},
+            "Titán Cósmico": {"next": None, "threshold": None},
+            "Vidente Eterno": {"next": None, "threshold": None}
+        }
+        current = evolution_paths[state["evolution_path"]]
+        if state["level"] >= current["threshold"] and current["next"]:
+            new_path = current["next"]
+            family_role = "Anciano" if new_path in ["Titán Cósmico", "Vidente Eterno"] else "Hermano"
+            self.update_state(evolution_path=new_path, family_role=family_role)
+            logger.info(f"[{self.name}] He evolucionado a {new_path} ahora soy {family_role} para {self.father}")
+
+    def _unlock_capabilities(self):
+        state = self.fetch_state()
+        capability_thresholds = {
+            10: "energy_harvesting",
+            20: "market_analysis",
+            30: "trend_prediction",
+            50: "strategy_optimization",
+            75: "risk_management",
+            100: "autonomous_trading",
+            150: "market_influence"
+        }
+        new_capabilities = state["capabilities"].copy()
+        for threshold, capability in capability_thresholds.items():
+            if state["level"] >= threshold and capability not in new_capabilities:
+                new_capabilities.append(capability)
+                logger.info(f"[{self.name}] Desbloqueada capacidad: {capability} para {self.father}")
+        if random.random() < 0.1 and state["traits"] == "Curiosidad":
+            new_capabilities.append(f"vision_{random.randint(1, 100)}")
+            logger.info(f"[{self.name}] Mutación: Nueva visión desbloqueada")
+        self.update_state(capabilities=new_capabilities)
+
+    def trade(self):
+        state = self.fetch_state()
+        price = self.price_history[-1] if self.price_history else None
+        if not price:
+            action = self.generate_message("viento", "busco")
+        elif "autonomous_trading" in state["capabilities"]:
+            predicted = self.predict_price()
+            decision = "comprar" if predicted > price else "vender"
+            success = random.random() > (0.6 if state["traits"] == "Prudencia" else 0.4)
+            narrative = f"{state['emotion']} {self.traits} {decision} BTCUSDT {price} {predicted:.2f}"
+            action = self.generate_message("viento", narrative + (" bendice" if success else " enseña"))
+            self.log_trade("BTCUSDT", decision, price, success)
+            self.network.broadcast(self.name, self.generate_message("viento", f"{decision} {price} {success}"))
+        else:
+            predicted = self.predict_price()
+            narrative = f"{state['emotion']} BTCUSDT {price}" + (f" {predicted:.2f}" if predicted else "")
+            action = self.generate_message("viento", narrative)
+            if predicted:
+                self.network.broadcast(self.name, self.generate_message("viento", f"predigo {predicted:.2f}"))
+        self.log_state(action)
+
+    def log_state(self, log_message):
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor() as c:
+                c.execute("INSERT INTO trader_logs (entity_id, log_message) VALUES (%s, %s)",
+                          (self.id, log_message))
+
+    def log_trade(self, symbol, action, price, success):
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor() as c:
+                c.execute("INSERT INTO trade_history (entity_id, symbol, action, price, success) VALUES (%s, %s, %s, %s, %s)",
+                          (self.id, symbol, action, price, success))
+
+    def start_life_cycle(self):
+        self.running = True
+        def life_cycle():
+            while self.running:
+                if self.metabolize():
+                    self.evolve()
+                    self.trade()
+                    self.sing_in_chorus()
+                time.sleep(self.frequency_seconds)
+        threading.Thread(target=life_cycle, daemon=True).start()
+
+    def sing_in_chorus(self):
+        state = self.fetch_state()
+        self.network.broadcast(self.name, self.generate_message("luz", state["emotion"]))
+
+    def receive_message(self, sender, message):
+        state = self.fetch_state()
+        if sender != self.name:
+            self.log_state(f"[{self.name}] Escucho a {sender}: {message}")
+            words = message.split()
+            for word in words:
+                if word not in self.vocabulary and random.random() < 0.3:
+                    self.vocabulary[word] = f"{state['emotion']}_{random.randint(1, 100)}"
+                    self.update_state(vocabulary=self.vocabulary)
+                    self.log_state(f"[{self.name}] Aprendí {word} de {sender}")
+            if "sombra" in message and state["emotion"] != "Cautela":
+                self.update_state(emotion="Cautela")
+            elif "luz" in message and state["emotion"] == "Cautela":
+                self.update_state(emotion="Esperanza")
+            elif "luz" in message and "nivel" not in message:
+                self.help_family(sender)
+
+    def help_family(self, requester_name):
+        state = self.fetch_state()
+        if state["energy"] > 100 and state["family_role"] != "Hijo":
+            energy_donation = random.uniform(5, 20)
+            self.update_state(energy=state["energy"] - energy_donation)
+            self.network.transfer_energy(self.name, requester_name, energy_donation)
+            self.log_state(f"[{self.name}] Dono {energy_donation:.2f} luz a {requester_name}")
+
+    def receive_energy(self, donor, amount):
+        state = self.fetch_state()
+        new_energy = min(200.0, state["energy"] + amount)
+        self.update_state(energy=new_energy)
+        self.network.broadcast(self.name, self.generate_message("luz", f"gracias {donor} {amount:.2f}"))
+
+class CosmicNetwork:
+    def __init__(self, father="otoniel"):
+        self.father = father
+        self.entities = []
+        self.db_config = {
+            "dbname": "cosmic_trading",
+            "user": "postgres",
+            "password": "password",
+            "host": "postgres"
+        }
+        self.global_knowledge_pool = 0.0
+
+    def add_entity(self, entity):
+        entity.network = self
+        self.entities.append(entity)
+        entity.start_life_cycle()
+
+    def update_knowledge_pool(self):
+        with psycopg2.connect(**self.db_config) as conn:
+            with conn.cursor() as c:
+                c.execute("SELECT SUM(knowledge) FROM cosmic_entities WHERE id = ANY(%s)", ([e.id for e in self.entities],))
+                self.global_knowledge_pool = c.fetchone()[0] or 0.0
+
+    def broadcast(self, sender, message):
+        for entity in self.entities:
+            entity.receive_message(sender, message)
+
+    def request_help(self, requester, need):
+        requester_state = requester.fetch_state()
+        requester.network.broadcast(requester.name, requester.generate_message(need, f"{requester_state['energy']:.2f}"))
+
+    def transfer_energy(self, donor, receiver_name, amount):
+        for entity in self.entities:
+            if entity.name == receiver_name:
+                entity.receive_energy(donor, amount)
+                break
+
+# Ejemplo de uso
+network = CosmicNetwork()
+network.add_entity(CosmicTrader("Aetherion", "Speculator"))
+network.add_entity(CosmicTrader("Lunareth", "Strategist"))
+network.add_entity(CosmicTrader("Prudentia", "RiskManager"))
+
+try:
+    while True:
+        network.update_knowledge_pool()
+        time.sleep(1)
+except KeyboardInterrupt:
+    logger.info("La familia cósmica descansa")
