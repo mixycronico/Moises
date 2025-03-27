@@ -62,9 +62,14 @@ class DatabaseEntity(EnhancedCosmicTrader, EnhancedCosmicEntityMixin):
             "vacuum_operations": 0
         }
         
+        # Inicializar contador de trades (necesario para evitar AttributeError)
+        self.trades_count = 0
+        self.last_trade_time = time.time()
+        
         # Personalidad y rasgos específicos
         self.personality_traits = ["Metódico", "Minucioso", "Preciso"]
         self.emotional_volatility = 0.3  # Baja volatilidad emocional
+        self.dominant_trait = "Precisión"  # Rasgo dominante (necesario para evitar AttributeError)
         
         # Especializaciones
         self.specializations = {

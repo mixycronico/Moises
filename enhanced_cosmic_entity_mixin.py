@@ -73,6 +73,35 @@ class EnhancedCosmicEntityMixin:
             logger.warning(f"[{self.name}] Sin energía: ciclo de vida terminado")
             return False
         
+        # Proceso continuo de consolidación de conocimiento (con baja probabilidad)
+        if random.random() < 0.15:  # 15% de probabilidad en cada ciclo
+            consolidation_result = self.consolidar_conocimiento()
+            
+            # Si hay descubrimiento importante, transmitir insight
+            if consolidation_result.get("descubrimiento") and consolidation_result.get("mensaje_insight"):
+                # Incremento de energía por descubrimiento
+                energy_boost = random.uniform(1.0, 3.0)
+                self.adjust_energy(energy_boost)
+                
+                # Log si el conocimiento supera ciertos umbrales
+                if self.knowledge > 3.0 and random.random() < 0.3:
+                    logger.info(f"[{self.name}] Conocimiento acumulado significativo: {self.knowledge:.2f}")
+        
+        # Evolución natural si se acumula suficiente conocimiento
+        if hasattr(self, 'knowledge') and getattr(self, 'experience', 0) > 0:
+            if self.knowledge > 5.0 and random.random() < 0.05:  # 5% de probabilidad con conocimiento > 5
+                level_boost = random.uniform(0.05, 0.1)
+                self.adjust_level(level_boost)
+                logger.info(f"[{self.name}] Evolución natural por conocimiento acumulado: +{level_boost:.3f} niveles")
+                
+                # Notificar evolución
+                if hasattr(self, 'generate_message') and hasattr(self, 'broadcast_message'):
+                    evolution_message = self.generate_message(
+                        "evolución", 
+                        f"He evolucionado naturalmente gracias al conocimiento acumulado. Nivel: {self.level:.2f}"
+                    )
+                    self.broadcast_message(evolution_message)
+        
         return True
     
     def adjust_energy(self, amount):
