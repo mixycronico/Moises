@@ -36,11 +36,13 @@
     <!-- Encabezado -->
     <header class="site-header">
         <div class="container">
+            {% if request.path != '/' %}
             <div class="logo-container">
                 <a href="{{ url_for('index') }}" class="logo">
                     <img src="{{ url_for('static', filename='images/logo/genesis-logo.png') }}" alt="Genesis" class="logo-img">
                 </a>
             </div>
+            {% endif %}
             
             <nav class="main-nav">
                 <button class="menu-toggle" aria-label="Menú">

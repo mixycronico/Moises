@@ -20,15 +20,16 @@
     .logo-container {
         margin-bottom: 2rem;
         position: relative;
-        width: 300px;
+        width: 400px;
         height: auto;
         display: flex;
         justify-content: center;
         align-items: center;
+        filter: drop-shadow(0 0 20px rgba(10, 255, 255, 0.4));
     }
     
     .floating-logo {
-        width: 300px;
+        width: 400px;
         height: auto;
         animation: logoFloat 6s ease-in-out infinite;
     }
@@ -168,13 +169,13 @@
     
     @media (max-width: 768px) {
         .logo-container {
-            width: 120px;
-            height: 120px;
+            width: 200px;
+            height: auto;
         }
         
         .floating-logo {
-            width: 120px;
-            height: 120px;
+            width: 200px;
+            height: auto;
         }
         
         .hero-subtitle {
