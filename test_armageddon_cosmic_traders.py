@@ -659,8 +659,10 @@ para verificar la resiliencia y capacidad del sistema bajo condiciones extremas.
             
             f.write("### Tiempos de Respuesta\n")
             f.write(f"- Promedio: {avg_response:.4f}s\n")
-            f.write(f"- Mínimo: {min(self.performance_metrics['response_times']):.4f}s if self.performance_metrics['response_times'] else 'N/A'}\n")
-            f.write(f"- Máximo: {max(self.performance_metrics['response_times']):.4f}s if self.performance_metrics['response_times'] else 'N/A'}\n\n")
+            min_time = f"{min(self.performance_metrics['response_times']):.4f}s" if self.performance_metrics['response_times'] else "N/A"
+            max_time = f"{max(self.performance_metrics['response_times']):.4f}s" if self.performance_metrics['response_times'] else "N/A"
+            f.write(f"- Mínimo: {min_time}\n")
+            f.write(f"- Máximo: {max_time}\n\n")
             
             f.write("### Tasa de Éxito\n")
             f.write(f"- Operaciones exitosas: {self.performance_metrics['success_rate']:.1%}\n")
@@ -672,7 +674,8 @@ para verificar la resiliencia y capacidad del sistema bajo condiciones extremas.
             survival_rate = self.performance_metrics["anomalies_survived"] / anomalies_total if anomalies_total > 0 else 0
             
             f.write(f"- Tiempo promedio: {avg_recovery:.2f}s\n")
-            f.write(f"- Tiempo máximo: {max(self.performance_metrics['recovery_times']):.2f}s if self.performance_metrics['recovery_times'] else 'N/A'}\n")
+            max_recovery_time = f"{max(self.performance_metrics['recovery_times']):.2f}s" if self.performance_metrics['recovery_times'] else "N/A"
+            f.write(f"- Tiempo máximo: {max_recovery_time}\n")
             f.write(f"- Tasa de supervivencia: {survival_rate:.1%} ({self.performance_metrics['anomalies_survived']}/{anomalies_total})\n\n")
             
             f.write("## Eventos Destacados Durante la Prueba\n\n")
