@@ -12,6 +12,7 @@ import time
 import random
 import logging
 import argparse
+import re
 from datetime import datetime, timedelta
 
 # Importar el sistema de trading cósmico
@@ -120,24 +121,100 @@ def run_quick_test(use_extended_entities=True, num_operations=50, role_focus=Non
                 # Generar un pensamiento detallado basado en el rol
                 thought = ""
                 if entity.role == "Speculator":
-                    thought = f"Analizando tendencias a corto plazo para {symbol}. {'Oportunidad prometedora' if random.random() > 0.5 else 'Señales mixtas'}."
+                    price_direction = "alcista" if random.random() > 0.5 else "bajista"
+                    timeframe = random.choice(["corto plazo", "intradía", "swing trading"])
+                    confidence = random.randint(65, 95)
+                    volatility = random.choice(["alta", "moderada", "baja"])
+                    thought = f"Análisis de momentum: {symbol} muestra tendencia {price_direction} a {timeframe} con {confidence}% de confianza. " \
+                             f"Volatilidad {volatility}. {'Estrategia: entrar agresivamente con stop ajustado' if price_direction == 'alcista' else 'Estrategia: esperar retroceso para posición corta'}."
+
                 elif entity.role == "Strategist":
-                    thought = f"Evaluando estrategia para {symbol} en marco temporal medio. {'Formación positiva' if random.random() > 0.5 else 'Consolidación necesaria'}."
+                    market_phase = random.choice(["acumulación", "tendencia alcista", "distribución", "tendencia bajista"])
+                    strength = random.randint(1, 10)
+                    time_horizon = random.choice(["días", "semanas", "meses"])
+                    resistance = round(random.uniform(100, 500), 2)
+                    support = round(resistance * 0.8, 2)
+                    thought = f"Análisis estratégico: {symbol} en fase de {market_phase} con fuerza {strength}/10. " \
+                             f"Horizonte de inversión: {time_horizon}. Soporte clave en {support}, resistencia en {resistance}. " \
+                             f"Recomendación: {'acumular en soportes' if random.random() > 0.5 else 'reducir exposición en resistencias'}."
+                             
                 elif entity.role == "RiskManager":
-                    thought = f"Calculando exposición al riesgo para {symbol}. Ratio riesgo/beneficio: {random.uniform(0.8, 1.5):.2f}."
+                    risk_level = random.choice(["bajo", "moderado", "elevado", "extremo"])
+                    risk_ratio = round(random.uniform(0.8, 2.5), 2)
+                    max_position = random.randint(5, 20)
+                    corr_btc = round(random.uniform(0.3, 0.9), 2)
+                    thought = f"Evaluación de riesgo: {symbol} presenta riesgo {risk_level}. Ratio riesgo/beneficio: {risk_ratio}. " \
+                             f"Exposición máxima recomendada: {max_position}% del capital. Correlación con BTC: {corr_btc}. " \
+                             f"{'⚠️ Recomiendo reducir tamaño de posición' if risk_level in ['elevado', 'extremo'] else 'Parámetros de riesgo aceptables para operación'}."
+                             
                 elif entity.role == "Arbitrageur":
-                    thought = f"Buscando disparidades de precio para {symbol} entre mercados. {'Potencial arbitraje detectado' if random.random() > 0.7 else 'Sin oportunidades claras'}."
+                    exchanges = random.sample(["Binance", "Kraken", "Coinbase", "Bitfinex", "Huobi"], 3)
+                    price_diff = round(random.uniform(0.01, 2.5), 2)
+                    opportunity = price_diff > 0.8
+                    profit_potential = round(price_diff * random.uniform(10, 100), 2)
+                    thought = f"Análisis de arbitraje: {symbol} muestra diferencia de {price_diff}% entre {exchanges[0]} y {exchanges[1]}. " \
+                             f"{'✓ Oportunidad de arbitraje detectada' if opportunity else '✗ Diferencia insuficiente para arbitraje rentable'}. " \
+                             f"{'Beneficio potencial: $' + str(profit_potential) if opportunity else 'Continuando monitoreo de diferencias entre ' + exchanges[2]}."
+                             
                 elif entity.role == "PatternRecognizer":
-                    patterns = ["Doble techo", "Hombro-cabeza-hombro", "Bandera alcista", "Triángulo descendente", "Taza con asa"]
-                    thought = f"Identificando patrones técnicos en {symbol}. Posible formación de {random.choice(patterns)}."
+                    patterns = {
+                        "Doble techo": "señal bajista, objetivo de precio inferior",
+                        "Hombro-cabeza-hombro": "patrón de reversión bajista, objetivo proyectado a la baja",
+                        "Bandera alcista": "continuación alcista, objetivo medido por mástil",
+                        "Triángulo descendente": "compresión de volatilidad con sesgo bajista",
+                        "Taza con asa": "formación alcista de consolidación y ruptura"
+                    }
+                    pattern_name = random.choice(list(patterns.keys()))
+                    completion = random.randint(60, 100)
+                    time_to_trigger = random.randint(1, 48)
+                    thought = f"Reconocimiento de patrones: Identificado {pattern_name} en {symbol} ({completion}% formado). " \
+                             f"{patterns[pattern_name]}. Probable activación en {time_to_trigger} horas. " \
+                             f"Recomendación: {'Preparar entrada tras confirmación' if 'alcista' in patterns[pattern_name] else 'Cautela, posible reversión'}."
+                             
                 elif entity.role == "MacroAnalyst":
-                    thought = f"Correlacionando {symbol} con eventos macroeconómicos. {'Impacto positivo esperado' if random.random() > 0.5 else 'Cautela recomendada'}."
+                    events = ["tasas de interés FED", "datos de inflación", "tensiones geopolíticas", "regulación cripto", "adopción institucional"]
+                    primary_event = random.choice(events)
+                    impact = random.choice(["fuertemente positivo", "ligeramente positivo", "neutral", "ligeramente negativo", "fuertemente negativo"])
+                    correlation = round(random.uniform(-0.9, 0.9), 2)
+                    thought = f"Análisis macroeconómico: {symbol} muestra correlación {correlation} con {primary_event}. " \
+                             f"Impacto esperado: {impact}. " \
+                             f"{'➤ Potencial aumento de volatilidad en próximos días' if abs(correlation) > 0.7 else '➤ Comportamiento principalmente técnico a corto plazo'}. " \
+                             f"Recomendación: {'Establecer coberturas' if impact in ['ligeramente negativo', 'fuertemente negativo'] else 'Mantener exposición bajo monitoreo continuo'}."
                 
                 # Verificar resultado
                 if result and "error" not in str(result).lower():
                     success_count += 1
                     print(f"{C.GREEN}✓{C.END} {entity.name} ({entity.role}) operó {symbol} exitosamente")
-                    print(f"  {C.CYAN}Pensamiento:{C.END} {thought}")
+                    
+                    # Dividir el pensamiento en múltiples líneas para evitar truncamiento
+                    print(f"  {C.CYAN}Pensamiento:{C.END}")
+                    
+                    # Primero intentar dividir por frases
+                    try:
+                        sentences = re.split(r'([.!?])\s+', thought)
+                        current_sentence = ""
+                        
+                        # Reagrupar las frases correctamente (el split separa los signos de puntuación)
+                        for i in range(0, len(sentences), 2):
+                            if i + 1 < len(sentences):
+                                current_sentence = sentences[i] + sentences[i+1]
+                            else:
+                                current_sentence = sentences[i]
+                            
+                            # Imprimir cada frase en una línea separada
+                            if current_sentence.strip():
+                                print(f"    {current_sentence.strip()}")
+                    except Exception as e:
+                        # En caso de error, simplemente dividir por longitud manualmente
+                        max_line_length = 30  # Línea extremadamente corta para evitar truncamiento
+                        for i in range(0, len(thought), max_line_length):
+                            segment = thought[i:i+max_line_length]
+                            if segment.strip():
+                                print(f"    {segment.strip()}")
+                                
+                        # Añadir mensaje informativo al final para verificar que no hay truncamiento
+                        print(f"    [Longitud total: {len(thought)} caracteres]")
+                    
                     # Simular aumento de conocimiento y nivel
                     entity.knowledge += random.uniform(0.01, 0.03)
                     entity.level += random.uniform(0.005, 0.015)
