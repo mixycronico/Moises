@@ -131,12 +131,12 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
   const unreadCount = notifications.filter(notif => !notif.read).length;
 
   return (
-    <header className="h-16 bg-cosmic-primary/20 backdrop-blur-md border-b border-cosmic-primary/30 flex items-center justify-between px-4 relative z-10">
+    <header className="h-16 bg-cosmic-primary-20 backdrop-blur-md border-b border-cosmic-primary-30 flex items-center justify-between px-2 sm:px-4 relative z-10">
       {/* Left section with toggle and title */}
       <div className="flex items-center">
         <button 
           onClick={toggleSidebar}
-          className="p-2 mr-4 rounded-full hover:bg-cosmic-primary/30 text-cosmic-glow transition-colors"
+          className="p-2 mr-2 sm:mr-4 rounded-full hover:bg-cosmic-primary-30 text-cosmic-glow transition-colors"
           aria-label={sidebarOpen ? 'Ocultar menú' : 'Mostrar menú'}
         >
           {sidebarOpen ? <FiX className="h-5 w-5" /> : <FiMenu className="h-5 w-5" />}
@@ -145,15 +145,23 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
         <h1 className="text-lg font-semibold cosmic-gradient-text hidden sm:block">
           Sistema Genesis
         </h1>
+        
+        {/* Mini logo para móvil */}
+        <div className="sm:hidden flex items-center">
+          <div className="w-6 h-6 bg-cosmic-gradient rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-xs">G</span>
+          </div>
+        </div>
       </div>
       
       {/* Right section with user info and notifications */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-1 sm:space-x-3">
         {/* Notification bell */}
         <div className="relative" ref={notificationRef}>
           <button 
-            className="p-2 rounded-full hover:bg-cosmic-primary/30 relative"
+            className="p-1.5 sm:p-2 rounded-full hover:bg-cosmic-primary-30 relative"
             onClick={() => setNotificationsOpen(!notificationsOpen)}
+            aria-label="Notificaciones"
           >
             <FiBell className="h-5 w-5 text-cosmic-glow" />
             {unreadCount > 0 && (
@@ -165,22 +173,22 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
           <AnimatePresence>
             {notificationsOpen && (
               <motion.div
-                className="absolute right-0 mt-2 w-80 cosmic-card border border-cosmic-primary/30 shadow-xl z-30"
+                className="absolute right-0 mt-2 w-[calc(100vw-16px)] max-w-xs sm:max-w-md cosmic-card border border-cosmic-primary-30 shadow-xl z-30"
                 variants={menuVariants}
                 initial="hidden"
                 animate="visible"
                 exit="exit"
               >
-                <div className="p-3 border-b border-cosmic-primary/30 flex justify-between items-center">
+                <div className="p-3 border-b border-cosmic-primary-30 flex justify-between items-center">
                   <h3 className="font-medium">Notificaciones</h3>
                   {unreadCount > 0 && (
-                    <span className="text-xs bg-cosmic-primary/20 px-2 py-1 rounded-full">
+                    <span className="text-xs bg-cosmic-primary-20 px-2 py-1 rounded-full">
                       {unreadCount} no {unreadCount === 1 ? 'leída' : 'leídas'}
                     </span>
                   )}
                 </div>
                 
-                <div className="max-h-80 overflow-y-auto p-1">
+                <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto p-1">
                   {notifications.length > 0 ? (
                     notifications.map((notification) => (
                       <div 
@@ -208,7 +216,7 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
                   )}
                 </div>
                 
-                <div className="p-2 border-t border-cosmic-primary/30 text-center">
+                <div className="p-2 border-t border-cosmic-primary-30 text-center">
                   <button className="text-sm text-cosmic-blue hover:text-cosmic-glow transition-colors">
                     Ver todas las notificaciones
                   </button>
@@ -221,27 +229,28 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
         {/* User menu */}
         <div className="relative" ref={userMenuRef}>
           <button 
-            className="flex items-center space-x-2 p-1 rounded-full hover:bg-cosmic-primary/30 transition-colors"
+            className="flex items-center space-x-2 p-1 rounded-full hover:bg-cosmic-primary-30 transition-colors"
             onClick={() => setUserMenuOpen(!userMenuOpen)}
+            aria-label="Menú de usuario"
           >
-            <div className="w-8 h-8 bg-cosmic-primary/30 rounded-full flex items-center justify-center text-cosmic-glow">
+            <div className="w-8 h-8 bg-cosmic-primary-30 rounded-full flex items-center justify-center text-cosmic-glow">
               {user?.username?.charAt(0).toUpperCase() || 'U'}
             </div>
             <span className="hidden md:block text-sm">{user?.username || 'Usuario'}</span>
-            <FiChevronDown className={`h-4 w-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+            <FiChevronDown className={`hidden sm:block h-4 w-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
           </button>
           
           {/* User dropdown menu */}
           <AnimatePresence>
             {userMenuOpen && (
               <motion.div
-                className="absolute right-0 mt-2 w-48 cosmic-card border border-cosmic-primary/30 shadow-xl z-30"
+                className="absolute right-0 mt-2 w-48 cosmic-card border border-cosmic-primary-30 shadow-xl z-30"
                 variants={menuVariants}
                 initial="hidden"
                 animate="visible"
                 exit="exit"
               >
-                <div className="p-3 border-b border-cosmic-primary/30">
+                <div className="p-3 border-b border-cosmic-primary-30">
                   <p className="font-medium">{user?.username || 'Usuario'}</p>
                   <p className="text-xs text-gray-400">{user?.email || 'usuario@email.com'}</p>
                 </div>
@@ -249,7 +258,7 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
                 <div className="py-1">
                   <Link 
                     to="/profile" 
-                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary/20 transition-colors"
+                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary-20 transition-colors"
                     onClick={() => setUserMenuOpen(false)}
                   >
                     <FiUser className="mr-2 h-4 w-4" />
@@ -258,7 +267,7 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
                   
                   <Link 
                     to="/settings" 
-                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary/20 transition-colors"
+                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary-20 transition-colors"
                     onClick={() => setUserMenuOpen(false)}
                   >
                     <FiSettings className="mr-2 h-4 w-4" />
@@ -267,7 +276,7 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
                   
                   <Link 
                     to="/help" 
-                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary/20 transition-colors"
+                    className="flex items-center px-4 py-2 hover:bg-cosmic-primary-20 transition-colors"
                     onClick={() => setUserMenuOpen(false)}
                   >
                     <FiHelpCircle className="mr-2 h-4 w-4" />
@@ -275,9 +284,9 @@ const Header = ({ toggleSidebar, sidebarOpen, user }) => {
                   </Link>
                 </div>
                 
-                <div className="py-1 border-t border-cosmic-primary/30">
+                <div className="py-1 border-t border-cosmic-primary-30">
                   <button 
-                    className="flex items-center w-full text-left px-4 py-2 text-cosmic-red hover:bg-cosmic-primary/20 transition-colors"
+                    className="flex items-center w-full text-left px-4 py-2 text-cosmic-red hover:bg-cosmic-primary-20 transition-colors"
                     onClick={handleLogout}
                   >
                     <FiLogOut className="mr-2 h-4 w-4" />

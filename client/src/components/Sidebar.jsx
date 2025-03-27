@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import { 
   FiHome, FiTrendingUp, FiDollarSign, FiUsers, 
   FiActivity, FiSettings, FiHelpCircle, FiClock,
-  FiLayers, FiShield, FiDatabase
+  FiLayers, FiShield, FiDatabase, FiX
 } from 'react-icons/fi';
 
-const Sidebar = ({ open, user }) => {
+const Sidebar = ({ open, user, isMobile }) => {
   const userRole = user?.role || 'user';
   
   // Menú básico para todos los usuarios
@@ -105,10 +105,12 @@ const Sidebar = ({ open, user }) => {
   
   const settingsItems = filterMenuByRole(settingsMenu);
   
-  // Variantes para animaciones
+  // Variantes para animaciones - Adaptadas para móvil y escritorio
   const sidebarVariants = {
     open: {
-      width: '240px',
+      width: isMobile ? '260px' : '240px',
+      x: 0,
+      opacity: 1,
       transition: {
         type: 'spring',
         stiffness: 300,
@@ -116,7 +118,9 @@ const Sidebar = ({ open, user }) => {
       }
     },
     closed: {
-      width: '68px',
+      width: isMobile ? '0px' : '68px',
+      x: isMobile ? '-100%' : 0,
+      opacity: isMobile ? 0 : 1,
       transition: {
         type: 'spring',
         stiffness: 300,
@@ -149,28 +153,41 @@ const Sidebar = ({ open, user }) => {
 
   return (
     <motion.nav
-      className="h-screen fixed top-0 left-0 bg-cosmic-primary/20 backdrop-blur-md border-r border-cosmic-primary/30 flex flex-col z-20"
+      className={`h-screen fixed top-0 left-0 bg-cosmic-primary-20 backdrop-blur-md border-r border-cosmic-primary-30 flex flex-col ${isMobile ? 'z-20' : 'z-10'}`}
       initial={open ? 'open' : 'closed'}
       animate={open ? 'open' : 'closed'}
       variants={sidebarVariants}
     >
-      {/* Logo */}
-      <div className={`h-16 flex items-center px-4 border-b border-cosmic-primary/30 ${!open && 'justify-center'}`}>
-        <div className="w-8 h-8 bg-cosmic-gradient rounded-full flex items-center justify-center">
-          <span className="text-white font-bold">G</span>
+      {/* Logo y encabezado */}
+      <div className={`h-16 flex items-center justify-between px-4 border-b border-cosmic-primary-30`}>
+        <div className="flex items-center">
+          <div className="w-8 h-8 bg-cosmic-gradient rounded-full flex items-center justify-center">
+            <span className="text-white font-bold">G</span>
+          </div>
+          <motion.span 
+            className="ml-2 text-lg font-semibold cosmic-gradient-text overflow-hidden whitespace-nowrap"
+            variants={menuLabelVariants}
+          >
+            Genesis
+          </motion.span>
         </div>
-        <motion.span 
-          className="ml-2 text-lg font-semibold cosmic-gradient-text overflow-hidden whitespace-nowrap"
-          variants={menuLabelVariants}
-        >
-          Genesis
-        </motion.span>
+        
+        {/* Botón cerrar sólo en móvil */}
+        {isMobile && open && (
+          <button 
+            className="text-cosmic-glow p-1 rounded-full hover:bg-cosmic-primary-30"
+            onClick={() => document.querySelector('.fixed.inset-0').click()}
+            aria-label="Cerrar menú"
+          >
+            <FiX size={20} />
+          </button>
+        )}
       </div>
       
       {/* Categoría de usuario */}
       <div className="mt-4 px-4 mb-6">
-        <div className={`py-2 px-3 bg-cosmic-primary/20 rounded-md border border-cosmic-primary/30 ${!open ? 'justify-center' : ''} flex items-center`}>
-          <div className="w-6 h-6 rounded-full bg-cosmic-highlight/30 flex items-center justify-center text-cosmic-highlight text-xs">
+        <div className={`py-2 px-3 bg-cosmic-primary-20 rounded-md border border-cosmic-primary-30 ${!open && !isMobile ? 'justify-center' : ''} flex items-center`}>
+          <div className="w-6 h-6 rounded-full bg-cosmic-highlight flex items-center justify-center text-white text-xs opacity-80">
             {userRole === 'admin' ? 'A' : userRole === 'super_admin' ? 'S' : userRole === 'creator' ? 'C' : 'U'}
           </div>
           <motion.div 
@@ -188,7 +205,7 @@ const Sidebar = ({ open, user }) => {
       </div>
       
       {/* Main Menu */}
-      <div className="flex-1 px-2 overflow-y-auto">
+      <div className="flex-1 px-2 overflow-y-auto scrollbar-hidden">
         <ul className="space-y-1">
           {allMenuItems.map((item) => (
             <li key={item.path}>
@@ -197,8 +214,8 @@ const Sidebar = ({ open, user }) => {
                 className={({ isActive }) => `
                   flex items-center py-2 px-3 rounded-md
                   ${isActive 
-                    ? 'bg-cosmic-primary/40 text-white font-medium' 
-                    : 'hover:bg-cosmic-primary/20 text-gray-300'
+                    ? 'bg-cosmic-primary-40 text-white font-medium' 
+                    : 'hover:bg-cosmic-primary-20 text-gray-300'
                   }
                   transition-colors
                 `}
@@ -217,7 +234,7 @@ const Sidebar = ({ open, user }) => {
       </div>
       
       {/* Settings Menu */}
-      <div className="px-2 py-4 border-t border-cosmic-primary/30">
+      <div className="px-2 py-4 border-t border-cosmic-primary-30">
         <ul className="space-y-1">
           {settingsItems.map((item) => (
             <li key={item.path}>
@@ -226,8 +243,8 @@ const Sidebar = ({ open, user }) => {
                 className={({ isActive }) => `
                   flex items-center py-2 px-3 rounded-md
                   ${isActive 
-                    ? 'bg-cosmic-primary/40 text-white font-medium' 
-                    : 'hover:bg-cosmic-primary/20 text-gray-300'
+                    ? 'bg-cosmic-primary-40 text-white font-medium' 
+                    : 'hover:bg-cosmic-primary-20 text-gray-300'
                   }
                   transition-colors
                 `}

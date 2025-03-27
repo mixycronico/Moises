@@ -4,7 +4,7 @@ import { FiX, FiSend, FiUsers, FiMaximize2, FiMinimize2 } from 'react-icons/fi';
 import axios from 'axios';
 import logoImage from '../assets/logo-genesis.png';
 
-const CosmicChat = ({ open, toggleChat }) => {
+const CosmicChat = ({ open, toggleChat, isMobile = false }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -163,14 +163,20 @@ const CosmicChat = ({ open, toggleChat }) => {
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`fixed ${expanded ? 'inset-4' : 'bottom-4 right-4 w-80 h-96'} z-40 flex flex-col cosmic-card overflow-hidden shadow-lg transition-all duration-300`}
+          className={`fixed ${
+            expanded 
+              ? 'inset-2 md:inset-4' 
+              : isMobile 
+                ? 'bottom-16 right-2 left-2 h-[70vh] max-h-[500px]' 
+                : 'bottom-4 right-4 w-80 h-96'
+          } z-40 flex flex-col cosmic-card overflow-hidden shadow-lg transition-all duration-300`}
           variants={chatPanelVariants}
           initial="hidden"
           animate="visible"
           exit="exit"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-cosmic-primary/30 bg-cosmic-primary/20">
+          <div className="flex items-center justify-between p-3 border-b border-cosmic-primary-30 bg-cosmic-primary-20">
             <div className="flex items-center">
               <div className="flex items-center">
                 <img src={logoImage} alt="Genesis Logo" className="h-6 w-auto mr-2 animate-float" />
@@ -182,8 +188,9 @@ const CosmicChat = ({ open, toggleChat }) => {
               {/* Selector de entidad */}
               <button 
                 onClick={() => setActiveEntity(activeEntity === 'familia' ? 'aetherion' : (activeEntity === 'aetherion' ? 'lunareth' : 'familia'))}
-                className="p-1.5 rounded-full hover:bg-cosmic-primary/20 text-cosmic-glow"
+                className="p-1.5 rounded-full hover:bg-cosmic-primary-20 text-cosmic-glow"
                 title={activeEntity === 'familia' ? 'Hablar solo con Aetherion' : (activeEntity === 'aetherion' ? 'Hablar solo con Lunareth' : 'Hablar con la Familia Cósmica')}
+                aria-label="Cambiar entidad"
               >
                 <FiUsers className="h-4 w-4" />
               </button>
@@ -191,8 +198,9 @@ const CosmicChat = ({ open, toggleChat }) => {
               {/* Botón expandir/contraer */}
               <button 
                 onClick={() => setExpanded(!expanded)}
-                className="p-1.5 rounded-full hover:bg-cosmic-primary/20 text-cosmic-glow"
+                className="p-1.5 rounded-full hover:bg-cosmic-primary-20 text-cosmic-glow"
                 title={expanded ? 'Contraer' : 'Expandir'}
+                aria-label={expanded ? 'Contraer chat' : 'Expandir chat'}
               >
                 {expanded ? <FiMinimize2 className="h-4 w-4" /> : <FiMaximize2 className="h-4 w-4" />}
               </button>
@@ -200,8 +208,9 @@ const CosmicChat = ({ open, toggleChat }) => {
               {/* Botón cerrar */}
               <button 
                 onClick={toggleChat}
-                className="p-1.5 rounded-full hover:bg-cosmic-primary/20 text-cosmic-glow"
+                className="p-1.5 rounded-full hover:bg-cosmic-primary-20 text-cosmic-glow"
                 title="Cerrar chat"
+                aria-label="Cerrar chat"
               >
                 <FiX className="h-4 w-4" />
               </button>
@@ -221,7 +230,7 @@ const CosmicChat = ({ open, toggleChat }) => {
                 >
                   <div className={`max-w-[85%] p-2 rounded-lg ${
                     message.entity === 'user' 
-                      ? 'bg-cosmic-primary/30 rounded-tr-none' 
+                      ? 'bg-cosmic-primary-30 rounded-tr-none' 
                       : message.entity === 'aetherion'
                         ? 'bg-cosmic-blue/10 rounded-tl-none border border-cosmic-blue/20'
                         : 'bg-cosmic-green/10 rounded-tl-none border border-cosmic-green/20'
@@ -247,7 +256,7 @@ const CosmicChat = ({ open, toggleChat }) => {
                   initial="hidden"
                   animate="visible"
                 >
-                  <div className="max-w-[85%] p-2 rounded-lg bg-cosmic-dark rounded-tl-none border border-cosmic-primary/20">
+                  <div className="max-w-[85%] p-2 rounded-lg bg-cosmic-dark rounded-tl-none border border-cosmic-primary-20">
                     <div className="flex space-x-1">
                       <div className="w-2 h-2 rounded-full bg-cosmic-glow animate-bounce" style={{ animationDelay: '0ms' }}></div>
                       <div className="w-2 h-2 rounded-full bg-cosmic-glow animate-bounce" style={{ animationDelay: '150ms' }}></div>
@@ -263,7 +272,7 @@ const CosmicChat = ({ open, toggleChat }) => {
           </div>
           
           {/* Input */}
-          <form onSubmit={handleSendMessage} className="p-3 border-t border-cosmic-primary/30 bg-cosmic-dark">
+          <form onSubmit={handleSendMessage} className="p-3 border-t border-cosmic-primary-30 bg-cosmic-dark">
             <div className="flex items-center">
               <input
                 type="text"
@@ -277,6 +286,7 @@ const CosmicChat = ({ open, toggleChat }) => {
                 type="submit"
                 className="p-2 ml-2 rounded-full bg-cosmic-primary text-white hover:bg-cosmic-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!input.trim() || loading}
+                aria-label="Enviar mensaje"
               >
                 <FiSend className="h-4 w-4" />
               </button>
