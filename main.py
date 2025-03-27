@@ -36,7 +36,7 @@ def initialize_system():
         logger.info("Inicializando Sistema de Trading Cósmico...")
         cosmic_network, aetherion, lunareth = initialize_enhanced_trading(
             father_name="otoniel",
-            include_extended_entities=False
+            include_extended_entities=True
         )
         logger.info(f"Sistema inicializado con {len(cosmic_network.entities)} entidades")
 
