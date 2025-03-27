@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FiTrendingUp, FiTrendingDown, FiDollarSign, 
-  FiBarChart, FiActivity, FiRefreshCw, FiClock
+  FiBarChart, FiActivity, FiRefreshCw, FiClock,
+  FiMove, FiLock, FiUnlock
 } from 'react-icons/fi';
 import axios from 'axios';
 import { Line } from 'react-chartjs-2';
@@ -17,6 +18,9 @@ import {
   Legend,
   Filler
 } from 'chart.js';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 
 // Registrar componentes de ChartJS
 ChartJS.register(
@@ -30,10 +34,46 @@ ChartJS.register(
   Filler
 );
 
+// Crear el componente responsive
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
 const Dashboard = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [error, setError] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Definir layouts para diferentes tamaños de pantalla
+  const [layouts, setLayouts] = useState({
+    lg: [
+      { i: 'balance', x: 0, y: 0, w: 3, h: 1 },
+      { i: 'transactions', x: 0, y: 1, w: 3, h: 2 },
+      { i: 'performance', x: 3, y: 0, w: 9, h: 3 },
+      { i: 'assets', x: 0, y: 3, w: 12, h: 2 },
+      { i: 'system', x: 0, y: 5, w: 12, h: 1 }
+    ],
+    md: [
+      { i: 'balance', x: 0, y: 0, w: 4, h: 1 },
+      { i: 'transactions', x: 0, y: 1, w: 4, h: 2 },
+      { i: 'performance', x: 4, y: 0, w: 8, h: 3 },
+      { i: 'assets', x: 0, y: 3, w: 12, h: 2 },
+      { i: 'system', x: 0, y: 5, w: 12, h: 1 }
+    ],
+    sm: [
+      { i: 'balance', x: 0, y: 0, w: 6, h: 1 },
+      { i: 'transactions', x: 6, y: 0, w: 6, h: 2 },
+      { i: 'performance', x: 0, y: 1, w: 12, h: 2 },
+      { i: 'assets', x: 0, y: 3, w: 12, h: 2 },
+      { i: 'system', x: 0, y: 5, w: 12, h: 1 }
+    ],
+    xs: [
+      { i: 'balance', x: 0, y: 0, w: 12, h: 1 },
+      { i: 'transactions', x: 0, y: 1, w: 12, h: 2 },
+      { i: 'performance', x: 0, y: 3, w: 12, h: 2 },
+      { i: 'assets', x: 0, y: 5, w: 12, h: 2 },
+      { i: 'system', x: 0, y: 7, w: 12, h: 1 }
+    ]
+  });
   
   useEffect(() => {
     // Cargar datos del dashboard
@@ -215,6 +255,33 @@ const Dashboard = ({ user }) => {
     };
   };
   
+  // Función para guardar el layout
+  const handleLayoutChange = (currentLayout, allLayouts) => {
+    if (isEditMode) {
+      setLayouts(allLayouts);
+      
+      // Opcional: guardar en localStorage para persistencia
+      localStorage.setItem('dashboardLayouts', JSON.stringify(allLayouts));
+    }
+  };
+  
+  // Función para alternar el modo de edición
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+  };
+  
+  // Cargar layouts guardados al iniciar
+  useEffect(() => {
+    const savedLayouts = localStorage.getItem('dashboardLayouts');
+    if (savedLayouts) {
+      try {
+        setLayouts(JSON.parse(savedLayouts));
+      } catch (error) {
+        console.error('Error al cargar layouts guardados:', error);
+      }
+    }
+  }, []);
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[calc(100vh-4rem)]">
@@ -240,6 +307,183 @@ const Dashboard = ({ user }) => {
     );
   }
   
+  // Componente para la tarjeta del panel
+  const DashboardCard = ({ title, children, className = "", dragHandle = false }) => {
+    return (
+      <div className={`cosmic-card relative ${className} h-full overflow-hidden`}>
+        {dragHandle && isEditMode && (
+          <div className="absolute top-2 right-2 z-10 cursor-move p-1 rounded-full bg-cosmic-primary/50 text-cosmic-glow">
+            <FiMove size={14} />
+          </div>
+        )}
+        <div className="p-4 h-full flex flex-col">
+          <h3 className="text-lg font-semibold mb-4 flex items-center">{title}</h3>
+          <div className="flex-1">{children}</div>
+        </div>
+      </div>
+    );
+  };
+
+  // Componentes específicos para cada panel
+  const BalanceCard = () => (
+    <div className="flex flex-col h-full p-1">
+      <p className="text-2xl font-semibold cosmic-glow-text">
+        {formatCurrency(dashboardData.balance)}
+      </p>
+      <div className="mt-auto text-sm flex items-center">
+        {dashboardData.todayPercentage >= 0 ? (
+          <span className="flex items-center text-cosmic-green">
+            <FiTrendingUp className="mr-1" />
+            +{dashboardData.todayPercentage}% hoy
+          </span>
+        ) : (
+          <span className="flex items-center text-cosmic-red">
+            <FiTrendingDown className="mr-1" />
+            {dashboardData.todayPercentage}% hoy
+          </span>
+        )}
+        <span className="ml-2 text-gray-500">
+          ({formatCurrency(dashboardData.todayChange)})
+        </span>
+      </div>
+    </div>
+  );
+
+  const PerformanceCard = () => (
+    <div className="h-full">
+      {dashboardData.performanceData && (
+        <Line data={dashboardData.performanceData} options={chartOptions} />
+      )}
+    </div>
+  );
+
+  const TransactionsCard = () => (
+    <div className="space-y-3 flex flex-col h-full">
+      <div className="flex-1 overflow-auto">
+        {dashboardData.recentTransactions.map((transaction) => {
+          // Determinar icono y color según tipo de transacción
+          let icon, colorClass;
+          switch (transaction.type) {
+            case 'profit':
+              icon = <FiTrendingUp />;
+              colorClass = 'text-cosmic-green';
+              break;
+            case 'loss':
+              icon = <FiTrendingDown />;
+              colorClass = 'text-cosmic-red';
+              break;
+            case 'deposit':
+              icon = <FiDollarSign />;
+              colorClass = 'text-cosmic-blue';
+              break;
+            case 'withdrawal':
+              icon = <FiDollarSign />;
+              colorClass = 'text-cosmic-yellow';
+              break;
+            default:
+              icon = <FiActivity />;
+              colorClass = 'text-cosmic-glow';
+          }
+          
+          return (
+            <div key={transaction.id} className="flex items-center justify-between py-2 border-b border-cosmic-primary/10 last:border-0">
+              <div className="flex items-center">
+                <div className={`w-8 h-8 rounded-full bg-cosmic-primary/20 flex items-center justify-center ${colorClass} mr-3`}>
+                  {icon}
+                </div>
+                <div>
+                  <p className="font-medium">{transaction.description}</p>
+                  <p className="text-xs text-gray-400">{formatDate(transaction.date)}</p>
+                </div>
+              </div>
+              <div className={transaction.type === 'profit' ? 'text-cosmic-green' : (transaction.type === 'loss' ? 'text-cosmic-red' : '')}>
+                {transaction.type === 'profit' && '+'}
+                {formatCurrency(transaction.amount)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button className="w-full mt-4 cosmic-button-secondary text-sm">
+        Ver todas las transacciones
+      </button>
+    </div>
+  );
+
+  const AssetsCard = () => (
+    <div className="overflow-x-auto -mx-4 px-4 pb-2">
+      <table className="w-full min-w-[500px] table-auto">
+        <thead>
+          <tr className="text-left text-gray-400 border-b border-cosmic-primary/20">
+            <th className="px-4 py-2">Activo</th>
+            <th className="px-4 py-2">Cantidad</th>
+            <th className="px-4 py-2">Valor</th>
+            <th className="px-4 py-2">Cambio 24h</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dashboardData.assets.map((asset) => {
+            const trendStatus = getTrendStatus(asset.change);
+            
+            return (
+              <tr key={asset.symbol} className="border-b border-cosmic-primary/10 last:border-0">
+                <td className="px-4 py-3">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 rounded-full bg-cosmic-primary/20 flex items-center justify-center text-cosmic-glow mr-3">
+                      {asset.symbol.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-medium">{asset.name}</p>
+                      <p className="text-xs text-gray-400">{asset.symbol}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">{asset.amount}</td>
+                <td className="px-4 py-3">{formatCurrency(asset.value)}</td>
+                <td className="px-4 py-3">
+                  <span className={`flex items-center ${trendStatus.color}`}>
+                    {trendStatus.icon}
+                    {asset.change > 0 ? '+' : ''}{asset.change}%
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const SystemCard = () => (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <div className={`flex items-center ${dashboardData.systemStatus.status === 'online' ? 'text-cosmic-green' : 'text-cosmic-yellow'}`}>
+          <span className="inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
+          <span>
+            {dashboardData.systemStatus.status === 'online' ? 'En línea' : 'Mantenimiento'}
+          </span>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-3 gap-4">
+        <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg">
+          <p className="text-sm text-gray-400 mb-1">Precisión</p>
+          <p className="text-xl font-semibold text-cosmic-glow">{dashboardData.systemStatus.predictionAccuracy}%</p>
+        </div>
+        
+        <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg">
+          <p className="text-sm text-gray-400 mb-1">Actualización</p>
+          <p className="text-xl font-semibold">{formatTime(dashboardData.systemStatus.lastUpdated)}</p>
+        </div>
+        
+        <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg">
+          <p className="text-sm text-gray-400 mb-1">Modo</p>
+          <p className="text-xl font-semibold text-cosmic-highlight">Quantum</p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <motion.div
       className="p-4 md:p-6 pb-28 md:pb-6"
@@ -249,270 +493,113 @@ const Dashboard = ({ user }) => {
     >
       {/* Título del dashboard */}
       <motion.div 
-        className="mb-8"
+        className="mb-8 flex flex-col md:flex-row justify-between md:items-center"
         variants={itemVariants}
       >
-        <h1 className="text-2xl md:text-3xl font-display mb-2">
-          Dashboard <span className="text-cosmic-glow">del Inversionista</span>
-        </h1>
-        <p className="text-gray-400">
-          Bienvenido, <span className="text-white font-medium">{user?.username || 'Usuario'}</span>. 
-          Tu categoría actual es <span className="font-medium text-cosmic-yellow">
-            {dashboardData.category.charAt(0).toUpperCase() + dashboardData.category.slice(1)}
-          </span>
-        </p>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-display mb-2">
+            Dashboard <span className="text-cosmic-glow">del Inversionista</span>
+          </h1>
+          <p className="text-gray-400 mb-2 md:mb-0">
+            Bienvenido, <span className="text-white font-medium">{user?.username || 'Usuario'}</span>. 
+            Tu categoría actual es <span className="font-medium text-cosmic-yellow">
+              {dashboardData.category.charAt(0).toUpperCase() + dashboardData.category.slice(1)}
+            </span>
+          </p>
+        </div>
+        
+        {/* Botón para editar layout */}
+        <button 
+          onClick={toggleEditMode}
+          className={`flex items-center space-x-2 ${isEditMode ? 'cosmic-button' : 'cosmic-button-secondary'}`}
+        >
+          {isEditMode ? (
+            <>
+              <FiLock className="mr-1" />
+              <span>Guardar Posiciones</span>
+            </>
+          ) : (
+            <>
+              <FiUnlock className="mr-1" />
+              <span>Personalizar Paneles</span>
+            </>
+          )}
+        </button>
       </motion.div>
       
-      {/* Tarjetas principales - optimizadas para móvil con desplazamiento horizontal */}
-      <motion.div 
-        className="mb-6 -mx-4 px-4 overflow-x-auto pb-2 md:pb-0 md:mx-0 md:overflow-visible flex md:grid md:grid-cols-2 lg:grid-cols-4 gap-4 no-scrollbar"
-        variants={itemVariants}
-        style={{ scrollSnapType: 'x mandatory' }}
-      >
-        {/* Balance */}
-        <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0 md:min-w-0 md:flex-shrink-1" style={{ scrollSnapAlign: 'start' }}>
-          <h3 className="text-sm text-gray-400 mb-1 flex items-center">
-            <FiDollarSign className="mr-1" /> Balance Actual
-          </h3>
-          <p className="text-2xl font-semibold cosmic-glow-text">
-            {formatCurrency(dashboardData.balance)}
-          </p>
-          <div className="mt-2 text-sm flex items-center">
-            {dashboardData.todayPercentage >= 0 ? (
-              <span className="flex items-center text-cosmic-green">
-                <FiTrendingUp className="mr-1" />
-                +{dashboardData.todayPercentage}% hoy
-              </span>
-            ) : (
-              <span className="flex items-center text-cosmic-red">
-                <FiTrendingDown className="mr-1" />
-                {dashboardData.todayPercentage}% hoy
-              </span>
-            )}
-            <span className="ml-2 text-gray-500">
-              ({formatCurrency(dashboardData.todayChange)})
-            </span>
+      {/* Versión móvil: carruseles desplazables */}
+      <div className="md:hidden mb-6">
+        <h2 className="text-lg font-semibold mb-3">Resumen</h2>
+        <div className="-mx-4 px-4 overflow-x-auto pb-2 flex gap-4 no-scrollbar" style={{ scrollSnapType: 'x mandatory' }}>
+          <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <h3 className="text-sm text-gray-400 mb-1 flex items-center">
+              <FiDollarSign className="mr-1" /> Balance Actual
+            </h3>
+            <BalanceCard />
+          </div>
+          
+          <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <h3 className="text-sm text-gray-400 mb-1 flex items-center">
+              <FiActivity className="mr-1" /> Rendimiento
+            </h3>
+            <div className="h-36">
+              <PerformanceCard />
+            </div>
+          </div>
+          
+          <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
+            <h3 className="text-sm text-gray-400 mb-1 flex items-center">
+              <FiBarChart className="mr-1" /> Estado
+            </h3>
+            <SystemCard />
           </div>
         </div>
-        
-        {/* Capital */}
-        <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0 md:min-w-0 md:flex-shrink-1" style={{ scrollSnapAlign: 'start' }}>
-          <h3 className="text-sm text-gray-400 mb-1 flex items-center">
-            <FiBarChart className="mr-1" /> Capital Invertido
-          </h3>
-          <p className="text-2xl font-semibold">
-            {formatCurrency(dashboardData.capital)}
-          </p>
-          <p className="mt-2 text-sm text-gray-400">
-            Fecha de inicio: {formatDate('2024-06-15')}
-          </p>
-        </div>
-        
-        {/* Ganancias */}
-        <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0 md:min-w-0 md:flex-shrink-1" style={{ scrollSnapAlign: 'start' }}>
-          <h3 className="text-sm text-gray-400 mb-1 flex items-center">
-            <FiActivity className="mr-1" /> Ganancias Totales
-          </h3>
-          <p className="text-2xl font-semibold text-cosmic-green">
-            +{formatCurrency(dashboardData.earnings)}
-          </p>
-          <div className="mt-2 text-sm">
-            <span className="text-cosmic-green flex items-center">
-              <FiTrendingUp className="mr-1" />
-              +{dashboardData.earningsPercentage}% total
-            </span>
-          </div>
-        </div>
-        
-        {/* Próxima predicción */}
-        <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0 md:min-w-0 md:flex-shrink-1" style={{ scrollSnapAlign: 'start' }}>
-          <h3 className="text-sm text-gray-400 mb-1 flex items-center">
-            <FiClock className="mr-1" /> Próxima Predicción
-          </h3>
-          <p className="text-xl font-semibold">
-            {formatDate(dashboardData.nextPrediction)}
-          </p>
-          <p className="mt-2 text-sm text-gray-400">
-            {formatTime(dashboardData.nextPrediction)}
-          </p>
-        </div>
-      </motion.div>
-      
-      {/* Gráfico y transacciones */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-6">
-        {/* Gráfico de rendimiento */}
-        <motion.div 
-          className="lg:col-span-2 cosmic-card p-5"
-          variants={itemVariants}
-        >
-          <h3 className="text-lg font-semibold mb-4">Rendimiento Anual</h3>
-          <div className="h-64">
-            {dashboardData.performanceData && (
-              <Line
-                data={dashboardData.performanceData}
-                options={chartOptions}
-              />
-            )}
-          </div>
-        </motion.div>
-        
-        {/* Transacciones recientes */}
-        <motion.div 
-          className="cosmic-card p-5"
-          variants={itemVariants}
-        >
-          <h3 className="text-lg font-semibold mb-4">Transacciones Recientes</h3>
-          <div className="space-y-3">
-            {dashboardData.recentTransactions.map((transaction) => {
-              // Determinar icono y color según tipo de transacción
-              let icon, colorClass;
-              switch (transaction.type) {
-                case 'profit':
-                  icon = <FiTrendingUp />;
-                  colorClass = 'text-cosmic-green';
-                  break;
-                case 'loss':
-                  icon = <FiTrendingDown />;
-                  colorClass = 'text-cosmic-red';
-                  break;
-                case 'deposit':
-                  icon = <FiDollarSign />;
-                  colorClass = 'text-cosmic-blue';
-                  break;
-                case 'withdrawal':
-                  icon = <FiDollarSign />;
-                  colorClass = 'text-cosmic-yellow';
-                  break;
-                default:
-                  icon = <FiActivity />;
-                  colorClass = 'text-cosmic-glow';
-              }
-              
-              return (
-                <div key={transaction.id} className="flex items-center justify-between py-2 border-b border-cosmic-primary/10 last:border-0">
-                  <div className="flex items-center">
-                    <div className={`w-8 h-8 rounded-full bg-cosmic-primary/20 flex items-center justify-center ${colorClass} mr-3`}>
-                      {icon}
-                    </div>
-                    <div>
-                      <p className="font-medium">{transaction.description}</p>
-                      <p className="text-xs text-gray-400">{formatDate(transaction.date)}</p>
-                    </div>
-                  </div>
-                  <div className={transaction.type === 'profit' ? 'text-cosmic-green' : (transaction.type === 'loss' ? 'text-cosmic-red' : '')}>
-                    {transaction.type === 'profit' && '+'}
-                    {formatCurrency(transaction.amount)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <button className="w-full mt-4 cosmic-button-secondary text-sm">
-            Ver todas las transacciones
-          </button>
-        </motion.div>
       </div>
       
-      {/* Activos */}
-      <motion.div 
-        className="cosmic-card p-5 mb-6"
-        variants={itemVariants}
-      >
-        <h3 className="text-lg font-semibold mb-4">Activos en Cartera</h3>
-        <div className="overflow-x-auto -mx-5 px-5 pb-2">
-          <table className="w-full min-w-[500px] table-auto">
-            <thead>
-              <tr className="text-left text-gray-400 border-b border-cosmic-primary/20">
-                <th className="px-4 py-2">Activo</th>
-                <th className="px-4 py-2">Cantidad</th>
-                <th className="px-4 py-2">Valor</th>
-                <th className="px-4 py-2">Cambio 24h</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dashboardData.assets.map((asset) => {
-                const trendStatus = getTrendStatus(asset.change);
-                
-                return (
-                  <tr key={asset.symbol} className="border-b border-cosmic-primary/10 last:border-0">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 rounded-full bg-cosmic-primary/20 flex items-center justify-center text-cosmic-glow mr-3">
-                          {asset.symbol.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-medium">{asset.name}</p>
-                          <p className="text-xs text-gray-400">{asset.symbol}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{asset.amount}</td>
-                    <td className="px-4 py-3">{formatCurrency(asset.value)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`flex items-center ${trendStatus.color}`}>
-                        {trendStatus.icon}
-                        {asset.change > 0 ? '+' : ''}{asset.change}%
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
-      
-      {/* Estado del sistema */}
-      <motion.div 
-        className="cosmic-card p-5"
-        variants={itemVariants}
-      >
-        <div className="flex flex-col md:flex-row justify-between md:items-center mb-4">
-          <h3 className="text-lg font-semibold mb-2 md:mb-0">Estado del Sistema</h3>
-          <div className={`flex items-center ${dashboardData.systemStatus.status === 'online' ? 'text-cosmic-green' : 'text-cosmic-yellow'}`}>
-            <span className="inline-block w-2 h-2 rounded-full bg-current mr-2"></span>
-            <span>
-              {dashboardData.systemStatus.status === 'online' ? 'En línea' : 'Mantenimiento'}
-            </span>
-          </div>
-        </div>
-        
-        {/* Versión móvil: desplazamiento horizontal para métricas */}
-        <div className="md:hidden -mx-5 px-5 overflow-x-auto pb-2 flex gap-4 no-scrollbar" style={{ scrollSnapType: 'x mandatory' }}>
-          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg min-w-[200px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <p className="text-sm text-gray-400 mb-1">Precisión de Predicciones</p>
-            <p className="text-xl font-semibold text-cosmic-glow">{dashboardData.systemStatus.predictionAccuracy}%</p>
+      {/* Versión desktop: grid layout modular */}
+      <div className={`hidden md:block ${isEditMode ? 'edit-mode' : ''}`}>
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={layouts}
+          breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480 }}
+          cols={{ lg: 12, md: 12, sm: 12, xs: 12 }}
+          rowHeight={80}
+          onLayoutChange={handleLayoutChange}
+          isDraggable={isEditMode}
+          isResizable={isEditMode}
+          draggableHandle=".cursor-move"
+        >
+          <div key="balance">
+            <DashboardCard title={<><FiDollarSign className="mr-2" /> Balance Actual</>} dragHandle={true}>
+              <BalanceCard />
+            </DashboardCard>
           </div>
           
-          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg min-w-[200px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <p className="text-sm text-gray-400 mb-1">Última Actualización</p>
-            <p className="text-xl font-semibold">{formatTime(dashboardData.systemStatus.lastUpdated)}</p>
+          <div key="performance">
+            <DashboardCard title={<><FiBarChart className="mr-2" /> Rendimiento Anual</>} dragHandle={true} className="overflow-hidden">
+              <PerformanceCard />
+            </DashboardCard>
           </div>
           
-          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg min-w-[200px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <p className="text-sm text-gray-400 mb-1">Modo Sistema</p>
-            <p className="text-xl font-semibold text-cosmic-highlight">Quantum Ultra</p>
-          </div>
-        </div>
-        
-        {/* Versión desktop: rejilla normal */}
-        <div className="hidden md:grid md:grid-cols-3 gap-4">
-          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg">
-            <p className="text-sm text-gray-400 mb-1">Precisión de Predicciones</p>
-            <p className="text-xl font-semibold text-cosmic-glow">{dashboardData.systemStatus.predictionAccuracy}%</p>
+          <div key="transactions">
+            <DashboardCard title={<><FiActivity className="mr-2" /> Transacciones Recientes</>} dragHandle={true}>
+              <TransactionsCard />
+            </DashboardCard>
           </div>
           
-          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg">
-            <p className="text-sm text-gray-400 mb-1">Última Actualización</p>
-            <p className="text-xl font-semibold">{formatTime(dashboardData.systemStatus.lastUpdated)}</p>
+          <div key="assets">
+            <DashboardCard title={<><FiDollarSign className="mr-2" /> Activos en Cartera</>} dragHandle={true}>
+              <AssetsCard />
+            </DashboardCard>
           </div>
           
-          <div className="text-center p-3 bg-cosmic-primary/10 rounded-lg">
-            <p className="text-sm text-gray-400 mb-1">Modo Sistema</p>
-            <p className="text-xl font-semibold text-cosmic-highlight">Quantum Ultra</p>
+          <div key="system">
+            <DashboardCard title={<><FiClock className="mr-2" /> Estado del Sistema</>} dragHandle={true}>
+              <SystemCard />
+            </DashboardCard>
           </div>
-        </div>
-      </motion.div>
+        </ResponsiveGridLayout>
+      </div>
     </motion.div>
   );
 };
