@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --minify terser",
+    "build:fast": "vite build --minify terser --emptyOutDir",
+    "build:analyze": "vite build --mode=analyze",
     "preview": "vite preview"
   },
   "dependencies": {

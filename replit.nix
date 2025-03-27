@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.jq
     pkgs.libuv
     pkgs.gmp
     pkgs.xsimd

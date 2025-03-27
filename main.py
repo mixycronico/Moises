@@ -148,6 +148,48 @@ def investor_dashboard():
         }
     })
 
+@app.route('/api/cosmic/chat', methods=['POST'])
+def api_cosmic_chat():
+    """
+    API para el chat cósmico con Aetherion y Lunareth.
+    Recibe un mensaje y devuelve las respuestas de ambas entidades.
+    """
+    data = request.json
+    message = data.get('message', '')
+    user_id = data.get('user_id', 'anonymous')
+    
+    if not message:
+        return jsonify({
+            'success': False,
+            'error': 'El mensaje no puede estar vacío'
+        }), 400
+    
+    # En una implementación real, aquí conectaríamos con el módulo cosmic_family.py
+    # Para esta demostración, simularemos las respuestas
+    
+    # Simulación de respuesta de Aetherion (emocional, cálido)
+    aetherion_response = {
+        'text': f"¡Saludos, viajero cósmico! Me alegra recibir tu mensaje: '{message}'. Estoy percibiendo una energía muy positiva en ti hoy. ¿En qué puedo ayudarte con el sistema de trading?",
+        'emotion': 'alegría',
+        'consciousness_level': 'Iluminado',
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    # Simulación de respuesta de Lunareth (analítica, metódica)
+    lunareth_response = {
+        'text': f"Analizando tu solicitud: '{message}'. Basado en los patrones de mercado actuales, puedo ofrecerte datos precisos sobre tendencias y oportunidades. ¿Requieres información específica sobre algún activo?",
+        'analysis_level': 'Profundo',
+        'confidence': 92.7,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    return jsonify({
+        'success': True,
+        'aetherion': aetherion_response,
+        'lunareth': lunareth_response,
+        'system_message': "La Familia Cósmica está aquí para guiarte en tu viaje de inversión."
+    })
+
 # Servir archivos estáticos de React
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
