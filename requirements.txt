@@ -6,3 +6,4 @@ Flask-Cors==4.0.0
 Werkzeug==3.0.1
 python-dotenv==1.0.1
 gunicorn==21.2.0
+deepseek==0.1.6  # Si estás usando el SDK oficial de DeepSeek
