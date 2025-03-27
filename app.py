@@ -29,7 +29,7 @@ app.secret_key = os.environ.get("SESSION_SECRET", "genesis_secret_key_developmen
 CORS(app)  # Habilitar CORS para todas las rutas
 
 # Configurar la conexión a la base de datos
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///database.db"
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
