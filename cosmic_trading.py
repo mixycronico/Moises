@@ -963,10 +963,64 @@ class CosmicNetwork:
         self.father = father
         self.entities = []
         self.pool = get_db_pool()  # Usar el pool de conexiones de PostgreSQL existente
+        self.messages = []
+        self.max_messages = 500  # Límite de mensajes a mantener en memoria
         
         # Asegurar que tenemos las tablas necesarias para el intercambio de conocimiento
         self._init_knowledge_tables()
         logger.info("Red cósmica de trading inicializada")
+        
+    def get_entities(self):
+        """
+        Obtener todas las entidades vivas de la red.
+        
+        Returns:
+            Lista de entidades activas
+        """
+        return [e for e in self.entities if getattr(e, "is_alive", True)]
+        
+    def log_message(self, sender, message):
+        """
+        Registrar mensaje en el log de la red.
+        
+        Args:
+            sender: Nombre de la entidad emisora
+            message: Contenido del mensaje
+            
+        Returns:
+            True si se registró con éxito, False en caso contrario
+        """
+        try:
+            msg_entry = {
+                "timestamp": datetime.now().isoformat(),
+                "sender": sender,
+                "message": message
+            }
+            
+            # Añadir a la lista en memoria
+            self.messages.append(msg_entry)
+            
+            # Mantener limitada la cantidad de mensajes
+            if len(self.messages) > self.max_messages:
+                self.messages = self.messages[-self.max_messages:]
+                
+            # Intentar guardar en base de datos si está disponible
+            try:
+                conn = self.pool.getconn()
+                with conn.cursor() as c:
+                    c.execute('''
+                        INSERT INTO cosmic_messages (sender, message) 
+                        VALUES (%s, %s)
+                    ''', (sender, message))
+                    conn.commit()
+                self.pool.putconn(conn)
+            except Exception as e:
+                logger.error(f"Error al guardar mensaje en BD: {e}")
+                
+            return True
+        except Exception as e:
+            logger.error(f"Error al registrar mensaje: {e}")
+            return False
     
     def _init_knowledge_tables(self):
         """Inicializar tablas para el intercambio de conocimiento."""
@@ -993,6 +1047,16 @@ class CosmicNetwork:
                         target_entity TEXT NOT NULL,
                         knowledge_type TEXT NOT NULL,
                         synergy_value FLOAT NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Crear tabla para mensajes de la red
+                c.execute('''
+                    CREATE TABLE IF NOT EXISTS cosmic_messages (
+                        id SERIAL PRIMARY KEY,
+                        sender TEXT NOT NULL,
+                        message TEXT NOT NULL,
                         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 ''')

@@ -179,6 +179,45 @@ class EnhancedCosmicEntityMixin:
             logger.warning(f"[{self.name}] No conectado a ninguna red, mensaje no enviado")
             return False
 
+    def receive_knowledge(self, amount):
+        """
+        Recibir conocimiento compartido por otra entidad.
+        
+        Args:
+            amount: Cantidad de conocimiento recibido
+            
+        Returns:
+            Incremento efectivo de conocimiento
+        """
+        if not hasattr(self, 'knowledge'):
+            self.knowledge = 0.0
+        
+        # Factor de asimilación basado en nivel
+        nivel_factor = min(1.0, getattr(self, 'level', 1) / 10) * 0.5 + 0.5
+        
+        # Capacidad de asimilación
+        asimilacion_max = 0.5  # Máximo que puede asimilar del conocimiento compartido
+        
+        # Calcular incremento efectivo
+        incremento_efectivo = amount * nivel_factor * asimilacion_max
+        
+        # Aplicar incremento
+        self.knowledge += incremento_efectivo
+        
+        # Posibilidad de ganar pequeña cantidad de energía
+        if random.random() < 0.3:  # 30% de probabilidad
+            energia_ganada = random.uniform(0.2, 0.5)
+            if hasattr(self, 'adjust_energy'):
+                self.adjust_energy(energia_ganada)
+            elif hasattr(self, 'energy'):
+                self.energy += energia_ganada
+        
+        # Log de recepción
+        if hasattr(self, 'name'):
+            logger.info(f"[{self.name}] Recibió conocimiento: +{incremento_efectivo:.2f}")
+        
+        return incremento_efectivo
+    
     def consolidar_conocimiento(self):
         """
         Consolida el conocimiento de la entidad basándose en su experiencia y memoria.
