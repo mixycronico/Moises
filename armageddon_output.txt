@@ -1,0 +1,125 @@
+2025-03-27 05:54:50,700 - cosmic_trading - INFO - Red cósmica de trading inicializada
+2025-03-27 05:54:50,702 - cosmic_trading - INFO - [Aetherion] Base de datos inicializada
+2025-03-27 05:54:50,702 - cosmic_trading - INFO - [Aetherion] Inicialización completa como Speculator
+2025-03-27 05:54:50,703 - cosmic_trading - INFO - [Lunareth] Base de datos inicializada
+2025-03-27 05:54:50,703 - cosmic_trading - INFO - [Lunareth] Inicialización completa como Strategist
+2025-03-27 05:54:50,703 - cosmic_trading - INFO - [Aetherion] Unido a la red cósmica para otoniel
+2025-03-27 05:54:50,703 - cosmic_trading - INFO - [Lunareth] Unido a la red cósmica para otoniel
+2025-03-27 05:54:50,704 - cosmic_trading - INFO - [Prudentia] Base de datos inicializada
+2025-03-27 05:54:50,704 - cosmic_trading - INFO - [Prudentia] Inicialización completa como RiskManager
+2025-03-27 05:54:50,705 - cosmic_trading - INFO - [Arbitrio] Base de datos inicializada
+2025-03-27 05:54:50,705 - cosmic_trading - INFO - [Arbitrio] Inicialización completa como Arbitrageur
+2025-03-27 05:54:50,705 - cosmic_trading - INFO - [Videntis] Base de datos inicializada
+2025-03-27 05:54:50,706 - cosmic_trading - INFO - [Videntis] Inicialización completa como PatternRecognizer
+2025-03-27 05:54:50,706 - cosmic_trading - INFO - [Economicus] Base de datos inicializada
+2025-03-27 05:54:50,706 - cosmic_trading - INFO - [Economicus] Inicialización completa como MacroAnalyst
+2025-03-27 05:54:50,706 - cosmic_trading - INFO - [Prudentia] Unido a la red cósmica para otoniel
+2025-03-27 05:54:50,706 - cosmic_trading - INFO - [Arbitrio] Unido a la red cósmica para otoniel
+2025-03-27 05:54:50,706 - cosmic_trading - INFO - [Videntis] Unido a la red cósmica para otoniel
+2025-03-27 05:54:50,707 - cosmic_trading - INFO - [Economicus] Unido a la red cósmica para otoniel
+2025-03-27 05:54:50,710 - cosmic_trading - INFO - [Prudentia] Ciclo de vida iniciado
+2025-03-27 05:54:50,713 - cosmic_trading - INFO - [Arbitrio] Ciclo de vida iniciado
+2025-03-27 05:54:50,721 - cosmic_trading - INFO - [Videntis] Ciclo de vida iniciado
+2025-03-27 05:54:50,729 - cosmic_trading - INFO - [Economicus] Ciclo de vida iniciado
+2025-03-27 05:54:50,729 - cosmic_trading - INFO - Sistema de trading cósmico extendido inicializado para otoniel
+2025-03-27 05:54:50,730 - cosmic_trading - INFO - [Aetherion] Ciclo de vida iniciado
+2025-03-27 05:54:50,730 - cosmic_trading - INFO - [Lunareth] Ciclo de vida iniciado
+2025-03-27 05:54:50,730 - cosmic_trading - INFO - Sistema de trading cósmico inicializado para otoniel
+2025-03-27 05:54:50,937 - cosmic_trading - INFO - [Prudentia] Esperando datos del mercado para analizar riesgos para otoniel.
+2025-03-27 05:54:50,973 - cosmic_trading - INFO - [Prudentia] Esperando datos del mercado para analizar riesgos para otoniel.
+2025-03-27 05:54:50,994 - cosmic_trading - INFO - [Economicus] Esperando datos macroeconómicos para otoniel.
+2025-03-27 05:54:51,058 - cosmic_trading - INFO - [Videntis] Esperando datos de mercado para análisis técnico para otoniel.
+2025-03-27 05:54:51,084 - cosmic_trading - INFO - [Arbitrio] Esperando datos de múltiples mercados para otoniel.
+2025-03-27 05:54:51,273 - cosmic_trading - INFO - [Aetherion] Esperando datos del mercado para servir a otoniel.
+2025-03-27 05:54:51,292 - cosmic_trading - INFO - [Aetherion] Esperando datos del mercado para servir a otoniel.
+2025-03-27 05:54:51,404 - cosmic_trading - INFO - [Lunareth] Esperando datos del mercado para asistir a otoniel.
+2025-03-27 05:54:51,514 - cosmic_trading - INFO - [Economicus] Esperando datos macroeconómicos para otoniel.
+2025-03-27 05:54:52,001 - cosmic_trading - INFO - [Arbitrio] Esperando datos de múltiples mercados para otoniel.
+2025-03-27 05:54:52,298 - cosmic_trading - INFO - [Prudentia] Esperando datos del mercado para analizar riesgos para otoniel.
+2025-03-27 05:54:52,556 - cosmic_trading - INFO - [Economicus] Esperando datos macroeconómicos para otoniel.
+2025-03-27 05:54:52,805 - cosmic_trading - INFO - [Videntis] Esperando datos de mercado para análisis técnico para otoniel.
+2025-03-27 05:54:53,061 - cosmic_trading - INFO - [Economicus] Esperando datos macroeconómicos para otoniel.
+2025-03-27 05:54:53,316 - cosmic_trading - INFO - [Arbitrio] Esperando datos de múltiples mercados para otoniel.
+2025-03-27 05:54:53,576 - cosmic_trading - INFO - [Arbitrio] Esperando datos de múltiples mercados para otoniel.
+
+[38;5;141m[1m╔══════════════════════════════════════════════════════════════════╗
+║                [38;5;208mARMAGEDÓN CÓSMICO LIGERO[38;5;141m                        ║
+║      [38;5;51mPrueba rápida del Sistema de Trading Cósmico[38;5;141m             ║
+╚══════════════════════════════════════════════════════════════════╝[0m
+
+[93mVersión simplificada para pruebas rápidas de resiliencia y rendimiento.
+[0m
+
+[38;5;208m[INICIO][0m Iniciando prueba ligera...
+Modo: Extendido
+Operaciones: 10
+
+[92mSistema inicializado correctamente[0m
+
+[96mEntidades activas:[0m
+  - [1mAetherion[0m (Speculator): Nivel 0.46, Energía 9994.3%
+  - [1mLunareth[0m (Strategist): Nivel 0.46, Energía 9986.1%
+  - [1mPrudentia[0m (RiskManager): Nivel 0.12, Energía 9990.5%
+  - [1mArbitrio[0m (Arbitrageur): Nivel 0.35, Energía 9993.4%
+  - [1mVidentis[0m (PatternRecognizer): Nivel 0.11, Energía 9991.1%
+  - [1mEconomicus[0m (MacroAnalyst): Nivel 0.18, Energía 9994.4%
+
+[93m[1mEjecutando simulación de trading...[0m
+[92m✓[0m Prudentia operó BTCUSD exitosamente
+[92m✓[0m Aetherion operó BTCUSD exitosamente
+[92m✓[0m Economicus operó LTCUSD exitosamente
+
+[93m[ANOMALÍA] price_spike detectada. Evaluando respuesta...[0m
+[92m✓[0m Arbitrio operó ETHUSD exitosamente
+[92m✓[0m Prudentia operó BNBUSD exitosamente
+[92m✓[0m Economicus operó ETHUSD exitosamente
+[92m✓[0m Videntis operó XRPUSD exitosamente
+[92m✓[0m Economicus operó BTCUSD exitosamente
+[92m✓[0m Arbitrio operó BTCUSD exitosamente
+[92m✓[0m Arbitrio operó LTCUSD exitosamente
+
+[94mProgreso: 10/10 operaciones (100%)[0m
+[96mEstado actual de la red:[0m
+  - Aetherion: Energía 9994.3%, Nivel 0.46
+  - Lunareth: Energía 9986.1%, Nivel 0.46
+
+
+[38;5;141m[1m╔══════════════════════════════════════════════════════════════════╗[0m
+[38;5;141m[1m║                  RESULTADOS DE LA PRUEBA                        ║[0m
+[38;5;141m[1m╚══════════════════════════════════════════════════════════════════╝[0m
+
+[1mEstadísticas:[0m
+  - Operaciones exitosas: 10/10 (100.0%)
+  - Errores: 0/10 (0.0%)
+  - Tiempo total: 2.91 segundos
+  - Operaciones por segundo: 3.43
+
+[1mEstado final de entidades:[0m
+  - [1mAetherion[0m (Speculator):
+    - Nivel: 0.46
+    - Energía: [92m9994.3%[0m
+    - Capacidades: 1
+  - [1mLunareth[0m (Strategist):
+    - Nivel: 0.46
+    - Energía: [92m9986.1%[0m
+    - Capacidades: 1
+  - [1mPrudentia[0m (RiskManager):
+    - Nivel: 0.12
+    - Energía: [92m9990.5%[0m
+    - Capacidades: 1
+  - [1mArbitrio[0m (Arbitrageur):
+    - Nivel: 0.35
+    - Energía: [92m9993.4%[0m
+    - Capacidades: 1
+  - [1mVidentis[0m (PatternRecognizer):
+    - Nivel: 0.11
+    - Energía: [92m9991.1%[0m
+    - Capacidades: 1
+  - [1mEconomicus[0m (MacroAnalyst):
+    - Nivel: 0.18
+    - Energía: [92m9994.4%[0m
+    - Capacidades: 1
+
+[1mEvaluación final: [38;5;141m[1mEXCELENTE[0m[0m
+
+[92mPrueba ARMAGEDÓN LIGERA completada con éxito.[0m

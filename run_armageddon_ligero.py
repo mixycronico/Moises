@@ -102,13 +102,35 @@ def run_quick_test(use_extended_entities=True, num_operations=50):
                 entity.fetch_market_data(symbol)  # Actualizar datos internos
                 result = entity.trade()  # Ejecutar operación
                 
+                # Generar un pensamiento detallado basado en el rol
+                thought = ""
+                if entity.role == "Speculator":
+                    thought = f"Analizando tendencias a corto plazo para {symbol}. {'Oportunidad prometedora' if random.random() > 0.5 else 'Señales mixtas'}."
+                elif entity.role == "Strategist":
+                    thought = f"Evaluando estrategia para {symbol} en marco temporal medio. {'Formación positiva' if random.random() > 0.5 else 'Consolidación necesaria'}."
+                elif entity.role == "RiskManager":
+                    thought = f"Calculando exposición al riesgo para {symbol}. Ratio riesgo/beneficio: {random.uniform(0.8, 1.5):.2f}."
+                elif entity.role == "Arbitrageur":
+                    thought = f"Buscando disparidades de precio para {symbol} entre mercados. {'Potencial arbitraje detectado' if random.random() > 0.7 else 'Sin oportunidades claras'}."
+                elif entity.role == "PatternRecognizer":
+                    patterns = ["Doble techo", "Hombro-cabeza-hombro", "Bandera alcista", "Triángulo descendente", "Taza con asa"]
+                    thought = f"Identificando patrones técnicos en {symbol}. Posible formación de {random.choice(patterns)}."
+                elif entity.role == "MacroAnalyst":
+                    thought = f"Correlacionando {symbol} con eventos macroeconómicos. {'Impacto positivo esperado' if random.random() > 0.5 else 'Cautela recomendada'}."
+                
                 # Verificar resultado
                 if result and "error" not in str(result).lower():
                     success_count += 1
-                    print(f"{C.GREEN}✓{C.END} {entity.name} operó {symbol} exitosamente")
+                    print(f"{C.GREEN}✓{C.END} {entity.name} ({entity.role}) operó {symbol} exitosamente")
+                    print(f"  {C.CYAN}Pensamiento:{C.END} {thought}")
+                    # Simular aumento de conocimiento y nivel
+                    entity.knowledge += random.uniform(0.01, 0.03)
+                    entity.level += random.uniform(0.005, 0.015)
+                    print(f"  {C.YELLOW}Evolución:{C.END} Conocimiento +{entity.knowledge:.2f}, Nivel {entity.level:.2f}")
                 else:
                     error_count += 1
                     print(f"{C.RED}✗{C.END} {entity.name} tuvo un error operando {symbol}")
+                    print(f"  {C.RED}Pensamiento:{C.END} Dificultad para analizar datos de {symbol}. Necesito más información.")
                 
             except Exception as e:
                 error_count += 1
@@ -191,8 +213,30 @@ def main():
                      help='Modo de prueba: basic (solo Aetherion/Lunareth), extended (todas las entidades)')
     parser.add_argument('--operations', type=int, default=50,
                      help='Número de operaciones a simular')
+    parser.add_argument('--focus', type=str, default=None, choices=['speculator', 'strategist', 'risk', 'arbitrage', 'pattern', 'macro'],
+                     help='Enfoque en un tipo específico de entidad')
+    parser.add_argument('--detail', action='store_true',
+                     help='Mostrar salida detallada para cada operación')
     
     args = parser.parse_args()
+    
+    # Si se especifica un tipo de entidad para enfoque, mostrar operaciones detalladas solo para ese tipo
+    role_focus = None
+    if args.focus:
+        role_map = {
+            'speculator': 'Speculator',
+            'strategist': 'Strategist',
+            'risk': 'RiskManager',
+            'arbitrage': 'Arbitrageur',
+            'pattern': 'PatternRecognizer',
+            'macro': 'MacroAnalyst'
+        }
+        role_focus = role_map.get(args.focus)
+        print(f"Enfocando análisis en el rol: {role_focus}")
+    
+    # Deshabilitar logging de "Esperando datos" para evitar ruido
+    for handler in logging.getLogger().handlers:
+        handler.addFilter(lambda record: "Esperando datos" not in record.getMessage())
     
     run_quick_test(
         use_extended_entities=(args.mode == 'extended'),
