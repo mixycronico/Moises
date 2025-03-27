@@ -167,7 +167,7 @@ const CosmicChat = ({ open, toggleChat, isMobile = false }) => {
             expanded 
               ? 'inset-2 md:inset-4' 
               : isMobile 
-                ? 'bottom-16 right-2 left-2 h-[70vh] max-h-[500px]' 
+                ? 'bottom-20 right-2 left-2 h-[60vh] max-h-[70vh]' 
                 : 'bottom-4 right-4 w-80 h-96'
           } z-40 flex flex-col cosmic-card overflow-hidden shadow-lg transition-all duration-300`}
           variants={chatPanelVariants}
@@ -176,19 +176,21 @@ const CosmicChat = ({ open, toggleChat, isMobile = false }) => {
           exit="exit"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-cosmic-primary-30 bg-cosmic-primary-20">
+          <div className="flex items-center justify-between px-3 py-2 sm:p-3 border-b border-cosmic-primary-30 bg-cosmic-primary-20">
             <div className="flex items-center">
               <div className="flex items-center">
                 <img src={logoImage} alt="Genesis Logo" className="h-6 w-auto mr-2 animate-float" />
-                <h3 className="font-medium cosmic-gradient-text">Chat Cósmico</h3>
+                <h3 className="font-medium cosmic-gradient-text text-sm sm:text-base">
+                  Chat {activeEntity === 'familia' ? 'Cósmico' : (activeEntity === 'aetherion' ? 'con Aetherion' : 'con Lunareth')}
+                </h3>
               </div>
             </div>
             
-            <div className="flex space-x-1">
+            <div className="flex space-x-2">
               {/* Selector de entidad */}
               <button 
                 onClick={() => setActiveEntity(activeEntity === 'familia' ? 'aetherion' : (activeEntity === 'aetherion' ? 'lunareth' : 'familia'))}
-                className="p-1.5 rounded-full hover:bg-cosmic-primary-20 text-cosmic-glow"
+                className="p-1.5 rounded-full hover:bg-cosmic-primary-30 text-cosmic-glow"
                 title={activeEntity === 'familia' ? 'Hablar solo con Aetherion' : (activeEntity === 'aetherion' ? 'Hablar solo con Lunareth' : 'Hablar con la Familia Cósmica')}
                 aria-label="Cambiar entidad"
               >
@@ -198,7 +200,7 @@ const CosmicChat = ({ open, toggleChat, isMobile = false }) => {
               {/* Botón expandir/contraer */}
               <button 
                 onClick={() => setExpanded(!expanded)}
-                className="p-1.5 rounded-full hover:bg-cosmic-primary-20 text-cosmic-glow"
+                className="p-1.5 rounded-full hover:bg-cosmic-primary-30 text-cosmic-glow"
                 title={expanded ? 'Contraer' : 'Expandir'}
                 aria-label={expanded ? 'Contraer chat' : 'Expandir chat'}
               >
@@ -208,7 +210,7 @@ const CosmicChat = ({ open, toggleChat, isMobile = false }) => {
               {/* Botón cerrar */}
               <button 
                 onClick={toggleChat}
-                className="p-1.5 rounded-full hover:bg-cosmic-primary-20 text-cosmic-glow"
+                className="p-1.5 rounded-full hover:bg-cosmic-primary-30 bg-cosmic-primary-20 text-cosmic-glow"
                 title="Cerrar chat"
                 aria-label="Cerrar chat"
               >
@@ -272,15 +274,16 @@ const CosmicChat = ({ open, toggleChat, isMobile = false }) => {
           </div>
           
           {/* Input */}
-          <form onSubmit={handleSendMessage} className="p-3 border-t border-cosmic-primary-30 bg-cosmic-dark">
+          <form onSubmit={handleSendMessage} className="p-2 sm:p-3 border-t border-cosmic-primary-30 bg-cosmic-dark">
             <div className="flex items-center">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={`Mensaje para ${activeEntity === 'familia' ? 'la Familia Cósmica' : (activeEntity === 'aetherion' ? 'Aetherion' : 'Lunareth')}...`}
-                className="cosmic-input py-1.5 flex-1 text-sm"
+                className="cosmic-input py-2 sm:py-1.5 flex-1 text-sm rounded-full px-4"
                 disabled={loading}
+                autoComplete="off"
               />
               <button
                 type="submit"
@@ -288,7 +291,7 @@ const CosmicChat = ({ open, toggleChat, isMobile = false }) => {
                 disabled={!input.trim() || loading}
                 aria-label="Enviar mensaje"
               >
-                <FiSend className="h-4 w-4" />
+                <FiSend className="h-5 w-5" />
               </button>
             </div>
           </form>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import MobileNavbar from './MobileNavbar';
 import CosmicChat from './CosmicChat';
 import { FiMessageCircle } from 'react-icons/fi';
 
@@ -61,9 +62,9 @@ const MainLayout = ({ user }) => {
         </main>
       </div>
       
-      {/* Chat Button */}
+      {/* Chat Button - ajustado para que no se superponga con la barra de navegación móvil */}
       <button
-        className="fixed bottom-4 right-4 z-30 cosmic-button-floating w-12 h-12 flex items-center justify-center text-xl shadow-lg"
+        className={`fixed right-4 z-30 cosmic-button-floating w-12 h-12 flex items-center justify-center text-xl shadow-lg ${isMobile ? 'bottom-20' : 'bottom-4'}`}
         onClick={toggleChat}
         aria-label="Chat Cósmico"
       >
@@ -72,6 +73,9 @@ const MainLayout = ({ user }) => {
       
       {/* Cosmic Chat */}
       <CosmicChat open={chatOpen} toggleChat={toggleChat} isMobile={isMobile} />
+      
+      {/* Mobile Navigation Bar */}
+      {isMobile && <MobileNavbar user={user} />}
       
       {/* Radial gradients for cosmic effect */}
       <div className="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
