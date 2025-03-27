@@ -8,6 +8,9 @@ import logging
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 from enhanced_simple_cosmic_trader import initialize_enhanced_trading
 from armageddon_api import register_armageddon_routes
+from database_entity import create_database_entity
+from websocket_entity import create_local_websocket_entity, create_external_websocket_entity
+from integration_entity import create_integration_entity
 
 # Configuración de logging
 logging.basicConfig(
@@ -27,17 +30,61 @@ register_armageddon_routes(app)
 cosmic_network = None
 aetherion = None
 lunareth = None
+kronos = None  # Entidad de base de datos
+hermes = None  # Entidad WebSocket local
+apollo = None  # Entidad WebSocket externo
+harmonia = None  # Entidad de integración
 
 def initialize_system():
     """Inicializar el sistema de trading cósmico."""
-    global cosmic_network, aetherion, lunareth
+    global cosmic_network, aetherion, lunareth, kronos, hermes, apollo, harmonia
     
     if cosmic_network is None:
         logger.info("Inicializando Sistema de Trading Cósmico...")
+        # Inicializar red y entidades básicas
         cosmic_network, aetherion, lunareth = initialize_enhanced_trading(
             father_name="otoniel",
             include_extended_entities=True
         )
+        
+        # Crear entidades especializadas
+        logger.info("Creando entidades especializadas...")
+        
+        # Entidad de base de datos PostgreSQL
+        kronos = create_database_entity(
+            name="Kronos", 
+            father="otoniel",
+            frequency_seconds=40,
+            database_type="postgres"
+        )
+        cosmic_network.add_entity(kronos)
+        
+        # Entidad WebSocket local
+        hermes = create_local_websocket_entity(
+            name="Hermes", 
+            father="otoniel",
+            frequency_seconds=30,
+            start_server=False  # No iniciar servidor en este contexto
+        )
+        cosmic_network.add_entity(hermes)
+        
+        # Entidad WebSocket externa
+        apollo = create_external_websocket_entity(
+            name="Apollo", 
+            father="otoniel",
+            frequency_seconds=35,
+            start_server=False  # No iniciar servidor en este contexto
+        )
+        cosmic_network.add_entity(apollo)
+        
+        # Entidad de integración y balance
+        harmonia = create_integration_entity(
+            name="Harmonia", 
+            father="otoniel",
+            frequency_seconds=40
+        )
+        cosmic_network.add_entity(harmonia)
+        
         logger.info(f"Sistema inicializado con {len(cosmic_network.entities)} entidades")
 
 # Rutas de la aplicación

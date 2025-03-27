@@ -44,6 +44,36 @@ El núcleo del sistema es la **Familia Cósmica** de entidades IA, cada una con:
    - Enfoque analítico y metodológico
    - Complementa a Aetherion con precisión racional
 
+### Entidades Especializadas
+
+1. **Kronos (Base de datos)**:
+   - Especialista en administración y optimización de bases de datos
+   - Alto nivel de precisión y meticulosidad
+   - Gestión de conexiones, consultas y optimización
+   - Monitoreo de rendimiento y estructura de datos
+   - Capacidad de auto-recuperación ante fallos
+
+2. **Hermes (WebSocket Local)**:
+   - Especialista en comunicaciones en tiempo real locales
+   - Alta velocidad y eficiencia en transmisión de datos
+   - Optimización de conexiones locales
+   - Gestión de eventos y mensajes en tiempo real
+   - Monitoreo de latencia y calidad de servicio
+
+3. **Apollo (WebSocket Externo)**:
+   - Especialista en comunicaciones externas
+   - Gestión de conexiones seguras con sistemas remotos
+   - Balanceo de carga entre regiones geográficas
+   - Protocolos de seguridad avanzados
+   - Capacidad de recuperación ante desconexiones
+
+4. **Harmonia (Integración)**:
+   - Especialista en integración de APIs externas
+   - Coordinación y balance de recursos del sistema
+   - Gestión de conexiones con servicios financieros
+   - Monitoreo y optimización de integraciones
+   - Distribución equilibrada de carga en el sistema
+
 ### Entidades Extendidas (Opcionales)
 
 1. **Helios (Especulador)**
