@@ -12,6 +12,7 @@ from database_entity import create_database_entity
 from websocket_entity import create_local_websocket_entity, create_external_websocket_entity
 from integration_entity import create_integration_entity
 from alert_entity import create_alert_entity
+from websocket_entity_fix import apply_websocket_entity_fix, apply_repair_entity_fix
 
 # Configuración de logging
 logging.basicConfig(
