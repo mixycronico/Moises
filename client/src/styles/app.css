@@ -158,6 +158,36 @@
     box-shadow: 0 0 15px rgba(158, 107, 219, 0.2);
   }
   
+  /* Estilos específicos para la versión móvil del grid layout */
+  @media (max-width: 768px) {
+    .react-grid-item.react-draggable-dragging {
+      z-index: 10;
+      box-shadow: 0 8px 25px rgba(158, 107, 219, 0.4);
+      cursor: grabbing;
+    }
+    
+    .react-grid-item.react-draggable-dragging .cosmic-card {
+      border: 2px solid rgba(158, 107, 219, 0.8);
+      transform: scale(1.05);
+      transition: all 0.2s ease;
+    }
+    
+    /* Añadir un indicador visual para que el usuario sepa que puede reorganizar */
+    .mobile-drag-handle {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(158, 107, 219, 0.3);
+      border-radius: 4px;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 5;
+    }
+  }
+  
   .stars-container {
     position: absolute;
     top: 0;

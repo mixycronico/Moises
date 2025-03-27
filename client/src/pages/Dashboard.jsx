@@ -527,33 +527,122 @@ const Dashboard = ({ user }) => {
         </button>
       </motion.div>
       
-      {/* Versión móvil: carruseles desplazables */}
-      <div className="md:hidden mb-6">
-        <h2 className="text-lg font-semibold mb-3">Resumen</h2>
-        <div className="-mx-4 px-4 overflow-x-auto pb-2 flex gap-4 no-scrollbar" style={{ scrollSnapType: 'x mandatory' }}>
-          <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <h3 className="text-sm text-gray-400 mb-1 flex items-center">
-              <FiDollarSign className="mr-1" /> Balance Actual
-            </h3>
-            <BalanceCard />
-          </div>
-          
-          <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <h3 className="text-sm text-gray-400 mb-1 flex items-center">
-              <FiActivity className="mr-1" /> Rendimiento
-            </h3>
-            <div className="h-36">
-              <PerformanceCard />
+      {/* Funciones para el manejo de eventos táctiles de larga duración */}
+      {/* Versión móvil: carruseles desplazables y reorganizables */}
+      <div className={`md:hidden mb-6 ${isEditMode ? 'edit-mode' : ''}`}>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-semibold">Resumen</h2>
+          {isEditMode ? (
+            <div className="text-xs text-cosmic-glow">
+              <span className="flex items-center">
+                <FiMove className="mr-1" /> Arrastra para reordenar
+              </span>
+            </div>
+          ) : (
+            <button 
+              onClick={toggleEditMode}
+              className="text-xs flex items-center cosmic-button-secondary py-1 px-2"
+            >
+              <FiUnlock className="mr-1" /> Personalizar
+            </button>
+          )}
+        </div>
+        
+        <ResponsiveGridLayout
+          className="layout"
+          layouts={{ xs: layouts.xs }}
+          breakpoints={{ xs: 480 }}
+          cols={{ xs: 1 }}
+          rowHeight={150}
+          isDraggable={isEditMode}
+          isResizable={false}
+          onLayoutChange={(layout, allLayouts) => {
+            if (isEditMode && layout) {
+              const newLayouts = { ...layouts, xs: layout };
+              setLayouts(newLayouts);
+              localStorage.setItem('dashboardLayouts', JSON.stringify(newLayouts));
+            }
+          }}
+          margin={[10, 10]}
+          containerPadding={[0, 0]}
+          useCSSTransforms={true}
+        >
+          <div key="balance" className="min-h-[120px]">
+            <div className="cosmic-card p-5 h-full relative">
+              {isEditMode && (
+                <div className="mobile-drag-handle">
+                  <FiMove size={14} className="text-cosmic-glow" />
+                </div>
+              )}
+              <h3 className="text-sm text-gray-400 mb-1 flex items-center">
+                <FiDollarSign className="mr-1" /> Balance Actual
+              </h3>
+              <BalanceCard />
             </div>
           </div>
           
-          <div className="cosmic-card p-5 min-w-[280px] flex-shrink-0" style={{ scrollSnapAlign: 'start' }}>
-            <h3 className="text-sm text-gray-400 mb-1 flex items-center">
-              <FiBarChart className="mr-1" /> Estado
-            </h3>
-            <SystemCard />
+          <div key="performance" className="min-h-[200px]">
+            <div className="cosmic-card p-5 h-full relative">
+              {isEditMode && (
+                <div className="mobile-drag-handle">
+                  <FiMove size={14} className="text-cosmic-glow" />
+                </div>
+              )}
+              <h3 className="text-sm text-gray-400 mb-1 flex items-center">
+                <FiActivity className="mr-1" /> Rendimiento
+              </h3>
+              <div className="h-36">
+                <PerformanceCard />
+              </div>
+            </div>
           </div>
-        </div>
+          
+          <div key="system" className="min-h-[200px]">
+            <div className="cosmic-card p-5 h-full relative">
+              {isEditMode && (
+                <div className="mobile-drag-handle">
+                  <FiMove size={14} className="text-cosmic-glow" />
+                </div>
+              )}
+              <h3 className="text-sm text-gray-400 mb-1 flex items-center">
+                <FiBarChart className="mr-1" /> Estado del Sistema
+              </h3>
+              <SystemCard />
+            </div>
+          </div>
+          
+          <div key="transactions" className="min-h-[300px]">
+            <div className="cosmic-card p-5 h-full relative">
+              {isEditMode && (
+                <div className="mobile-drag-handle">
+                  <FiMove size={14} className="text-cosmic-glow" />
+                </div>
+              )}
+              <h3 className="text-sm text-gray-400 mb-1 flex items-center">
+                <FiActivity className="mr-1" /> Transacciones Recientes
+              </h3>
+              <div className="h-64 overflow-auto">
+                <TransactionsCard />
+              </div>
+            </div>
+          </div>
+          
+          <div key="assets" className="min-h-[250px]">
+            <div className="cosmic-card p-5 h-full relative">
+              {isEditMode && (
+                <div className="mobile-drag-handle">
+                  <FiMove size={14} className="text-cosmic-glow" />
+                </div>
+              )}
+              <h3 className="text-sm text-gray-400 mb-1 flex items-center">
+                <FiDollarSign className="mr-1" /> Activos en Cartera
+              </h3>
+              <div className="h-48 overflow-auto">
+                <AssetsCard />
+              </div>
+            </div>
+          </div>
+        </ResponsiveGridLayout>
       </div>
       
       {/* Versión desktop: grid layout modular */}
