@@ -1,17 +1,71 @@
 {% extends 'simple_layout.html' %}
 
-{% block title %}Error del Servidor{% endblock %}
-
-{% block content %}
-<div class="error-container">
-    <h2>500 - Error del Servidor</h2>
-    <p>Ha ocurrido un error en el sistema cósmico. Nuestros ingenieros están trabajando para solucionarlo.</p>
-    <p><a href="{{ url_for('index') }}" class="btn-return">Intentar volver al inicio</a></p>
-</div>
-{% endblock %}
+{% block title %}500 - Error Interno{% endblock %}
 
 {% block additional_styles %}
 .error-container { text-align: center; padding: 50px 20px; }
-.btn-return { display: inline-block; padding: 10px 20px; background: linear-gradient(45deg, #3030a0, #5050c0); 
-              color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+.error-code { font-size: 120px; color: #a05050; text-shadow: 0 0 15px rgba(220, 80, 80, 0.7); margin-bottom: 10px; }
+.error-message { font-size: 24px; margin-bottom: 30px; }
+.error-image { width: 300px; max-width: 100%; margin: 30px auto; opacity: 0.7; }
+.home-link { display: inline-block; padding: 12px 25px; background: linear-gradient(45deg, #3030a0, #5050c0); 
+            color: white; text-decoration: none; border-radius: 5px; font-size: 18px; margin-top: 20px; }
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.7; }
+    50% { transform: scale(1.05); opacity: 0.9; }
+    100% { transform: scale(1); opacity: 0.7; }
+}
+.pulsar { animation: pulse 2s infinite; }
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-code">500</div>
+    <div class="error-message">¡Anomalía cósmica detectada en el núcleo del sistema!</div>
+    
+    <!-- Simulación de pulsar/singularidad -->
+    <div class="error-image pulsar">
+        <svg width="300" height="300" viewBox="0 0 300 300">
+            <defs>
+                <radialGradient id="pulsarGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                    <stop offset="0%" style="stop-color:#ff3030; stop-opacity:1" />
+                    <stop offset="50%" style="stop-color:#a03030; stop-opacity:0.8" />
+                    <stop offset="100%" style="stop-color:#401020; stop-opacity:0.6" />
+                </radialGradient>
+                <filter id="glow">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+                <!-- Rayos de energía -->
+                <pattern id="rays" width="300" height="300" patternUnits="userSpaceOnUse">
+                    {% for i in range(12) %}
+                        <line x1="150" y1="150" x2="{{ 150 + 150 * cos(i * 30) }}" y2="{{ 150 + 150 * sin(i * 30) }}" 
+                              stroke="#ff5050" stroke-width="2" opacity="0.6" />
+                    {% endfor %}
+                </pattern>
+            </defs>
+            
+            <!-- Fondo de rayos -->
+            <rect width="300" height="300" fill="url(#rays)" />
+            
+            <!-- Explosión/pulsar -->
+            <circle cx="150" cy="150" r="60" fill="url(#pulsarGradient)" filter="url(#glow)" />
+            
+            <!-- Ondas de choque -->
+            <circle cx="150" cy="150" r="90" fill="none" stroke="#ff5050" stroke-width="2" opacity="0.5" />
+            <circle cx="150" cy="150" r="120" fill="none" stroke="#ff5050" stroke-width="1.5" opacity="0.3" />
+            <circle cx="150" cy="150" r="150" fill="none" stroke="#ff5050" stroke-width="1" opacity="0.2" />
+            
+            <!-- Estrellas de fondo -->
+            {% for i in range(30) %}
+                <circle cx="{{ range(10, 290)|random }}" cy="{{ range(10, 290)|random }}" r="{{ range(1, 3)|random }}" fill="white" opacity="{{ range(3, 9)|random/10 }}" />
+            {% endfor %}
+            
+            <!-- Texto central -->
+            <text x="150" y="155" fill="white" font-size="16" text-anchor="middle" filter="url(#glow)">ERROR</text>
+        </svg>
+    </div>
+    
+    <p>Nuestros ingenieros cósmicos están trabajando para resolver la anomalía.</p>
+    <a href="{{ url_for('index') }}" class="home-link">Volver al Inicio</a>
+</div>
 {% endblock %}

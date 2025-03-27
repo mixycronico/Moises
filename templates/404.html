@@ -1,17 +1,50 @@
 {% extends 'simple_layout.html' %}
 
-{% block title %}Página no encontrada{% endblock %}
-
-{% block content %}
-<div class="error-container">
-    <h2>404 - Página no encontrada</h2>
-    <p>Lo sentimos, la página que buscas no existe en el universo cósmico.</p>
-    <p><a href="{{ url_for('index') }}" class="btn-return">Volver al inicio</a></p>
-</div>
-{% endblock %}
+{% block title %}404 - Página No Encontrada{% endblock %}
 
 {% block additional_styles %}
 .error-container { text-align: center; padding: 50px 20px; }
-.btn-return { display: inline-block; padding: 10px 20px; background: linear-gradient(45deg, #3030a0, #5050c0); 
-              color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+.error-code { font-size: 120px; color: #5050a0; text-shadow: 0 0 15px rgba(80, 80, 220, 0.7); margin-bottom: 10px; }
+.error-message { font-size: 24px; margin-bottom: 30px; }
+.error-image { width: 300px; max-width: 100%; margin: 30px auto; opacity: 0.7; }
+.home-link { display: inline-block; padding: 12px 25px; background: linear-gradient(45deg, #3030a0, #5050c0); 
+            color: white; text-decoration: none; border-radius: 5px; font-size: 18px; margin-top: 20px; }
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-code">404</div>
+    <div class="error-message">La entidad cósmica que buscas no existe en esta dimensión</div>
+    
+    <!-- Simulación de planeta/estrella usando CSS -->
+    <div class="error-image">
+        <svg width="300" height="300" viewBox="0 0 300 300">
+            <defs>
+                <radialGradient id="planetGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                    <stop offset="0%" style="stop-color:#3030a0; stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#101040; stop-opacity:1" />
+                </radialGradient>
+                <filter id="glow">
+                    <feGaussianBlur stdDeviation="5" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+            </defs>
+            <circle cx="150" cy="150" r="80" fill="url(#planetGradient)" filter="url(#glow)" />
+            <ellipse cx="150" cy="150" rx="120" ry="20" opacity="0.3" fill="#5050a0" />
+            
+            <!-- Estrellas de fondo -->
+            {% for i in range(30) %}
+                <circle cx="{{ range(10, 290)|random }}" cy="{{ range(10, 290)|random }}" r="{{ range(1, 3)|random }}" fill="white" opacity="{{ range(3, 9)|random/10 }}" />
+            {% endfor %}
+            
+            <!-- Cráter -->
+            <circle cx="180" cy="130" r="20" fill="#202060" opacity="0.7" />
+            
+            <!-- Texto -->
+            <text x="150" y="160" fill="white" font-size="16" text-anchor="middle" filter="url(#glow)">NOT FOUND</text>
+        </svg>
+    </div>
+    
+    <a href="{{ url_for('index') }}" class="home-link">Volver al Inicio</a>
+</div>
 {% endblock %}

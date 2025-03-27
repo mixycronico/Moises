@@ -7,6 +7,7 @@ import os
 import logging
 from flask import Flask, render_template, jsonify, request, redirect, url_for
 from enhanced_simple_cosmic_trader import initialize_enhanced_trading
+from armageddon_routes import armageddon_bp, register_armageddon_routes
 
 # Configuración de logging
 logging.basicConfig(
@@ -18,6 +19,9 @@ logger = logging.getLogger(__name__)
 # Crear aplicación Flask
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", "cosmic_secret_key")
+
+# Registrar blueprint de Armagedón
+app.register_blueprint(armageddon_bp, url_prefix='/armageddon')
 
 # Variables globales
 cosmic_network = None
@@ -132,6 +136,13 @@ def api_add_entity():
         "status": "success",
         "entity": entity.get_status()
     })
+
+# Ruta para pruebas Armagedón
+@app.route('/armageddon_test')
+def armageddon_test():
+    """Página de pruebas Armagedón."""
+    initialize_system()
+    return render_template('armageddon.html')
 
 # Rutas estáticas para placeholder HTML
 @app.route('/templates/<page>')
