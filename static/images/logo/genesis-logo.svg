@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo circular con degradado -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#9c27b0" stop-opacity="0.7" />
+      <stop offset="70%" stop-color="#6a0080" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#38006b" stop-opacity="0" />
+    </radialGradient>
+    <filter id="blur-filter" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" />
+    </filter>
+  </defs>
+  
+  <!-- Círculo de fondo con resplandor -->
+  <circle cx="60" cy="60" r="55" fill="url(#glow)" filter="url(#blur-filter)" />
+  
+  <!-- Círculo principal -->
+  <circle cx="60" cy="60" r="45" fill="#270033" stroke="#8e24aa" stroke-width="2" />
+  
+  <!-- Red neural estilizada -->
+  <g stroke="#a041ff" stroke-width="1" fill="none">
+    <path d="M30,30 L60,15 L90,30 L90,70 L60,90 L30,70 Z" />
+    <path d="M30,30 L60,50 L90,30" />
+    <path d="M60,15 L60,90" />
+    <path d="M30,70 L60,50 L90,70" />
+  </g>
+  
+  <!-- Nodos -->
+  <g fill="#b388ff">
+    <circle cx="30" cy="30" r="5" />
+    <circle cx="60" cy="15" r="5" />
+    <circle cx="90" cy="30" r="5" />
+    <circle cx="30" cy="70" r="5" />
+    <circle cx="60" cy="90" r="5" />
+    <circle cx="90" cy="70" r="5" />
+    <circle cx="60" cy="50" r="8" />
+  </g>
+  
+  <!-- Resplandor central -->
+  <circle cx="60" cy="50" r="8" fill="#ce93d8" fill-opacity="0.6" filter="url(#blur-filter)" />
+</svg>

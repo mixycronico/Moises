@@ -33,6 +33,68 @@
         margin-bottom: 20px;
     }
     
+    .user-name {
+        color: #a076f9;
+        font-weight: 600;
+        text-shadow: 0 0 10px rgba(160, 118, 249, 0.5);
+    }
+    
+    .cosmic-divider {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px 0;
+        width: 100%;
+    }
+    
+    .stars-divider {
+        height: 2px;
+        background: linear-gradient(90deg, 
+            rgba(160, 118, 249, 0) 0%, 
+            rgba(160, 118, 249, 0.7) 50%, 
+            rgba(160, 118, 249, 0) 100%);
+        width: 150px;
+        position: relative;
+    }
+    
+    .stars-divider::before, 
+    .stars-divider::after {
+        content: '';
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background-color: rgba(160, 118, 249, 0.9);
+        box-shadow: 0 0 8px rgba(160, 118, 249, 0.8);
+        top: -4px;
+    }
+    
+    .stars-divider::before {
+        left: 30%;
+        animation: starTwinkle 3s infinite;
+    }
+    
+    .stars-divider::after {
+        left: 70%;
+        animation: starTwinkle 2.5s 0.5s infinite;
+    }
+    
+    .planet-icon {
+        margin: 0 15px;
+        color: #a076f9;
+        animation: planetRotate 20s linear infinite;
+    }
+    
+    @keyframes starTwinkle {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+    }
+    
+    @keyframes planetRotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
     .metrics-container {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -346,8 +408,19 @@
 {% block content %}
 <div class="container dashboard-container">
     <div class="dashboard-header">
-        <h1 class="dashboard-title">Dashboard de Inversionista</h1>
-        <p class="dashboard-subtitle">Bienvenido de nuevo, {{ user.first_name }}</p>
+        <h1 class="dashboard-title">PORTAL CÓSMICO DE INVERSIONES</h1>
+        <p class="dashboard-subtitle">Bienvenido al universo financiero, <span class="user-name">{{ user.first_name }}</span></p>
+        <div class="cosmic-divider">
+            <div class="stars-divider"></div>
+            <div class="planet-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 12a4 4 0 0 1 8 0"></path>
+                    <line x1="12" y1="16" x2="12" y2="16"></line>
+                </svg>
+            </div>
+            <div class="stars-divider"></div>
+        </div>
     </div>
     
     <div class="metrics-container">
