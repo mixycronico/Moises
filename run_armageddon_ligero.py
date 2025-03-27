@@ -56,13 +56,15 @@ def print_header():
 """
     print(header)
 
-def run_quick_test(use_extended_entities=True, num_operations=50):
+def run_quick_test(use_extended_entities=True, num_operations=50, role_focus=None, detailed_output=False):
     """
     Ejecutar una prueba rápida del sistema de trading.
     
     Args:
         use_extended_entities: Si es True, incluye entidades adicionales
         num_operations: Número de operaciones a simular
+        role_focus: Si está definido, solo muestra operaciones para ese rol
+        detailed_output: Si es True, muestra salida detallada para cada operación
     """
     print_header()
     
@@ -95,8 +97,21 @@ def run_quick_test(use_extended_entities=True, num_operations=50):
         error_count = 0
         
         for i in range(num_operations):
-            entity = random.choice(network.entities)
+            # Seleccionar entidad según el filtro por rol si está activo
+            if role_focus:
+                candidates = [e for e in network.entities if e.role == role_focus]
+                entity = random.choice(candidates) if candidates else random.choice(network.entities)
+            else:
+                entity = random.choice(network.entities)
+            
             symbol = random.choice(symbols)
+            # Mostrar detalles según configuración
+            if detailed_output:
+                print(f"\n{C.DIVINE}{C.BOLD}[OPERACIÓN {i+1}/{num_operations}]{C.END}")
+                print(f"{C.CYAN}Entidad:{C.END} {entity.name} ({entity.role})")
+                print(f"{C.CYAN}Símbolo:{C.END} {symbol}")
+                print(f"{C.CYAN}Nivel actual:{C.END} {entity.level:.2f}")
+                print(f"{C.CYAN}Energía:{C.END} {entity.energy*100:.1f}%")
             
             try:
                 entity.fetch_market_data(symbol)  # Actualizar datos internos
@@ -240,7 +255,9 @@ def main():
     
     run_quick_test(
         use_extended_entities=(args.mode == 'extended'),
-        num_operations=args.operations
+        num_operations=args.operations,
+        role_focus=role_focus,
+        detailed_output=args.detail
     )
 
 if __name__ == "__main__":
