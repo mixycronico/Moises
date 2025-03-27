@@ -9,7 +9,7 @@ import random
 from typing import List, Dict, Any, Optional, Tuple
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-from cosmic_trading import CosmicNetwork
+from cosmic_network import CosmicNetwork
 import threading
 
 # Configurar logging
@@ -45,7 +45,7 @@ def initialize_system():
         # Crear o retornar instancia existente de CosmicNetwork
         try:
             if 'cosmic_network' not in globals() or cosmic_network is None:
-                cosmic_network = CosmicNetwork(father="otoniel")
+                cosmic_network = CosmicNetwork()
                 logger.info("Red cósmica inicializada correctamente")
             return cosmic_network
         except Exception as e:

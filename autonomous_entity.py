@@ -25,6 +25,29 @@ from typing import Dict, List, Any, Optional, Tuple
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("autonomous_entity")
 
+# Simulaciones de clases para compatibilidad
+class EnhancedCosmicTrader:
+    """Implementación mínima de EnhancedCosmicTrader para compatibilidad."""
+    def __init__(self, name=None, role=None, father=None, **kwargs):
+        self.name = name
+        self.role = role
+        self.father = father
+        logging.info(f"EnhancedCosmicTrader simulado inicializado para {name}")
+
+class EnhancedCosmicEntityMixin:
+    """Implementación mínima de EnhancedCosmicEntityMixin para compatibilidad."""
+    def __init__(self):
+        logging.info("EnhancedCosmicEntityMixin simulado inicializado")
+    
+    def start_lifecycle(self):
+        """Simulación de start_lifecycle."""
+        logging.info(f"[{getattr(self, 'name', 'unknown')}] Ciclo de vida simulado iniciado")
+        return True
+    
+    def process_cycle(self):
+        """Simulación de process_cycle."""
+        pass
+
 # Implementación independiente de las clases base
 class BaseCosmicEntity:
     """Clase base para todas las entidades cósmicas independientes."""
