@@ -469,5 +469,13 @@ with app.app_context():
     except Exception as e:
         logger.error(f"Error al inicializar familia cósmica: {str(e)}")
 
+# Registrar rutas de API para comisiones
+try:
+    from commission_routes import register_commission_routes
+    register_commission_routes(app)
+    logger.info("Rutas de comisiones registradas correctamente")
+except Exception as e:
+    logger.error(f"Error al registrar rutas de comisiones: {str(e)}")
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

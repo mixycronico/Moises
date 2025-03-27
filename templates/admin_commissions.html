@@ -1,0 +1,421 @@
+{% extends 'layout.html' %}
+
+{% block title %}Administración de Comisiones - Proto Genesis{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <div class="admin-container">
+                <h2 class="admin-title">Administración de Comisiones</h2>
+                <p class="admin-subtitle">Gestiona las comisiones para los administradores del sistema</p>
+                
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="search-bar">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="commission-search" placeholder="Buscar comisión...">
+                                <div class="input-group-append">
+                                    <button class="btn btn-primary" type="button">Buscar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 text-right">
+                        <button class="btn btn-success create-commission-btn" data-toggle="modal" data-target="#createCommissionModal">Crear Comisión</button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    {% if commissions %}
+                        {% for commission in commissions %}
+                            <div class="col-md-6 col-lg-4 mb-4">
+                                <div class="commission-card">
+                                    <div class="commission-header">
+                                        <div class="commission-amount">
+                                            ${{ "%.2f"|format(commission.amount) }}
+                                        </div>
+                                        <div class="commission-status">
+                                            {% if commission.status == 'pending' %}
+                                                <span class="badge badge-warning">Pendiente</span>
+                                            {% elif commission.status == 'approved' %}
+                                                <span class="badge badge-success">Aprobada</span>
+                                            {% elif commission.status == 'rejected' %}
+                                                <span class="badge badge-danger">Rechazada</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="commission-body">
+                                        <div class="commission-investor">
+                                            <strong>Inversionista:</strong> {{ commission.investor.user.username }}
+                                        </div>
+                                        <div class="commission-admin">
+                                            <strong>Administrador:</strong> {{ commission.admin.username }}
+                                        </div>
+                                        <div class="commission-date">
+                                            <strong>Fecha:</strong> {{ commission.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                        </div>
+                                        {% if commission.processed_at %}
+                                        <div class="commission-processed">
+                                            <strong>Procesado:</strong> {{ commission.processed_at.strftime('%d/%m/%Y %H:%M') }}
+                                        </div>
+                                        {% endif %}
+                                        <div class="commission-description">
+                                            <strong>Descripción:</strong> {{ commission.description or 'Sin descripción' }}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="commission-actions">
+                                        {% if commission.status == 'pending' and is_creator %}
+                                            <button class="btn btn-sm btn-success approve-commission" data-id="{{ commission.id }}">Aprobar</button>
+                                            <button class="btn btn-sm btn-danger reject-commission" data-id="{{ commission.id }}">Rechazar</button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-info view-commission" data-id="{{ commission.id }}">Ver Detalles</button>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                No hay comisiones registradas en el sistema.
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para crear comisión -->
+<div class="modal fade" id="createCommissionModal" tabindex="-1" role="dialog" aria-labelledby="createCommissionModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createCommissionModalLabel">Crear Nueva Comisión</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="create-commission-form">
+                    <div class="form-group">
+                        <label for="investor_id">Inversionista</label>
+                        <select class="form-control" id="investor_id" name="investor_id" required>
+                            <option value="">Seleccionar inversionista...</option>
+                            <!-- Se llenará dinámicamente con JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="amount">Monto</label>
+                        <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Descripción</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="submit-commission">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para ver detalles de comisión -->
+<div class="modal fade" id="viewCommissionModal" tabindex="-1" role="dialog" aria-labelledby="viewCommissionModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewCommissionModalLabel">Detalles de Comisión</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="commission-details">
+                <!-- Se llenará dinámicamente con JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-container {
+        background-color: rgba(27, 20, 53, 0.8);
+        border-radius: 10px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(156, 39, 176, 0.3);
+        margin-top: 2rem;
+    }
+    
+    .admin-title {
+        font-family: var(--font-display);
+        font-weight: 700;
+        color: var(--text-light);
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .admin-subtitle {
+        color: var(--text-medium);
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .commission-card {
+        background-color: rgba(45, 35, 75, 0.6);
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(156, 39, 176, 0.2);
+        transition: all 0.3s ease;
+        overflow: hidden;
+    }
+    
+    .commission-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(156, 39, 176, 0.3);
+        border: 1px solid rgba(156, 39, 176, 0.4);
+    }
+    
+    .commission-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background-color: rgba(50, 40, 85, 0.8);
+        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+    }
+    
+    .commission-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-light);
+    }
+    
+    .commission-status .badge {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+    
+    .commission-body {
+        padding: 1.5rem;
+    }
+    
+    .commission-investor,
+    .commission-admin,
+    .commission-date,
+    .commission-processed,
+    .commission-description {
+        margin-bottom: 0.75rem;
+        color: var(--text-medium);
+    }
+    
+    .commission-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        padding: 0 1.5rem 1.5rem;
+    }
+    
+    /* Estilos para los modales */
+    .modal-content {
+        background-color: rgba(35, 25, 65, 0.95);
+        border: 1px solid rgba(156, 39, 176, 0.3);
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+    }
+    
+    .modal-footer {
+        border-top: 1px solid rgba(156, 39, 176, 0.2);
+    }
+    
+    .modal-title {
+        color: var(--text-light);
+    }
+    
+    .close {
+        color: var(--text-light);
+        text-shadow: none;
+    }
+    
+    .close:hover {
+        color: var(--accent-primary);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Cargar inversionistas para el formulario de creación
+        fetch('/api/investors')
+            .then(response => response.json())
+            .then(data => {
+                const investorSelect = document.getElementById('investor_id');
+                data.investors.forEach(investor => {
+                    const option = document.createElement('option');
+                    option.value = investor.id;
+                    option.textContent = `${investor.user.username} - ${investor.category}`;
+                    investorSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error('Error cargando inversionistas:', error));
+        
+        // Manejar creación de comisión
+        document.getElementById('submit-commission').addEventListener('click', function() {
+            const form = document.getElementById('create-commission-form');
+            const formData = new FormData(form);
+            
+            fetch('/api/commissions/create', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Comisión creada exitosamente');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Ocurrió un error al procesar la solicitud');
+            });
+        });
+        
+        // Manejar visualización de detalles
+        document.querySelectorAll('.view-commission').forEach(button => {
+            button.addEventListener('click', function() {
+                const commissionId = this.getAttribute('data-id');
+                
+                fetch(`/api/commissions/${commissionId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const commission = data.commission;
+                            const detailsContainer = document.getElementById('commission-details');
+                            
+                            detailsContainer.innerHTML = `
+                                <div class="commission-detail-item">
+                                    <strong>ID:</strong> ${commission.id}
+                                </div>
+                                <div class="commission-detail-item">
+                                    <strong>Inversionista:</strong> ${commission.investor.user.username}
+                                </div>
+                                <div class="commission-detail-item">
+                                    <strong>Administrador:</strong> ${commission.admin.username}
+                                </div>
+                                <div class="commission-detail-item">
+                                    <strong>Monto:</strong> $${commission.amount.toFixed(2)}
+                                </div>
+                                <div class="commission-detail-item">
+                                    <strong>Estado:</strong> ${commission.status}
+                                </div>
+                                <div class="commission-detail-item">
+                                    <strong>Fecha de creación:</strong> ${new Date(commission.created_at).toLocaleString()}
+                                </div>
+                                ${commission.processed_at ? `
+                                <div class="commission-detail-item">
+                                    <strong>Fecha de procesamiento:</strong> ${new Date(commission.processed_at).toLocaleString()}
+                                </div>` : ''}
+                                <div class="commission-detail-item">
+                                    <strong>Descripción:</strong> ${commission.description || 'Sin descripción'}
+                                </div>
+                            `;
+                            
+                            $('#viewCommissionModal').modal('show');
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Ocurrió un error al cargar los detalles');
+                    });
+            });
+        });
+        
+        // Manejar aprobación de comisiones
+        document.querySelectorAll('.approve-commission').forEach(button => {
+            button.addEventListener('click', function() {
+                if (confirm('¿Estás seguro de aprobar esta comisión?')) {
+                    const commissionId = this.getAttribute('data-id');
+                    
+                    fetch(`/api/commissions/${commissionId}/approve`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Comisión aprobada exitosamente');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Ocurrió un error al procesar la solicitud');
+                    });
+                }
+            });
+        });
+        
+        // Manejar rechazo de comisiones
+        document.querySelectorAll('.reject-commission').forEach(button => {
+            button.addEventListener('click', function() {
+                if (confirm('¿Estás seguro de rechazar esta comisión?')) {
+                    const commissionId = this.getAttribute('data-id');
+                    
+                    fetch(`/api/commissions/${commissionId}/reject`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Comisión rechazada exitosamente');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Ocurrió un error al procesar la solicitud');
+                    });
+                }
+            });
+        });
+        
+        // Búsqueda de comisiones
+        document.getElementById('commission-search').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            document.querySelectorAll('.commission-card').forEach(card => {
+                const text = card.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    card.closest('.col-md-6').style.display = '';
+                } else {
+                    card.closest('.col-md-6').style.display = 'none';
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
