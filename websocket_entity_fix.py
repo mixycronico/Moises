@@ -32,6 +32,11 @@ class WebSocketEntity(EnhancedCosmicTrader):
     Clase base para entidades de comunicación WebSocket.
     Extiende las capacidades de la entidad de trading para enfocarse en
     la gestión de comunicaciones en tiempo real.
+    
+    Características de entidades avanzadas:
+    - Auto-reparación: Pueden detectar y solucionar problemas automáticamente
+    - Propuesta de mejoras: Pueden sugerir cambios al sistema
+    - Evolución de funciones: Pueden desarrollar nuevas capacidades con el tiempo
     """
     
     def __init__(self, name: str, role: str = "Communication", father: str = "otoniel", 
@@ -443,6 +448,207 @@ class WebSocketEntity(EnhancedCosmicTrader):
         logger.info(f"[{self.name}] Ciclo de vida iniciado")
         return self.lifecycle_thread
     
+    # Añadir métodos necesarios para el correcto funcionamiento
+    def adjust_energy(self):
+        """
+        Ajustar nivel de energía basado en actividad y estado del sistema.
+        Implementa balance de energía adaptativo según el nivel de carga.
+        """
+        # Recuperación básica de energía
+        if self.energy < 50:
+            # Recuperación más rápida cuando está baja
+            self.energy += 5
+            logger.debug(f"[{self.name}] Recuperación rápida de energía: +5")
+        elif self.energy < 80:
+            # Recuperación normal
+            self.energy += 2
+            logger.debug(f"[{self.name}] Recuperación normal de energía: +2")
+        
+        # Límite superior
+        if self.energy > 100:
+            self.energy = 100
+            
+        # Factor de carga - más gasto si hay más clientes
+        client_count = len(getattr(self, "connected_clients", []))
+        energy_cost = 0.5 + (client_count * 0.2)
+        
+        # Aplicar costo pero evitar que baje de 10
+        self.energy = max(10, self.energy - energy_cost)
+        
+        logger.debug(f"[{self.name}] Energía ajustada: {self.energy:.1f} (costo: {energy_cost:.1f})")
+    
+    def adjust_level(self):
+        """
+        Ajustar nivel de experiencia basado en actividad.
+        Refleja el crecimiento y aprendizaje de la entidad.
+        """
+        # Factores que influyen en el nivel
+        messages = self.stats["messages_total"]
+        connections = self.stats["connections_total"]
+        uptime = time.time() - self.stats["start_time"]
+        
+        # Calcular nuevo nivel basado en actividad
+        base_level = 1.0
+        message_factor = min(messages / 100, 5.0)  # Máximo +5 por mensajes
+        connection_factor = min(connections / 10, 3.0)  # Máximo +3 por conexiones
+        uptime_factor = min(uptime / 3600, 2.0)  # Máximo +2 por hora de actividad
+        
+        new_level = base_level + message_factor + connection_factor + uptime_factor
+        
+        # Aplicar cambio de nivel gradualmente
+        if new_level > self.level:
+            level_increase = min(0.1, new_level - self.level)  # Máximo 0.1 por ciclo
+            self.level += level_increase
+            if level_increase > 0.05:
+                # Notificar solo cambios significativos
+                logger.info(f"[{self.name}] Nivel incrementado: {self.level:.2f}")
+                
+                # Al subir de nivel, proponer una mejora
+                if int(self.level) > int(self.level - level_increase):
+                    self.propose_improvement()
+    
+    def propose_improvement(self):
+        """
+        Proponer una mejora al sistema basada en el nivel y especialización.
+        Las entidades pueden sugerir cambios que mejorarían su funcionamiento.
+        """
+        # Determinar tipo de mejora según especialización
+        level_int = int(self.level)
+        improvement_type = "general"
+        
+        # Tipo de mejora según características
+        if self.ws_scope == "local":
+            improvement_type = "optimización interna"
+        elif self.ws_scope == "external":
+            improvement_type = "conectividad externa"
+        
+        # Ideas de mejora según nivel
+        improvements = {
+            1: "Implementar un sistema de caché simple para mensajes frecuentes",
+            2: "Añadir compresión básica en mensajes grandes para reducir tráfico",
+            3: "Implementar reconexión automática para clientes interrumpidos",
+            4: "Crear un sistema de prioridad en la cola de mensajes",
+            5: "Añadir encriptación de extremo a extremo para mensajes sensibles",
+            6: "Desarrollar un mecanismo de balanceo de carga entre instancias",
+            7: "Implementar un sistema de fragmentación para mensajes muy grandes",
+            8: "Crear un modo de emergencia con funcionalidad reducida para alta demanda",
+            9: "Añadir capacidad de migración en caliente entre servidores",
+            10: "Desarrollar un sistema predictivo de comportamiento de usuarios"
+        }
+        
+        # Seleccionar mejora según nivel (o la última disponible)
+        improvement = improvements.get(min(level_int, max(improvements.keys())), 
+                                      "Optimización avanzada del sistema")
+        
+        # Registrar la propuesta
+        logger.info(f"[{self.name}] PROPUESTA DE MEJORA (Nivel {level_int}): {improvement} para {improvement_type}")
+        
+        # Si tiene capacidad de aprendizaje avanzado, generar nueva función
+        if level_int >= 3:
+            self.generate_new_function()
+    
+    def generate_new_function(self):
+        """
+        Generar nueva funcionalidad basada en el nivel y especialización.
+        Las entidades más avanzadas pueden desarrollar capacidades emergentes.
+        """
+        level_int = int(self.level)
+        
+        # Definir posibles nuevas funciones según especialización
+        if self.ws_scope == "local":
+            functions = {
+                3: "monitor_interno",
+                4: "cache_inteligente", 
+                5: "compresion_adaptativa",
+                6: "enrutamiento_dinamico",
+                7: "respuesta_predictiva"
+            }
+        else:  # external
+            functions = {
+                3: "detector_anomalias",
+                4: "balanceo_regional", 
+                5: "conexion_resiliente",
+                6: "proxy_inteligente",
+                7: "filtrado_avanzado"
+            }
+        
+        # Seleccionar función a desarrollar
+        function_name = functions.get(min(level_int, max(functions.keys())), "funcion_avanzada")
+        
+        # Determinar costo y tiempo de desarrollo
+        energy_cost = 15
+        dev_cycles = 3
+        
+        # Verificar si tiene suficiente energía
+        if self.energy >= energy_cost:
+            self.energy -= energy_cost
+            logger.info(f"[{self.name}] INICIANDO DESARROLLO: Nueva función '{function_name}' (costo: {energy_cost} energía)")
+            logger.info(f"[{self.name}] Estimado {dev_cycles} ciclos para completar desarrollo")
+            
+            # Simular desarrollo (en la vida real sería un proceso más complejo)
+            self.development_queue = self.development_queue if hasattr(self, "development_queue") else []
+            self.development_queue.append({
+                "function": function_name,
+                "cycles_left": dev_cycles,
+                "progress": 0
+            })
+        else:
+            logger.info(f"[{self.name}] FUNCIÓN PROPUESTA: '{function_name}' (energía insuficiente: {self.energy}/{energy_cost})")
+    
+    def process_developments(self):
+        """Procesar desarrollos en curso de nuevas funcionalidades."""
+        if not hasattr(self, "development_queue") or not self.development_queue:
+            return
+        
+        # Avanzar el desarrollo de cada función en cola
+        updated_queue = []
+        for dev in self.development_queue:
+            # Actualizar progreso
+            dev["cycles_left"] -= 1
+            dev["progress"] += random.uniform(20, 40)  # Progreso aleatorio entre 20-40%
+            
+            if dev["cycles_left"] <= 0 or dev["progress"] >= 100:
+                # Desarrollo completado
+                logger.info(f"[{self.name}] DESARROLLO COMPLETADO: Función '{dev['function']}' lista para usar!")
+                # Aquí se implementaría realmente la nueva funcionalidad
+                self.add_capability(dev["function"])
+            else:
+                # Continuar desarrollo
+                updated_queue.append(dev)
+                logger.debug(f"[{self.name}] Desarrollo en progreso: '{dev['function']}' - {dev['progress']:.1f}% completado")
+        
+        self.development_queue = updated_queue
+    
+    def add_capability(self, capability_name):
+        """
+        Añadir nueva capacidad a la entidad.
+        
+        Args:
+            capability_name: Nombre de la capacidad
+        """
+        # Registrar nueva capacidad
+        if not hasattr(self, "capabilities"):
+            self.capabilities = []
+        
+        self.capabilities.append(capability_name)
+        
+        # Añadir especialización relacionada
+        self.specializations[capability_name] = 0.5  # Comienza con nivel medio
+        
+        logger.info(f"[{self.name}] Nueva capacidad añadida: {capability_name}")
+        
+        # Anunciar nueva capacidad a la red si es posible
+        if hasattr(self, "broadcast_message"):
+            try:
+                self.broadcast_message("new_capability", {
+                    "entity": self.name,
+                    "capability": capability_name,
+                    "level": self.level,
+                    "timestamp": time.time()
+                })
+            except Exception as e:
+                logger.error(f"[{self.name}] Error anunciando capacidad: {str(e)}")
+    
     def _lifecycle_loop(self):
         """Loop principal de ciclo de vida."""
         while self.is_alive:
@@ -452,6 +658,9 @@ class WebSocketEntity(EnhancedCosmicTrader):
                 
                 # Evolución
                 self.evolve()
+                
+                # Procesar desarrollos en curso
+                self.process_developments()
                 
                 # Procesar mensaje/comando según tipo
                 if hasattr(self, "dominant_trait"):
@@ -476,10 +685,8 @@ class WebSocketEntity(EnhancedCosmicTrader):
                 self.auto_repair()
                 
                 # Ajustes de rendimiento y balance energético
-                if hasattr(self, "adjust_energy"):
-                    self.adjust_energy()
-                if hasattr(self, "adjust_level"):
-                    self.adjust_level()
+                self.adjust_energy()
+                self.adjust_level()
                 
                 time.sleep(self.frequency_seconds)  # Periodo de ciclo
                 
