@@ -21,5 +21,27 @@ export default defineConfig({
   build: {
     outDir: '../static',
     emptyOutDir: true,
+    // Optimizaciones para reducir el tamaño del bundle y tiempo de compilación
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      }
+    },
+    // Limitar el chunk size
+    chunkSizeWarningLimit: 500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['framer-motion', 'gsap', 'react-icons'],
+          charts: ['chart.js', 'react-chartjs-2'],
+        },
+      },
+    },
+    // Reducir la cantidad de publicidad en la consola durante la compilación
+    reportCompressedSize: false,
+    cssCodeSplit: true,
   },
 });
