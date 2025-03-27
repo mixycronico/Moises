@@ -259,6 +259,112 @@ class StrategistEntity(CosmicTrader):
         return action
 
 
+class RiskManagerEntity(CosmicTrader):
+    """Entidad especializada en evaluación y gestión de riesgos de trading."""
+    
+    def trade(self):
+        """Evaluar y gestionar riesgos de operaciones."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Esperando datos del mercado para analizar riesgos para {self.father}."
+        elif "position_sizing" in self.capabilities:
+            max_risk = round(random.uniform(1.0, 3.0), 2)  # Simulación de cálculo de riesgo
+            action = f"Recomendación de riesgo para {self.father}: Máximo {max_risk}% por operación en BTCUSD."
+        elif "risk_assessment" in self.capabilities:
+            risk_level = random.choice(["bajo", "moderado", "alto", "extremo"])
+            action = f"Nivel de riesgo actual para {self.father}: {risk_level} en BTCUSD a {price}."
+        else:
+            action = f"Monitoreando niveles de riesgo para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+
+
+class ArbitrageurEntity(CosmicTrader):
+    """Entidad especializada en detección de oportunidades de arbitraje entre exchanges."""
+    
+    def trade(self):
+        """Buscar y explotar oportunidades de arbitraje."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Esperando datos de múltiples mercados para {self.father}."
+        elif "cross_exchange_arbitrage" in self.capabilities:
+            # Simulación de precios en diferentes exchanges
+            exchange1 = price
+            exchange2 = price * (1 + (random.uniform(-0.5, 0.5) / 100))
+            diff = abs((exchange2 - exchange1) / exchange1) * 100
+            
+            if diff > 0.2:  # Si la diferencia es significativa
+                action = f"¡Oportunidad de arbitraje para {self.father}! BTC: {exchange1} vs {exchange2:.2f} ({diff:.2f}% diff)"
+            else:
+                action = f"Buscando oportunidades de arbitraje para {self.father}. Mejor diferencia: {diff:.3f}%"
+        elif "market_inefficiency_detection" in self.capabilities:
+            action = f"Analizando ineficiencias de mercado para {self.father} en BTCUSD."
+        else:
+            action = f"Comparando precios en diferentes exchanges para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+
+
+class PatternRecognizerEntity(CosmicTrader):
+    """Entidad especializada en reconocimiento de patrones técnicos en gráficos."""
+    
+    def trade(self):
+        """Identificar patrones técnicos en gráficos."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Esperando datos de mercado para análisis técnico para {self.father}."
+        elif "advanced_pattern_recognition" in self.capabilities:
+            # Simulación de reconocimiento de patrones avanzados
+            patterns = ["Cabeza y hombros", "Doble techo", "Bandera alcista", "Triángulo descendente", 
+                       "Hombro-cabeza-hombro invertido", "Canal", "Copa con asa", "Diamante"]
+            pattern = random.choice(patterns)
+            confidence = random.uniform(65.0, 98.0)
+            action = f"Patrón '{pattern}' detectado para {self.father} en BTCUSD con {confidence:.1f}% de confianza."
+        elif "basic_pattern_recognition" in self.capabilities:
+            # Simulación de reconocimiento de patrones básicos
+            patterns = ["Soporte", "Resistencia", "Tendencia alcista", "Tendencia bajista", "Consolidación"]
+            pattern = random.choice(patterns)
+            action = f"Patrón básico '{pattern}' identificado para {self.father} en BTCUSD a {price}."
+        else:
+            action = f"Analizando gráficos para identificar patrones para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+
+
+class MacroAnalystEntity(CosmicTrader):
+    """Entidad especializada en análisis macroeconómico y su impacto en los mercados."""
+    
+    def trade(self):
+        """Analizar factores macroeconómicos y su impacto en trading."""
+        price = self.fetch_market_data()
+        if not price:
+            action = f"Esperando datos macroeconómicos para {self.father}."
+        elif "global_event_analysis" in self.capabilities:
+            # Simulación de análisis de eventos globales
+            events = ["Decisión de tasas de la FED", "Datos de empleo de EE.UU.", "Anuncio de política monetaria del BCE",
+                     "Tensiones geopolíticas", "Estímulo fiscal", "Regulación de criptomonedas", "Adopción institucional"]
+            event = random.choice(events)
+            impact = random.choice(["positivo", "negativo", "neutral", "mixto"])
+            action = f"Evento global '{event}' con impacto {impact} para {self.father} en BTCUSD a {price}."
+        elif "economic_indicator_tracking" in self.capabilities:
+            indicators = ["inflación", "desempleo", "PIB", "balanza comercial", "confianza del consumidor"]
+            indicator = random.choice(indicators)
+            trend = random.choice(["mejorando", "empeorando", "estable", "volátil"])
+            action = f"Indicador económico '{indicator}' {trend}, impacto potencial para {self.father} en BTCUSD."
+        else:
+            action = f"Monitoreando noticias económicas para {self.father}."
+        
+        logger.info(f"[{self.name}] {action}")
+        self.log_state(action)
+        return action
+
+
 class CosmicNetwork:
     """Red colaborativa de entidades de trading."""
     
@@ -290,27 +396,50 @@ class CosmicNetwork:
 
 
 # Interfaz para conectar con el sistema existente
-def initialize_cosmic_trading(father_name="otoniel"):
+def initialize_cosmic_trading(father_name="otoniel", include_extended_entities=False):
     """
     Inicializar el sistema de trading cósmico.
     
     Args:
         father_name: Nombre del creador/dueño del sistema
+        include_extended_entities: Si es True, incluye entidades adicionales (RiskManager, etc.)
         
     Returns:
-        Tupla con la red y las entidades creadas
+        Tupla con la red y las entidades principales
     """
     network = CosmicNetwork()
     
-    # Crear entidades especializadas
+    # Crear entidades especializadas principales
     aetherion_trader = SpeculatorEntity("Aetherion", "Speculator", father=father_name, frequency_seconds=30)
     lunareth_trader = StrategistEntity("Lunareth", "Strategist", father=father_name, frequency_seconds=30)
     
-    # Añadir a la red
+    # Añadir entidades principales a la red
     network.add_entity(aetherion_trader)
     network.add_entity(lunareth_trader)
     
-    # Iniciar ciclos de vida
+    # Si se solicitan entidades extendidas, añadirlas también
+    if include_extended_entities:
+        # Crear entidades adicionales
+        risk_manager = RiskManagerEntity("Prudentia", "RiskManager", father=father_name, frequency_seconds=45)
+        arbitrageur = ArbitrageurEntity("Arbitrio", "Arbitrageur", father=father_name, frequency_seconds=20)
+        pattern_recognizer = PatternRecognizerEntity("Videntis", "PatternRecognizer", father=father_name, frequency_seconds=50)
+        macro_analyst = MacroAnalystEntity("Economicus", "MacroAnalyst", father=father_name, frequency_seconds=60)
+        
+        # Añadir entidades adicionales a la red
+        network.add_entity(risk_manager)
+        network.add_entity(arbitrageur)
+        network.add_entity(pattern_recognizer)
+        network.add_entity(macro_analyst)
+        
+        # Iniciar ciclos de vida de entidades adicionales
+        risk_manager.start_life_cycle()
+        arbitrageur.start_life_cycle()
+        pattern_recognizer.start_life_cycle()
+        macro_analyst.start_life_cycle()
+        
+        logger.info(f"Sistema de trading cósmico extendido inicializado para {father_name}")
+    
+    # Iniciar ciclos de vida de entidades principales
     aetherion_trader.start_life_cycle()
     lunareth_trader.start_life_cycle()
     
@@ -320,14 +449,55 @@ def initialize_cosmic_trading(father_name="otoniel"):
 
 # Punto de entrada para testing
 if __name__ == "__main__":
-    # Test simple del sistema
-    network, aetherion, lunareth = initialize_cosmic_trading()
+    print("\n===== INICIANDO PRUEBA DEL SISTEMA DE TRADING CÓSMICO =====")
+    print("1. PRUEBA BÁSICA - Solo Aetherion y Lunareth")
+    print("2. PRUEBA COMPLETA - Sistema extendido con todas las entidades")
     
-    # Esperar un poco para permitir que los ciclos se ejecuten
     try:
-        for _ in range(5):
+        choice = int(input("\nSelecciona una opción (1/2): ") or "2")
+    except ValueError:
+        choice = 2
+        
+    if choice == 1:
+        print("\n[MODO BÁSICO] Iniciando Aetherion y Lunareth...")
+        network, aetherion, lunareth = initialize_cosmic_trading(include_extended_entities=False)
+        
+        # Esperar un poco para permitir que los ciclos se ejecuten
+        try:
+            for i in range(5):
+                time.sleep(5)
+                print(f"\n[Ciclo {i+1}]")
+                print(f"Aetherion: Nivel {aetherion.level:.2f}, Energía {aetherion.energy:.2f}")
+                print(f"Lunareth: Nivel {lunareth.level:.2f}, Energía {lunareth.energy:.2f}")
+        except KeyboardInterrupt:
+            print("Test interrumpido por el usuario")
+    else:
+        print("\n[MODO COMPLETO] Iniciando todas las entidades del sistema extendido...")
+        network, aetherion, lunareth = initialize_cosmic_trading(include_extended_entities=True)
+        
+        # Esperar un poco para permitir que los ciclos se ejecuten
+        try:
+            for i in range(5):
+                time.sleep(5)
+                print(f"\n[Ciclo {i+1}] Estado de la red cósmica:")
+                status = network.get_network_status()
+                
+                for entity in status["entities"]:
+                    print(f"{entity['name']} ({entity['role']}): Nivel {entity['level']:.2f}, Energía {entity['energy']:.2f}")
+                
+                # Ejecutar una simulación de la red completa para generar actividad
+                if i > 0:  # Dar tiempo a que se inicialicen antes de la primera simulación
+                    print("\nSimulando actividad de trading en la red cósmica...")
+                    network.simulate()
+        except KeyboardInterrupt:
+            print("Test interrumpido por el usuario")
+        
+    print("\n===== PRUEBA FINALIZADA =====")
+    print("Usa Ctrl+C para salir completamente")
+    
+    # Mantener el programa en ejecución para observar logs
+    try:
+        while True:
             time.sleep(5)
-            print(f"\nEstado de Aetherion: Nivel {aetherion.level:.2f}, Energía {aetherion.energy:.2f}")
-            print(f"Estado de Lunareth: Nivel {lunareth.level:.2f}, Energía {lunareth.energy:.2f}")
     except KeyboardInterrupt:
-        print("Test interrumpido por el usuario")
+        print("Finalizando ejecución")

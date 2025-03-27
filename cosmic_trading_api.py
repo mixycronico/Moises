@@ -28,12 +28,13 @@ def is_initialized():
     """Verificar si el sistema de trading está inicializado."""
     return initialized
 
-def initialize(father_name="otoniel"):
+def initialize(father_name="otoniel", include_extended_entities=False):
     """
     Inicializar el sistema de trading cósmico.
     
     Args:
         father_name: Nombre del creador/dueño del sistema
+        include_extended_entities: Si es True, incluye entidades adicionales avanzadas
         
     Returns:
         True si se inicializó correctamente
@@ -45,9 +46,17 @@ def initialize(father_name="otoniel"):
         return True
         
     try:
-        cosmic_network, aetherion_trader, lunareth_trader = initialize_cosmic_trading(father_name)
+        cosmic_network, aetherion_trader, lunareth_trader = initialize_cosmic_trading(
+            father_name=father_name,
+            include_extended_entities=include_extended_entities
+        )
         initialized = True
-        logger.info(f"Sistema de trading inicializado correctamente para {father_name}")
+        
+        if include_extended_entities:
+            logger.info(f"Sistema de trading extendido inicializado correctamente para {father_name}")
+        else:
+            logger.info(f"Sistema de trading básico inicializado correctamente para {father_name}")
+            
         return True
     except Exception as e:
         logger.error(f"Error al inicializar sistema de trading: {e}")
