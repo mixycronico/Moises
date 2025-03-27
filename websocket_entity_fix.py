@@ -758,6 +758,10 @@ class LocalWebSocketEntity(WebSocketEntity):
         """
         super().__init__(name, "WebSocket-Local", father, frequency_seconds, "local")
         
+        # Inicializar diccionario de especializaciones si no existe
+        if not hasattr(self, "specializations"):
+            self.specializations = {}
+            
         # Especialización adicional para conexiones locales
         self.specializations["Local Optimization"] = 0.9
         self.specializations["Zero-latency Communication"] = 0.8
@@ -813,6 +817,10 @@ class ExternalWebSocketEntity(WebSocketEntity):
         """
         super().__init__(name, "WebSocket-External", father, frequency_seconds, "external")
         
+        # Inicializar diccionario de especializaciones si no existe
+        if not hasattr(self, "specializations"):
+            self.specializations = {}
+            
         # Especialización adicional para conexiones externas
         self.specializations["Security Protocol"] = 0.9
         self.specializations["External Gateway"] = 0.8
