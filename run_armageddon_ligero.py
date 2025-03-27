@@ -180,6 +180,44 @@ def run_quick_test(use_extended_entities=True, num_operations=50, role_focus=Non
                              f"Impacto esperado: {impact}. " \
                              f"{'➤ Potencial aumento de volatilidad en próximos días' if abs(correlation) > 0.7 else '➤ Comportamiento principalmente técnico a corto plazo'}. " \
                              f"Recomendación: {'Establecer coberturas' if impact in ['ligeramente negativo', 'fuertemente negativo'] else 'Mantener exposición bajo monitoreo continuo'}."
+
+                elif entity.role == "SecurityGuardian":
+                    threats = ["phishing dirigido", "manipulación de mercado", "ataque de suplantación", 
+                              "intento de robo de API keys", "patrón de frontrunning", "malware en exchange"]
+                    threat_level = random.choice(["bajo", "moderado", "elevado", "crítico"])
+                    detected = random.random() > 0.8  # 20% de probabilidad de detectar amenaza
+                    
+                    if detected:
+                        threat = random.choice(threats)
+                        action = random.choice(["Bloqueo inmediato", "Aislamiento de cuenta", "Verificación adicional", "Monitoreo intensivo"])
+                        thought = f"⚠️ ALERTA: Amenaza detectada '{threat}' con nivel {threat_level}. " \
+                                 f"Acción tomada: {action}. Recomendación: Verificar todas las conexiones activas a {symbol}. " \
+                                 f"Estimación de riesgo financiero: {random.randint(5, 50)}% de posiciones en riesgo."
+                    else:
+                        aspects = ["exchanges", "billeteras", "movimientos de ballenas", "frontrunning", "slippage"]
+                        aspect = random.choice(aspects)
+                        status = random.choice(["seguro", "potencialmente vulnerable", "bajo monitoreo", "protegido"])
+                        thought = f"Sistemas seguros. Nivel de amenaza general: {threat_level}. Protección activa para {symbol}. " \
+                                 f"Superficie de ataque '{aspect}': {status}. " \
+                                 f"Recomendación: {'Verificar configuración 2FA en exchanges principales' if threat_level != 'bajo' else 'Mantener medidas de seguridad estándar'}."
+                
+                elif entity.role == "ResourceManager":
+                    assets = ["BTC", "ETH", "USDT", "BNB", "USDC", "SOL"]
+                    liquidity_pools = ["Uniswap", "Curve", "Aave", "Compound", "dYdX"]
+                    selected_asset = symbol.split("USD")[0] if "USD" in symbol else random.choice(assets)
+                    selected_pool = random.choice(liquidity_pools)
+                    apy = round(random.uniform(1.2, 12.5), 2)
+                    
+                    action_type = random.choice(["reasignación", "concentración", "diversificación", "ajuste"])
+                    strategies = ["conservadora", "balanceada", "agresiva", "oportunista"]
+                    timeframes = ["corto plazo", "medio plazo", "largo plazo"]
+                    strategy = random.choice(strategies)
+                    timeframe = random.choice(timeframes)
+                    
+                    thought = f"Optimización de liquidez: {action_type} de {selected_asset} hacia {selected_pool} con APY {apy}%. " \
+                             f"Eficiencia +{random.randint(5, 15)}% mediante estrategia {strategy}. " \
+                             f"Asignación de capital: {random.randint(50, 90)}% utilización para {timeframe}. " \
+                             f"Recomendación: {'Consolidar posiciones pequeñas para reducir costos operativos' if random.random() > 0.5 else 'Diversificar hacia activos de menor correlación'}."
                 
                 # Verificar resultado
                 if result and "error" not in str(result).lower():

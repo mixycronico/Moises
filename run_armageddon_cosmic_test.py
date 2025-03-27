@@ -82,11 +82,8 @@ def main():
     print(f"  - Eventos catastróficos: {args.events}")
     print(f"  - Creador: {args.father}")
     
-    confirmation = input(f"\n{Colors.YELLOW}¿Iniciar la prueba ARMAGEDÓN CÓSMICO con esta configuración? (s/n): {Colors.END}")
-    
-    if confirmation.lower() not in ['s', 'si', 'y', 'yes']:
-        print(f"\n{Colors.RED}Prueba cancelada por el usuario.{Colors.END}")
-        return
+    # Ejecución automatizada sin confirmación
+    print(f"\n{Colors.YELLOW}Iniciando prueba ARMAGEDÓN CÓSMICO automáticamente...{Colors.END}")
     
     print(f"\n{Colors.GREEN}Iniciando prueba ARMAGEDÓN CÓSMICO...{Colors.END}\n")
     
