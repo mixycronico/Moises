@@ -1,0 +1,35 @@
+version: '3'
+
+services:
+  app:
+    build: .
+    restart: always
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://cosmic_user:cosmic_password@postgres:5432/cosmic_trading
+      - PGHOST=postgres
+      - PGUSER=cosmic_user
+      - PGPASSWORD=cosmic_password
+      - PGDATABASE=cosmic_trading
+      - PGPORT=5432
+    volumes:
+      - ./:/app
+      - ./logs:/app/logs
+
+  postgres:
+    image: postgres:13
+    restart: always
+    environment:
+      - POSTGRES_USER=cosmic_user
+      - POSTGRES_PASSWORD=cosmic_password
+      - POSTGRES_DB=cosmic_trading
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:

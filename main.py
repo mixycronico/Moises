@@ -4,22 +4,57 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import logging
+import threading
+import time
 from datetime import datetime, timedelta
 
 # Importar módulos del sistema
 try:
+    # Importar módulos originales
     from cosmic_family import CosmicEntity
     from cosmic_trading_api import register_trading_routes
+    
+    # Importar sistema simplificado - sin dependencias complejas
+    from simple_cosmic_trader import (
+        initialize_simple_trading,
+        SimpleCosmicNetwork,
+        CosmicTrader
+    )
 except ImportError as e:
     logging.error(f"Error al importar módulos del sistema: {e}")
 
 # Configuración de logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG, 
+                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger("genesis_main")
 
 # Crear la aplicación Flask
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.environ.get("SESSION_SECRET", "genesis_development_key")
 CORS(app)  # Habilitar CORS para todas las rutas
+
+# Variables globales para el sistema de trading mejorado
+enhanced_network = None
+aetherion_trader = None
+lunareth_trader = None
+
+# Inicializar sistema de trading mejorado
+def initialize_enhanced_trading_system():
+    global enhanced_network, aetherion_trader, lunareth_trader
+    
+    try:
+        # Inicializar sistema simplificado
+        enhanced_network, aetherion_trader, lunareth_trader = initialize_simple_trading(
+            father_name="otoniel"
+        )
+        logger.info("Sistema de trading simplificado inicializado correctamente")
+        return True
+    except Exception as e:
+        logger.error(f"Error al inicializar sistema de trading simplificado: {e}")
+        return False
+
+# Iniciar el sistema en un hilo separado para no bloquear la aplicación
+threading.Thread(target=initialize_enhanced_trading_system, daemon=True).start()
 
 # Rutas API
 @app.route('/api/health', methods=['GET'])
@@ -197,6 +232,242 @@ def api_cosmic_chat():
         'system_message': "La Familia Cósmica está aquí para guiarte en tu viaje de inversión."
     })
 
+# Rutas para sistema mejorado
+@app.route('/api/enhanced/status', methods=['GET'])
+def enhanced_status():
+    """Obtener estado del sistema de trading mejorado."""
+    global enhanced_network
+    
+    if not enhanced_network:
+        return jsonify({
+            'success': False,
+            'message': 'Sistema de trading mejorado no inicializado',
+            'initialized': False
+        }), 503
+    
+    try:
+        status = enhanced_network.get_network_status()
+        return jsonify({
+            'success': True,
+            'initialized': True,
+            'status': status,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error al obtener estado del sistema mejorado: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error al obtener estado: {str(e)}',
+            'initialized': True
+        }), 500
+
+@app.route('/api/enhanced/trader/<name>', methods=['GET'])
+def enhanced_trader_status(name):
+    """Obtener estado de un trader específico en el sistema mejorado."""
+    global enhanced_network
+    
+    if not enhanced_network:
+        return jsonify({
+            'success': False,
+            'message': 'Sistema de trading mejorado no inicializado',
+            'initialized': False
+        }), 503
+    
+    try:
+        # Buscar entidad por nombre
+        entity = next((e for e in enhanced_network.entities if e.name == name), None)
+        
+        if not entity:
+            return jsonify({
+                'success': False,
+                'message': f'Entidad {name} no encontrada',
+                'initialized': True
+            }), 404
+            
+        status = entity.get_status()
+        return jsonify({
+            'success': True,
+            'trader': status,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error al obtener estado del trader {name}: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error al obtener estado: {str(e)}',
+            'initialized': True
+        }), 500
+
+@app.route('/api/enhanced/collaboration', methods=['GET'])
+def enhanced_collaboration_metrics():
+    """Obtener métricas de colaboración del sistema mejorado."""
+    global enhanced_network
+    
+    if not enhanced_network:
+        return jsonify({
+            'success': False,
+            'message': 'Sistema de trading mejorado no inicializado',
+            'initialized': False
+        }), 503
+    
+    try:
+        # SimpleCosmicNetwork no tiene el método get_collaboration_metrics
+        # Usamos información simplificada
+        metrics = {
+            "knowledge_pool": enhanced_network.knowledge_pool,
+            "entity_count": len(enhanced_network.entities),
+            "alive_entities": len([e for e in enhanced_network.entities if e.alive]),
+            "collaboration_rounds": 0
+        }
+        return jsonify({
+            'success': True,
+            'metrics': metrics,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error al obtener métricas de colaboración: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error al obtener métricas: {str(e)}',
+            'initialized': True
+        }), 500
+
+@app.route('/api/enhanced/collaborate', methods=['POST'])
+def trigger_enhanced_collaboration():
+    """Disparar una ronda de colaboración en el sistema mejorado."""
+    global enhanced_network
+    
+    if not enhanced_network:
+        return jsonify({
+            'success': False,
+            'message': 'Sistema de trading mejorado no inicializado',
+            'initialized': False
+        }), 503
+    
+    try:
+        # Utilizar el método de simulación de colaboración en SimpleCosmicNetwork
+        results = enhanced_network.simulate_collaboration()
+        
+        # Formatear resultados para mantener consistencia con API
+        formatted_results = []
+        for r in results:
+            formatted_results.append({
+                'entity': r['entity'],
+                'result': r['message'] if 'message' in r else 'Colaboración realizada'
+            })
+                
+        return jsonify({
+            'success': True,
+            'results': formatted_results,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error al disparar colaboración: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error al disparar colaboración: {str(e)}',
+            'initialized': True
+        }), 500
+
+@app.route('/api/enhanced/simulate', methods=['POST'])
+def simulate_enhanced_trading():
+    """Ejecutar una simulación de trading en el sistema mejorado."""
+    global enhanced_network
+    
+    if not enhanced_network:
+        return jsonify({
+            'success': False,
+            'message': 'Sistema de trading mejorado no inicializado',
+            'initialized': False
+        }), 503
+    
+    try:
+        results = enhanced_network.simulate()
+        return jsonify({
+            'success': True,
+            'results': results,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error al simular trading: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error al simular trading: {str(e)}',
+            'initialized': True
+        }), 500
+
+@app.route('/api/enhanced/chat', methods=['POST'])
+def enhanced_cosmic_chat():
+    """
+    API de chat con sistema mejorado.
+    Recibe un mensaje y devuelve respuestas de los traders mejorados.
+    """
+    global aetherion_trader, lunareth_trader
+    
+    if not aetherion_trader or not lunareth_trader:
+        return jsonify({
+            'success': False,
+            'message': 'Entidades de trading mejoradas no inicializadas',
+            'initialized': False
+        }), 503
+    
+    data = request.json
+    message = data.get('message', '')
+    user_id = data.get('user_id', 'anonymous')
+    
+    if not message:
+        return jsonify({
+            'success': False,
+            'error': 'El mensaje no puede estar vacío'
+        }), 400
+    
+    try:
+        # Obtener información de mercado actual
+        price = aetherion_trader.fetch_market_data()
+        predicted = aetherion_trader.predict_price()
+        
+        # Procesar petición con Aetherion (especulador)
+        aetherion_action = aetherion_trader.trade()
+        
+        # Procesar petición con Lunareth (estratega)
+        lunareth_action = lunareth_trader.trade()
+        
+        # Respuestas enriquecidas
+        enhanced_response = {
+            'success': True,
+            'aetherion': {
+                'text': f"¡Saludos, explorador cósmico! {aetherion_action}",
+                'level': float(aetherion_trader.level),
+                'energy': float(aetherion_trader.energy),
+                'capabilities': aetherion_trader.capabilities,
+                'price': price,
+                'predicted_price': predicted,
+                'timestamp': datetime.now().isoformat()
+            },
+            'lunareth': {
+                'text': f"Análisis en curso. {lunareth_action}",
+                'level': float(lunareth_trader.level),
+                'energy': float(lunareth_trader.energy),
+                'capabilities': lunareth_trader.capabilities,
+                'timestamp': datetime.now().isoformat()
+            },
+            'market_data': {
+                'current_price': price,
+                'predicted_price': predicted,
+                'change_percent': ((predicted - price) / price * 100) if price and predicted else None,
+                'timestamp': datetime.now().isoformat()
+            }
+        }
+        
+        return jsonify(enhanced_response)
+    except Exception as e:
+        logger.error(f"Error en chat mejorado: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Error en procesamiento: {str(e)}',
+            'initialized': True
+        }), 500
+
 # Servir archivos estáticos de React
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
@@ -207,7 +478,7 @@ def serve(path):
     else:
         return send_from_directory(app.static_folder, 'index.html')
 
-# Registrar rutas de trading
+# Registrar rutas de trading originales
 try:
     register_trading_routes(app)
     logging.info("Rutas de trading registradas correctamente")

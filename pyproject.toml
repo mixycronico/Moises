@@ -42,6 +42,9 @@ dependencies = [
     "flask-login>=0.6.3",
     "genesis>=0.7.0",
     "requests>=2.32.3",
+    "tenacity>=9.0.0",
+    "websocket-client>=1.8.0",
+    "tensorflow>=2.14.0",
 ]
 
 [[tool.uv.index]]
